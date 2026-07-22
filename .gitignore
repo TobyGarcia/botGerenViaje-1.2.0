@@ -1,0 +1,29 @@
+# Variables privadas
+.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React / Vite
+dist/
+.vite/
+
+# Logs
+logs/
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Visual Studio Code
+.vscode/
+
+# PostgreSQL local
+postgres_data/
+
+# ngrok
+ngrok.yml
