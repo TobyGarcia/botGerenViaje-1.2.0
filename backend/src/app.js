@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
-import catalogosRoutes from "./routes/catalogos.routes.js"
+import catalogosRoutes from "./routes/catalogos.routes.js";
+import viajesRoutes from "./routes/viajes.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -34,6 +35,11 @@ app.use("/health", healthRoutes);
 app.use(
   "/api/catalogos",
   catalogosRoutes
+);
+
+app.use(
+  "/api/viajes",
+  viajesRoutes
 );
 
 app.use((request, response) => {

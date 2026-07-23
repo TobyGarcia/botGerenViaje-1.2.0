@@ -1,0 +1,27 @@
+{
+  "name": "gerenciamiento-viajes-backend",
+  "version": "0.2.0",
+  "description": "Backend del sistema de gerenciamiento de viajes",
+  "main": "src/server.js",
+  "scripts": {
+    "start":"node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --legacy-watch src/server.js"
+  },
+  "keywords": [
+    "viajes",
+    "express",
+    "postgresql"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
