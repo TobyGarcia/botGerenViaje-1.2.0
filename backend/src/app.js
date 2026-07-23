@@ -43,6 +43,11 @@ app.use(
   viajesRoutes
 );
 
+app.use(
+  "/api/viajes/:idViaje/ubicaciones",
+  ubicacionesRoutes
+);
+
 app.use((request, response) => {
   return response.status(404).json({
     success: false,
@@ -56,18 +61,6 @@ app.use(
       "Error no controlado:",
       error
     );
-
-app.use(
-  "/api/viajes/:idViaje/ubicaciones",
-  ubicacionesRoutes
-);
-
-app.use((request, response)=>{
-  return response.status(404).json({
-    success: false,
-    message: "Ruta no encontrada"
-  });
-});
 
     return response.status(500).json({
       success: false,
