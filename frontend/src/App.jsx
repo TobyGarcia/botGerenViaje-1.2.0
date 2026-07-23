@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   createViaje,
   getConductores,
   getLugares,
-  getVehiculos
+  getVehiculos,
+  iniciarViaje
 } from "./services/api.js";
 
 const initialForm = {
@@ -27,6 +28,10 @@ function App() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
   const [createdTrip, setCreatedTrip] = useState(null);
+  const [startingTrip, setStartingTrip] = useState(false);
+  const [startedTrip, setStartedTrip] = useState(null);
+  const savingRef = useRef(false);
+  const startingTripRef = useRef(false);
 
   const selectedDriver = conductores.find(
     (conductor) => String(conductor.id_conductores) === form.idConductor
@@ -92,6 +97,10 @@ function App() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    if (savingRef.current) {
+      return;
+    }
+
     const kilometrajeInicial = Number(form.kilometrajeInicial);
     const kilometrajeRegistrado = Number(selectedVehicle?.kilometraje_actual);
 
@@ -116,8 +125,11 @@ function App() {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     setMessage("");
+    setCreatedTrip(null);
+    setStartedTrip(null);
 
     try {
       const acompanantes = form.acompanantes
@@ -136,7 +148,13 @@ function App() {
         motivo: form.motivo.trim()
       });
 
-      setCreatedTrip(response.data);
+      setCreatedTrip({
+        ...response.data,
+        kilometrajeInicial:
+          response.data.kilometrajeInicial ??
+          response.data.kilometraje_inicial ??
+          kilometrajeInicial
+      });
       setMessage(`Viaje creado correctamente. Folio: ${response.data.folio}`);
       setMessageType("success");
       setForm(initialForm);
@@ -144,7 +162,65 @@ function App() {
       setMessage(error.message);
       setMessageType("error");
     } finally {
+      savingRef.current = false;
       setSaving(false);
+    }
+  }
+
+  async function handleStartTrip() {
+    if (startingTripRef.current || startedTrip) {
+      return;
+    }
+
+    const idViaje =
+      createdTrip?.id_viajes ??
+      createdTrip?.idViaje;
+
+    if (!idViaje) {
+      setMessage("No se encontró el identificador del viaje.");
+      setMessageType("error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Confirmas que deseas iniciar este viaje? La hora de salida se registrará automáticamente."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    startingTripRef.current = true;
+    setStartingTrip(true);
+    setMessage("");
+
+    try {
+      const response = await iniciarViaje(idViaje);
+      const startedData = response.data ?? {};
+      const horaSalida =
+        startedData.horaSalida ??
+        startedData.hora_salida;
+      const estado =
+        startedData.estado?.nombre ??
+        startedData.estado ??
+        "EN_CURSO";
+      const normalizedTrip = {
+        ...createdTrip,
+        ...startedData,
+        estado,
+        horaSalida
+      };
+
+      setStartedTrip(normalizedTrip);
+      setCreatedTrip(normalizedTrip);
+      setMessage("Viaje iniciado correctamente.");
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      startingTripRef.current = false;
+      setStartingTrip(false);
     }
   }
 
@@ -296,16 +372,100 @@ function App() {
         </p>
       )}
 
-      {createdTrip && (
-        <section className="result-card" aria-labelledby="viaje-registrado-title">
-          <h2 id="viaje-registrado-title">Viaje registrado</h2>
-          <p><strong>Folio:</strong> {createdTrip.folio}</p>
-          <p><strong>Conductor:</strong> {createdTrip.conductor}</p>
-          <p><strong>Unidad:</strong> {createdTrip.vehiculo}</p>
-          <p><strong>Número económico:</strong> {createdTrip.numeroEconomico}</p>
-          <p><strong>Estado:</strong> PENDIENTE</p>
-        </section>
-      )}
+{createdTrip && (
+  <section className="result-card">
+    <h2>
+      {startedTrip
+        ? "Viaje en curso"
+        : "Viaje registrado"}
+    </h2>
+
+    <p>
+      <strong>Folio:</strong>{" "}
+      {createdTrip.folio}
+    </p>
+
+    <p>
+      <strong>Conductor:</strong>{" "}
+      {startedTrip?.conductor ??
+        createdTrip.conductor}
+    </p>
+
+    <p>
+      <strong>Unidad:</strong>{" "}
+      {startedTrip?.vehiculo ??
+        createdTrip.vehiculo}
+    </p>
+
+    <p>
+      <strong>Número económico:</strong>{" "}
+      {startedTrip?.numeroEconomico ??
+        createdTrip.numeroEconomico}
+    </p>
+
+    <p>
+      <strong>Kilometraje inicial:</strong>{" "}
+      {Number(
+          startedTrip?.kilometrajeInicial ??
+          startedTrip?.kilometraje_inicial ??
+          createdTrip.kilometrajeInicial ??
+          createdTrip.kilometraje_inicial
+      ).toLocaleString("es-MX")}{" "}
+      km
+    </p>
+
+    <p>
+      <strong>Estado:</strong>{" "}
+      <span
+        className={
+          startedTrip
+            ? "status-in-progress"
+            : "status-pending"
+        }
+      >
+        {startedTrip
+          ? "EN_CURSO"
+          : "PENDIENTE"}
+      </span>
+    </p>
+
+    {startedTrip?.horaSalida ? (
+      <p>
+        <strong>Hora de salida:</strong>{" "}
+        {new Date(
+          startedTrip.horaSalida
+        ).toLocaleString("es-MX", {
+          dateStyle: "medium",
+          timeStyle: "medium"
+        })}
+      </p>
+    ) : (
+      <p>
+        La hora de salida se registrará al
+        iniciar el viaje.
+      </p>
+    )}
+
+    {!startedTrip && (
+      <button
+        type="button"
+        className="start-trip-button"
+        onClick={handleStartTrip}
+        disabled={startingTrip}
+      >
+        {startingTrip
+          ? "Iniciando viaje..."
+          : "▶ Iniciar viaje"}
+      </button>
+    )}
+
+    {startedTrip && (
+      <div className="trip-active-message" role="status">
+        El viaje está activo.
+      </div>
+    )}
+  </section>
+)}
     </main>
   );
 }

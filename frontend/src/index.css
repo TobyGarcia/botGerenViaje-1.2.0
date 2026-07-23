@@ -148,3 +148,34 @@ small {
   color: #64748b;
   font-weight: 400;
 }
+
+.start-trip-button {
+  margin-top: 16px;
+  background: #15803d;
+}
+
+.start-trip-button:hover:not(:disabled) {
+  background: #166534;
+}
+
+.status-pending {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.status-in-progress {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.trip-active-message {
+  margin-top: 16px;
+  padding: 12px;
+
+  color: #166534;
+  font-weight: 600;
+
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+}
