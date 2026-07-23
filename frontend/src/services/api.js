@@ -54,3 +54,16 @@ export function iniciarViaje(idViaje) {
     }
   );
 }
+
+export function registrarUbicacion(
+  idViaje,
+  location
+) {
+  return request(
+    `/api/viajes/${idViaje}/ubicaciones`,
+    {
+      method: "POST",
+      body: JSON.stringify(location)
+    }
+  );
+}

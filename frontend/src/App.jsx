@@ -7,6 +7,20 @@ import {
   getVehiculos,
   iniciarViaje
 } from "./services/api.js";
+import {
+  createViaje,
+  getConductores,
+  getLugares,
+  getVehiculos,
+  iniciarViaje,
+  registrarUbicacion
+} from "./services/api.js";
+
+import {
+  useEffect,
+  useRef,
+  useState
+} from "react";
 
 const initialForm = {
   idConductor: "",
@@ -32,6 +46,20 @@ function App() {
   const [startedTrip, setStartedTrip] = useState(null);
   const savingRef = useRef(false);
   const startingTripRef = useRef(false);
+  const geolocationWatchRef = useRef(null);
+const lastLocationSentAtRef = useRef(0);
+const sendingLocationRef = useRef(false);
+
+const [trackingGps, setTrackingGps] =
+  useState(false);
+
+const [gpsStatus, setGpsStatus] =
+  useState("GPS detenido.");
+
+const [lastLocation, setLastLocation] =
+  useState(null);
+
+const LOCATION_INTERVAL_MS = 15000;
 
   const selectedDriver = conductores.find(
     (conductor) => String(conductor.id_conductores) === form.idConductor
@@ -52,6 +80,17 @@ function App() {
             getVehiculos(),
             getLugares()
           ]);
+          useEffect(() => {
+  return () => {
+    if (
+      geolocationWatchRef.current !== null
+    ) {
+      navigator.geolocation.clearWatch(
+        geolocationWatchRef.current
+      );
+    }
+  };
+}, []);
 
         setConductores(conductoresResponse.data ?? []);
         setVehiculos(vehiculosResponse.data ?? []);
@@ -66,6 +105,142 @@ function App() {
 
     loadCatalogs();
   }, []);
+
+  async function sendPosition(
+  idViaje,
+  position
+) {
+  const now = Date.now();
+
+  if (
+    now - lastLocationSentAtRef.current <
+    LOCATION_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  if (sendingLocationRef.current) {
+    return;
+  }
+
+  sendingLocationRef.current = true;
+  lastLocationSentAtRef.current = now;
+
+  try {
+    const coordinates = position.coords;
+
+    const response = await registrarUbicacion(
+      idViaje,
+      {
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        accuracy: coordinates.accuracy,
+        speed: coordinates.speed,
+        heading: coordinates.heading,
+        gpsTimestamp:
+          new Date(
+            position.timestamp
+          ).toISOString()
+      }
+    );
+
+    setLastLocation(response.data);
+
+    setGpsStatus(
+      "Ubicación enviada correctamente."
+    );
+  } catch (error) {
+    console.error(
+      "Error enviando ubicación:",
+      error
+    );
+
+    setGpsStatus(error.message);
+  } finally {
+    sendingLocationRef.current = false;
+  }
+}
+function handleStartGps() {
+  const idViaje =
+    startedTrip?.idViaje ??
+    createdTrip?.id_viajes;
+
+  if (!idViaje) {
+    setGpsStatus(
+      "No se encontró el viaje activo."
+    );
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setGpsStatus(
+      "Este dispositivo no admite geolocalización."
+    );
+    return;
+  }
+
+  if (
+    geolocationWatchRef.current !== null
+  ) {
+    navigator.geolocation.clearWatch(
+      geolocationWatchRef.current
+    );
+  }
+
+  setGpsStatus(
+    "Solicitando permiso de ubicación..."
+  );
+
+  const watchId =
+    navigator.geolocation.watchPosition(
+      (position) => {
+        setTrackingGps(true);
+
+        setGpsStatus(
+          "GPS activo. Enviando ubicación..."
+        );
+
+        sendPosition(idViaje, position);
+      },
+
+      (error) => {
+        setTrackingGps(false);
+
+        const messages = {
+          1: "El permiso de ubicación fue rechazado.",
+          2: "La ubicación no está disponible.",
+          3: "Se agotó el tiempo para obtener la ubicación."
+        };
+
+        setGpsStatus(
+          messages[error.code] ||
+          "No fue posible obtener la ubicación."
+        );
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 5000
+      }
+    );
+
+  geolocationWatchRef.current = watchId;
+}
+function handleStopGps() {
+  if (
+    geolocationWatchRef.current !== null
+  ) {
+    navigator.geolocation.clearWatch(
+      geolocationWatchRef.current
+    );
+
+    geolocationWatchRef.current = null;
+  }
+
+  setTrackingGps(false);
+  setGpsStatus("GPS detenido.");
+}
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -460,9 +635,63 @@ function App() {
     )}
 
     {startedTrip && (
-      <div className="trip-active-message" role="status">
-        El viaje está activo.
-      </div>
+      <section className="gps-panel">
+  <h3>Rastreo GPS</h3>
+
+  <p>{gpsStatus}</p>
+
+  {!trackingGps ? (
+    <button
+      type="button"
+      className="gps-button"
+      onClick={handleStartGps}
+    >
+      📍 Iniciar rastreo GPS
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="stop-gps-button"
+      onClick={handleStopGps}
+    >
+      Detener rastreo GPS
+    </button>
+  )}
+
+  {lastLocation && (
+    <div className="location-details">
+      <p>
+        <strong>Latitud:</strong>{" "}
+        {Number(
+          lastLocation.latitude
+        ).toFixed(6)}
+      </p>
+
+      <p>
+        <strong>Longitud:</strong>{" "}
+        {Number(
+          lastLocation.longitude
+        ).toFixed(6)}
+      </p>
+
+      <p>
+        <strong>Precisión:</strong>{" "}
+        {lastLocation.accuracy !== null
+          ? `${Math.round(
+              Number(lastLocation.accuracy)
+            )} metros`
+          : "No disponible"}
+      </p>
+
+      <p>
+        <strong>Último envío:</strong>{" "}
+        {new Date(
+          lastLocation.serverTimestamp
+        ).toLocaleTimeString("es-MX")}
+      </p>
+    </div>
+  )}
+</section>
     )}
   </section>
 )}

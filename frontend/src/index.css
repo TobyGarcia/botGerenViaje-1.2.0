@@ -179,3 +179,35 @@ small {
   border: 1px solid #86efac;
   border-radius: 8px;
 }
+.gps-panel {
+  margin-top: 16px;
+  padding: 16px;
+
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+}
+
+.gps-panel h3 {
+  margin-top: 0;
+}
+
+.gps-button {
+  background: #2563eb;
+}
+
+.stop-gps-button {
+  background: #b91c1c;
+}
+
+.location-details {
+  margin-top: 14px;
+  padding: 12px;
+
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.location-details p {
+  margin: 5px 0;
+}

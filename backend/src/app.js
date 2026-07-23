@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import catalogosRoutes from "./routes/catalogos.routes.js";
 import viajesRoutes from "./routes/viajes.routes.js";
+import ubicacionesRoutes from "./routes/ubicaciones.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -55,6 +56,18 @@ app.use(
       "Error no controlado:",
       error
     );
+
+app.use(
+  "/api/viajes/:idViaje/ubicaciones",
+  ubicacionesRoutes
+);
+
+app.use((request, response)=>{
+  return response.status(404).json({
+    success: false,
+    message: "Ruta no encontrada"
+  });
+});
 
     return response.status(500).json({
       success: false,
