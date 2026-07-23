@@ -1,0 +1,150 @@
+:root {
+  font-family: Arial, sans-serif;
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.container {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+h1 {
+  margin-bottom: 24px;
+}
+
+form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea,
+button {
+  width: 100%;
+  padding: 12px;
+  font: inherit;
+  border-radius: 8px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #cbd5e1;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.message {
+  margin-top: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+}
+
+.message-success {
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.message-error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.loading-message {
+  padding: 24px;
+  text-align: center;
+}
+.summary-card,
+.information-panel,
+.result-card {
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+}
+
+.summary-card {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.information-panel {
+  margin-top: 8px;
+  background: #f8fafc;
+}
+
+.information-panel p,
+.result-card p {
+  margin: 6px 0;
+}
+
+.status-valid {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.status-invalid,
+.validation-error {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.result-card {
+  margin-top: 20px;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+small {
+  color: #64748b;
+  font-weight: 400;
+}
