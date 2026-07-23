@@ -402,3 +402,199 @@ export async function startTrip({
     client.release();
   }
 }
+export async function finishTrip({
+  idViaje,
+  kilometrajeFinal
+}) {
+  const client = await databasePool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tripResult = await client.query(
+      `
+        SELECT
+          v.id_viajes,
+          v.folio,
+          v.id_vehiculos,
+          v.id_estado_viaje,
+          v.kilometraje_inicial,
+          v.hora_salida,
+
+          ev.nombre AS estado,
+
+          vh.nombre AS vehiculo,
+          vh.numero_economico,
+          vh.kilometraje_actual
+        FROM viajes v
+
+        INNER JOIN estados_viaje ev
+          ON ev.id_estado_viaje =
+             v.id_estado_viaje
+
+        INNER JOIN vehiculos vh
+          ON vh.id_vehiculos =
+             v.id_vehiculos
+
+        WHERE v.id_viajes = $1
+
+        LIMIT 1
+        FOR UPDATE OF v, vh
+      `,
+      [idViaje]
+    );
+
+    const trip = tripResult.rows[0];
+
+    if (!trip) {
+      throw new Error("El viaje no existe.");
+    }
+
+    if (trip.estado !== "EN_CURSO") {
+      throw new Error(
+        `El viaje no puede finalizarse desde el estado ${trip.estado}.`
+      );
+    }
+
+    const initialMileage =
+      Number(trip.kilometraje_inicial);
+
+    if (kilometrajeFinal < initialMileage) {
+      throw new Error(
+        "El kilometraje final no puede ser menor al kilometraje inicial."
+      );
+    }
+
+    const kilometersTraveled =
+      kilometrajeFinal - initialMileage;
+
+    const stateResult = await client.query(
+      `
+        SELECT
+          id_estado_viaje
+        FROM estados_viaje
+        WHERE nombre = 'FINALIZADO'
+          AND activo = TRUE
+        LIMIT 1
+      `
+    );
+
+    const finishedState = stateResult.rows[0];
+
+    if (!finishedState) {
+      throw new Error(
+        "No se encontró el estado FINALIZADO."
+      );
+    }
+
+    const updateTripResult = await client.query(
+      `
+        UPDATE viajes
+        SET
+          id_estado_viaje = $1,
+          kilometraje_final = $2,
+          kilometros_recorridos = $3,
+          hora_llegada = CURRENT_TIMESTAMP,
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_viajes = $4
+        RETURNING
+          id_viajes,
+          folio,
+          kilometraje_inicial,
+          kilometraje_final,
+          kilometros_recorridos,
+          hora_salida,
+          hora_llegada,
+          actualizado_en
+      `,
+      [
+        finishedState.id_estado_viaje,
+        kilometrajeFinal,
+        kilometersTraveled,
+        idViaje
+      ]
+    );
+
+    const updatedTrip =
+      updateTripResult.rows[0];
+
+    await client.query(
+      `
+        UPDATE vehiculos
+        SET
+          kilometraje_actual = GREATEST(
+            kilometraje_actual,
+            $1
+          ),
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_vehiculos = $2
+      `,
+      [
+        kilometrajeFinal,
+        trip.id_vehiculos
+      ]
+    );
+
+    await client.query(
+      `
+        INSERT INTO historial_estados_viaje (
+          id_viajes,
+          id_estado_anterior,
+          id_estado_nuevo,
+          observaciones
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4
+        )
+      `,
+      [
+        idViaje,
+        trip.id_estado_viaje,
+        finishedState.id_estado_viaje,
+        "Viaje finalizado"
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      idViaje:
+        updatedTrip.id_viajes,
+
+      folio:
+        updatedTrip.folio,
+
+      estado:
+        "FINALIZADO",
+
+      kilometrajeInicial:
+        updatedTrip.kilometraje_inicial,
+
+      kilometrajeFinal:
+        updatedTrip.kilometraje_final,
+
+      kilometrosRecorridos:
+        updatedTrip.kilometros_recorridos,
+
+      horaSalida:
+        updatedTrip.hora_salida,
+
+      horaLlegada:
+        updatedTrip.hora_llegada,
+
+      vehiculo:
+        trip.vehiculo,
+
+      numeroEconomico:
+        trip.numero_economico
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

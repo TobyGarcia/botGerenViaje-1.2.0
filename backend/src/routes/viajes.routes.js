@@ -1,7 +1,7 @@
 import { Router } from "express";
-
 import {
   createTripController,
+  finishTripController,
   startTripController
 } from "../controllers/viajes.controller.js";
 
@@ -15,6 +15,11 @@ router.post(
 router.post(
   "/:idViaje/iniciar",
   startTripController
+);
+
+router.post(
+  "/:idViaje/finalizar",
+  finishTripController
 );
 
 export default router;

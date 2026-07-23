@@ -1,5 +1,6 @@
 import {
   createTrip,
+  finishTrip,
   startTrip
 } from "../services/viajes.service.js";
 
@@ -178,6 +179,80 @@ export async function startTripController(
       message:
         error.message ||
         "No fue posible iniciar el viaje."
+    });
+  }
+}
+export async function finishTripController(
+  request,
+  response
+) {
+  try {
+    const idViaje =
+      parsePositiveInteger(
+        request.params.idViaje
+      );
+
+    if (!idViaje) {
+      return response.status(400).json({
+        success: false,
+        message:
+          "El identificador del viaje no es válido."
+      });
+    }
+
+    const kilometrajeFinal =
+      Number(
+        request.body.kilometrajeFinal
+      );
+
+    if (
+      !Number.isInteger(kilometrajeFinal) ||
+      kilometrajeFinal < 0
+    ) {
+      return response.status(400).json({
+        success: false,
+        message:
+          "El kilometraje final no es válido."
+      });
+    }
+
+    const trip = await finishTrip({
+      idViaje,
+      kilometrajeFinal
+    });
+
+    return response.status(200).json({
+      success: true,
+      message:
+        "Viaje finalizado correctamente.",
+      data: trip
+    });
+  } catch (error) {
+    console.error(
+      "Error finalizando viaje:",
+      error
+    );
+
+    let statusCode = 500;
+
+    if (error.message === "El viaje no existe.") {
+      statusCode = 404;
+    } else if (
+      error.message.includes(
+        "no puede finalizarse"
+      ) ||
+      error.message.includes(
+        "kilometraje final"
+      )
+    ) {
+      statusCode = 409;
+    }
+
+    return response.status(statusCode).json({
+      success: false,
+      message:
+        error.message ||
+        "No fue posible finalizar el viaje."
     });
   }
 }

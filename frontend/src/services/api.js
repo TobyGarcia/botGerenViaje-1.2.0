@@ -67,3 +67,17 @@ export function registrarUbicacion(
     }
   );
 }
+export function finalizarViaje(
+  idViaje,
+  kilometrajeFinal
+) {
+  return request(
+    `/api/viajes/${idViaje}/finalizar`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        kilometrajeFinal
+      })
+    }
+  );
+}
