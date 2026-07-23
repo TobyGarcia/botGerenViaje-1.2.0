@@ -1,5 +1,6 @@
 import {
-  createTrip
+  createTrip,
+  startTrip
 } from "../services/viajes.service.js";
 
 function parsePositiveInteger(value) {
@@ -116,6 +117,67 @@ export async function createTripController(
       message:
         error.message ||
         "No fue posible crear el viaje."
+    });
+  }
+}
+export async function startTripController(
+  request,
+  response
+) {
+  try {
+    const idViaje =
+      parsePositiveInteger(
+        request.params.idViaje
+      );
+
+    if (!idViaje) {
+      return response.status(400).json({
+        success: false,
+        message:
+          "El identificador del viaje no es válido."
+      });
+    }
+
+    const trip = await startTrip({
+      idViaje
+    });
+
+    return response.status(200).json({
+      success: true,
+      message:
+        "Viaje iniciado correctamente.",
+      data: trip
+    });
+  } catch (error) {
+    console.error(
+      "Error iniciando viaje:",
+      error
+    );
+
+    const conflictMessages = [
+      "no puede iniciarse",
+      "no está vigente",
+      "está inactivo",
+      "ya está asignado"
+    ];
+
+    const isConflict =
+      conflictMessages.some((message) =>
+        error.message.includes(message)
+      );
+
+    const statusCode =
+      error.message === "El viaje no existe."
+        ? 404
+        : isConflict
+          ? 409
+          : 500;
+
+    return response.status(statusCode).json({
+      success: false,
+      message:
+        error.message ||
+        "No fue posible iniciar el viaje."
     });
   }
 }

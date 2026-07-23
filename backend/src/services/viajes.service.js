@@ -200,6 +200,201 @@ export async function createTrip({
       numeroEconomico: vehicle.numero_economico,
       licenciaVigente: conductor.licencia_vigente
     };
+    
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function startTrip({
+  idViaje
+}) {
+  const client = await databasePool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tripResult = await client.query(
+      `
+        SELECT
+          v.id_viajes,
+          v.folio,
+          v.id_conductores,
+          v.id_vehiculos,
+          v.id_estado_viaje,
+          v.hora_salida,
+          v.licencia_vigente,
+          v.kilometraje_inicial,
+
+          c.nombre AS conductor,
+          c.activo AS conductor_activo,
+          c.licencia_vigente AS licencia_actual_vigente,
+
+          vh.nombre AS vehiculo,
+          vh.numero_economico,
+          vh.activo AS vehiculo_activo,
+
+          ev.nombre AS estado
+        FROM viajes v
+
+        INNER JOIN conductores c
+          ON c.id_conductores = v.id_conductores
+
+        INNER JOIN vehiculos vh
+          ON vh.id_vehiculos = v.id_vehiculos
+
+        INNER JOIN estados_viaje ev
+          ON ev.id_estado_viaje = v.id_estado_viaje
+
+        WHERE v.id_viajes = $1
+
+        LIMIT 1
+        FOR UPDATE OF v
+      `,
+      [idViaje]
+    );
+
+    const trip = tripResult.rows[0];
+
+    if (!trip) {
+      throw new Error("El viaje no existe.");
+    }
+
+    if (trip.estado !== "PENDIENTE") {
+      throw new Error(
+        `El viaje no puede iniciarse desde el estado ${trip.estado}.`
+      );
+    }
+
+    if (!trip.conductor_activo) {
+      throw new Error(
+        "El conductor asignado está inactivo."
+      );
+    }
+
+    if (!trip.licencia_actual_vigente) {
+      throw new Error(
+        "La licencia actual del conductor no está vigente."
+      );
+    }
+
+    if (!trip.vehiculo_activo) {
+      throw new Error(
+        "El vehículo asignado está inactivo."
+      );
+    }
+
+    const activeTripResult = await client.query(
+      `
+        SELECT
+          v.id_viajes,
+          v.folio
+        FROM viajes v
+
+        INNER JOIN estados_viaje ev
+          ON ev.id_estado_viaje = v.id_estado_viaje
+
+        WHERE v.id_vehiculos = $1
+          AND ev.nombre = 'EN_CURSO'
+          AND v.id_viajes <> $2
+
+        LIMIT 1
+      `,
+      [
+        trip.id_vehiculos,
+        idViaje
+      ]
+    );
+
+    if (activeTripResult.rowCount > 0) {
+      throw new Error(
+        `El vehículo ya está asignado al viaje ${activeTripResult.rows[0].folio}.`
+      );
+    }
+
+    const stateResult = await client.query(
+      `
+        SELECT
+          id_estado_viaje
+        FROM estados_viaje
+        WHERE nombre = 'EN_CURSO'
+          AND activo = TRUE
+        LIMIT 1
+      `
+    );
+
+    const activeState = stateResult.rows[0];
+
+    if (!activeState) {
+      throw new Error(
+        "No se encontró el estado EN_CURSO."
+      );
+    }
+
+    const updateResult = await client.query(
+      `
+        UPDATE viajes
+        SET
+          id_estado_viaje = $1,
+          hora_salida = CURRENT_TIMESTAMP,
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_viajes = $2
+        RETURNING
+          id_viajes,
+          folio,
+          id_estado_viaje,
+          hora_salida,
+          kilometraje_inicial,
+          actualizado_en
+      `,
+      [
+        activeState.id_estado_viaje,
+        idViaje
+      ]
+    );
+
+    const updatedTrip = updateResult.rows[0];
+
+    await client.query(
+      `
+        INSERT INTO historial_estados_viaje (
+          id_viajes,
+          id_estado_anterior,
+          id_estado_nuevo,
+          observaciones
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4
+        )
+      `,
+      [
+        idViaje,
+        trip.id_estado_viaje,
+        activeState.id_estado_viaje,
+        "Viaje iniciado"
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      idViaje: updatedTrip.id_viajes,
+      folio: updatedTrip.folio,
+      estado: "EN_CURSO",
+      horaSalida: updatedTrip.hora_salida,
+      kilometrajeInicial:
+        updatedTrip.kilometraje_inicial,
+      conductor: trip.conductor,
+      vehiculo: trip.vehiculo,
+      numeroEconomico:
+        trip.numero_economico
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
