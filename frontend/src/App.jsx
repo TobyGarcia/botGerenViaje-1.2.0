@@ -1,26 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState
+} from "react";
 
 import {
   createViaje,
-  getConductores,
-  getLugares,
-  getVehiculos,
-  iniciarViaje
-} from "./services/api.js";
-import {
-  createViaje,
+  finalizarViaje,
   getConductores,
   getLugares,
   getVehiculos,
   iniciarViaje,
   registrarUbicacion
 } from "./services/api.js";
-
-import {
-  useEffect,
-  useRef,
-  useState
-} from "react";
 
 const initialForm = {
   idConductor: "",
@@ -61,6 +53,15 @@ const [lastLocation, setLastLocation] =
 
 const LOCATION_INTERVAL_MS = 15000;
 
+const [kilometrajeFinal, setKilometrajeFinal] =
+  useState("");
+
+const [finishingTrip, setFinishingTrip] =
+  useState(false);
+
+const [finishedTrip, setFinishedTrip] =
+  useState(null);
+
   const selectedDriver = conductores.find(
     (conductor) => String(conductor.id_conductores) === form.idConductor
   );
@@ -80,17 +81,6 @@ const LOCATION_INTERVAL_MS = 15000;
             getVehiculos(),
             getLugares()
           ]);
-          useEffect(() => {
-  return () => {
-    if (
-      geolocationWatchRef.current !== null
-    ) {
-      navigator.geolocation.clearWatch(
-        geolocationWatchRef.current
-      );
-    }
-  };
-}, []);
 
         setConductores(conductoresResponse.data ?? []);
         setVehiculos(vehiculosResponse.data ?? []);
@@ -105,6 +95,18 @@ const LOCATION_INTERVAL_MS = 15000;
 
     loadCatalogs();
   }, []);
+  
+  useEffect(() => {
+  return () => {
+    if (
+      geolocationWatchRef.current !== null
+    ) {
+      navigator.geolocation.clearWatch(
+        geolocationWatchRef.current
+      );
+    }
+  };
+}, []);
 
   async function sendPosition(
   idViaje,
@@ -161,6 +163,13 @@ const LOCATION_INTERVAL_MS = 15000;
   }
 }
 function handleStartGps() {
+  if(finishedTrip) {
+    setGpsStatus(
+      "el Viaje ya fue finalizado"
+    );
+
+    return;
+  }
   const idViaje =
     startedTrip?.idViaje ??
     createdTrip?.id_viajes;
@@ -242,6 +251,85 @@ function handleStopGps() {
   setGpsStatus("GPS detenido.");
 }
 
+  async function handleFinishTrip(event) {
+    event.preventDefault();
+
+  const idViaje =
+    startedTrip?.idViaje ??
+    startedTrip?.id_viajes ??
+    createdTrip?.idViaje ??
+    createdTrip?.id_viajes;
+
+    if (!idViaje) {
+    setMessage(
+      "No se encontró el identificador del viaje"
+    );
+    setMessageType("error");
+    return;
+  }
+  
+    const finalMileage = Number(kilometrajeFinal);
+
+  const initialMileage =
+    Number(
+      startedTrip?.kilometrajeInicial ??
+      startedTrip?.kilometraje_inicial ??
+      createdTrip?.kilometrajeInicial ??
+      createdTrip?.kilometraje_inicial
+    );
+
+    if (!Number.isInteger(finalMileage) || finalMileage < initialMileage) {
+    setMessage(
+      "El kilometraje final no puede ser menor al kilometraje inicial."
+    );
+    setMessageType("error");
+    return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Confirmas que deseas finalizar el viaje? Se detendrá el GPS y se registrará la hora de llegada."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setFinishingTrip(true);
+    setMessage("");
+
+    try {
+      handleStopGps();
+
+    const response = await finalizarViaje (
+      idViaje,
+      finalMileage
+    );
+    const finishedData =
+      response.data ?? {};
+
+    setFinishedTrip(finishedData);
+    setStartedTrip((current) =>({
+      ...current,
+      ...finishedData,
+      estado: "FINALIZADO"
+    }));
+
+    setCreatedTrip((current) =>({
+      ...current,
+      ...finishedData,
+      estado: "FINALIZADO"
+    }));
+
+      setMessage("Viaje finalizado correctamente.");
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setFinishingTrip(false);
+    }
+  }
+
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -305,6 +393,7 @@ function handleStopGps() {
     setMessage("");
     setCreatedTrip(null);
     setStartedTrip(null);
+    setFinishedTrip(null);
 
     try {
       const acompanantes = form.acompanantes
@@ -388,8 +477,16 @@ function handleStopGps() {
 
       setStartedTrip(normalizedTrip);
       setCreatedTrip(normalizedTrip);
+      setKilometrajeFinal(
+        String(
+          normalizedTrip.kilometrajeInicial ??
+          normalizedTrip.kilometraje_inicial ??
+          ""
+        )
+      );
       setMessage("Viaje iniciado correctamente.");
       setMessageType("success");
+      
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -550,7 +647,9 @@ function handleStopGps() {
 {createdTrip && (
   <section className="result-card">
     <h2>
-      {startedTrip
+      {finishedTrip
+      ? "Viaje finalizado"
+      :startedTrip
         ? "Viaje en curso"
         : "Viaje registrado"}
     </h2>
@@ -593,12 +692,16 @@ function handleStopGps() {
       <strong>Estado:</strong>{" "}
       <span
         className={
-          startedTrip
+          finishedTrip
+          ? "status-finished"
+          : startedTrip
             ? "status-in-progress"
             : "status-pending"
         }
       >
-        {startedTrip
+        {finishedTrip
+        ? "FINALIZADO"
+        : startedTrip
           ? "EN_CURSO"
           : "PENDIENTE"}
       </span>
@@ -621,6 +724,23 @@ function handleStopGps() {
       </p>
     )}
 
+    {finishedTrip?.horaLlegada && (
+      <p>
+        <strong>Hora de llegada:</strong>{" "}
+        {new Date(finishedTrip.horaLlegada).toLocaleString("es-MX", {
+          dateStyle: "medium",
+          timeStyle: "medium"
+        })}
+      </p>
+    )}
+
+    {finishedTrip?.kilometrosRecorridos !== undefined && (
+      <p>
+        <strong>Kilómetros recorridos:</strong>{" "}
+        {Number(finishedTrip.kilometrosRecorridos).toLocaleString("es-MX")} km
+      </p>
+    )}
+
     {!startedTrip && (
       <button
         type="button"
@@ -634,7 +754,7 @@ function handleStopGps() {
       </button>
     )}
 
-    {startedTrip && (
+    {startedTrip && !finishedTrip && (
       <section className="gps-panel">
   <h3>Rastreo GPS</h3>
 
@@ -657,6 +777,40 @@ function handleStopGps() {
       Detener rastreo GPS
     </button>
   )}
+
+  <form className="finish-trip-form" onSubmit={handleFinishTrip}>
+      <h3>Finalizar viaje</h3>
+
+      <label>
+        Kilometraje final
+
+        <input
+          type="number"
+          value={kilometrajeFinal}
+          onChange={(event) => {
+            setKilometrajeFinal(event.target.value);
+            setMessage("");
+          }}
+          min={
+            startedTrip.kilometrajeInicial ??
+            startedTrip.kilometraje_inicial ??
+            0
+          }
+          step="1"
+          required
+        />
+        <small>
+          Captura el kilometraje actual del odómetro.
+        </small>
+      </label>
+      <button
+        type="submit"
+        className="finish-trip-button"
+        disabled={finishingTrip}
+      >
+        {finishingTrip ? "Finalizando viaje..." : "■ Finalizar viaje"}
+      </button>
+    </form>
 
   {lastLocation && (
     <div className="location-details">

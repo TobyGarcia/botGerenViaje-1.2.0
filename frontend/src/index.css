@@ -168,17 +168,6 @@ small {
   font-weight: 700;
 }
 
-.trip-active-message {
-  margin-top: 16px;
-  padding: 12px;
-
-  color: #166534;
-  font-weight: 600;
-
-  background: #dcfce7;
-  border: 1px solid #86efac;
-  border-radius: 8px;
-}
 .gps-panel {
   margin-top: 16px;
   padding: 16px;
@@ -197,6 +186,17 @@ small {
 }
 
 .stop-gps-button {
+  background: #b91c1c;
+}
+
+.finish-trip-form {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #bfdbfe;
+}
+
+.finish-trip-button {
+  margin-top: 12px;
   background: #b91c1c;
 }
 
