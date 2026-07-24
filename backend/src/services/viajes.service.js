@@ -598,3 +598,179 @@ export async function finishTrip({
     client.release();
   }
 }
+export async function getActiveTrip() {
+  const result = await databasePool.query(
+    `
+      SELECT
+        v.id_viajes,
+        v.folio,
+        v.fecha,
+        v.acompanantes,
+        v.licencia_vigente,
+        v.kilometraje_inicial,
+        v.kilometraje_final,
+        v.kilometros_recorridos,
+        v.motivo,
+        v.hora_salida,
+        v.hora_llegada,
+        v.creado_en,
+        v.actualizado_en,
+
+        c.id_conductores,
+        c.nombre AS conductor,
+        c.licencia_numero,
+        c.licencia_vigente AS licencia_actual_vigente,
+
+        vh.id_vehiculos,
+        vh.nombre AS vehiculo,
+        vh.numero_economico,
+        vh.placas,
+        vh.kilometraje_actual,
+
+        origen.id_lugares AS id_origen,
+        origen.nombre AS origen,
+
+        destino.id_lugares AS id_destino,
+        destino.nombre AS destino,
+
+        ev.id_estado_viaje,
+        ev.nombre AS estado,
+
+        ultima_ubicacion.latitud,
+        ultima_ubicacion.longitud,
+        ultima_ubicacion.precision_metros,
+        ultima_ubicacion.velocidad,
+        ultima_ubicacion.direccion,
+        ultima_ubicacion.fecha_gps,
+        ultima_ubicacion.creado_en
+          AS ubicacion_creada_en
+
+      FROM viajes v
+
+      INNER JOIN conductores c
+        ON c.id_conductores =
+           v.id_conductores
+
+      INNER JOIN vehiculos vh
+        ON vh.id_vehiculos =
+           v.id_vehiculos
+
+      INNER JOIN lugares origen
+        ON origen.id_lugares =
+           v.id_origen
+
+      INNER JOIN lugares destino
+        ON destino.id_lugares =
+           v.id_destino
+
+      INNER JOIN estados_viaje ev
+        ON ev.id_estado_viaje =
+           v.id_estado_viaje
+
+      LEFT JOIN LATERAL (
+        SELECT
+          u.latitud,
+          u.longitud,
+          u.precision_metros,
+          u.velocidad,
+          u.direccion,
+          u.fecha_gps,
+          u.creado_en
+        FROM ubicaciones_viaje u
+        WHERE u.id_viajes =
+              v.id_viajes
+        ORDER BY
+          u.id_ubicaciones_viaje DESC
+        LIMIT 1
+      ) ultima_ubicacion
+        ON TRUE
+
+      WHERE ev.nombre IN (
+        'PENDIENTE',
+        'EN_CURSO'
+      )
+
+      ORDER BY
+        CASE
+          WHEN ev.nombre = 'EN_CURSO'
+            THEN 1
+          ELSE 2
+        END,
+        v.id_viajes DESC
+
+      LIMIT 1
+    `
+  );
+
+  return result.rows[0] ?? null;
+}
+export async function getTripById({
+  idViaje
+}) {
+  const result = await databasePool.query(
+    `
+      SELECT
+        v.id_viajes,
+        v.folio,
+        v.fecha,
+        v.acompanantes,
+        v.licencia_vigente,
+        v.kilometraje_inicial,
+        v.kilometraje_final,
+        v.kilometros_recorridos,
+        v.motivo,
+        v.hora_salida,
+        v.hora_llegada,
+        v.creado_en,
+        v.actualizado_en,
+
+        c.id_conductores,
+        c.nombre AS conductor,
+        c.licencia_numero,
+
+        vh.id_vehiculos,
+        vh.nombre AS vehiculo,
+        vh.numero_economico,
+        vh.placas,
+        vh.kilometraje_actual,
+
+        origen.id_lugares AS id_origen,
+        origen.nombre AS origen,
+
+        destino.id_lugares AS id_destino,
+        destino.nombre AS destino,
+
+        ev.id_estado_viaje,
+        ev.nombre AS estado
+
+      FROM viajes v
+
+      INNER JOIN conductores c
+        ON c.id_conductores =
+           v.id_conductores
+
+      INNER JOIN vehiculos vh
+        ON vh.id_vehiculos =
+           v.id_vehiculos
+
+      INNER JOIN lugares origen
+        ON origen.id_lugares =
+           v.id_origen
+
+      INNER JOIN lugares destino
+        ON destino.id_lugares =
+           v.id_destino
+
+      INNER JOIN estados_viaje ev
+        ON ev.id_estado_viaje =
+           v.id_estado_viaje
+
+      WHERE v.id_viajes = $1
+
+      LIMIT 1
+    `,
+    [idViaje]
+  );
+
+  return result.rows[0] ?? null;
+}

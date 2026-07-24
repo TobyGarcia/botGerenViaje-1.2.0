@@ -81,3 +81,15 @@ export function finalizarViaje(
     }
   );
 }
+
+export function getViajeActivo(){
+  return request(
+    "/api/viajes/activo"
+  );
+}
+
+export function getViajePorId(idViaje){
+  return request(
+    `/api/viajes/${idViaje}`
+  );
+}

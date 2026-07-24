@@ -1,9 +1,15 @@
 import app from "./app.js";
 import { databasePool } from "./database/pool.js";
+import {
+  startTelegramBot,
+  stopTelegramBot
+} from "./bot/bot.js";
 
 const port = Number(
   process.env.BACKEND_PORT || 3000
 );
+
+let httpServer = null;
 
 async function startServer() {
   try {
@@ -13,11 +19,13 @@ async function startServer() {
       "Conexión inicial con PostgreSQL verificada."
     );
 
-    app.listen(port, "0.0.0.0", () => {
+    httpServer = app.listen(port, "0.0.0.0", () => {
       console.log(
         `Backend escuchando en el puerto ${port}.`
       );
     });
+
+    await startTelegramBot();
   } catch (error) {
     console.error(
       "No fue posible iniciar el backend:",
@@ -34,6 +42,11 @@ async function shutdown(signal) {
   );
 
   try {
+    await stopTelegramBot(signal);
+
+    if (httpServer){
+      httpServer.close();
+    }
     await databasePool.end();
   } catch (error) {
     console.error(
@@ -45,11 +58,11 @@ async function shutdown(signal) {
   process.exit(0);
 }
 
-process.on("SIGTERM", () => {
+process.once("SIGTERM", () => {
   shutdown("SIGTERM");
 });
 
-process.on("SIGINT", () => {
+process.once("SIGINT", () => {
   shutdown("SIGINT");
 });
 

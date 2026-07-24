@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   createTripController,
   finishTripController,
+  getActiveTripController,
+  getTripByIdController,
   startTripController
 } from "../controllers/viajes.controller.js";
 
@@ -20,6 +22,16 @@ router.post(
 router.post(
   "/:idViaje/finalizar",
   finishTripController
+);
+
+router.get(
+  "/activo",
+  getActiveTripController
+);
+
+router.get(
+  "/:idViaje",
+  getTripByIdController
 );
 
 export default router;

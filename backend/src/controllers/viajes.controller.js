@@ -1,6 +1,8 @@
 import {
   createTrip,
   finishTrip,
+  getActiveTrip,
+  getTripById,
   startTrip
 } from "../services/viajes.service.js";
 
@@ -15,6 +17,83 @@ function parsePositiveInteger(value) {
   }
 
   return parsedValue;
+}
+
+function normalizeTripResponse(trip) {
+  return {
+    idViaje: trip.id_viajes,
+    folio: trip.folio,
+    fecha: trip.fecha,
+
+    conductor: {
+      idConductor: trip.id_conductores,
+      nombre: trip.conductor,
+      licenciaNumero:
+        trip.licencia_numero,
+      licenciaVigente:
+        trip.licencia_actual_vigente ??
+        trip.licencia_vigente
+    },
+
+    vehiculo: {
+      idVehiculo: trip.id_vehiculos,
+      nombre: trip.vehiculo,
+      numeroEconomico:
+        trip.numero_economico,
+      placas: trip.placas,
+      kilometrajeActual:
+        trip.kilometraje_actual
+    },
+
+    origen: {
+      idLugar: trip.id_origen,
+      nombre: trip.origen
+    },
+
+    destino: {
+      idLugar: trip.id_destino,
+      nombre: trip.destino
+    },
+
+    acompanantes:
+      trip.acompanantes ?? [],
+
+    motivo: trip.motivo,
+
+    estado: trip.estado,
+
+    kilometrajeInicial:
+      trip.kilometraje_inicial,
+
+    kilometrajeFinal:
+      trip.kilometraje_final,
+
+    kilometrosRecorridos:
+      trip.kilometros_recorridos,
+
+    horaSalida:
+      trip.hora_salida,
+
+    horaLlegada:
+      trip.hora_llegada,
+
+    ultimaUbicacion:
+      trip.latitud !== null &&
+      trip.latitud !== undefined
+        ? {
+            latitude: trip.latitud,
+            longitude: trip.longitud,
+            accuracy:
+              trip.precision_metros,
+            speed: trip.velocidad,
+            heading: trip.direccion,
+            gpsTimestamp:
+              trip.fecha_gps,
+            serverTimestamp:
+              trip.ubicacion_creada_en
+          }
+        : null
+  };
 }
 
 export async function createTripController(
@@ -253,6 +332,79 @@ export async function finishTripController(
       message:
         error.message ||
         "No fue posible finalizar el viaje."
+    });
+  }
+}
+export async function getActiveTripController(
+  request,
+  response
+) {
+  try {
+    const trip = await getActiveTrip();
+
+    return response.status(200).json({
+      success: true,
+      data: trip
+        ? normalizeTripResponse(trip)
+        : null
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando viaje activo:",
+      error
+    );
+
+    return response.status(500).json({
+      success: false,
+      message:
+        "No fue posible consultar el viaje activo."
+    });
+  }
+}
+
+export async function getTripByIdController(
+  request,
+  response
+) {
+  try {
+    const idViaje =
+      parsePositiveInteger(
+        request.params.idViaje
+      );
+
+    if (!idViaje) {
+      return response.status(400).json({
+        success: false,
+        message:
+          "El identificador del viaje no es válido."
+      });
+    }
+
+    const trip = await getTripById({
+      idViaje
+    });
+
+    if (!trip) {
+      return response.status(404).json({
+        success: false,
+        message: "El viaje no existe."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: normalizeTripResponse(trip)
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando viaje:",
+      error
+    );
+
+    return response.status(500).json({
+      success: false,
+      message:
+        "No fue posible consultar el viaje."
     });
   }
 }

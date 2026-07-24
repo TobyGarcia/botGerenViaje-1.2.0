@@ -200,6 +200,11 @@ small {
   background: #b91c1c;
 }
 
+.new-trip-button {
+  margin-top: 16px;
+  background: #2563eb;
+}
+
 .location-details {
   margin-top: 14px;
   padding: 12px;

@@ -10,6 +10,7 @@ import {
   getConductores,
   getLugares,
   getVehiculos,
+  getViajeActivo,
   iniciarViaje,
   registrarUbicacion
 } from "./services/api.js";
@@ -72,7 +73,7 @@ const [finishedTrip, setFinishedTrip] =
     dateStyle: "long"
   }).format(new Date());
 
-  useEffect(() => {
+/*  useEffect(() => {
     async function loadCatalogs() {
       try {
         const [conductoresResponse, vehiculosResponse, lugaresResponse] =
@@ -94,8 +95,122 @@ const [finishedTrip, setFinishedTrip] =
     }
 
     loadCatalogs();
-  }, []);
+  }, []);*/
   
+  // nuevo use effect para poder usar si recargamos o perdemos conexión
+  useEffect(() => {
+  async function loadInitialData() {
+    try {
+      const [
+        conductoresResponse,
+        vehiculosResponse,
+        lugaresResponse,
+        activeTripResponse
+      ] = await Promise.all([
+        getConductores(),
+        getVehiculos(),
+        getLugares(),
+        getViajeActivo()
+      ]);
+
+      setConductores(
+        conductoresResponse.data ?? []
+      );
+
+      setVehiculos(
+        vehiculosResponse.data ?? []
+      );
+
+      setLugares(
+        lugaresResponse.data ?? []
+      );
+
+      const activeTrip =
+        activeTripResponse.data;
+
+      if (!activeTrip) {
+        return;
+      }
+
+      const normalizedTrip = {
+        idViaje:
+          activeTrip.idViaje,
+
+        id_viajes:
+          activeTrip.idViaje,
+
+        folio:
+          activeTrip.folio,
+
+        conductor:
+          activeTrip.conductor?.nombre,
+
+        vehiculo:
+          activeTrip.vehiculo?.nombre,
+
+        numeroEconomico:
+          activeTrip.vehiculo
+            ?.numeroEconomico,
+
+        estado:
+          activeTrip.estado,
+
+        kilometrajeInicial:
+          activeTrip.kilometrajeInicial,
+
+        horaSalida:
+          activeTrip.horaSalida,
+
+        origen:
+          activeTrip.origen?.nombre,
+
+        destino:
+          activeTrip.destino?.nombre
+      };
+
+      setCreatedTrip(normalizedTrip);
+
+      if (
+        activeTrip.estado === "EN_CURSO"
+      ) {
+        setStartedTrip(normalizedTrip);
+
+        setKilometrajeFinal(
+          String(
+            activeTrip.kilometrajeInicial ??
+            ""
+          )
+        );
+
+        setLastLocation(
+          activeTrip.ultimaUbicacion
+        );
+
+        setGpsStatus(
+          activeTrip.ultimaUbicacion
+            ? "Viaje recuperado. El GPS está detenido; puedes reiniciarlo."
+            : "Viaje recuperado. GPS detenido."
+        );
+      }
+
+      setMessage(
+        activeTrip.estado === "EN_CURSO"
+          ? "Se recuperó un viaje en curso."
+          : "Se recuperó un viaje pendiente."
+      );
+
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadInitialData();
+}, []);
+
   useEffect(() => {
   return () => {
     if (
@@ -172,6 +287,8 @@ function handleStartGps() {
   }
   const idViaje =
     startedTrip?.idViaje ??
+    startedTrip?.id_viajes ??
+    createdTrip?.idViaje ??
     createdTrip?.id_viajes;
 
   if (!idViaje) {
@@ -199,6 +316,8 @@ function handleStartGps() {
   setGpsStatus(
     "Solicitando permiso de ubicación..."
   );
+
+  lastLocationSentAtRef.current=0;
 
   const watchId =
     navigator.geolocation.watchPosition(
@@ -496,21 +615,44 @@ function handleStopGps() {
     }
   }
 
+  function handleNewTrip() {
+    handleStopGps();
+
+    setForm(initialForm);
+    setCreatedTrip(null);
+    setStartedTrip(null);
+    setFinishedTrip(null);
+    setFinishingTrip(false);
+    setKilometrajeFinal("");
+    setLastLocation(null);
+    setGpsStatus("GPS sin iniciar.");
+    setMessage("");
+    setMessageType("success");
+
+    lastLocationSentAtRef.current = 0;
+    sendingLocationRef.current = false;
+  }
+
   if (loading) {
     return <p className="loading-message">Cargando catálogos...</p>;
   }
 
   return (
     <main className="container">
-      <h1>Nuevo viaje</h1>
+      <h1>
+        {createdTrip
+        ? "GERENCIAMIENTO DE VIAJE"
+        : "Nuevo viaje"}
+      </h1>
 
       <section className="summary-card" aria-label="Fecha actual">
         <span>Fecha actual</span>
         <strong>{currentDate}</strong>
       </section>
 
-      <form onSubmit={handleSubmit}>
-        <label>
+      {!createdTrip && (
+        <form onSubmit={handleSubmit}>
+          <label>
           Conductor
           <select
             name="idConductor"
@@ -518,6 +660,7 @@ function handleStopGps() {
             onChange={handleChange}
             required
           >
+          
             <option value="">Seleccione un conductor</option>
             {conductores.map((conductor) => (
               <option key={conductor.id_conductores} value={conductor.id_conductores}>
@@ -636,7 +779,10 @@ function handleStopGps() {
         <button type="submit" disabled={saving || !selectedDriver?.licencia_vigente}>
           {saving ? "Guardando..." : "Crear viaje"}
         </button>
-      </form>
+        </form>
+      )}
+
+     
 
       {message && (
         <p className={`message message-${messageType}`} role={messageType === "error" ? "alert" : "status"} aria-live="polite">
@@ -846,6 +992,16 @@ function handleStopGps() {
     </div>
   )}
 </section>
+    )}
+
+    {finishedTrip && (
+      <button
+        type="button"
+        className="new-trip-button"
+        onClick={handleNewTrip}
+      >
+        Registrar otro viaje
+      </button>
     )}
   </section>
 )}

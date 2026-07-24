@@ -39,9 +39,11 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV}
-      BACKEND_PORT: ${DATABASE_PORT}
+      BACKEND_PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
       TZ: ${TZ:-America/Mexico_City}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEB_APP_URL: ${TELEGRAM_WEB_APP_URL}
     
     ports:
       - "${BACKEND_PORT:-3000}:3000"
@@ -89,7 +91,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -q --spider http://localhost/ || exit 1"
+          "wget -q --spider http://127.0.0.1/ || exit 1"
         ]
       interval: 10s
       timeout: 5s
