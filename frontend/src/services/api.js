@@ -93,3 +93,34 @@ export function getViajePorId(idViaje){
     `/api/viajes/${idViaje}`
   );
 }
+
+export function autenticarTelegram(
+  initData
+){
+  return request(
+    "/api/telegram/autenticar",
+    {
+      method: "POST",
+
+      body: JSON.stringify({
+        initData
+      })
+    }
+  );
+}
+
+export function registrarConductorTelegram(
+  initData,
+  conductorData
+) {
+  return request(
+    "/api/telegram/registro-conductor",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        initData,
+        ...conductorData
+      })
+    }
+  );
+}

@@ -3,6 +3,7 @@ import express from "express";
 import catalogosRoutes from "./routes/catalogos.routes.js";
 import viajesRoutes from "./routes/viajes.routes.js";
 import ubicacionesRoutes from "./routes/ubicaciones.routes.js";
+import telegramAuthRoutes from "./routes/telegram-auth.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -46,6 +47,11 @@ app.use(
 app.use(
   "/api/viajes/:idViaje/ubicaciones",
   ubicacionesRoutes
+);
+
+app.use(
+  "/api/telegram",
+  telegramAuthRoutes
 );
 
 app.use((request, response) => {

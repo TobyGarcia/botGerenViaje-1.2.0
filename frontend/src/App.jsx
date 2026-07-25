@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  autenticarTelegram,
   createViaje,
   finalizarViaje,
   getConductores,
@@ -14,6 +15,7 @@ import {
   iniciarViaje,
   registrarUbicacion
 } from "./services/api.js";
+import RegistroConductor from "./components/RegistroConductor.jsx";
 
 const initialForm = {
   idConductor: "",
@@ -63,7 +65,16 @@ const [finishingTrip, setFinishingTrip] =
 const [finishedTrip, setFinishedTrip] =
   useState(null);
 
-  const selectedDriver = conductores.find(
+  const [telegramAuth, setTelegramAuth] =
+    useState(null);
+
+  const [telegramAuthLoading, setTelegramAuthLoading] =
+    useState(true);
+
+  const telegramAuthStartedRef = useRef(false);
+
+  const authenticatedDriver = telegramAuth?.conductor ?? null;
+  const selectedDriver = authenticatedDriver ?? conductores.find(
     (conductor) => String(conductor.id_conductores) === form.idConductor
   );
   const selectedVehicle = vehiculos.find(
@@ -72,6 +83,78 @@ const [finishedTrip, setFinishedTrip] =
   const currentDate = new Intl.DateTimeFormat("es-MX", {
     dateStyle: "long"
   }).format(new Date());
+
+  useEffect(() => {
+    async function authenticateTelegramUser() {
+      if (telegramAuthStartedRef.current) {
+        return;
+      }
+
+      telegramAuthStartedRef.current = true;
+
+      try {
+      const telegramWebApp =
+        window.Telegram?.WebApp;
+
+      if (!telegramWebApp) {
+        setMessage(
+          "Esta aplicación debe abrirse desde el bot de Telegram."
+        );
+        setMessageType("error");
+        return;
+      }
+
+      telegramWebApp.ready();
+      telegramWebApp.expand();
+
+      const initData =
+        telegramWebApp.initData || "";
+
+      if (!initData) {
+        setMessage(
+          "No se recibió la información de autenticación de Telegram. Cierra esta ventana y vuelve a abrirla desde el botón del bot."
+        );
+        setMessageType("error");
+        return;
+      }
+
+      const authenticationResponse =
+        await autenticarTelegram(initData);
+
+        setTelegramAuth(authenticationResponse.data);
+      } catch (error) {
+
+        setMessage(
+          error.message ||
+          "No fue posible autenticar al usuario de Telegram."
+        );
+
+        setMessageType("error");
+      } finally {
+        setTelegramAuthLoading(false);
+      }
+    }
+
+    authenticateTelegramUser();
+  }, []);
+
+  useEffect(() => {
+    const idConductor = telegramAuth?.conductor?.id_conductores;
+    if (telegramAuth?.registered && idConductor) {
+      setForm((current) => {
+        const normalizedId = String(idConductor);
+
+        if (current.idConductor === normalizedId) {
+          return current;
+        }
+
+        return {
+        ...current,
+          idConductor: normalizedId
+        };
+      });
+    }
+  }, [telegramAuth?.registered, telegramAuth?.conductor?.id_conductores]);
 
 /*  useEffect(() => {
     async function loadCatalogs() {
@@ -540,7 +623,12 @@ function handleStopGps() {
       });
       setMessage(`Viaje creado correctamente. Folio: ${response.data.folio}`);
       setMessageType("success");
-      setForm(initialForm);
+      setForm({
+        ...initialForm,
+        idConductor: telegramAuth?.conductor?.id_conductores
+          ? String(telegramAuth.conductor.id_conductores)
+          : ""
+      });
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -615,22 +703,59 @@ function handleStopGps() {
     }
   }
 
-  function handleNewTrip() {
+  function handleNewTrip(){
     handleStopGps();
 
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      idConductor: telegramAuth?.conductor?.id_conductores
+        ? String(telegramAuth.conductor.id_conductores)
+        : ""
+    });
     setCreatedTrip(null);
     setStartedTrip(null);
     setFinishedTrip(null);
-    setFinishingTrip(false);
     setKilometrajeFinal("");
     setLastLocation(null);
-    setGpsStatus("GPS sin iniciar.");
+    setGpsStatus("GPS detenido.");
     setMessage("");
-    setMessageType("success");
+    setMessageType("error");
 
     lastLocationSentAtRef.current = 0;
-    sendingLocationRef.current = false;
+    sendingLocationRef.current=false;
+  }
+
+  if (telegramAuthLoading) {
+    return <p className="loading-message">Validando identidad de Telegram...</p>;
+  }
+
+  if (!telegramAuth?.authenticated) {
+    return <p className="loading-message">Acceso no autorizado.</p>;
+  }
+
+  if (telegramAuth.estadoRegistro === "BLOQUEADO" || !telegramAuth.usuario?.activo) {
+    return <p className="loading-message">Tu acceso está restringido.</p>;
+  }
+
+  if (!telegramAuth.registered || telegramAuth.estadoRegistro === "PENDIENTE" || !telegramAuth.conductor) {
+    return (
+      <RegistroConductor
+        telegramAuth={telegramAuth}
+        onRegistered={(registration) => {
+          setTelegramAuth((current) => ({
+            ...current,
+            ...registration,
+            usuario: {
+              ...current.usuario,
+              ...registration.usuario
+            },
+            registered: true,
+            estadoRegistro: "COMPLETO",
+            conductor: registration.conductor
+          }));
+        }}
+      />
+    );
   }
 
   if (loading) {
@@ -650,25 +775,37 @@ function handleStopGps() {
         <strong>{currentDate}</strong>
       </section>
 
+      <section className="information-panel">
+          <p>
+            <strong>Usuario Telegram:</strong>{" "}
+            {telegramAuth.usuario?.firstName || "Usuario autenticado"}
+          </p>
+
+          <p>
+            <strong>Registro:</strong>{" "}
+            {telegramAuth.registered
+              ? "COMPLETO"
+              : telegramAuth.estadoRegistro || "PENDIENTE"}
+          </p>
+
+          {telegramAuth.conductor && (
+            <p>
+              <strong>Conductor:</strong>{" "}
+              {telegramAuth.conductor.nombre}
+            </p>
+          )}
+      </section>
+
       {!createdTrip && (
         <form onSubmit={handleSubmit}>
-          <label>
-          Conductor
-          <select
-            name="idConductor"
-            value={form.idConductor}
-            onChange={handleChange}
-            required
-          >
-          
-            <option value="">Seleccione un conductor</option>
-            {conductores.map((conductor) => (
-              <option key={conductor.id_conductores} value={conductor.id_conductores}>
-                {conductor.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+          <section className="information-panel" aria-label="Conductor autenticado">
+            <p><strong>Conductor:</strong> {telegramAuth.conductor.nombre}</p>
+            <p><strong>Licencia:</strong>{" "}
+              <span className={telegramAuth.conductor.licencia_vigente ? "status-valid" : "status-invalid"}>
+                {telegramAuth.conductor.licencia_vigente ? "Vigente" : "No vigente"}
+              </span>
+            </p>
+          </section>
 
         {selectedDriver && (
           <section className="information-panel" aria-label="Información de licencia">
@@ -887,7 +1024,7 @@ function handleStopGps() {
       </p>
     )}
 
-    {!startedTrip && (
+    {!startedTrip && !finishedTrip && (
       <button
         type="button"
         className="start-trip-button"
@@ -923,7 +1060,6 @@ function handleStopGps() {
       Detener rastreo GPS
     </button>
   )}
-
   <form className="finish-trip-form" onSubmit={handleFinishTrip}>
       <h3>Finalizar viaje</h3>
 
@@ -957,7 +1093,6 @@ function handleStopGps() {
         {finishingTrip ? "Finalizando viaje..." : "■ Finalizar viaje"}
       </button>
     </form>
-
   {lastLocation && (
     <div className="location-details">
       <p>
