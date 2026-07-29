@@ -27,6 +27,42 @@ const initialForm = {
   motivo: ""
 };
 
+function formatDate(value) {
+  if (!value) {
+    return "No registrada";
+  }
+
+  const normalizedValue =
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00`
+      : value;
+  const date = new Date(normalizedValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Fecha no válida";
+  }
+
+  return date.toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+}
+
+function normalizeConductor(conductor) {
+  if (!conductor) {
+    return conductor;
+  }
+
+  return {
+    ...conductor,
+    licencia_vencimiento:
+      conductor.licencia_vencimiento ??
+      conductor.licenciaVencimiento
+  };
+}
+
 function App() {
   const [form, setForm] = useState(initialForm);
   const [conductores, setConductores] = useState([]);
@@ -751,7 +787,7 @@ function handleStopGps() {
             },
             registered: true,
             estadoRegistro: "COMPLETO",
-            conductor: registration.conductor
+            conductor: normalizeConductor(registration.conductor)
           }));
         }}
       />
@@ -818,9 +854,10 @@ function handleStopGps() {
             </p>
             <p>
               <strong>Vencimiento:</strong>{" "}
-              {selectedDriver.licencia_vencimiento
-                ? new Date(`${selectedDriver.licencia_vencimiento}T00:00:00`).toLocaleDateString("es-MX")
-                : "No registrado"}
+              {formatDate(
+                selectedDriver.licencia_vencimiento ??
+                selectedDriver.licenciaVencimiento
+              )}
             </p>
             {!selectedDriver.licencia_vigente && (
               <p className="validation-error" role="alert">

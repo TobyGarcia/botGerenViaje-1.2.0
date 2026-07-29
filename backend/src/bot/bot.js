@@ -5,6 +5,7 @@ import {
 } from "./bot.handlers.js";
 
 let botInstance = null;
+let botStarted = false;
 
 export function getTelegramBot() {
   if (botInstance) {
@@ -30,13 +31,25 @@ export function getTelegramBot() {
 export async function startTelegramBot() {
   const bot = getTelegramBot();
 
+  if (botStarted) {
+    return bot;
+  }
+
   console.log(
     "Iniciando conexión con Telegram..."
   );
 
+  await bot.telegram.setMyCommands([
+    { command: "viaje", description: "Abrir el sistema de viajes" },
+    { command: "registro", description: "Completar registro como conductor" },
+    { command: "ayuda", description: "Mostrar ayuda" }
+  ]);
+
   await bot.launch({
     dropPendingUpdates: true
   });
+
+  botStarted = true;
 
   console.log(
     "Bot de Telegram iniciado correctamente."
@@ -51,6 +64,7 @@ export async function stopTelegramBot(signal) {
   }
 
   botInstance.stop(signal);
+  botStarted = false;
 
   console.log(
     `Bot de Telegram detenido por ${signal}.`
