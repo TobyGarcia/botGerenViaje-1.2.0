@@ -177,3 +177,162 @@
     padding: 30px 24px;
   }
 }
+
+.login-error {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #efb1b1;
+  border-radius: 10px;
+  color: #a32323;
+  background: #fff1f1;
+}
+
+.session-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: #315566;
+  background: #f4f8fb;
+}
+
+.admin-layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  background: #f2f8fb;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 20px;
+  color: #ffffff;
+  background: #116e95;
+}
+
+.sidebar-brand {
+  margin-bottom: 36px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar nav button:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.logout-button {
+  margin-top: auto;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+}
+
+.dashboard-content {
+  padding: 36px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.dashboard-header span {
+  color: #5b7b8a;
+}
+
+.dashboard-header h1 {
+  margin: 6px 0 0;
+  color: #123d50;
+}
+
+.user-summary {
+  display: grid;
+  gap: 4px;
+  padding: 12px 18px;
+  border: 1px solid #d5e5ec;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(220px, 1fr)
+    );
+  gap: 20px;
+}
+
+.dashboard-card {
+  padding: 24px;
+  border: 1px solid #d6e8ef;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.dashboard-card h2 {
+  margin-top: 0;
+  color: #126b91;
+}
+
+.dashboard-card p {
+  min-height: 48px;
+  color: #607986;
+  line-height: 1.5;
+}
+
+.dashboard-card button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #23a9cf;
+  cursor: pointer;
+}
+
+@media (max-width: 780px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+  }
+
+  .sidebar nav {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .logout-button {
+    margin-top: 20px;
+  }
+
+  .dashboard-content {
+    padding: 24px 18px;
+  }
+
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
