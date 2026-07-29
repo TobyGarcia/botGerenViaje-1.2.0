@@ -19,6 +19,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(express.urlencoded({
   extended: true
@@ -54,6 +55,11 @@ app.use(
   telegramAuthRoutes
 );
 
+app.use(
+  "/api/admin/auth",
+  adminAuthRoutes
+);
+
 app.use((request, response) => {
   return response.status(404).json({
     success: false,
@@ -76,6 +82,10 @@ app.use(
   }
 );
 
+import cookieParser
+  from "cookie-parser";
 
+import adminAuthRoutes
+  from "./routes/admin-auth.routes.js";
 
 export default app;
