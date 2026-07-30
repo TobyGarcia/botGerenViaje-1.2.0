@@ -107,6 +107,12 @@ const [finishedTrip, setFinishedTrip] =
   const [telegramAuthLoading, setTelegramAuthLoading] =
     useState(true);
 
+  const [telegramAuthError, setTelegramAuthError] =
+    useState("");
+
+  const [telegramAuthAttempt, setTelegramAuthAttempt] =
+    useState(0);
+
   const telegramAuthStartedRef = useRef(false);
 
   const authenticatedDriver = telegramAuth?.conductor ?? null;
@@ -127,16 +133,16 @@ const [finishedTrip, setFinishedTrip] =
       }
 
       telegramAuthStartedRef.current = true;
+      setTelegramAuthError("");
 
       try {
       const telegramWebApp =
         window.Telegram?.WebApp;
 
       if (!telegramWebApp) {
-        setMessage(
+        setTelegramAuthError(
           "Esta aplicación debe abrirse desde el bot de Telegram."
         );
-        setMessageType("error");
         return;
       }
 
@@ -147,10 +153,9 @@ const [finishedTrip, setFinishedTrip] =
         telegramWebApp.initData || "";
 
       if (!initData) {
-        setMessage(
+        setTelegramAuthError(
           "No se recibió la información de autenticación de Telegram. Cierra esta ventana y vuelve a abrirla desde el botón del bot."
         );
-        setMessageType("error");
         return;
       }
 
@@ -160,19 +165,31 @@ const [finishedTrip, setFinishedTrip] =
         setTelegramAuth(authenticationResponse.data);
       } catch (error) {
 
-        setMessage(
+        setTelegramAuthError(
           error.message ||
           "No fue posible autenticar al usuario de Telegram."
         );
-
-        setMessageType("error");
       } finally {
+        telegramAuthStartedRef.current = false;
         setTelegramAuthLoading(false);
       }
     }
 
     authenticateTelegramUser();
-  }, []);
+  }, [telegramAuthAttempt]);
+
+  function retryTelegramAuthentication() {
+    if (telegramAuthLoading) {
+      return;
+    }
+
+    setTelegramAuth(null);
+    setTelegramAuthError("");
+    setTelegramAuthLoading(true);
+    setTelegramAuthAttempt((current) =>
+      current + 1
+    );
+  }
 
   useEffect(() => {
     const idConductor = telegramAuth?.conductor?.id_conductores;
@@ -765,8 +782,29 @@ function handleStopGps() {
     return <p className="loading-message">Validando identidad de Telegram...</p>;
   }
 
+  if (telegramAuthError) {
+    return (
+      <main className="telegram-auth-error">
+        <h1>No fue posible validar tu acceso</h1>
+
+        <p>{telegramAuthError}</p>
+
+        <button
+          type="button"
+          onClick={retryTelegramAuthentication}
+        >
+          Reintentar
+        </button>
+      </main>
+    );
+  }
+
   if (!telegramAuth?.authenticated) {
-    return <p className="loading-message">Acceso no autorizado.</p>;
+    return (
+      <p className="loading-message">
+        No fue posible validar tu acceso.
+      </p>
+    );
   }
 
   if (telegramAuth.estadoRegistro === "BLOQUEADO" || !telegramAuth.usuario?.activo) {

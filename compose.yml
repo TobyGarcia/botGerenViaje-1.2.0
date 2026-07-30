@@ -32,6 +32,30 @@ services:
 
     networks:
       - viajes_network
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: viajes_ngrok
+    restart: unless-stopped
+
+    command:
+      - "http"
+      - "--url=https://${NGROK_DOMAIN}"
+      - "http://frontend:80"
+
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+
+    ports:
+      - "4040:4040"
+
+    depends_on:
+      frontend:
+        condition: service_started
+
+    networks:
+      - viajes_network
+
   backend:
     build: 
       context: ./backend
@@ -60,9 +84,6 @@ services:
     volumes:
       - ./backend/src:/app/src
     
-    
-
-
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,7 +151,7 @@ services:
     healthcheck:
       test: [
         "CMD-SHELL",
-        "wgwt -q --spider http://127.0.0.1/health || exit 1"
+        "wget -q --spider http://127.0.0.1/health || exit 1"
       ]
       interval: 10s
       timeout: 5s

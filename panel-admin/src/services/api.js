@@ -61,3 +61,145 @@ export function logoutAdmin() {
     }
   );
 }
+
+export function getAdminConductores({
+  search = "",
+  status = "TODOS"
+} = {}) {
+  const params =
+    new URLSearchParams();
+
+  if (search.trim()) {
+    params.set(
+      "search",
+      search.trim()
+    );
+  }
+
+  if (status) {
+    params.set(
+      "status",
+      status
+    );
+  }
+
+  const query =
+    params.toString();
+
+  return request(
+    `/admin/conductores${
+      query ? `?${query}` : ""
+    }`
+  );
+}
+
+export function createAdminConductor(
+  conductor
+) {
+  return request(
+    "/admin/conductores",
+    {
+      method: "POST",
+
+      body: JSON.stringify({
+        nombre:
+          conductor.nombre,
+
+        telefono:
+          conductor.telefono,
+
+        licenciaNumero:
+          conductor.licenciaNumero,
+
+        licenciaVencimiento:
+          conductor.licenciaVencimiento
+      })
+    }
+  );
+}
+
+export function updateAdminConductorStatus(
+  idConductor,
+  activo
+) {
+  return request(
+    `/admin/conductores/${idConductor}/estado`,
+    {
+      method: "PATCH",
+
+      body: JSON.stringify({
+        activo
+      })
+    }
+  );
+}
+
+export function getAdminVehiculos({
+  search = "",
+  status = "TODOS"
+} = {}) {
+  const params =
+    new URLSearchParams();
+
+  if (search.trim()) {
+    params.set(
+      "search",
+      search.trim()
+    );
+  }
+
+  if (status) {
+    params.set(
+      "status",
+      status
+    );
+  }
+
+  const query =
+    params.toString();
+
+  return request(
+    `/admin/vehiculos${
+      query ? `?${query}` : ""
+    }`
+  );
+}
+
+export function createAdminVehiculo(
+  vehiculo
+) {
+  return request(
+    "/admin/vehiculos",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        marca:
+          vehiculo.marca,
+
+        modelo:
+          vehiculo.modelo,
+
+        numeroEconomico:
+          vehiculo.numeroEconomico,
+
+        placas:
+          vehiculo.placas
+      })
+    }
+  );
+}
+
+export function updateAdminVehiculoStatus(
+  idVehiculo,
+  activo
+) {
+  return request(
+    `/admin/vehiculos/${idVehiculo}/estado`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        activo
+      })
+    }
+  );
+}
