@@ -4,6 +4,9 @@ import {
 
 import ConductoresPage from "./ConductoresPage.jsx";
 import VehiculosPage from "./VehiculosPage.jsx";
+import DestinosPage from "./DestinosPage.jsx";
+import UbicacionesPage from "./UbicacionesPage.jsx";
+import ViajesPage from "./ViajesPage.jsx";
 
 function ModulePlaceholder({ title }) {
   return (
@@ -140,11 +143,20 @@ function DashboardPage({
 
         {activeModule === "unidades" && <VehiculosPage />}
 
+        {activeModule === "destinos" && <DestinosPage />}
+
+        {activeModule === "ubicaciones" && <UbicacionesPage />}
+
+        {activeModule === "viajes" && <ViajesPage />}
+
         {modules
           .filter(
             (module) =>
               module.id !== "conductores" &&
-              module.id !== "unidades"
+              module.id !== "unidades" &&
+              module.id !== "destinos" &&
+              module.id !== "ubicaciones" &&
+              module.id !== "viajes"
           )
           .map((module) =>
             activeModule === module.id ? (

@@ -6,6 +6,9 @@ import ubicacionesRoutes from "./routes/ubicaciones.routes.js";
 import telegramAuthRoutes from "./routes/telegram-auth.routes.js";
 import adminConductoresRoutes from "./routes/admin-conductores.routes.js"
 import adminVehiculosRoutes from "./routes/admin-vehiculos.routes.js"
+import adminDestinosRoutes from "./routes/admin-destinos.routes.js"
+import adminUbicacacionesRoutes from "./routes/admin-ubicaciones.routes.js"
+import adminViajesRoutes from "./routes/admin-viajes.routes.js"
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -70,6 +73,21 @@ app.use(
 app.use(
   "/api/admin/vehiculos",
   adminVehiculosRoutes
+);
+
+app.use(
+  "/api/admin/destinos",
+  adminDestinosRoutes
+);
+
+app.use(
+  "/api/admin/ubicaciones-viaje",
+  adminUbicacacionesRoutes
+);
+
+app.use (
+  "/api/admin/viajes",
+  adminViajesRoutes
 );
 
 app.use((request, response) => {
