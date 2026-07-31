@@ -1,10 +1,12 @@
 import {
+  cancelTrip,
   createTrip,
   finishTrip,
   getActiveTrip,
   getTripById,
   startTrip
 } from "../services/viajes.service.js";
+import { sendTripGroupAlert } from "../bot/bot.js";
 
 function parsePositiveInteger(value) {
   const parsedValue = Number(value);
@@ -222,6 +224,8 @@ export async function startTripController(
       idViaje
     });
 
+    await sendTripGroupAlert({ action: "iniciado", trip });
+
     return response.status(200).json({
       success: true,
       message:
@@ -300,6 +304,8 @@ export async function finishTripController(
       kilometrajeFinal
     });
 
+    await sendTripGroupAlert({ action: "finalizado", trip });
+
     return response.status(200).json({
       success: true,
       message:
@@ -335,6 +341,45 @@ export async function finishTripController(
     });
   }
 }
+export async function cancelTripController(
+  request,
+  response
+) {
+  try {
+    const idViaje = parsePositiveInteger(request.params.idViaje);
+
+    if (!idViaje) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del viaje no es válido."
+      });
+    }
+
+    const trip = await cancelTrip({ idViaje });
+
+    await sendTripGroupAlert({ action: "cancelado", trip });
+
+    return response.status(200).json({
+      success: true,
+      message: "Viaje cancelado correctamente.",
+      data: trip
+    });
+  } catch (error) {
+    console.error("Error cancelando viaje:", error);
+
+    const statusCode = error.message === "El viaje no existe."
+      ? 404
+      : error.message.includes("no puede cancelarse")
+        ? 409
+        : 500;
+
+    return response.status(statusCode).json({
+      success: false,
+      message: error.message || "No fue posible cancelar el viaje."
+    });
+  }
+}
+
 export async function getActiveTripController(
   request,
   response

@@ -168,6 +168,20 @@ small {
   font-weight: 700;
 }
 
+.status-cancelled {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.cancel-trip-button {
+  margin-top: 12px;
+  background: #b91c1c;
+}
+
+.cancel-trip-button:hover:not(:disabled) {
+  background: #991b1b;
+}
+
 .gps-panel {
   margin-top: 16px;
   padding: 16px;
@@ -203,6 +217,24 @@ small {
 .new-trip-button {
   margin-top: 16px;
   background: #2563eb;
+}
+
+.completed-trip-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.completed-trip-actions .new-trip-button {
+  margin-top: 0;
+}
+
+.exit-app-button {
+  background: #475569;
+}
+
+.exit-app-button:hover:not(:disabled) {
+  background: #334155;
 }
 
 .location-details {
