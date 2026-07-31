@@ -390,6 +390,26 @@ export function deleteAdminViaje(
   );
 }
 
+export function getAdminVehiculoKilometraje(idVehiculo, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.type && filters.type !== "TODOS") params.set("type", filters.type);
+  const query = params.toString();
+  return request(`/admin/vehiculos/${idVehiculo}/kilometraje${query ? `?${query}` : ""}`);
+}
+
+export function getAdminVehiculoKilometrajeResumen(idVehiculo) {
+  return request(`/admin/vehiculos/${idVehiculo}/kilometraje/resumen`);
+}
+
+export function createAdminVehiculoKilometraje(idVehiculo, reading) {
+  return request(`/admin/vehiculos/${idVehiculo}/kilometraje${reading.idRegistroCorregido ? "/correccion" : ""}`, {
+    method: "POST",
+    body: JSON.stringify(reading)
+  });
+}
+
 export function getAdminDashboardSummary() {
   return request("/admin/viajes/resumen");
 }

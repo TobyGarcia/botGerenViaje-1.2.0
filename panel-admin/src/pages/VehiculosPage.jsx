@@ -6,6 +6,9 @@ import {
 
 import {
   createAdminVehiculo,
+  createAdminVehiculoKilometraje,
+  getAdminVehiculoKilometraje,
+  getAdminVehiculoKilometrajeResumen,
   getAdminVehiculos,
   updateAdminVehiculoStatus
 } from "../services/api.js";
@@ -17,7 +20,8 @@ const initialForm = {
   placas: ""
 };
 
-function VehiculosPage() {
+function VehiculosPage({ user }) {
+  const canManageMileage = ["ADMINISTRADOR", "SUPERVISOR"].includes(user?.rol);
   const [vehiculos, setVehiculos] =
     useState([]);
 
@@ -47,6 +51,13 @@ function VehiculosPage() {
 
   const [updatingId, setUpdatingId] =
     useState(null);
+
+  const [mileageVehicle, setMileageVehicle] = useState(null);
+  const [mileageHistory, setMileageHistory] = useState([]);
+  const [mileageSummary, setMileageSummary] = useState(null);
+  const [mileageLoading, setMileageLoading] = useState(false);
+  const [mileageSaving, setMileageSaving] = useState(false);
+  const [mileageForm, setMileageForm] = useState({ kilometraje: "", observaciones: "" });
 
   const submittingRef =
     useRef(false);
@@ -272,6 +283,41 @@ function VehiculosPage() {
     }
   }
 
+  async function openMileage(vehiculo) {
+    setMileageVehicle(vehiculo);
+    setMileageHistory([]);
+    setMileageSummary(null);
+    setMileageForm({ kilometraje: "", observaciones: "" });
+    setMileageLoading(true);
+    try {
+      const [historyResponse, summaryResponse] = await Promise.all([
+        getAdminVehiculoKilometraje(vehiculo.id_vehiculos),
+        getAdminVehiculoKilometrajeResumen(vehiculo.id_vehiculos)
+      ]);
+      setMileageHistory(historyResponse.data.historial ?? []);
+      setMileageSummary(summaryResponse.data);
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally { setMileageLoading(false); }
+  }
+
+  async function saveMileage(event) {
+    event.preventDefault();
+    if (!mileageVehicle || mileageSaving) return;
+    setMileageSaving(true);
+    try {
+      const response = await createAdminVehiculoKilometraje(mileageVehicle.id_vehiculos, {
+        kilometraje: Number(mileageForm.kilometraje), observaciones: mileageForm.observaciones
+      });
+      setMessage(response.message);
+      setMessageType("success");
+      await openMileage(mileageVehicle);
+      await loadVehiculos();
+    } catch (error) { setMessage(error.message); setMessageType("error"); }
+    finally { setMileageSaving(false); }
+  }
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -369,6 +415,7 @@ function VehiculosPage() {
                   <th>Unidad</th>
                   <th>Número económico</th>
                   <th>Placas</th>
+                  <th>Kilometraje actual</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -398,6 +445,8 @@ function VehiculosPage() {
                         {vehiculo.placas}
                       </td>
 
+                      <td>{vehiculo.kilometraje_actual ?? 0} km</td>
+
                       <td>
                         <span
                           className={
@@ -413,6 +462,9 @@ function VehiculosPage() {
                       </td>
 
                       <td>
+                        <button type="button" className="secondary-button" onClick={() => openMileage(vehiculo)}>
+                          Historial
+                        </button>
                         <button
                           type="button"
                           className={
@@ -582,6 +634,37 @@ function VehiculosPage() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {mileageVehicle && (
+        <div className="modal-overlay" role="presentation" onMouseDown={() => !mileageSaving && setMileageVehicle(null)}>
+          <section className="modal-card mileage-modal" role="dialog" aria-modal="true" aria-labelledby="mileage-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="form-panel-header">
+              <div><h2 id="mileage-title">Historial de kilometraje</h2><p>{mileageVehicle.nombre} · {mileageVehicle.numero_economico}</p></div>
+              <button type="button" className="close-button" onClick={() => setMileageVehicle(null)} aria-label="Cerrar historial">×</button>
+            </div>
+            {mileageLoading ? <p className="table-status">Cargando historial...</p> : <>
+              <div className="mileage-summary">
+                <strong>Actual: {mileageSummary?.kilometraje_actual ?? mileageVehicle.kilometraje_actual ?? 0} km</strong>
+                <span>Viajes: {mileageSummary?.total_viajes ?? 0}</span>
+                <span>Recorridos: {mileageSummary?.kilometros_recorridos ?? 0} km</span>
+              </div>
+              <div className="mileage-chart" aria-label="Evolución de kilometraje">
+                {mileageHistory.slice(0, 20).reverse().map((row) => <span key={row.id_historial_kilometraje} title={`${row.kilometraje} km`} style={{ height: `${Math.max(8, Math.min(100, Number(row.kilometraje) / Math.max(1, Number(mileageSummary?.kilometraje_actual || row.kilometraje)) * 100))}%` }} />)}
+              </div>
+              <div className="table-wrapper mileage-history-table"><table className="admin-table"><thead><tr><th>Fecha</th><th>Km</th><th>Tipo</th><th>Viaje</th><th>Observaciones</th></tr></thead><tbody>
+                {mileageHistory.length ? mileageHistory.map((row) => <tr key={row.id_historial_kilometraje}><td>{new Date(row.fecha_lectura).toLocaleString("es-MX")}</td><td>{row.kilometraje}</td><td>{row.tipo_registro}</td><td>{row.folio || "—"}</td><td>{row.observaciones || "—"}</td></tr>) : <tr><td colSpan="5">Aún no hay lecturas.</td></tr>}
+              </tbody></table></div>
+              {canManageMileage && <form className="driver-form mileage-form" onSubmit={saveMileage}>
+                <h3>Registrar ajuste manual</h3>
+                <label>Kilometraje<input type="number" min="0" step="1" value={mileageForm.kilometraje} onChange={(event) => setMileageForm((current) => ({ ...current, kilometraje: event.target.value }))} required /></label>
+                <label>Observaciones<textarea value={mileageForm.observaciones} onChange={(event) => setMileageForm((current) => ({ ...current, observaciones: event.target.value }))} required /></label>
+                <div className="form-actions"><button type="submit" className="primary-button" disabled={mileageSaving}>{mileageSaving ? "Guardando..." : "Registrar lectura"}</button></div>
+              </form>
+              }
+            </>}
           </section>
         </div>
       )}

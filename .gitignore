@@ -24,6 +24,3 @@ Thumbs.db
 
 # PostgreSQL local
 postgres_data/
-
-# ngrok
-ngrok.yml

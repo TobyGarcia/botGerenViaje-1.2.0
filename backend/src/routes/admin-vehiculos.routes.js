@@ -4,6 +4,9 @@ import {
 
 import {
   createAdminVehicleController,
+  createAdminVehicleMileageReadingController,
+  getAdminVehicleMileageHistoryController,
+  getAdminVehicleMileageSummaryController,
   listAdminVehiclesController,
   updateAdminVehicleStatusController
 } from "../controllers/admin-vehiculos.controller.js";
@@ -27,6 +30,11 @@ router.post(
   "/",
   createAdminVehicleController
 );
+
+router.get("/:idVehiculo/kilometraje", getAdminVehicleMileageHistoryController);
+router.get("/:idVehiculo/kilometraje/resumen", getAdminVehicleMileageSummaryController);
+router.post("/:idVehiculo/kilometraje", createAdminVehicleMileageReadingController);
+router.post("/:idVehiculo/kilometraje/correccion", createAdminVehicleMileageReadingController);
 
 router.patch(
   "/:idVehiculo/estado",
