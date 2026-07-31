@@ -743,7 +743,7 @@ export async function cancelTrip({ idViaje }) {
   }
 }
 
-export async function getActiveTrip() {
+export async function getActiveTrip({ idConductor }) {
   const result = await databasePool.query(
     `
       SELECT
@@ -830,7 +830,8 @@ export async function getActiveTrip() {
       ) ultima_ubicacion
         ON TRUE
 
-      WHERE ev.nombre IN (
+      WHERE v.id_conductores = $1
+        AND ev.nombre IN (
         'PENDIENTE',
         'EN_CURSO'
       )
@@ -845,6 +846,8 @@ export async function getActiveTrip() {
 
       LIMIT 1
     `
+    ,
+    [idConductor]
   );
 
   return result.rows[0] ?? null;

@@ -203,6 +203,13 @@
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 28px 20px;
@@ -315,6 +322,10 @@
   }
 
   .sidebar {
+    position: static;
+    width: auto;
+    min-width: 0;
+    height: auto;
     min-height: auto;
   }
 

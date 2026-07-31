@@ -7,6 +7,8 @@ import {
   startTrip
 } from "../services/viajes.service.js";
 import { sendTripGroupAlert } from "../bot/bot.js";
+import { findTelegramUserById } from "../services/telegram-user.service.js";
+import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 
 function parsePositiveInteger(value) {
   const parsedValue = Number(value);
@@ -385,7 +387,25 @@ export async function getActiveTripController(
   response
 ) {
   try {
-    const trip = await getActiveTrip();
+    const telegramData = validateTelegramInitData(
+      request.get("X-Telegram-Init-Data") || "",
+      {
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
+      }
+    );
+    const telegramUser = await findTelegramUserById(telegramData.user.id);
+
+    if (!telegramUser?.activo || !telegramUser?.conductor_activo || !telegramUser.id_conductores) {
+      return response.status(403).json({
+        success: false,
+        message: "El usuario de Telegram no tiene un conductor activo asociado."
+      });
+    }
+
+    const trip = await getActiveTrip({
+      idConductor: telegramUser.id_conductores
+    });
 
     return response.status(200).json({
       success: true,
@@ -399,7 +419,11 @@ export async function getActiveTripController(
       error
     );
 
-    return response.status(500).json({
+    const statusCode = error.message?.includes("initData") || error.message?.includes("firma")
+      ? 401
+      : 500;
+
+    return response.status(statusCode).json({
       success: false,
       message:
         "No fue posible consultar el viaje activo."

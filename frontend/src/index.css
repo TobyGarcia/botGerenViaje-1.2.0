@@ -158,6 +158,67 @@ small {
   background: #166534;
 }
 
+.companions-toggle {
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #334155;
+  background: transparent;
+  text-align: left;
+  transition: background 180ms ease;
+}
+
+.companions-toggle-active {
+  background: transparent;
+}
+
+.companions-field {
+  gap: 10px;
+}
+
+.companions-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.companions-toggle-track {
+  display: flex;
+  align-items: center;
+  width: 76px;
+  height: 40px;
+  padding: 4px;
+  flex: 0 0 76px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 180ms ease;
+}
+
+.companions-toggle-thumb {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.26);
+  transform: translateX(0);
+  transition: transform 180ms ease;
+}
+
+.companions-toggle-active .companions-toggle-track {
+  background: linear-gradient(135deg, #4ade80, #3b82f6);
+}
+
+.companions-toggle-active .companions-toggle-thumb {
+  transform: translateX(36px);
+}
+
 .status-pending {
   color: #b45309;
   font-weight: 700;

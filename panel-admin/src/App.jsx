@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState
 } from "react";
 
@@ -16,12 +18,16 @@ import {
   logoutAdmin
 } from "./services/api.js";
 
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+
 function App() {
   const [sessionLoading, setSessionLoading] =
     useState(true);
 
   const [adminUser, setAdminUser] =
     useState(null);
+
+  const inactivityTimeoutRef = useRef(null);
 
   useEffect(() => {
     async function loadSession() {
@@ -42,13 +48,58 @@ function App() {
     loadSession();
   }, []);
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     try {
       await logoutAdmin();
     } finally {
       setAdminUser(null);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!adminUser) {
+      return undefined;
+    }
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimeoutRef.current) {
+        window.clearTimeout(inactivityTimeoutRef.current);
+      }
+
+      inactivityTimeoutRef.current = window.setTimeout(() => {
+        handleLogout();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = [
+      "mousedown",
+      "mousemove",
+      "keydown",
+      "scroll",
+      "touchstart"
+    ];
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, resetInactivityTimer, {
+        passive: true
+      });
+    });
+
+    resetInactivityTimer();
+
+    return () => {
+      if (inactivityTimeoutRef.current) {
+        window.clearTimeout(inactivityTimeoutRef.current);
+      }
+
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          resetInactivityTimer
+        );
+      });
+    };
+  }, [adminUser, handleLogout]);
 
   if (sessionLoading) {
     return (

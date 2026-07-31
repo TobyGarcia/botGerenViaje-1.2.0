@@ -2,11 +2,15 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "";
 
 async function request(path, options = {}) {
+  const telegramInitData = window.Telegram?.WebApp?.initData || "";
   const response = await fetch(
     `${API_BASE_URL}${path}`,
     {
       headers: {
         "Content-Type": "application/json",
+        ...(telegramInitData
+          ? { "X-Telegram-Init-Data": telegramInitData }
+          : {}),
         ...options.headers
       },
       ...options
@@ -66,6 +70,13 @@ export function registrarUbicacion(
       body: JSON.stringify(location)
     }
   );
+}
+
+export function registrarUbicacionesLote(idViaje, ubicaciones) {
+  return request(`/api/viajes/${idViaje}/ubicaciones/lote`, {
+    method: "POST",
+    body: JSON.stringify({ ubicaciones })
+  });
 }
 export function finalizarViaje(
   idViaje,

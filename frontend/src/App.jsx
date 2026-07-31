@@ -17,6 +17,13 @@ import {
   registrarUbicacion
 } from "./services/api.js";
 import RegistroConductor from "./components/RegistroConductor.jsx";
+import {
+  captureAndQueueLocation,
+  setTrackingStatusListener,
+  startTracking,
+  stopTracking,
+  syncPendingLocations
+} from "./services/tracking-service.js";
 
 const initialForm = {
   idConductor: "",
@@ -24,6 +31,7 @@ const initialForm = {
   idOrigen: "",
   idDestino: "",
   acompanantes: "",
+  viajaAcompanado: false,
   kilometrajeInicial: "",
   motivo: ""
 };
@@ -91,7 +99,13 @@ const [gpsStatus, setGpsStatus] =
 const [lastLocation, setLastLocation] =
   useState(null);
 
-const LOCATION_INTERVAL_MS = 15000;
+const [trackingInfo, setTrackingInfo] = useState({
+  active: false,
+  status: "Detenido",
+  pending: 0,
+  connection: navigator.onLine ? "En línea" : "Sin conexión",
+  lastCapture: null
+});
 
 const [kilometrajeFinal, setKilometrajeFinal] =
   useState("");
@@ -272,6 +286,7 @@ const [cancellingTrip, setCancellingTrip] =
         activeTripResponse.data;
 
       if (!activeTrip) {
+        stopTracking();
         return;
       }
 
@@ -329,11 +344,19 @@ const [cancellingTrip, setCancellingTrip] =
           activeTrip.ultimaUbicacion
         );
 
-        setGpsStatus(
-          activeTrip.ultimaUbicacion
-            ? "Viaje recuperado. El GPS está detenido; puedes reiniciarlo."
-            : "Viaje recuperado. GPS detenido."
-        );
+        if (activeTrip.ultimaUbicacion) {
+          setTrackingInfo((current) => ({
+            ...current,
+            lastCapture: activeTrip.ultimaUbicacion.gpsTimestamp,
+            latitude: Number(activeTrip.ultimaUbicacion.latitude),
+            longitude: Number(activeTrip.ultimaUbicacion.longitude)
+          }));
+        }
+
+        setGpsStatus("Reanudando seguimiento GPS...");
+        await startTracking(activeTrip.idViaje);
+      } else {
+        stopTracking();
       }
 
       setMessage(
@@ -355,16 +378,46 @@ const [cancellingTrip, setCancellingTrip] =
 }, []);
 
   useEffect(() => {
-  return () => {
-    if (
-      geolocationWatchRef.current !== null
-    ) {
-      navigator.geolocation.clearWatch(
-        geolocationWatchRef.current
-      );
+    setTrackingStatusListener((update) => {
+      setTrackingInfo((current) => ({ ...current, ...update }));
+      setTrackingGps(Boolean(update.active));
+      if (update.status) setGpsStatus(update.status);
+    });
+
+    return () => {
+      setTrackingStatusListener(null);
+      stopTracking({ clearState: false });
+    };
+  }, []);
+
+  useEffect(() => {
+    async function resumeWhenVisible() {
+      try {
+        if (document.visibilityState !== "visible") return;
+        const response = await getViajeActivo();
+        if (response.data?.estado === "EN_CURSO") {
+          await syncPendingLocations(response.data.idViaje);
+          await startTracking(response.data.idViaje);
+        } else {
+          stopTracking();
+        }
+      } catch (error) {
+        console.warn("No fue posible reanudar el seguimiento GPS:", error);
+      }
     }
-  };
-}, []);
+
+    function syncWhenOnline() {
+      const idViaje = startedTrip?.idViaje ?? createdTrip?.idViaje;
+      if (idViaje) syncPendingLocations(idViaje);
+    }
+
+    document.addEventListener("visibilitychange", resumeWhenVisible);
+    window.addEventListener("online", syncWhenOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", resumeWhenVisible);
+      window.removeEventListener("online", syncWhenOnline);
+    };
+  }, [startedTrip?.idViaje, createdTrip?.idViaje]);
 
   async function sendPosition(
   idViaje,
@@ -441,74 +494,10 @@ function handleStartGps() {
     return;
   }
 
-  if (!navigator.geolocation) {
-    setGpsStatus(
-      "Este dispositivo no admite geolocalización."
-    );
-    return;
-  }
-
-  if (
-    geolocationWatchRef.current !== null
-  ) {
-    navigator.geolocation.clearWatch(
-      geolocationWatchRef.current
-    );
-  }
-
-  setGpsStatus(
-    "Solicitando permiso de ubicación..."
-  );
-
-  lastLocationSentAtRef.current=0;
-
-  const watchId =
-    navigator.geolocation.watchPosition(
-      (position) => {
-        setTrackingGps(true);
-
-        setGpsStatus(
-          "GPS activo. Enviando ubicación..."
-        );
-
-        sendPosition(idViaje, position);
-      },
-
-      (error) => {
-        setTrackingGps(false);
-
-        const messages = {
-          1: "El permiso de ubicación fue rechazado.",
-          2: "La ubicación no está disponible.",
-          3: "Se agotó el tiempo para obtener la ubicación."
-        };
-
-        setGpsStatus(
-          messages[error.code] ||
-          "No fue posible obtener la ubicación."
-        );
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 5000
-      }
-    );
-
-  geolocationWatchRef.current = watchId;
+  startTracking(idViaje);
 }
 function handleStopGps() {
-  if (
-    geolocationWatchRef.current !== null
-  ) {
-    navigator.geolocation.clearWatch(
-      geolocationWatchRef.current
-    );
-
-    geolocationWatchRef.current = null;
-  }
-
+  stopTracking({ clearState: false });
   setTrackingGps(false);
   setGpsStatus("GPS detenido.");
 }
@@ -560,7 +549,9 @@ function handleStopGps() {
     setMessage("");
 
     try {
-      handleStopGps();
+      stopTracking({ clearState: false });
+      await captureAndQueueLocation(idViaje);
+      await syncPendingLocations(idViaje);
 
     const response = await finalizarViaje (
       idViaje,
@@ -584,9 +575,12 @@ function handleStopGps() {
 
       setMessage("Viaje finalizado correctamente.");
       setMessageType("success");
+      stopTracking();
+      await syncPendingLocations(idViaje);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
+      await startTracking(idViaje);
     } finally {
       setFinishingTrip(false);
     }
@@ -622,7 +616,7 @@ function handleStopGps() {
       const response = await cancelarViaje(idViaje);
       const cancelledData = response.data ?? {};
 
-      handleStopGps();
+      stopTracking();
       setCancelledTrip(cancelledData);
       setStartedTrip(null);
       setCreatedTrip((current) => ({
@@ -802,6 +796,7 @@ function handleStopGps() {
       );
       setMessage("Viaje iniciado correctamente.");
       setMessageType("success");
+      await startTracking(idViaje);
       
     } catch (error) {
       setMessage(error.message);
@@ -813,7 +808,7 @@ function handleStopGps() {
   }
 
   function handleNewTrip(){
-    handleStopGps();
+    stopTracking();
 
     setForm({
       ...initialForm,
@@ -1038,14 +1033,43 @@ function handleStopGps() {
           </select>
         </label>
 
-        <label>
-          Acompañantes
+        <label className="companions-field">
+          <span className="companions-label-row">
+            <span>Acompañantes</span>
+          <button
+            type="button"
+            className={`companions-toggle ${
+              form.viajaAcompanado ? "companions-toggle-active" : ""
+            }`}
+            role="switch"
+            aria-checked={form.viajaAcompanado}
+            onClick={() => {
+              setForm((current) => ({
+                ...current,
+                viajaAcompanado: !current.viajaAcompanado,
+                acompanantes: current.viajaAcompanado
+                  ? ""
+                  : current.acompanantes
+              }));
+            }}
+          >
+            <span className="companions-toggle-track" aria-hidden="true">
+              <span className="companions-toggle-thumb" />
+            </span>
+          </button>
+          </span>
           <input
             type="text"
             name="acompanantes"
             value={form.acompanantes}
             onChange={handleChange}
-            placeholder="Juan Pérez, María López"
+            placeholder={
+              form.viajaAcompanado
+                ? "Juan Pérez, María López"
+                : "Viajo solo"
+            }
+            aria-label="Nombres de acompañantes"
+            disabled={!form.viajaAcompanado}
           />
         </label>
 
@@ -1199,25 +1223,20 @@ function handleStopGps() {
       <section className="gps-panel">
   <h3>Rastreo GPS</h3>
 
-  <p>{gpsStatus}</p>
-
-  {!trackingGps ? (
-    <button
-      type="button"
-      className="gps-button"
-      onClick={handleStartGps}
-    >
-      📍 Iniciar rastreo GPS
-    </button>
-  ) : (
-    <button
-      type="button"
-      className="stop-gps-button"
-      onClick={handleStopGps}
-    >
-      Detener rastreo GPS
-    </button>
-  )}
+  <p><strong>Seguimiento GPS:</strong> {trackingInfo.active ? "Activo" : "Detenido"}</p>
+  <p><strong>Estado:</strong> {trackingInfo.status || gpsStatus}</p>
+  <p><strong>Última captura:</strong> {trackingInfo.lastCapture ? new Date(trackingInfo.lastCapture).toLocaleTimeString("es-MX") : "Aún no disponible"}</p>
+  <p><strong>Latitud:</strong> {Number.isFinite(trackingInfo.latitude) ? trackingInfo.latitude.toFixed(6) : "Aún no disponible"}</p>
+  <p><strong>Longitud:</strong> {Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</p>
+  <p><strong>Pendientes:</strong> {trackingInfo.pending ?? 0}</p>
+  <p><strong>Conexión:</strong> {trackingInfo.connection}</p>
+  <button
+    type="button"
+    className="gps-button"
+    onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
+  >
+    Reintentar sincronización
+  </button>
   <form className="finish-trip-form" onSubmit={handleFinishTrip}>
       <h3>Finalizar viaje</h3>
 
