@@ -1,8 +1,22 @@
 import {
   deleteAdminTrip,
+  getAdminDashboardSummary,
   getAdminTripById,
   listAdminTrips
 } from "../services/admin-viajes.service.js";
+
+export async function getAdminDashboardSummaryController(request, response) {
+  try {
+    const summary = await getAdminDashboardSummary();
+    return response.status(200).json({ success: true, data: summary });
+  } catch (error) {
+    console.error("Error consultando resumen administrativo:", error);
+    return response.status(500).json({
+      success: false,
+      message: "No fue posible consultar el resumen administrativo."
+    });
+  }
+}
 
 function parsePositiveInteger(value) {
   const parsedValue =

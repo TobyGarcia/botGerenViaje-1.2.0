@@ -2,6 +2,45 @@ import {
   databasePool
 } from "../database/pool.js";
 
+export async function getAdminDashboardSummary() {
+  const [summaryResult, activityResult] = await Promise.all([
+    databasePool.query(
+      `
+        SELECT
+          (SELECT COUNT(*)::INTEGER FROM conductores) AS conductores_total,
+          (SELECT COUNT(*)::INTEGER FROM conductores WHERE activo = TRUE) AS conductores_activos,
+          (SELECT COUNT(*)::INTEGER FROM vehiculos) AS unidades_total,
+          (SELECT COUNT(*)::INTEGER FROM vehiculos WHERE activo = TRUE) AS unidades_activas,
+          (SELECT COUNT(*)::INTEGER FROM viajes) AS viajes_total,
+          (SELECT COUNT(*)::INTEGER FROM viajes v
+            INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje
+            WHERE ev.nombre = 'EN_CURSO') AS viajes_en_curso
+      `
+    ),
+    databasePool.query(
+      `
+        SELECT
+          serie.fecha::date AS fecha,
+          COUNT(v.id_viajes)::INTEGER AS total
+        FROM generate_series(
+          CURRENT_DATE - INTERVAL '6 days',
+          CURRENT_DATE,
+          INTERVAL '1 day'
+        ) AS serie(fecha)
+        LEFT JOIN viajes v
+          ON v.fecha = serie.fecha::date
+        GROUP BY serie.fecha
+        ORDER BY serie.fecha
+      `
+    )
+  ]);
+
+  return {
+    ...summaryResult.rows[0],
+    actividad: activityResult.rows
+  };
+}
+
 export async function listAdminTrips({
   search = "",
   status = "TODOS",

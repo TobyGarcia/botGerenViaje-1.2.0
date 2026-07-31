@@ -529,9 +529,9 @@ function handleStopGps() {
       createdTrip?.kilometraje_inicial
     );
 
-    if (!Number.isInteger(finalMileage) || finalMileage < initialMileage) {
+    if (!Number.isInteger(finalMileage) || finalMileage <= initialMileage) {
     setMessage(
-      "El kilometraje final no puede ser menor al kilometraje inicial."
+      "El kilometraje final debe ser mayor al kilometraje inicial."
     );
     setMessageType("error");
     return;
@@ -1251,9 +1251,11 @@ function handleStopGps() {
             setMessage("");
           }}
           min={
-            startedTrip.kilometrajeInicial ??
-            startedTrip.kilometraje_inicial ??
-            0
+            Number(
+              startedTrip.kilometrajeInicial ??
+              startedTrip.kilometraje_inicial ??
+              0
+            ) + 1
           }
           step="1"
           required

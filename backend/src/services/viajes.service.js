@@ -485,9 +485,9 @@ export async function finishTrip({
     const initialMileage =
       Number(trip.kilometraje_inicial);
 
-    if (kilometrajeFinal < initialMileage) {
+    if (kilometrajeFinal <= initialMileage) {
       throw new Error(
-        "El kilometraje final no puede ser menor al kilometraje inicial."
+        "El kilometraje final debe ser mayor al kilometraje inicial."
       );
     }
 

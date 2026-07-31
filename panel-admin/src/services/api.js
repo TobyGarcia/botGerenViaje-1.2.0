@@ -389,3 +389,7 @@ export function deleteAdminViaje(
     }
   );
 }
+
+export function getAdminDashboardSummary() {
+  return request("/admin/viajes/resumen");
+}

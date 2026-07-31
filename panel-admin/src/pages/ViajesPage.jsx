@@ -94,6 +94,15 @@ function getStatusClass(
   return "trip-status trip-status-pending";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function ViajesPage() {
   const [viajes, setViajes] =
     useState([]);
@@ -349,6 +358,115 @@ function ViajesPage() {
     setDateTo("");
   }
 
+  async function exportTripsPdf() {
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      setMessage("Permite las ventanas emergentes para exportar el PDF.");
+      setMessageType("error");
+      return;
+    }
+
+    try {
+      const response = await getAdminViajes({ status: "TODOS" });
+      const trips = response.data ?? [];
+      const rows = trips.map((trip) => `
+        <tr>
+          <td>${escapeHtml(trip.folio)}</td>
+          <td>${escapeHtml(formatDate(trip.fecha))}</td>
+          <td>${escapeHtml(trip.conductor?.nombre || "Sin conductor")}</td>
+          <td>${escapeHtml(trip.vehiculo?.nombre || "Sin unidad")}</td>
+          <td>${escapeHtml(trip.vehiculo?.numeroEconomico || "")}</td>
+          <td>${escapeHtml(trip.origen?.nombre || "")}</td>
+          <td>${escapeHtml(trip.destino?.nombre || "")}</td>
+          <td>${escapeHtml(trip.estado?.nombre || "")}</td>
+        </tr>
+      `).join("");
+
+      printWindow.document.write(`
+        <!doctype html>
+        <html lang="es">
+          <head>
+            <title>Histórico de viajes</title>
+            <style>
+              body { font-family: Arial, sans-serif; color: #172f3b; margin: 28px; }
+              h1 { margin: 0 0 6px; font-size: 22px; }
+              p { margin: 0 0 20px; color: #526b78; }
+              table { width: 100%; border-collapse: collapse; font-size: 10px; }
+              th, td { padding: 7px; border: 1px solid #cfdde3; text-align: left; }
+              th { background: #e9f4f8; }
+              @page { size: landscape; margin: 14mm; }
+            </style>
+          </head>
+          <body>
+            <h1>Histórico de viajes</h1>
+            <p>Generado el ${escapeHtml(new Date().toLocaleString("es-MX"))}. Total: ${trips.length} viajes.</p>
+            <table>
+              <thead><tr><th>Folio</th><th>Fecha</th><th>Conductor</th><th>Unidad</th><th>Núm. económico</th><th>Origen</th><th>Destino</th><th>Estado</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      setMessage("El histórico está listo para guardarse como PDF.");
+      setMessageType("success");
+    } catch (error) {
+      printWindow.close();
+      setMessage(error.message);
+      setMessageType("error");
+    }
+  }
+
+  async function exportTripsCsv() {
+    try {
+      const response = await getAdminViajes({ status: "TODOS" });
+      const trips = response.data ?? [];
+      const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+      const rows = trips.map((trip) => [
+        trip.folio,
+        formatDate(trip.fecha),
+        trip.conductor?.nombre || "",
+        trip.vehiculo?.nombre || "",
+        trip.vehiculo?.numeroEconomico || "",
+        trip.origen?.nombre || "",
+        trip.destino?.nombre || "",
+        trip.estado?.nombre || "",
+        trip.totalUbicaciones ?? 0
+      ].map(escapeCsv).join(";"));
+      const csv = [
+        [
+          "Folio",
+          "Fecha",
+          "Conductor",
+          "Unidad",
+          "Número económico",
+          "Origen",
+          "Destino",
+          "Estado",
+          "Ubicaciones GPS"
+        ].map(escapeCsv).join(";"),
+        ...rows
+      ].join("\r\n");
+      const blob = new Blob(["\uFEFF", csv], {
+        type: "text/csv;charset=utf-8"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `historico-viajes-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage("El archivo CSV para Excel se descargó correctamente.");
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    }
+  }
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -454,6 +572,22 @@ function ViajesPage() {
           onClick={clearFilters}
         >
           Limpiar filtros
+        </button>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={exportTripsPdf}
+        >
+          Exportar PDF
+        </button>
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={exportTripsCsv}
+        >
+          Exportar CSV
         </button>
       </section>
 

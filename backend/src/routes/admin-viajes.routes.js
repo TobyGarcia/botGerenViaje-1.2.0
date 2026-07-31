@@ -4,6 +4,7 @@ import {
 
 import {
   deleteAdminTripController,
+  getAdminDashboardSummaryController,
   getAdminTripController,
   listAdminTripsController
 } from "../controllers/admin-viajes.controller.js";
@@ -22,6 +23,11 @@ router.use(
 router.get(
   "/",
   listAdminTripsController
+);
+
+router.get(
+  "/resumen",
+  getAdminDashboardSummaryController
 );
 
 router.get(

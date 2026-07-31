@@ -316,6 +316,20 @@
   cursor: pointer;
 }
 
+.dashboard-overview { display: grid; gap: 24px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.kpi-card, .activity-card { padding: 24px; border: 1px solid #d6e8ef; border-radius: 16px; background: #ffffff; }
+.kpi-card { display: grid; gap: 8px; }
+.kpi-card span, .kpi-card small, .activity-card p { color: #607986; }
+.kpi-card strong { color: #126b91; font-size: 2.4rem; }
+.activity-card h2, .activity-card p { margin: 0; }
+.activity-chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 14px; min-height: 220px; margin-top: 24px; }
+.activity-column { display: grid; grid-template-rows: auto 160px auto; justify-items: center; gap: 8px; }
+.activity-bar-area { display: flex; align-items: end; width: 100%; height: 160px; padding: 0 10px; border-radius: 8px 8px 0 0; background: #f1f7fa; }
+.activity-bar { width: 100%; min-height: 6px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, #26b8dc, #126b91); }
+.activity-value { color: #315566; font-weight: 800; }
+.activity-column small { color: #607986; text-transform: capitalize; }
+
 @media (max-width: 780px) {
   .admin-layout {
     grid-template-columns: 1fr;
@@ -1034,6 +1048,8 @@
     minmax(150px, 200px)
     minmax(150px, 190px)
     minmax(150px, 190px)
+    auto
+    auto
     auto;
   gap: 14px;
   align-items: end;
@@ -1112,6 +1128,12 @@
 .trip-status-cancelled {
   color: #8a3030;
   background: #fae8e8;
+}
+
+@media (max-width: 780px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .activity-chart { gap: 7px; }
+  .activity-bar-area { padding: 0 4px; }
 }
 
 .trip-detail-modal {
