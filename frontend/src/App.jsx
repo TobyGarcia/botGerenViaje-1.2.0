@@ -6,6 +6,7 @@ import {
 
 import {
   autenticarTelegram,
+  cancelarViaje,
   createViaje,
   finalizarViaje,
   getConductores,
@@ -101,11 +102,23 @@ const [finishingTrip, setFinishingTrip] =
 const [finishedTrip, setFinishedTrip] =
   useState(null);
 
+const [cancelledTrip, setCancelledTrip] =
+  useState(null);
+
+const [cancellingTrip, setCancellingTrip] =
+  useState(false);
+
   const [telegramAuth, setTelegramAuth] =
     useState(null);
 
   const [telegramAuthLoading, setTelegramAuthLoading] =
     useState(true);
+
+  const [telegramAuthError, setTelegramAuthError] =
+    useState("");
+
+  const [telegramAuthAttempt, setTelegramAuthAttempt] =
+    useState(0);
 
   const telegramAuthStartedRef = useRef(false);
 
@@ -127,16 +140,16 @@ const [finishedTrip, setFinishedTrip] =
       }
 
       telegramAuthStartedRef.current = true;
+      setTelegramAuthError("");
 
       try {
       const telegramWebApp =
         window.Telegram?.WebApp;
 
       if (!telegramWebApp) {
-        setMessage(
+        setTelegramAuthError(
           "Esta aplicación debe abrirse desde el bot de Telegram."
         );
-        setMessageType("error");
         return;
       }
 
@@ -147,10 +160,9 @@ const [finishedTrip, setFinishedTrip] =
         telegramWebApp.initData || "";
 
       if (!initData) {
-        setMessage(
+        setTelegramAuthError(
           "No se recibió la información de autenticación de Telegram. Cierra esta ventana y vuelve a abrirla desde el botón del bot."
         );
-        setMessageType("error");
         return;
       }
 
@@ -160,19 +172,31 @@ const [finishedTrip, setFinishedTrip] =
         setTelegramAuth(authenticationResponse.data);
       } catch (error) {
 
-        setMessage(
+        setTelegramAuthError(
           error.message ||
           "No fue posible autenticar al usuario de Telegram."
         );
-
-        setMessageType("error");
       } finally {
+        telegramAuthStartedRef.current = false;
         setTelegramAuthLoading(false);
       }
     }
 
     authenticateTelegramUser();
-  }, []);
+  }, [telegramAuthAttempt]);
+
+  function retryTelegramAuthentication() {
+    if (telegramAuthLoading) {
+      return;
+    }
+
+    setTelegramAuth(null);
+    setTelegramAuthError("");
+    setTelegramAuthLoading(true);
+    setTelegramAuthAttempt((current) =>
+      current + 1
+    );
+  }
 
   useEffect(() => {
     const idConductor = telegramAuth?.conductor?.id_conductores;
@@ -568,6 +592,54 @@ function handleStopGps() {
     }
   }
 
+  async function handleCancelTrip() {
+    const idViaje =
+      startedTrip?.idViaje ??
+      startedTrip?.id_viajes ??
+      createdTrip?.idViaje ??
+      createdTrip?.id_viajes;
+
+    if (!idViaje) {
+      setMessage("No se encontró el identificador del viaje.");
+      setMessageType("error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      startedTrip
+        ? "¿Confirmas que deseas cancelar este viaje en curso? Se detendrá el GPS."
+        : "¿Confirmas que deseas cancelar este viaje?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setCancellingTrip(true);
+    setMessage("");
+
+    try {
+      const response = await cancelarViaje(idViaje);
+      const cancelledData = response.data ?? {};
+
+      handleStopGps();
+      setCancelledTrip(cancelledData);
+      setStartedTrip(null);
+      setCreatedTrip((current) => ({
+        ...current,
+        ...cancelledData,
+        estado: "CANCELADO"
+      }));
+      setMessage("Viaje cancelado correctamente.");
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setCancellingTrip(false);
+    }
+  }
+
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -632,6 +704,7 @@ function handleStopGps() {
     setCreatedTrip(null);
     setStartedTrip(null);
     setFinishedTrip(null);
+    setCancelledTrip(null);
 
     try {
       const acompanantes = form.acompanantes
@@ -751,6 +824,7 @@ function handleStopGps() {
     setCreatedTrip(null);
     setStartedTrip(null);
     setFinishedTrip(null);
+    setCancelledTrip(null);
     setKilometrajeFinal("");
     setLastLocation(null);
     setGpsStatus("GPS detenido.");
@@ -761,12 +835,42 @@ function handleStopGps() {
     sendingLocationRef.current=false;
   }
 
+  function handleExitApp() {
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.close();
+      return;
+    }
+
+    window.close();
+  }
+
   if (telegramAuthLoading) {
     return <p className="loading-message">Validando identidad de Telegram...</p>;
   }
 
+  if (telegramAuthError) {
+    return (
+      <main className="telegram-auth-error">
+        <h1>No fue posible validar tu acceso</h1>
+
+        <p>{telegramAuthError}</p>
+
+        <button
+          type="button"
+          onClick={retryTelegramAuthentication}
+        >
+          Reintentar
+        </button>
+      </main>
+    );
+  }
+
   if (!telegramAuth?.authenticated) {
-    return <p className="loading-message">Acceso no autorizado.</p>;
+    return (
+      <p className="loading-message">
+        No fue posible validar tu acceso.
+      </p>
+    );
   }
 
   if (telegramAuth.estadoRegistro === "BLOQUEADO" || !telegramAuth.usuario?.activo) {
@@ -969,6 +1073,8 @@ function handleStopGps() {
     <h2>
       {finishedTrip
       ? "Viaje finalizado"
+      : cancelledTrip
+        ? "Viaje cancelado"
       :startedTrip
         ? "Viaje en curso"
         : "Viaje registrado"}
@@ -1014,6 +1120,8 @@ function handleStopGps() {
         className={
           finishedTrip
           ? "status-finished"
+          : cancelledTrip
+            ? "status-cancelled"
           : startedTrip
             ? "status-in-progress"
             : "status-pending"
@@ -1021,6 +1129,8 @@ function handleStopGps() {
       >
         {finishedTrip
         ? "FINALIZADO"
+        : cancelledTrip
+          ? "CANCELADO"
         : startedTrip
           ? "EN_CURSO"
           : "PENDIENTE"}
@@ -1061,7 +1171,7 @@ function handleStopGps() {
       </p>
     )}
 
-    {!startedTrip && !finishedTrip && (
+    {!startedTrip && !finishedTrip && !cancelledTrip && (
       <button
         type="button"
         className="start-trip-button"
@@ -1074,7 +1184,18 @@ function handleStopGps() {
       </button>
     )}
 
-    {startedTrip && !finishedTrip && (
+    {!finishedTrip && !cancelledTrip && (
+      <button
+        type="button"
+        className="cancel-trip-button"
+        onClick={handleCancelTrip}
+        disabled={cancellingTrip || startingTrip}
+      >
+        {cancellingTrip ? "Cancelando viaje..." : "Cancelar viaje"}
+      </button>
+    )}
+
+    {startedTrip && !finishedTrip && !cancelledTrip && (
       <section className="gps-panel">
   <h3>Rastreo GPS</h3>
 
@@ -1166,14 +1287,23 @@ function handleStopGps() {
 </section>
     )}
 
-    {finishedTrip && (
-      <button
-        type="button"
-        className="new-trip-button"
-        onClick={handleNewTrip}
-      >
-        Registrar otro viaje
-      </button>
+    {(finishedTrip || cancelledTrip) && (
+      <div className="completed-trip-actions">
+        <button
+          type="button"
+          className="new-trip-button"
+          onClick={handleNewTrip}
+        >
+          Registrar otro viaje
+        </button>
+        <button
+          type="button"
+          className="exit-app-button"
+          onClick={handleExitApp}
+        >
+          Salir
+        </button>
+      </div>
     )}
   </section>
 )}

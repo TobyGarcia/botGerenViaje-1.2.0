@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --legacy-watch src/server.js"
+    "dev": "nodemon --legacy-watch src/server.js",
+    "admin:create": "node src/scripts/create-admin-user.js"
   },
   "keywords": [
     "viajes",
@@ -17,8 +18,11 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "telegraf": "^4.16.3"
   },

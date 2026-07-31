@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  cancelTripController,
   createTripController,
   finishTripController,
   getActiveTripController,
@@ -22,6 +23,11 @@ router.post(
 router.post(
   "/:idViaje/finalizar",
   finishTripController
+);
+
+router.post(
+  "/:idViaje/cancelar",
+  cancelTripController
 );
 
 router.get(

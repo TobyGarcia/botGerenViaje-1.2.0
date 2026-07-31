@@ -70,3 +70,77 @@ export async function stopTelegramBot(signal) {
     `Bot de Telegram detenido por ${signal}.`
   );
 }
+
+export async function sendTripGroupAlert({
+  action,
+  trip
+}) {
+  const groupId = process.env.TELEGRAM_GROUP_ID;
+
+  if (!groupId) {
+    console.warn(
+      "No se envió la alerta del viaje: TELEGRAM_GROUP_ID no está configurado."
+    );
+    return;
+  }
+
+  const formatTime = (value) => value
+    ? new Intl.DateTimeFormat("es-MX", {
+      timeZone: "America/Mexico_City",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value))
+    : "No registrada";
+
+  const companions = Array.isArray(trip.acompanantes)
+    ? trip.acompanantes
+      .map((companion) => companion?.nombre)
+      .filter(Boolean)
+      .join(", ")
+    : "";
+
+  const baseDetails = [
+    `Folio: ${trip.folio ?? "No disponible"}`,
+    `Conductor: ${trip.conductor ?? "No disponible"}`,
+    `Unidad: ${trip.vehiculo ?? "No disponible"}`,
+    trip.numeroEconomico
+      ? `Número económico: ${trip.numeroEconomico}`
+      : null
+  ];
+
+  const messages = {
+    iniciado: [
+      "🚐 Viaje INICIADO",
+      ...baseDetails,
+      `Licencia vigente: ${trip.licenciaVigente ? "Sí" : "No"}`,
+      `Kilometraje inicial: ${trip.kilometrajeInicial ?? "No registrado"} km`,
+      `Origen: ${trip.origen ?? "No registrado"}`,
+      `Destino: ${trip.destino ?? "No registrado"}`,
+      `Acompañantes: ${companions || "Sin acompañantes"}`,
+      `Motivo: ${trip.motivo ?? "No registrado"}`,
+      `Hora de salida: ${formatTime(trip.horaSalida)}`
+    ],
+    finalizado: [
+      "🚐 Viaje FINALIZADO",
+      ...baseDetails,
+      `Hora de finalización: ${formatTime(trip.horaLlegada)}`
+    ],
+    cancelado: [
+      "🚐 Viaje CANCELADO",
+      ...baseDetails
+    ]
+  };
+
+  const message = (messages[action] ?? [
+    `🚐 Viaje ${action.toUpperCase()}`,
+    ...baseDetails
+  ])
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(groupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta al grupo:", error);
+  }
+}

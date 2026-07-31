@@ -17,6 +17,40 @@
   }
 }
 
+.telegram-auth-error {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  padding: 24px;
+  color: #173c4d;
+  text-align: center;
+  background: #f4f8fb;
+}
+
+.telegram-auth-error h1,
+.telegram-auth-error p {
+  margin: 0;
+}
+
+.telegram-auth-error p {
+  max-width: 480px;
+  color: #607986;
+  line-height: 1.5;
+}
+
+.telegram-auth-error button {
+  justify-self: center;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #1ba8ce;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .hero {
   position: relative;
 

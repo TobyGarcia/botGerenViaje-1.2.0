@@ -82,6 +82,12 @@ export function finalizarViaje(
   );
 }
 
+export function cancelarViaje(idViaje) {
+  return request(`/api/viajes/${idViaje}/cancelar`, {
+    method: "POST"
+  });
+}
+
 export function getViajeActivo(){
   return request(
     "/api/viajes/activo"

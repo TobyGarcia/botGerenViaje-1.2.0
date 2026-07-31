@@ -228,6 +228,8 @@ export async function startTrip({
           v.hora_salida,
           v.licencia_vigente,
           v.kilometraje_inicial,
+          v.acompanantes,
+          v.motivo,
 
           c.nombre AS conductor,
           c.activo AS conductor_activo,
@@ -237,6 +239,9 @@ export async function startTrip({
           vh.numero_economico,
           vh.activo AS vehiculo_activo,
 
+          origen.nombre AS origen,
+          destino.nombre AS destino,
+
           ev.nombre AS estado
         FROM viajes v
 
@@ -245,6 +250,12 @@ export async function startTrip({
 
         INNER JOIN vehiculos vh
           ON vh.id_vehiculos = v.id_vehiculos
+
+        INNER JOIN lugares origen
+          ON origen.id_lugares = v.id_origen
+
+        INNER JOIN lugares destino
+          ON destino.id_lugares = v.id_destino
 
         INNER JOIN estados_viaje ev
           ON ev.id_estado_viaje = v.id_estado_viaje
@@ -390,6 +401,16 @@ export async function startTrip({
       horaSalida: updatedTrip.hora_salida,
       kilometrajeInicial:
         updatedTrip.kilometraje_inicial,
+      licenciaVigente:
+        trip.licencia_vigente,
+      acompanantes:
+        trip.acompanantes,
+      motivo:
+        trip.motivo,
+      origen:
+        trip.origen,
+      destino:
+        trip.destino,
       conductor: trip.conductor,
       vehiculo: trip.vehiculo,
       numeroEconomico:
@@ -425,7 +446,9 @@ export async function finishTrip({
 
           vh.nombre AS vehiculo,
           vh.numero_economico,
-          vh.kilometraje_actual
+          vh.kilometraje_actual,
+
+          c.nombre AS conductor
         FROM viajes v
 
         INNER JOIN estados_viaje ev
@@ -435,6 +458,9 @@ export async function finishTrip({
         INNER JOIN vehiculos vh
           ON vh.id_vehiculos =
              v.id_vehiculos
+
+        INNER JOIN conductores c
+          ON c.id_conductores = v.id_conductores
 
         WHERE v.id_viajes = $1
 
@@ -588,6 +614,9 @@ export async function finishTrip({
       vehiculo:
         trip.vehiculo,
 
+      conductor:
+        trip.conductor,
+
       numeroEconomico:
         trip.numero_economico
     };
@@ -598,6 +627,122 @@ export async function finishTrip({
     client.release();
   }
 }
+export async function cancelTrip({ idViaje }) {
+  const client = await databasePool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tripResult = await client.query(
+      `
+        SELECT
+          v.id_viajes,
+          v.folio,
+          v.id_estado_viaje,
+          v.hora_salida,
+          ev.nombre AS estado,
+          c.nombre AS conductor,
+          vh.nombre AS vehiculo,
+          vh.numero_economico
+        FROM viajes v
+        INNER JOIN estados_viaje ev
+          ON ev.id_estado_viaje = v.id_estado_viaje
+        INNER JOIN conductores c
+          ON c.id_conductores = v.id_conductores
+        INNER JOIN vehiculos vh
+          ON vh.id_vehiculos = v.id_vehiculos
+
+        INNER JOIN lugares origen
+          ON origen.id_lugares = v.id_origen
+
+        INNER JOIN lugares destino
+          ON destino.id_lugares = v.id_destino
+        WHERE v.id_viajes = $1
+        LIMIT 1
+        FOR UPDATE OF v
+      `,
+      [idViaje]
+    );
+
+    const trip = tripResult.rows[0];
+
+    if (!trip) {
+      throw new Error("El viaje no existe.");
+    }
+
+    if (!["PENDIENTE", "EN_CURSO"].includes(trip.estado)) {
+      throw new Error(
+        `El viaje no puede cancelarse desde el estado ${trip.estado}.`
+      );
+    }
+
+    const stateResult = await client.query(
+      `
+        SELECT id_estado_viaje
+        FROM estados_viaje
+        WHERE nombre = 'CANCELADO'
+          AND activo = TRUE
+        LIMIT 1
+      `
+    );
+
+    const cancelledState = stateResult.rows[0];
+
+    if (!cancelledState) {
+      throw new Error("No se encontró el estado CANCELADO.");
+    }
+
+    const updateResult = await client.query(
+      `
+        UPDATE viajes
+        SET
+          id_estado_viaje = $1,
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_viajes = $2
+        RETURNING id_viajes, folio, hora_salida, actualizado_en
+      `,
+      [cancelledState.id_estado_viaje, idViaje]
+    );
+
+    const updatedTrip = updateResult.rows[0];
+
+    await client.query(
+      `
+        INSERT INTO historial_estados_viaje (
+          id_viajes,
+          id_estado_anterior,
+          id_estado_nuevo,
+          observaciones
+        )
+        VALUES ($1, $2, $3, $4)
+      `,
+      [
+        idViaje,
+        trip.id_estado_viaje,
+        cancelledState.id_estado_viaje,
+        "Viaje cancelado"
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      idViaje: updatedTrip.id_viajes,
+      folio: updatedTrip.folio,
+      estado: "CANCELADO",
+      horaSalida: updatedTrip.hora_salida,
+      conductor: trip.conductor,
+      vehiculo: trip.vehiculo,
+      numeroEconomico: trip.numero_economico
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getActiveTrip() {
   const result = await databasePool.query(
     `
