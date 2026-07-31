@@ -172,7 +172,7 @@ function DashboardPage({
 
         {activeModule === "conductores" && <ConductoresPage />}
 
-        {activeModule === "unidades" && <VehiculosPage />}
+        {activeModule === "unidades" && <VehiculosPage user={user} />}
 
         {activeModule === "destinos" && <DestinosPage />}
 

@@ -1,0 +1,14 @@
+version: "3"
+
+# El dominio reservado de la Mini App se agrega en tiempo de ejecución desde
+# variables de entorno. Sin dominio, ngrok asigna una URL HTTPS pública.
+agent:
+  log: stdout
+  log_level: info
+  web_addr: 0.0.0.0:4040
+
+endpoints:
+  - name: mini-app
+    upstream:
+      url: http://frontend:80
+      protocol: http1

@@ -316,6 +316,41 @@
   cursor: pointer;
 }
 
+.mileage-modal {
+  width: min(960px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.mileage-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  color: #164d70;
+}
+
+.mileage-chart {
+  height: 110px;
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  padding: 10px;
+  background: #eef7fb;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.mileage-chart span {
+  flex: 1;
+  min-width: 8px;
+  background: #20a8c8;
+  border-radius: 4px 4px 0 0;
+}
+
+.mileage-history-table { max-height: 300px; }
+.mileage-form { margin-top: 18px; }
+
 .dashboard-overview { display: grid; gap: 24px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .kpi-card, .activity-card { padding: 24px; border: 1px solid #d6e8ef; border-radius: 16px; background: #ffffff; }

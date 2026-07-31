@@ -1,6 +1,7 @@
 import {
   databasePool
 } from "../database/pool.js";
+import { registerMileageReading } from "./kilometraje.service.js";
 
 function buildVehicleName(
   marca,
@@ -64,8 +65,17 @@ export async function listAdminVehicles({
           v.nombre,
           v.numero_economico,
           v.placas,
-          v.activo
+          v.activo,
+          COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
+          ultima_lectura.fecha_lectura AS fecha_ultima_lectura
         FROM vehiculos v
+        LEFT JOIN LATERAL (
+          SELECT kilometraje, fecha_lectura
+          FROM historial_kilometraje_vehiculos
+          WHERE id_vehiculos = v.id_vehiculos
+          ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC
+          LIMIT 1
+        ) ultima_lectura ON TRUE
         ${whereClause}
         ORDER BY
           v.activo DESC,
@@ -196,4 +206,124 @@ export async function updateAdminVehicleStatus({
     );
 
   return result.rows[0] ?? null;
+}
+
+export async function getAdminVehicleMileageHistory({
+  idVehiculo,
+  dateFrom = "",
+  dateTo = "",
+  type = "TODOS"
+}) {
+  const conditions = ["h.id_vehiculos = $1"];
+  const values = [idVehiculo];
+  const normalizedType = String(type).trim().toUpperCase();
+
+  if (dateFrom) {
+    values.push(dateFrom);
+    conditions.push(`h.fecha_lectura >= $${values.length}::date`);
+  }
+  if (dateTo) {
+    values.push(dateTo);
+    conditions.push(`h.fecha_lectura < ($${values.length}::date + INTERVAL '1 day')`);
+  }
+  if (normalizedType && normalizedType !== "TODOS") {
+    values.push(normalizedType);
+    conditions.push(`h.tipo_registro = $${values.length}`);
+  }
+
+  const vehicleResult = await databasePool.query(
+    `SELECT id_vehiculos, nombre, numero_economico, placas
+       FROM vehiculos WHERE id_vehiculos = $1 LIMIT 1`,
+    [idVehiculo]
+  );
+  if (!vehicleResult.rows[0]) return null;
+
+  const result = await databasePool.query(
+    `SELECT h.*, v.folio, ua.nombre AS usuario_admin,
+       h.kilometraje - LAG(h.kilometraje) OVER (
+         ORDER BY h.fecha_lectura ASC, h.id_historial_kilometraje ASC
+       ) AS diferencia_anterior
+     FROM historial_kilometraje_vehiculos h
+     LEFT JOIN viajes v ON v.id_viajes = h.id_viajes
+     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin = h.id_usuarios_admin
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY h.fecha_lectura DESC, h.id_historial_kilometraje DESC`,
+    values
+  );
+
+  return { vehiculo: vehicleResult.rows[0], historial: result.rows };
+}
+
+export async function getAdminVehicleMileageSummary(idVehiculo) {
+  const result = await databasePool.query(
+    `SELECT
+       v.id_vehiculos,
+       COALESCE(ultima.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
+       primera.kilometraje AS primera_lectura,
+       primera.fecha_lectura AS fecha_primera_lectura,
+       ultima.fecha_lectura AS fecha_ultima_lectura,
+       COALESCE(viajes.total_viajes, 0)::INTEGER AS total_viajes,
+       COALESCE(viajes.kilometros_recorridos, 0)::INTEGER AS kilometros_recorridos
+     FROM vehiculos v
+     LEFT JOIN LATERAL (
+       SELECT kilometraje, fecha_lectura FROM historial_kilometraje_vehiculos
+       WHERE id_vehiculos = v.id_vehiculos
+       ORDER BY fecha_lectura ASC, id_historial_kilometraje ASC LIMIT 1
+     ) primera ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT kilometraje, fecha_lectura FROM historial_kilometraje_vehiculos
+       WHERE id_vehiculos = v.id_vehiculos
+       ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC LIMIT 1
+     ) ultima ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) AS total_viajes, COALESCE(SUM(kilometros_recorridos), 0) AS kilometros_recorridos
+       FROM viajes WHERE id_vehiculos = v.id_vehiculos AND kilometros_recorridos IS NOT NULL
+     ) viajes ON TRUE
+     WHERE v.id_vehiculos = $1
+     LIMIT 1`,
+    [idVehiculo]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function createAdminVehicleMileageReading({
+  idVehiculo, kilometraje, observaciones, idUsuarioAdmin, correctionOf = null
+}) {
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    const vehicle = await client.query(
+      "SELECT id_vehiculos FROM vehiculos WHERE id_vehiculos = $1 FOR UPDATE",
+      [idVehiculo]
+    );
+    if (!vehicle.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    if (correctionOf) {
+      const original = await client.query(
+        `SELECT id_historial_kilometraje FROM historial_kilometraje_vehiculos
+         WHERE id_historial_kilometraje = $1 AND id_vehiculos = $2 LIMIT 1`,
+        [correctionOf, idVehiculo]
+      );
+      if (!original.rows[0]) {
+        const error = new Error("El registro a corregir no corresponde a la unidad.");
+        error.code = "MILEAGE_RECORD_NOT_FOUND";
+        throw error;
+      }
+    }
+
+    const reading = await registerMileageReading({
+      client, idVehiculo, kilometraje,
+      tipoRegistro: correctionOf ? "CORRECCION" : "AJUSTE_MANUAL",
+      origen: "PANEL_ADMIN", observaciones, idUsuarioAdmin,
+      idRegistroCorregido: correctionOf, allowLower: Boolean(correctionOf)
+    });
+    await client.query("COMMIT");
+    return reading;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally { client.release(); }
 }

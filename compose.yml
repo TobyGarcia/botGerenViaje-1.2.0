@@ -38,13 +38,18 @@ services:
     container_name: viajes_ngrok
     restart: unless-stopped
 
-    command:
-      - "http"
-      - "--url=https://${NGROK_DOMAIN}"
-      - "http://frontend:80"
+    entrypoint:
+      - /usr/bin/sh
+      - /etc/ngrok/entrypoint.sh
 
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+      NGROK_MINI_APP_DOMAIN: ${NGROK_MINI_APP_DOMAIN:-}
+
+    volumes:
+      - ./ngrok.yml:/etc/ngrok/base.yml:ro
+      - ./ngrok-entrypoint.sh:/etc/ngrok/entrypoint.sh:ro
 
     ports:
       - "4040:4040"

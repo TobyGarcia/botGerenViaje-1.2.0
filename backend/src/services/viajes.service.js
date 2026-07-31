@@ -1,4 +1,5 @@
 import { databasePool } from "../database/pool.js";
+import { registerMileageReading } from "./kilometraje.service.js";
 
 function buildTripFolio(sequenceNumber) {
   const now = new Date();
@@ -190,6 +191,16 @@ export async function createTrip({
         pendingState.id_estado_viaje
       ]
     );
+
+    await registerMileageReading({
+      client,
+      idVehiculo,
+      idViaje: trip.id_viajes,
+      kilometraje: kilometrajeInicial,
+      tipoRegistro: "INICIAL_VIAJE",
+      origen: "MINI_APP",
+      observaciones: `Kilometraje inicial del viaje ${trip.folio}.`
+    });
 
     await client.query("COMMIT");
 
@@ -560,6 +571,16 @@ export async function finishTrip({
         trip.id_vehiculos
       ]
     );
+
+    await registerMileageReading({
+      client,
+      idVehiculo: trip.id_vehiculos,
+      idViaje,
+      kilometraje: kilometrajeFinal,
+      tipoRegistro: "FINAL_VIAJE",
+      origen: "MINI_APP",
+      observaciones: `Kilometraje final del viaje ${trip.folio}.`
+    });
 
     await client.query(
       `

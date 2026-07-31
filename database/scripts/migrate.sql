@@ -4,3 +4,4 @@
 \ir ../migrations/002_usuarios_telegram.sql
 \ir ../migrations/003_usuarios_admin.sql
 \ir ../migrations/004_ubicaciones_cliente_idempotentes.sql
+\ir ../migrations/005_historial_kilometraje_vehiculos.sql
