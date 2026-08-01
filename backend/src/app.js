@@ -16,10 +16,28 @@ const app = express();
 
 app.disable("x-powered-by");
 
+function getAllowedOrigins() {
+  return String(process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const allowedOrigins = getAllowedOrigins();
+
 app.use(
   cors({
-    origin: true,
-    credentials: false
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.length === 0 ||
+          allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(
+        new Error("Origen no permitido por CORS.")
+      );
+    },
+    credentials: true
   })
 );
 

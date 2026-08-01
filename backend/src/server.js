@@ -6,7 +6,9 @@ import {
 } from "./bot/bot.js";
 
 const port = Number(
-  process.env.BACKEND_PORT || 3000
+  process.env.PORT ||
+  process.env.BACKEND_PORT ||
+  3000
 );
 
 let httpServer = null;

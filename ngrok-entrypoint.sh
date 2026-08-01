@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 set -eu
 
 CONFIG_SOURCE="/etc/ngrok/base.yml"

@@ -13,10 +13,16 @@ export function getAdminCookieOptions() {
       process.env.ADMIN_COOKIE_SECURE
     ).toLowerCase() === "true";
 
+  const sameSite = String(
+    process.env.ADMIN_COOKIE_SAME_SITE || "lax"
+  ).toLowerCase();
+
   return {
     httpOnly: true,
     secure,
-    sameSite: "lax",
+    sameSite: ["lax", "strict", "none"].includes(sameSite)
+      ? sameSite
+      : "lax",
     path: "/",
     maxAge:
       8 * 60 * 60 * 1000
