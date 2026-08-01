@@ -1,79 +1,160 @@
-# Migración de pruebas de producción a Render
+# Migración de pruebas a Render: plan gratuito y sin Blueprints
 
-Este proyecto queda preparado para ejecutarse en Render sin Docker local. Se crean cuatro recursos: PostgreSQL administrado, API Node.js, Mini App y panel administrativo. La API usa la red privada de Render para comunicarse con la base de datos.
+Esta guía usa únicamente el plan gratuito de Render y crea cada recurso manualmente desde el panel. No necesitas Docker, ngrok ni Blueprints.
+
+Se desplegarán estos cuatro recursos:
+
+1. Una base de datos PostgreSQL gratuita.
+2. Un Web Service gratuito para la API Node.js y el bot de Telegram.
+3. Un Static Site gratuito para la Mini App.
+4. Un Static Site gratuito para el panel administrativo.
+
+## Límites importantes del plan gratuito
+
+Esta configuración es adecuada para pruebas de producción, demostraciones y desarrollo; no para operación definitiva.
+
+- La API se suspende después de 15 minutos sin recibir tráfico. La siguiente visita tarda aproximadamente un minuto mientras vuelve a iniciar.
+- Cada espacio de trabajo dispone de 750 horas gratuitas de Web Service al mes. Los dos sitios estáticos no consumen horas de instancia.
+- La base PostgreSQL gratuita tiene 1 GB, no incluye respaldos administrados y vence 30 días después de crearla. Después hay 14 días de gracia antes de que Render elimine los datos.
+- La API y la base pueden reiniciarse sin previo aviso. Conserva siempre una copia del respaldo fuera de Render.
 
 ## Antes de iniciar
 
 1. Sube el proyecto a un repositorio privado de GitHub. No incluyas `.env`, `admin-cookies.txt` ni `respaldo-gerenciamiento-viajes.dump`.
-2. Confirma que la rama que subirás contiene `render.yaml` y los cambios de esta migración.
-3. Conserva el respaldo local `respaldo-gerenciamiento-viajes.dump` en un lugar seguro. Es la fuente para restaurar los datos de prueba.
+2. Confirma que la rama de pruebas contiene los cambios de migración.
+3. Guarda una copia segura de `respaldo-gerenciamiento-viajes.dump`. La usarás para cargar los datos de prueba y para recuperar la base si vence.
+4. Crea todos los recursos en la misma región de Render; selecciona **Oregon** si no tienes otra preferencia.
 
-## 1. Crear los recursos
+## 1. Crear PostgreSQL gratis
 
-1. En Render, abre **New > Blueprint** y conecta tu repositorio y la rama de pruebas.
-2. Render detectará `render.yaml`. Confirma la creación.
-3. En el formulario de secretos, proporciona:
-   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_GROUP_ID` y `TELEGRAM_BOT_USERNAME` con los valores actuales.
-   - `TELEGRAM_WEB_APP_URL`: por ahora deja una URL temporal; se actualizará en el paso 4.
-   - `CORS_ORIGINS`: por ahora deja un texto temporal; se actualizará en el paso 4.
-   - `VITE_API_BASE_URL` en ambos sitios: por ahora deja una URL temporal válida, por ejemplo `https://example.com`.
-4. Espera a que PostgreSQL, la API y los dos sitios terminen su primer despliegue. Los dos sitios pueden mostrar un error de API hasta que se actualicen sus variables definitivas.
+1. En Render selecciona **New > Postgres**.
+2. Asigna estos valores:
+   - **Name:** `gerenciamiento-viajes-db`
+   - **Database:** `gerenciamiento_viajes`
+   - **User:** `viajes_user`
+   - **Region:** Oregon (o la misma que usarás después)
+   - **Instance Type:** Free
+3. Pulsa **Create Database** y espera a que esté disponible.
+4. En la página de la base, abre **Connect**. Conserva la **Internal Database URL** para el backend y la **External Database URL** solo para importación y administración desde tu computadora. Nunca subas ninguna de esas URLs al repositorio.
 
-> El plan de la base de datos está configurado como `basic-256mb` para evitar una base efímera. Si tu cuenta no muestra ese plan, selecciona el plan de PostgreSQL persistente más económico disponible.
+## 2. Importar el esquema y los datos
 
-## 2. Importar esquema y datos
+En PowerShell, desde la carpeta raíz del proyecto, usa la **External Database URL**. Elige solo una opción.
 
-En Render abre la base **gerenciamiento-viajes-db > Connect** y copia la **External Database URL**. En PowerShell, desde la carpeta del proyecto, ejecuta uno de estos dos caminos:
+### Opción A: restaurar el respaldo existente
 
 ```powershell
-# Restauración completa desde el respaldo existente.
 pg_restore --no-owner --no-privileges --dbname "PEGA_AQUI_LA_EXTERNAL_DATABASE_URL" .\respaldo-gerenciamiento-viajes.dump
 ```
 
+### Opción B: crear una base limpia con catálogos
+
 ```powershell
-# Si prefieres empezar con estructura y catálogos limpios:
 $env:DATABASE_URL = "PEGA_AQUI_LA_EXTERNAL_DATABASE_URL"
 psql $env:DATABASE_URL -f .\database\scripts\migrate.sql
 psql $env:DATABASE_URL -f .\database\scripts\seed.sql
 ```
 
-Usa **solo una** opción. Si `pg_restore` o `psql` no están instalados, instala las herramientas de PostgreSQL o usa una herramienta gráfica como pgAdmin con la misma URL externa. No compartas ni pegues esa URL en el repositorio: contiene la contraseña.
+Si no tienes `pg_restore` o `psql`, instala las herramientas de PostgreSQL o usa pgAdmin con esa misma URL externa. Comprueba que existen las tablas `viajes`, `usuarios_admin` y los catálogos antes de continuar.
 
-Después verifica en la pestaña **Shell** de la base o con tu cliente SQL que existan las tablas `viajes`, `usuarios_admin` y los catálogos. Crea el primer administrador desde una conexión local a la base con `npm run admin:create` dentro de `backend`, configurando temporalmente `DATABASE_URL` con la URL externa.
+## 3. Crear la API y bot de Telegram
 
-## 3. Conectar las URLs reales
+1. En Render selecciona **New > Web Service** y conecta tu repositorio de GitHub.
+2. Configura:
+   - **Name:** `gerenciamiento-viajes-api`
+   - **Region:** la misma que la base de datos
+   - **Branch:** tu rama de pruebas
+   - **Root Directory:** `backend`
+   - **Runtime:** Node
+   - **Build Command:** `npm ci`
+   - **Start Command:** `npm start`
+   - **Instance Type:** Free
+3. En **Advanced**, añade el Health Check Path: `/health`.
+4. En **Environment Variables**, agrega las siguientes variables. Render ya proporciona `PORT`; no la agregues manualmente.
 
-Obtén las URLs de Render. Por defecto serán similares a:
+| Variable | Valor |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | La **Internal Database URL** de la base creada en el paso 1 |
+| `ADMIN_JWT_SECRET` | Una cadena larga y aleatoria, que no reutilices en otro servicio |
+| `ADMIN_COOKIE_SECURE` | `true` |
+| `ADMIN_COOKIE_SAME_SITE` | `none` |
+| `ADMIN_COOKIE_NAME` | `admin_session` |
+| `ADMIN_JWT_EXPIRES_IN` | `8h` |
+| `ADMIN_LOGIN_MAX_ATTEMPTS` | `5` |
+| `ADMIN_LOGIN_BLOCK_MINUTES` | `15` |
+| `CORS_ORIGINS` | Se completa en el paso 6 |
+| `TELEGRAM_BOT_TOKEN` | Token actual del bot |
+| `TELEGRAM_WEB_APP_URL` | Se completa en el paso 6 |
+| `TELEGRAM_GROUP_ID` | Identificador actual del grupo, si se usa |
+| `TELEGRAM_BOT_USERNAME` | Nombre del bot, si se usa |
+| `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS` | `3600` |
 
-- API: `https://gerenciamiento-viajes-api.onrender.com`
-- Mini App: `https://gerenciamiento-viajes-miniapp.onrender.com`
-- Administración: `https://gerenciamiento-viajes-admin.onrender.com`
+5. Pulsa **Create Web Service**. Cuando termine, abre `https://TU_API.onrender.com/health`. Debe indicar `status: "ok"` y `database.connected: true`.
 
-En **API > Environment**, cambia `CORS_ORIGINS` por las dos URLs de los sitios, separadas por coma y sin barra final. Ejemplo:
+## 4. Crear la Mini App gratuita
+
+1. Selecciona **New > Static Site** y conecta el mismo repositorio.
+2. Configura:
+   - **Name:** `gerenciamiento-viajes-miniapp`
+   - **Branch:** tu rama de pruebas
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm ci && npm run build`
+   - **Publish Directory:** `dist`
+3. En Environment agrega:
+
+| Variable | Valor |
+| --- | --- |
+| `VITE_API_BASE_URL` | URL pública de la API, por ejemplo `https://gerenciamiento-viajes-api.onrender.com` |
+| `VITE_GPS_TRACKING_INTERVAL_MS` | `30000` |
+| `VITE_GPS_SYNC_BATCH_SIZE` | `100` |
+
+4. Crea el sitio. Al terminar, copia su URL pública; la necesitarás en los pasos 6 y 7.
+
+## 5. Crear el panel administrativo gratuito
+
+1. Selecciona **New > Static Site** y conecta el mismo repositorio.
+2. Configura:
+   - **Name:** `gerenciamiento-viajes-admin`
+   - **Branch:** tu rama de pruebas
+   - **Root Directory:** `panel-admin`
+   - **Build Command:** `npm ci && npm run build`
+   - **Publish Directory:** `dist`
+3. En Environment agrega `VITE_API_BASE_URL` con la misma URL pública de la API, sin `/api` ni barra final. El panel añade el prefijo `/api` internamente.
+4. Crea el sitio y copia su URL pública.
+
+## 6. Conectar los tres servicios
+
+1. Abre **gerenciamiento-viajes-api > Environment**.
+2. Cambia `CORS_ORIGINS` por las URLs de la Mini App y del panel, separadas por coma y sin barra final. Ejemplo:
 
 ```text
 https://gerenciamiento-viajes-miniapp.onrender.com,https://gerenciamiento-viajes-admin.onrender.com
 ```
 
-En **Mini App > Environment** y **Administración > Environment**, establece `VITE_API_BASE_URL` con la URL de la API, sin barra final. Guarda con **Save, rebuild, and deploy** en cada sitio: Vite integra esta variable durante la compilación.
+3. Cambia `TELEGRAM_WEB_APP_URL` por la URL HTTPS de la Mini App.
+4. Guarda con **Save and deploy**.
+5. En la Mini App y el panel verifica de nuevo `VITE_API_BASE_URL`: ambos deben usar exactamente el dominio público de la API, sin `/api` ni barra final. Si lo cambias, selecciona **Save, rebuild, and deploy**: esta variable queda integrada durante la compilación de Vite.
 
-En **API > Environment**, configura `TELEGRAM_WEB_APP_URL` con la URL de la Mini App y selecciona **Save and deploy**.
+## 7. Ajustar Telegram y crear el primer administrador
 
-## 4. Ajustar Telegram
+1. En BotFather actualiza el botón o menú web para abrir exactamente la URL HTTPS de la Mini App.
+2. Para una base limpia, crea el primer usuario administrativo desde tu computadora. Dentro de `backend`, configura temporalmente `DATABASE_URL` con la URL externa de la base y ejecuta `npm run admin:create`.
+3. Abre la Mini App desde Telegram, registra una ubicación y verifica que se guarda.
+4. Abre el panel, inicia sesión y recarga la página. La sesión debe mantenerse activa.
 
-En BotFather, actualiza el botón o menú web del bot para abrir exactamente la URL HTTPS de la Mini App. Abre la Mini App desde Telegram, registra una ubicación y comprueba que el endpoint de salud de la API responde en `https://TU_API/health`.
+## 8. Lista final de pruebas
 
-## 5. Verificación de producción
+1. API: `/health` responde correctamente.
+2. Mini App: carga conductores, vehículos y destinos.
+3. Panel: inicio de sesión, recarga y cierre de sesión funcionan.
+4. Viaje: crea un viaje, registra ubicación y finalízalo.
+5. Telegram: confirma que llega la alerta al grupo, si configuraste uno.
+6. Render: revisa **Logs** en la API; no deben aparecer errores de CORS, PostgreSQL ni Telegram.
 
-1. Abre `/health` en la API: debe responder `status: "ok"` y `database.connected: true`.
-2. Abre la Mini App desde Telegram y confirma que carga conductores, vehículos y destinos.
-3. Entra al panel administrativo, inicia sesión y recarga la página. La sesión debe continuar activa.
-4. Crea un viaje de prueba, registra ubicación y finalízalo. Verifica el registro en el panel y la alerta del grupo de Telegram.
-5. Revisa **Logs** de la API. No deben aparecer errores de CORS, PostgreSQL ni Telegram.
+## Mantenimiento sin costo
 
-## Operación segura
-
-- No despliegues el archivo `.env` ni uses la URL externa de PostgreSQL como variable de la API; el Blueprint ya enlaza `DATABASE_URL` internamente.
-- Las dos interfaces se compilan como sitios estáticos; no dependen de Nginx, Docker Compose ni ngrok.
-- Para cambios de aplicación, haz `git push` a la rama conectada. Render vuelve a desplegar automáticamente.
-- Antes de probar cambios peligrosos de esquema, genera y descarga un respaldo de la base de pruebas desde Render.
+- Antes de que se cumplan los 30 días de la base gratuita, exporta una copia con `pg_dump` usando la URL externa y crea una base nueva para restaurarla. Hazlo con anticipación: Render no ofrece respaldo administrado en Free.
+- Si la primera solicitud tarda alrededor de un minuto, es el arranque normal de una API gratuita suspendida. Para probar, primero abre `/health` y después la Mini App.
+- No uses servicios externos para hacer ping periódico solo para evitar la suspensión: para pruebas manuales, acepta el arranque en frío y conserva las horas gratuitas.
+- Para actualizar el proyecto, haz `git push` a la rama conectada. Render desplegará nuevamente la API y los sitios afectados.

@@ -3,7 +3,7 @@ services:
     name: gerenciamiento-viajes-api
     runtime: node
     region: oregon
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
@@ -71,4 +71,4 @@ databases:
     databaseName: gerenciamiento_viajes
     user: viajes_user
     region: oregon
-    plan: basic-256mb
+    plan: free

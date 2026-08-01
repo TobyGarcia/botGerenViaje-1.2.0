@@ -1,9 +1,18 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "/api";
+// En Render ambos sitios reciben el dominio público de la API, sin el
+// prefijo /api. Se admite también el valor anterior terminado en /api para
+// que los despliegues existentes no construyan URLs como /api/api/...
+const configuredApiBaseUrl = String(
+  import.meta.env.VITE_API_BASE_URL || ""
+).replace(/\/+$/, "");
+
+const API_BASE_URL = configuredApiBaseUrl.replace(
+  /\/api$/,
+  ""
+);
 
 async function request(path, options = {}) {
   const response = await fetch(
-    `${API_BASE_URL}${path}`,
+    `${API_BASE_URL}/api${path}`,
     {
       credentials: "include",
       headers: {
