@@ -3,7 +3,6 @@ import {
   useRef,
   useState
 } from "react";
-import { createPortal } from "react-dom";
 
 import {
   autenticarTelegram,
@@ -21,6 +20,7 @@ import {
 } from "./services/api.js";
 import RegistroConductor from "./components/RegistroConductor.jsx";
 import InspeccionVehicular from "./components/InspeccionVehicular.jsx";
+import InspectionModal from "./components/InspectionModal.jsx";
 import {
   captureAndQueueLocation,
   setTrackingStatusListener,
@@ -1376,13 +1376,11 @@ function handleStopGps() {
     )}
   </section>
 )}
-{inspectionOpen && inspection?.required && createPortal(
-  <div className="inspection-modal-overlay" role="presentation">
-    <div className="inspection-modal-card">
-      <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} onClose={() => setInspectionOpen(false)} />
-    </div>
-  </div>
-, document.body)}
+{inspectionOpen && inspection?.required && (
+  <InspectionModal>
+    <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} onClose={() => setInspectionOpen(false)} />
+  </InspectionModal>
+)}
     </main>
   );
 }
