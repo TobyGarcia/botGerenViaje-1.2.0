@@ -3,6 +3,7 @@ import {
   useRef,
   useState
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   autenticarTelegram,
@@ -1375,13 +1376,13 @@ function handleStopGps() {
     )}
   </section>
 )}
-{inspectionOpen && inspection?.required && (
+{inspectionOpen && inspection?.required && createPortal(
   <div className="inspection-modal-overlay" role="presentation">
     <div className="inspection-modal-card">
       <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} onClose={() => setInspectionOpen(false)} />
     </div>
   </div>
-)}
+, document.body)}
     </main>
   );
 }
