@@ -401,7 +401,7 @@ function VehiculosPage({ user }) {
         <button
           type="button"
           className="primary-button"
-          onClick={openForm}
+          onClick={() => openForm()}
         >
           + Nueva unidad
         </button>
