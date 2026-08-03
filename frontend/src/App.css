@@ -236,21 +236,17 @@
 .inspection-section-heading p,.inspection-checklist > div > p,.inspection-signature p { margin-top:5px; color:#607986; line-height:1.45; }
 .inspection-visual { min-width:0; overflow:hidden; }
 .damage-map { display:flex; min-width:0; max-width:100%; justify-content:center; overflow:hidden; width:100%; padding:10px; border:2px dashed #8ebfce; border-radius:14px; background:#f6fafb; }
-.damage-stage { position:relative; display:block; width:min(100%,520px); max-width:100%; line-height:0; cursor:crosshair; touch-action:manipulation; }
-.damage-map-frontal .damage-stage,.damage-map-trasera .damage-stage { width:min(100%,280px); }
-.damage-stage img { display:block; width:100%; max-width:100%; height:auto; }
-.damage-point { position:absolute; display:grid; width:34px; height:34px; min-width:0; place-items:center; padding:0; border:3px solid #dc2626; border-radius:50%; color:#dc2626; background:rgba(255,255,255,.38); transform:translate(-50%,-50%); box-shadow:0 1px 4px #0005; animation:damage-point-in .2s ease-out; }
-.damage-point span { display:none; }
+.damage-stage { position:relative; display:block; width:100%; max-width:520px; line-height:0; cursor:crosshair; touch-action:manipulation; }
+.damage-map-frontal .damage-stage,.damage-map-trasera .damage-stage { max-width:280px; }
+.damage-stage img { display:block; width:100% !important; max-width:100% !important; height:auto !important; }
+.damage-point { position:absolute; display:block; width:34px; height:34px; min-width:0; padding:0; border:3px solid #dc2626; border-radius:50%; background:rgba(255,255,255,.38); transform:translate(-50%,-50%); box-shadow:0 1px 4px #0005; animation:damage-point-in .2s ease-out; cursor:pointer; }
 @keyframes damage-point-in { from { transform:translate(-50%,-50%) scale(.3); } to { transform:translate(-50%,-50%) scale(1); } }
 .damage-feedback { min-height:1.25em; margin:9px 0 0; color:#315566; font-size:.9rem; }
 .inspection-checklist { display:grid; gap:16px; max-height:60vh; overflow:auto; }
 .inspection-checklist fieldset { border:1px solid #d5e5eb; border-radius:12px; }
 .inspection-checklist legend { color:#173f51; font-weight:800; }
-.check-row { display:grid; grid-template-columns:minmax(160px,1fr) auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid #edf3f5; }
-.check-state-toggle { display:grid; grid-template-columns:repeat(4,auto); overflow:hidden; border:1px solid #bad3dd; border-radius:8px; }
-.check-state-toggle button { min-width:38px; padding:7px 6px; border:0; border-right:1px solid #bad3dd; color:#456471; background:#fff; font:inherit; font-size:.77rem; font-weight:800; cursor:pointer; }
-.check-state-toggle button:last-child { border-right:0; }
-.check-state-toggle .check-state-selected { color:#fff; background:#147c9d; }
+.check-row { display:grid; grid-template-columns:minmax(160px,1fr) 104px; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid #edf3f5; color:#173f51; font-weight:600; }
+.check-row select { width:104px; padding:8px 9px; border:1px solid #8ebfce; border-radius:8px; color:#173f51; background:#fff; font:inherit; font-weight:800; }
 .inspection-card button,.signature-dialog button { width:auto; }
 .inspection-primary-button,.inspection-secondary-button { padding:10px 14px; border:0; border-radius:9px; font:inherit; font-weight:800; cursor:pointer; }
 .inspection-primary-button { color:#fff; background:#159bc4; }
@@ -273,4 +269,4 @@
 .inspection-actions > button { flex:1 1 0; }
 .inspection-complete { max-width:520px; }
 .inspection-required-button { width:100%; }
-@media (max-width:640px) { .inspection-modal-overlay { align-items:end; padding:0; } .inspection-modal-card { width:100%; max-height:94dvh; border-radius:20px 20px 0 0; } .inspection-card { padding:18px; border-radius:20px 20px 0 0; } .inspection-data-grid,.inspection-field-grid,.date-range { grid-template-columns:1fr; } .inspection-section-heading { align-items:stretch; flex-direction:column; } .damage-map { padding:8px; } .check-row { grid-template-columns:1fr; gap:7px; } .check-state-toggle { width:100%; } .check-state-toggle button { width:auto; min-width:0; } .signature-dialog { align-items:end; padding:0; } .signature-dialog-card { width:100%; border-radius:18px 18px 0 0; } }
+@media (max-width:640px) { .inspection-modal-overlay { align-items:center; padding:12px; } .inspection-modal-card { width:100%; max-height:calc(100dvh - 24px); border-radius:20px; } .inspection-card { padding:18px; border-radius:20px; } .inspection-data-grid,.inspection-field-grid,.date-range { grid-template-columns:1fr; } .inspection-section-heading { align-items:stretch; flex-direction:column; } .damage-map { padding:8px; } .check-row { grid-template-columns:minmax(0,1fr) 92px; gap:9px; } .check-row select { width:92px; } .signature-dialog { align-items:center; padding:12px; } .signature-dialog-card { width:100%; border-radius:18px; } }
