@@ -19,6 +19,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     nombre: getInitialName(telegramAuth?.usuario),
     telefono: "",
     licenciaNumero: "",
+    tipoLicencia: "",
     licenciaVencimiento: ""
   });
   const [saving, setSaving] = useState(false);
@@ -69,6 +70,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         <label>
           Fecha de vencimiento
           <input name="licenciaVencimiento" type="date" value={form.licenciaVencimiento} onChange={handleChange} required />
+        </label>
+        <label>
+          Tipo de licencia
+          <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} maxLength="50" placeholder="Ej. Federal B" required />
         </label>
         <button type="submit" disabled={saving}>
           {saving ? "Guardando..." : "Completar registro"}

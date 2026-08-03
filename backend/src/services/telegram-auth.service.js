@@ -14,6 +14,7 @@ const conductorColumns = `
   id_conductores,
   nombre,
   licencia_numero,
+  tipo_licencia,
   licencia_vigente,
   licencia_vencimiento,
   telefono,
@@ -133,6 +134,7 @@ export async function registerTelegramDriver({
   nombre,
   telefono,
   licenciaNumero,
+  tipoLicencia,
   licenciaVencimiento
 }) {
   const client = await databasePool.connect();
@@ -196,14 +198,15 @@ export async function registerTelegramDriver({
           nombre,
           telefono,
           licencia_numero,
+          tipo_licencia,
           licencia_vencimiento,
           licencia_vigente,
           activo
         )
-        VALUES ($1, $2, $3, $4, $5, TRUE)
+        VALUES ($1, $2, $3, $4, $5, $6, TRUE)
         RETURNING ${conductorColumns}
       `,
-      [nombre, telefono, licenciaNumero, licenciaVencimiento, licenciaVigente]
+      [nombre, telefono, licenciaNumero, tipoLicencia, licenciaVencimiento, licenciaVigente]
     );
     const conductor = conductorResult.rows[0];
 

@@ -9,6 +9,7 @@ import {
 import { sendTripGroupAlert } from "../bot/bot.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
+import { getApprovalForStart } from "../services/inspecciones.service.js";
 
 function parsePositiveInteger(value) {
   const parsedValue = Number(value);
@@ -220,6 +221,11 @@ export async function startTripController(
         message:
           "El identificador del viaje no es válido."
       });
+    }
+
+    const inspection = await getApprovalForStart(idViaje);
+    if (!inspection?.id_inspeccion) {
+      return response.status(409).json({ success: false, message: "La inspección vehicular diaria debe estar aprobada antes de iniciar el viaje." });
     }
 
     const trip = await startTrip({

@@ -121,6 +121,9 @@ export function createAdminConductor(
         licenciaNumero:
           conductor.licenciaNumero,
 
+        tipoLicencia:
+          conductor.tipoLicencia,
+
         licenciaVencimiento:
           conductor.licenciaVencimiento
       })
@@ -446,4 +449,27 @@ export function createAdminVehiculoKilometraje(idVehiculo, reading) {
 
 export function getAdminDashboardSummary() {
   return request("/admin/viajes/resumen");
+}
+
+export function getAdminInspecciones() {
+  return request("/admin/inspecciones");
+}
+export function getAdminInspeccionesPendientesCount() {
+  return request("/admin/inspecciones/pendientes/count");
+}
+export function getAdminInspeccionDetalle(idInspeccion) {
+  return request(`/admin/inspecciones/${idInspeccion}`);
+}
+export function decidirAdminInspeccion(idInspeccion, aprobada, comentario) {
+  return request(`/admin/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify({ aprobada, comentario }) });
+}
+export async function descargarAdminInspeccionPdf(idInspeccion) {
+  const response = await fetch(`${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/pdf`, { credentials: "include" });
+  if (!response.ok) throw new Error("No fue posible descargar el reporte PDF.");
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const name = disposition.match(/filename="([^"]+)"/)?.[1] || `inspeccion-${idInspeccion}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a"); link.href = url; link.download = name; link.click();
+  URL.revokeObjectURL(url);
 }

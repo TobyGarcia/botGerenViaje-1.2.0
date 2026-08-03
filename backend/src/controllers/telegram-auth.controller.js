@@ -144,6 +144,7 @@ function validateDriverRegistration(body) {
   const licenciaVencimiento = typeof body?.licenciaVencimiento === "string"
     ? body.licenciaVencimiento.trim()
     : "";
+  const tipoLicencia = typeof body?.tipoLicencia === "string" ? body.tipoLicencia.trim() : "";
 
   if (!nombre || nombre.length > 150) {
     throw new TelegramRegistrationError("El nombre es obligatorio y no puede exceder 150 caracteres.", 400);
@@ -156,6 +157,9 @@ function validateDriverRegistration(body) {
   if (!licenciaNumero || licenciaNumero.length > 50) {
     throw new TelegramRegistrationError("El número de licencia es obligatorio y no puede exceder 50 caracteres.", 400);
   }
+  if (!tipoLicencia || tipoLicencia.length > 50) {
+    throw new TelegramRegistrationError("El tipo de licencia es obligatorio y no puede exceder 50 caracteres.", 400);
+  }
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(licenciaVencimiento)) {
     throw new TelegramRegistrationError("La fecha de vencimiento debe tener el formato AAAA-MM-DD.", 400);
@@ -166,7 +170,7 @@ function validateDriverRegistration(body) {
     throw new TelegramRegistrationError("La fecha de vencimiento no es válida.", 400);
   }
 
-  return { nombre, telefono, licenciaNumero, licenciaVencimiento };
+  return { nombre, telefono, licenciaNumero, tipoLicencia, licenciaVencimiento };
 }
 
 export async function registerTelegramDriverController(request, response) {

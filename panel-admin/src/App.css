@@ -1359,3 +1359,18 @@
     flex-direction: column;
   }
 }
+
+.notification-button { display:flex!important; align-items:center; justify-content:space-between; }
+.notification-button strong { display:grid; place-items:center; min-width:24px; height:24px; padding:0 6px; border-radius:999px; color:#fff; background:#d83b3b; font-size:.75rem; }
+.inspection-status { display:inline-flex; padding:5px 8px; border-radius:999px; font-size:.75rem; font-weight:800; }
+.inspection-status-pendiente_aprobacion { color:#7a560b; background:#fff0c9; }
+.inspection-status-aprobada { color:#12643e; background:#e4f7ed; }
+.inspection-status-rechazada { color:#8a3030; background:#fae8e8; }
+.inspection-detail-modal { width:min(900px,100%); max-height:90vh; overflow:auto; }
+.inspection-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.inspection-detail-grid p,.admin-checklist p { margin:0; padding:9px; border-radius:8px; background:#f4f9fb; }
+.damage-summary { display:flex; flex-wrap:wrap; gap:8px; }
+.damage-summary span { padding:7px 10px; border-radius:999px; background:#eef6f8; }
+.admin-checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; max-height:260px; overflow:auto; }
+.admin-signature { width:100%; max-height:180px; object-fit:contain; border:1px solid #d5e5eb; border-radius:10px; }
+@media(max-width:640px){.inspection-detail-grid,.admin-checklist{grid-template-columns:1fr;}}

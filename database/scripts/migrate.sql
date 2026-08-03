@@ -6,3 +6,4 @@
 \ir ../migrations/004_ubicaciones_cliente_idempotentes.sql
 \ir ../migrations/005_historial_kilometraje_vehiculos.sql
 \ir ../migrations/006_datos_y_disponibilidad_vehiculos.sql
+\ir ../migrations/007_inspecciones_vehiculares.sql

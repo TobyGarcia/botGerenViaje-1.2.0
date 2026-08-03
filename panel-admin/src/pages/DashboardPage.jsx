@@ -8,7 +8,8 @@ import VehiculosPage from "./VehiculosPage.jsx";
 import DestinosPage from "./DestinosPage.jsx";
 import UbicacionesPage from "./UbicacionesPage.jsx";
 import ViajesPage from "./ViajesPage.jsx";
-import { getAdminDashboardSummary } from "../services/api.js";
+import InspeccionesPage from "./InspeccionesPage.jsx";
+import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount } from "../services/api.js";
 
 function formatActivityDay(value) {
   const datePart = String(value || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
@@ -85,6 +86,14 @@ function DashboardPage({
   onLogout
 }) {
   const [activeModule, setActiveModule] = useState("inicio");
+  const [pendingInspections, setPendingInspections] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () => getAdminInspeccionesPendientesCount().then(response => { if (active) setPendingInspections(response.data?.total || 0); }).catch(()=>{});
+    refresh(); const timer = window.setInterval(refresh, 30000);
+    return () => { active=false; window.clearInterval(timer); };
+  }, []);
 
   const modules = [
     { id: "conductores", label: "Conductores" },
@@ -102,6 +111,7 @@ function DashboardPage({
         </div>
 
         <nav>
+          <button type="button" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span>🔔 Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>
           <button
             type="button"
             className={
@@ -179,6 +189,7 @@ function DashboardPage({
         {activeModule === "ubicaciones" && <UbicacionesPage />}
 
         {activeModule === "viajes" && <ViajesPage />}
+        {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
 
         {modules
           .filter(

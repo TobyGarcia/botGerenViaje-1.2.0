@@ -18,6 +18,8 @@ CREATE TABLE conductores
 
     licencia_numero VARCHAR(50),
 
+    tipo_licencia VARCHAR(50),
+
     licencia_vigente BOOLEAN NOT NULL DEFAULT FALSE,
 
     licencia_vencimiento DATE,

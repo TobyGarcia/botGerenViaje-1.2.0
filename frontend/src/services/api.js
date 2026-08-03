@@ -72,6 +72,17 @@ export function registrarUbicacion(
   );
 }
 
+export function getInspeccionVehicular(idViaje) {
+  return request(`/api/viajes/${idViaje}/inspeccion`);
+}
+
+export function enviarInspeccionVehicular(idViaje, data) {
+  return request(`/api/viajes/${idViaje}/inspeccion`, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
 export function registrarUbicacionesLote(idViaje, ubicaciones) {
   return request(`/api/viajes/${idViaje}/ubicaciones/lote`, {
     method: "POST",

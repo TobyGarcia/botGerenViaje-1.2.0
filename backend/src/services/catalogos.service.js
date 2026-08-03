@@ -6,6 +6,7 @@ export async function getConductores() {
       id_conductores,
       nombre,
       licencia_numero,
+      tipo_licencia,
       licencia_vigente,
       licencia_vencimiento,
       telefono

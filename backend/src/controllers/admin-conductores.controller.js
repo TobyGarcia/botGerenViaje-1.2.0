@@ -21,6 +21,8 @@ function normalizeDriverInput(body) {
         body?.licenciaNumero || ""
       ).trim(),
 
+    tipoLicencia: String(body?.tipoLicencia || "").trim(),
+
     licenciaVencimiento:
       String(
         body?.licenciaVencimiento || ""
@@ -44,6 +46,10 @@ function validateDriverInput(driver) {
 
   if (!driver.licenciaNumero) {
     return "El número de licencia es obligatorio.";
+  }
+
+  if (!driver.tipoLicencia) {
+    return "El tipo de licencia es obligatorio.";
   }
 
   if (

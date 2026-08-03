@@ -14,6 +14,7 @@ const initialForm = {
   nombre: "",
   telefono: "",
   licenciaNumero: "",
+  tipoLicencia: "",
   licenciaVencimiento: ""
 };
 
@@ -466,6 +467,11 @@ function ConductoresPage() {
                   onChange={handleChange}
                   required
                 />
+              </label>
+
+              <label>
+                Tipo de licencia
+                <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} placeholder="Ej. Federal B" required />
               </label>
 
               <div className="form-actions">

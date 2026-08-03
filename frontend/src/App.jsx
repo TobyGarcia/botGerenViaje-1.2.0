@@ -13,10 +13,13 @@ import {
   getLugares,
   getVehiculos,
   getViajeActivo,
+  getInspeccionVehicular,
+  enviarInspeccionVehicular,
   iniciarViaje,
   registrarUbicacion
 } from "./services/api.js";
 import RegistroConductor from "./components/RegistroConductor.jsx";
+import InspeccionVehicular from "./components/InspeccionVehicular.jsx";
 import {
   captureAndQueueLocation,
   setTrackingStatusListener,
@@ -119,8 +122,10 @@ const [finishedTrip, setFinishedTrip] =
 const [cancelledTrip, setCancelledTrip] =
   useState(null);
 
-const [cancellingTrip, setCancellingTrip] =
+  const [cancellingTrip, setCancellingTrip] =
   useState(false);
+  const [inspection, setInspection] = useState(null);
+  const [inspectionSaving, setInspectionSaving] = useState(false);
 
   const [telegramAuth, setTelegramAuth] =
     useState(null);
@@ -807,6 +812,38 @@ function handleStopGps() {
     }
   }
 
+  async function loadInspection(idViaje) {
+    try {
+      const response = await getInspeccionVehicular(idViaje);
+      setInspection(response.data);
+    } catch (error) {
+      setMessage(error.message); setMessageType("error");
+    }
+  }
+
+  async function submitInspection(data) {
+    const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
+    setInspectionSaving(true);
+    try {
+      await enviarInspeccionVehicular(idViaje, data);
+      await loadInspection(idViaje);
+      setMessage("Inspección enviada. Espera la aprobación administrativa."); setMessageType("success");
+    } catch (error) { setMessage(error.message); setMessageType("error"); }
+    finally { setInspectionSaving(false); }
+  }
+
+  useEffect(() => {
+    const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
+    if (idViaje && !startedTrip && !finishedTrip && !cancelledTrip) loadInspection(idViaje);
+  }, [createdTrip?.id_viajes, createdTrip?.idViaje, startedTrip, finishedTrip, cancelledTrip]);
+
+  useEffect(() => {
+    const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
+    if (!idViaje || inspection?.inspection?.estado !== "PENDIENTE_APROBACION") return undefined;
+    const timer = window.setInterval(() => loadInspection(idViaje), 15000);
+    return () => window.clearInterval(timer);
+  }, [createdTrip?.id_viajes, createdTrip?.idViaje, inspection?.inspection?.estado]);
+
   function handleNewTrip(){
     stopTracking();
 
@@ -825,6 +862,7 @@ function handleStopGps() {
     setGpsStatus("GPS detenido.");
     setMessage("");
     setMessageType("error");
+    setInspection(null);
 
     lastLocationSentAtRef.current = 0;
     sendingLocationRef.current=false;
@@ -1196,7 +1234,7 @@ function handleStopGps() {
     )}
 
     {!startedTrip && !finishedTrip && !cancelledTrip && (
-      <button
+      inspection?.required ? <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} /> : <button
         type="button"
         className="start-trip-button"
         onClick={handleStartTrip}

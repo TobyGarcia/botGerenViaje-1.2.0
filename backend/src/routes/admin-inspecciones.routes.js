@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { requireAdminSession } from "../middlewares/admin-auth.middleware.js";
+import { countAdminInspectionsController, decideAdminInspectionController, downloadAdminInspectionPdfController, getAdminInspectionController, listAdminInspectionsController } from "../controllers/admin-inspecciones.controller.js";
+const router = Router();
+router.use(requireAdminSession);
+router.get("/", listAdminInspectionsController);
+router.get("/pendientes/count", countAdminInspectionsController);
+router.get("/:idInspeccion", getAdminInspectionController);
+router.get("/:idInspeccion/pdf", downloadAdminInspectionPdfController);
+router.patch("/:idInspeccion/decision", decideAdminInspectionController);
+export default router;
