@@ -41,9 +41,25 @@ CREATE TABLE vehiculos
 
     nombre VARCHAR(100) NOT NULL,
 
+    marca VARCHAR(80),
+
+    modelo VARCHAR(100),
+
     numero_economico VARCHAR(50) NOT NULL UNIQUE,
 
     placas VARCHAR(20),
+
+    numero_poliza VARCHAR(100),
+
+    seguro_vencimiento DATE,
+
+    numero_serie VARCHAR(100),
+
+    tipo_vehiculo VARCHAR(80),
+
+    tipo_propiedad VARCHAR(20),
+
+    en_mantenimiento BOOLEAN NOT NULL DEFAULT FALSE,
 
     kilometraje_actual INTEGER NOT NULL DEFAULT 0,
 
@@ -54,7 +70,13 @@ CREATE TABLE vehiculos
     actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT chk_vehiculo_kilometraje
-        CHECK (kilometraje_actual >= 0)
+        CHECK (kilometraje_actual >= 0),
+
+    CONSTRAINT chk_vehiculo_tipo_propiedad
+        CHECK (
+            tipo_propiedad IS NULL
+            OR tipo_propiedad IN ('EMPRESARIAL', 'PATRIMONIAL')
+        )
 );
 
 --------------------------------------------------------------

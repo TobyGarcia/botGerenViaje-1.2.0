@@ -1,9 +1,12 @@
 import {
   createAdminVehicle,
   createAdminVehicleMileageReading,
+  getAdminVehicleDetail,
   getAdminVehicleMileageHistory,
   getAdminVehicleMileageSummary,
   listAdminVehicles,
+  updateAdminVehicleMaintenance,
+  updateAdminVehicle,
   updateAdminVehicleStatus
 } from "../services/admin-vehiculos.service.js";
 
@@ -38,7 +41,17 @@ function normalizeVehicleInput(body) {
         body?.placas || ""
       )
         .trim()
-        .toUpperCase()
+        .toUpperCase(),
+
+    numeroPoliza: String(body?.numeroPoliza || "").trim(),
+
+    seguroVencimiento: String(body?.seguroVencimiento || "").trim(),
+
+    numeroSerie: String(body?.numeroSerie || "").trim().toUpperCase(),
+
+    tipoVehiculo: String(body?.tipoVehiculo || "").trim(),
+
+    tipoPropiedad: String(body?.tipoPropiedad || "").trim().toUpperCase()
   };
 }
 
@@ -57,6 +70,26 @@ function validateVehicleInput(vehicle) {
 
   if (!vehicle.placas) {
     return "Las placas son obligatorias.";
+  }
+
+  if (!vehicle.numeroPoliza || !vehicle.seguroVencimiento) {
+    return "El número de póliza y su fecha de vencimiento son obligatorios.";
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(vehicle.seguroVencimiento)) {
+    return "La fecha de vencimiento del seguro no es válida.";
+  }
+
+  if (!vehicle.numeroSerie) {
+    return "El número de serie es obligatorio.";
+  }
+
+  if (!vehicle.tipoVehiculo) {
+    return "El tipo de vehículo es obligatorio.";
+  }
+
+  if (!["EMPRESARIAL", "PATRIMONIAL"].includes(vehicle.tipoPropiedad)) {
+    return "El tipo de propiedad debe ser empresarial o patrimonial.";
   }
 
   if (
@@ -173,6 +206,41 @@ export async function createAdminVehicleController(
   }
 }
 
+export async function getAdminVehicleDetailController(request, response) {
+  try {
+    const idVehiculo = parseVehicleId(request.params.idVehiculo);
+    if (!idVehiculo) {
+      return response.status(400).json({ success: false, message: "El identificador del vehículo no es válido." });
+    }
+
+    const vehicle = await getAdminVehicleDetail(idVehiculo);
+    if (!vehicle) {
+      return response.status(404).json({ success: false, message: "No se encontró el vehículo." });
+    }
+
+    return response.status(200).json({ success: true, data: vehicle });
+  } catch (error) {
+    console.error("Error consultando detalle de vehículo:", error.message);
+    return response.status(500).json({ success: false, message: "No fue posible consultar el detalle del vehículo." });
+  }
+}
+
+export async function updateAdminVehicleController(request, response) {
+  try {
+    const idVehiculo = parseVehicleId(request.params.idVehiculo);
+    const vehicle = normalizeVehicleInput(request.body);
+    const validationError = validateVehicleInput(vehicle);
+    if (!idVehiculo) return response.status(400).json({ success: false, message: "El identificador del vehículo no es válido." });
+    if (validationError) return response.status(400).json({ success: false, message: validationError });
+    const updatedVehicle = await updateAdminVehicle({ idVehiculo, ...vehicle });
+    if (!updatedVehicle) return response.status(409).json({ success: false, message: "No se encontró el vehículo o ya existe una unidad con esos datos." });
+    return response.status(200).json({ success: true, data: updatedVehicle, message: "Datos del vehículo actualizados correctamente." });
+  } catch (error) {
+    console.error("Error actualizando vehículo:", error.message);
+    return response.status(500).json({ success: false, message: "No fue posible actualizar el vehículo." });
+  }
+}
+
 export async function updateAdminVehicleStatusController(
   request,
   response
@@ -248,6 +316,30 @@ export async function updateAdminVehicleStatusController(
         message:
           "No fue posible actualizar el vehículo."
       });
+  }
+}
+
+export async function updateAdminVehicleMaintenanceController(request, response) {
+  try {
+    const idVehiculo = parseVehicleId(request.params.idVehiculo);
+    const enMantenimiento = request.body?.enMantenimiento;
+    if (!idVehiculo || typeof enMantenimiento !== "boolean") {
+      return response.status(400).json({ success: false, message: "El vehículo y el estado de mantenimiento son obligatorios." });
+    }
+
+    const updatedVehicle = await updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento });
+    if (!updatedVehicle) {
+      return response.status(409).json({ success: false, message: "No se encontró el vehículo o está en un viaje en curso." });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: updatedVehicle,
+      message: enMantenimiento ? "Vehículo enviado a mantenimiento." : "Vehículo retirado de mantenimiento."
+    });
+  } catch (error) {
+    console.error("Error actualizando mantenimiento de vehículo:", error.message);
+    return response.status(500).json({ success: false, message: "No fue posible actualizar el mantenimiento del vehículo." });
   }
 }
 

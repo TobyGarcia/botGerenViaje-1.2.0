@@ -33,8 +33,11 @@ export async function listAdminVehicles({
     conditions.push(`
       (
         v.nombre ILIKE $${values.length}
+        OR v.marca ILIKE $${values.length}
+        OR v.modelo ILIKE $${values.length}
         OR v.numero_economico ILIKE $${values.length}
         OR v.placas ILIKE $${values.length}
+        OR v.numero_serie ILIKE $${values.length}
       )
     `);
   }
@@ -63,11 +66,23 @@ export async function listAdminVehicles({
         SELECT
           v.id_vehiculos,
           v.nombre,
+          v.marca,
+          v.modelo,
           v.numero_economico,
           v.placas,
+          v.tipo_vehiculo,
+          v.tipo_propiedad,
+          v.en_mantenimiento,
           v.activo,
           COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
-          ultima_lectura.fecha_lectura AS fecha_ultima_lectura
+          ultima_lectura.fecha_lectura AS fecha_ultima_lectura,
+          viaje_en_curso.folio AS folio_viaje_en_curso,
+          CASE
+            WHEN NOT v.activo THEN 'INACTIVO'
+            WHEN v.en_mantenimiento THEN 'MANTENIMIENTO'
+            WHEN viaje_en_curso.id_viajes IS NOT NULL THEN 'EN_VIAJE'
+            ELSE 'DISPONIBLE'
+          END AS disponibilidad
         FROM vehiculos v
         LEFT JOIN LATERAL (
           SELECT kilometraje, fecha_lectura
@@ -76,9 +91,21 @@ export async function listAdminVehicles({
           ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC
           LIMIT 1
         ) ultima_lectura ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT viaje.id_viajes, viaje.folio
+          FROM viajes viaje
+          INNER JOIN estados_viaje estado
+            ON estado.id_estado_viaje = viaje.id_estado_viaje
+          WHERE viaje.id_vehiculos = v.id_vehiculos
+            AND estado.nombre = 'EN_CURSO'
+          ORDER BY viaje.id_viajes DESC
+          LIMIT 1
+        ) viaje_en_curso ON TRUE
         ${whereClause}
         ORDER BY
           v.activo DESC,
+          v.marca ASC,
+          v.modelo ASC,
           v.nombre ASC
       `,
       values
@@ -91,7 +118,12 @@ export async function createAdminVehicle({
   marca,
   modelo,
   numeroEconomico,
-  placas
+  placas,
+  numeroPoliza,
+  seguroVencimiento,
+  numeroSerie,
+  tipoVehiculo,
+  tipoPropiedad
 }) {
   const nombre =
     buildVehicleName(
@@ -111,18 +143,21 @@ export async function createAdminVehicle({
           SELECT
             id_vehiculos,
             numero_economico,
-            placas
+            placas,
+            numero_serie
           FROM vehiculos
           WHERE
             LOWER(numero_economico) =
               LOWER($1)
             OR LOWER(placas) =
               LOWER($2)
+            OR LOWER(numero_serie) = LOWER($3)
           LIMIT 1
         `,
         [
           numeroEconomico,
-          placas
+          placas,
+          numeroSerie
         ]
       );
 
@@ -146,27 +181,55 @@ export async function createAdminVehicle({
         `
           INSERT INTO vehiculos (
             nombre,
+            marca,
+            modelo,
             numero_economico,
             placas,
+            numero_poliza,
+            seguro_vencimiento,
+            numero_serie,
+            tipo_vehiculo,
+            tipo_propiedad,
             activo
           )
           VALUES (
             $1,
             $2,
             $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9,
+            $10,
             TRUE
           )
           RETURNING
             id_vehiculos,
             nombre,
+            marca,
+            modelo,
             numero_economico,
             placas,
+            numero_poliza,
+            seguro_vencimiento,
+            numero_serie,
+            tipo_vehiculo,
+            tipo_propiedad,
             activo
         `,
         [
           nombre,
+          marca,
+          modelo,
           numeroEconomico,
-          placas
+          placas,
+          numeroPoliza,
+          seguroVencimiento,
+          numeroSerie,
+          tipoVehiculo,
+          tipoPropiedad
         ]
       );
 
@@ -179,6 +242,75 @@ export async function createAdminVehicle({
   } finally {
     client.release();
   }
+}
+
+export async function getAdminVehicleDetail(idVehiculo) {
+  const result = await databasePool.query(
+    `
+      SELECT
+        v.id_vehiculos, v.nombre, v.marca, v.modelo, v.numero_economico,
+        v.placas, v.numero_poliza, v.seguro_vencimiento, v.numero_serie,
+        v.tipo_vehiculo, v.tipo_propiedad, v.en_mantenimiento, v.activo,
+        COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
+        ultima_lectura.fecha_lectura AS fecha_ultima_lectura,
+        viaje_en_curso.id_viajes AS id_viaje_en_curso,
+        viaje_en_curso.folio AS folio_viaje_en_curso,
+        viaje_en_curso.conductor AS conductor_viaje_en_curso,
+        CASE
+          WHEN NOT v.activo THEN 'INACTIVO'
+          WHEN v.en_mantenimiento THEN 'MANTENIMIENTO'
+          WHEN viaje_en_curso.id_viajes IS NOT NULL THEN 'EN_VIAJE'
+          ELSE 'DISPONIBLE'
+        END AS disponibilidad
+      FROM vehiculos v
+      LEFT JOIN LATERAL (
+        SELECT kilometraje, fecha_lectura
+        FROM historial_kilometraje_vehiculos
+        WHERE id_vehiculos = v.id_vehiculos
+        ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC
+        LIMIT 1
+      ) ultima_lectura ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT viaje.id_viajes, viaje.folio, conductor.nombre AS conductor
+        FROM viajes viaje
+        INNER JOIN estados_viaje estado ON estado.id_estado_viaje = viaje.id_estado_viaje
+        INNER JOIN conductores conductor ON conductor.id_conductores = viaje.id_conductores
+        WHERE viaje.id_vehiculos = v.id_vehiculos AND estado.nombre = 'EN_CURSO'
+        ORDER BY viaje.id_viajes DESC
+        LIMIT 1
+      ) viaje_en_curso ON TRUE
+      WHERE v.id_vehiculos = $1
+      LIMIT 1
+    `,
+    [idVehiculo]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function updateAdminVehicle({ idVehiculo, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad }) {
+  const nombre = buildVehicleName(marca, modelo);
+  const result = await databasePool.query(
+    `
+      UPDATE vehiculos
+      SET nombre = $1, marca = $2, modelo = $3, numero_economico = $4,
+          placas = $5, numero_poliza = $6, seguro_vencimiento = $7,
+          numero_serie = $8, tipo_vehiculo = $9, tipo_propiedad = $10,
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id_vehiculos = $11
+        AND NOT EXISTS (
+          SELECT 1 FROM vehiculos duplicado
+          WHERE duplicado.id_vehiculos <> $11
+            AND (LOWER(duplicado.numero_economico) = LOWER($4)
+              OR LOWER(duplicado.placas) = LOWER($5)
+              OR LOWER(duplicado.numero_serie) = LOWER($8))
+        )
+      RETURNING id_vehiculos, nombre, marca, modelo, numero_economico, placas,
+        numero_poliza, seguro_vencimiento, numero_serie, tipo_vehiculo, tipo_propiedad
+    `,
+    [nombre, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad, idVehiculo]
+  );
+  return result.rows[0] ?? null;
 }
 
 export async function updateAdminVehicleStatus({
@@ -204,6 +336,27 @@ export async function updateAdminVehicleStatus({
         idVehiculo
       ]
     );
+
+  return result.rows[0] ?? null;
+}
+
+export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento }) {
+  const result = await databasePool.query(
+    `
+      UPDATE vehiculos
+      SET en_mantenimiento = $1, actualizado_en = CURRENT_TIMESTAMP
+      WHERE id_vehiculos = $2
+        AND NOT EXISTS (
+          SELECT 1
+          FROM viajes viaje
+          INNER JOIN estados_viaje estado ON estado.id_estado_viaje = viaje.id_estado_viaje
+          WHERE viaje.id_vehiculos = vehiculos.id_vehiculos
+            AND estado.nombre = 'EN_CURSO'
+        )
+      RETURNING id_vehiculos, en_mantenimiento, activo
+    `,
+    [enMantenimiento, idVehiculo]
+  );
 
   return result.rows[0] ?? null;
 }

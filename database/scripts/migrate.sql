@@ -5,3 +5,4 @@
 \ir ../migrations/003_usuarios_admin.sql
 \ir ../migrations/004_ubicaciones_cliente_idempotentes.sql
 \ir ../migrations/005_historial_kilometraje_vehiculos.sql
+\ir ../migrations/006_datos_y_disponibilidad_vehiculos.sql

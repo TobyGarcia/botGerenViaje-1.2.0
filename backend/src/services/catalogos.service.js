@@ -22,12 +22,23 @@ export async function getVehiculos() {
     SELECT
       id_vehiculos,
       nombre,
+      marca,
+      modelo,
       numero_economico,
       placas,
       kilometraje_actual
     FROM vehiculos
     WHERE activo = TRUE
-    ORDER BY nombre ASC
+      AND en_mantenimiento = FALSE
+      AND NOT EXISTS (
+        SELECT 1
+        FROM viajes viaje
+        INNER JOIN estados_viaje estado
+          ON estado.id_estado_viaje = viaje.id_estado_viaje
+        WHERE viaje.id_vehiculos = vehiculos.id_vehiculos
+          AND estado.nombre = 'EN_CURSO'
+      )
+    ORDER BY marca ASC, modelo ASC, nombre ASC
   `);
 
   return result.rows;

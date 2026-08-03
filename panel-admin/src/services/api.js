@@ -193,10 +193,27 @@ export function createAdminVehiculo(
           vehiculo.numeroEconomico,
 
         placas:
-          vehiculo.placas
+          vehiculo.placas,
+
+        numeroPoliza: vehiculo.numeroPoliza,
+        seguroVencimiento: vehiculo.seguroVencimiento,
+        numeroSerie: vehiculo.numeroSerie,
+        tipoVehiculo: vehiculo.tipoVehiculo,
+        tipoPropiedad: vehiculo.tipoPropiedad
       })
     }
   );
+}
+
+export function getAdminVehiculoDetalle(idVehiculo) {
+  return request(`/admin/vehiculos/${idVehiculo}`);
+}
+
+export function updateAdminVehiculoMantenimiento(idVehiculo, enMantenimiento) {
+  return request(`/admin/vehiculos/${idVehiculo}/mantenimiento`, {
+    method: "PATCH",
+    body: JSON.stringify({ enMantenimiento })
+  });
 }
 
 export function updateAdminVehiculoStatus(
@@ -212,6 +229,13 @@ export function updateAdminVehiculoStatus(
       })
     }
   );
+}
+
+export function updateAdminVehiculo(idVehiculo, vehiculo) {
+  return request(`/admin/vehiculos/${idVehiculo}`, {
+    method: "PATCH",
+    body: JSON.stringify(vehiculo)
+  });
 }
 export function getAdminDestinos({
   search = "",

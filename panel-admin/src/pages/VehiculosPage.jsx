@@ -7,9 +7,12 @@ import {
 import {
   createAdminVehiculo,
   createAdminVehiculoKilometraje,
+  getAdminVehiculoDetalle,
   getAdminVehiculoKilometraje,
   getAdminVehiculoKilometrajeResumen,
   getAdminVehiculos,
+  updateAdminVehiculoMantenimiento,
+  updateAdminVehiculo,
   updateAdminVehiculoStatus
 } from "../services/api.js";
 
@@ -17,7 +20,12 @@ const initialForm = {
   marca: "",
   modelo: "",
   numeroEconomico: "",
-  placas: ""
+  placas: "",
+  numeroPoliza: "",
+  seguroVencimiento: "",
+  numeroSerie: "",
+  tipoVehiculo: "",
+  tipoPropiedad: "EMPRESARIAL"
 };
 
 function VehiculosPage({ user }) {
@@ -49,6 +57,8 @@ function VehiculosPage({ user }) {
   const [saving, setSaving] =
     useState(false);
 
+  const [editingVehicle, setEditingVehicle] = useState(null);
+
   const [updatingId, setUpdatingId] =
     useState(null);
 
@@ -58,6 +68,8 @@ function VehiculosPage({ user }) {
   const [mileageLoading, setMileageLoading] = useState(false);
   const [mileageSaving, setMileageSaving] = useState(false);
   const [mileageForm, setMileageForm] = useState({ kilometraje: "", observaciones: "" });
+  const [detailVehicle, setDetailVehicle] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const submittingRef =
     useRef(false);
@@ -149,8 +161,19 @@ function VehiculosPage({ user }) {
     setMessage("");
   }
 
-  function openForm() {
-    setForm(initialForm);
+  function openForm(vehiculo = null) {
+    setForm(vehiculo ? {
+      marca: vehiculo.marca || "",
+      modelo: vehiculo.modelo || "",
+      numeroEconomico: vehiculo.numero_economico || "",
+      placas: vehiculo.placas || "",
+      numeroPoliza: vehiculo.numero_poliza || "",
+      seguroVencimiento: vehiculo.seguro_vencimiento ? String(vehiculo.seguro_vencimiento).slice(0, 10) : "",
+      numeroSerie: vehiculo.numero_serie || "",
+      tipoVehiculo: vehiculo.tipo_vehiculo || "",
+      tipoPropiedad: vehiculo.tipo_propiedad || "EMPRESARIAL"
+    } : initialForm);
+    setEditingVehicle(vehiculo);
     setMessage("");
     setShowForm(true);
   }
@@ -162,6 +185,7 @@ function VehiculosPage({ user }) {
 
     setShowForm(false);
     setForm(initialForm);
+    setEditingVehicle(null);
   }
 
   function handleOverlayMouseDown(
@@ -187,10 +211,9 @@ function VehiculosPage({ user }) {
     setMessage("");
 
     try {
-      const response =
-        await createAdminVehiculo(
-          form
-        );
+      const response = editingVehicle
+        ? await updateAdminVehiculo(editingVehicle.id_vehiculos, form)
+        : await createAdminVehiculo(form);
 
       setMessage(
         response.message ||
@@ -200,6 +223,7 @@ function VehiculosPage({ user }) {
       setMessageType("success");
       setShowForm(false);
       setForm(initialForm);
+      setEditingVehicle(null);
 
       await loadVehiculos();
     } catch (error) {
@@ -300,6 +324,46 @@ function VehiculosPage({ user }) {
       setMessage(error.message);
       setMessageType("error");
     } finally { setMileageLoading(false); }
+  }
+
+  async function openDetail(vehiculo) {
+    setDetailVehicle(null);
+    setDetailLoading(true);
+    try {
+      const response = await getAdminVehiculoDetalle(vehiculo.id_vehiculos);
+      setDetailVehicle(response.data);
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function handleMaintenanceChange(vehiculo) {
+    const nextValue = !vehiculo.en_mantenimiento;
+    const confirmed = window.confirm(
+      nextValue
+        ? `¿Enviar la unidad ${vehiculo.nombre} a mantenimiento?`
+        : `¿Retirar la unidad ${vehiculo.nombre} de mantenimiento?`
+    );
+    if (!confirmed) return;
+
+    setUpdatingId(vehiculo.id_vehiculos);
+    try {
+      const response = await updateAdminVehiculoMantenimiento(vehiculo.id_vehiculos, nextValue);
+      setMessage(response.message);
+      setMessageType("success");
+      await loadVehiculos();
+      if (detailVehicle?.id_vehiculos === vehiculo.id_vehiculos) {
+        await openDetail(vehiculo);
+      }
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   async function saveMileage(event) {
@@ -431,7 +495,7 @@ function VehiculosPage({ user }) {
                     >
                       <td>
                         <strong>
-                          {vehiculo.nombre}
+                          {vehiculo.marca || vehiculo.nombre} {vehiculo.modelo || ""}
                         </strong>
                       </td>
 
@@ -450,20 +514,34 @@ function VehiculosPage({ user }) {
                       <td>
                         <span
                           className={
-                            vehiculo.activo
+                            vehiculo.disponibilidad === "DISPONIBLE"
                               ? "status-badge status-active"
                               : "status-badge status-inactive"
                           }
                         >
-                          {vehiculo.activo
-                            ? "Disponible"
-                            : "Inactivo"}
+                          {vehiculo.disponibilidad === "DISPONIBLE" ? "Disponible" :
+                            vehiculo.disponibilidad === "MANTENIMIENTO" ? "No disponible: mantenimiento" :
+                            vehiculo.disponibilidad === "EN_VIAJE" ? "No disponible: en viaje" : "Inactivo"}
                         </span>
                       </td>
 
                       <td>
                         <button type="button" className="secondary-button" onClick={() => openMileage(vehiculo)}>
                           Historial
+                        </button>
+                        <button type="button" className="secondary-button" onClick={() => openDetail(vehiculo)}>
+                          Ver detalle
+                        </button>
+                        <button type="button" className="secondary-button" onClick={() => openForm(vehiculo)}>
+                          Modificar
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={updatingId === vehiculo.id_vehiculos || vehiculo.disponibilidad === "EN_VIAJE"}
+                          onClick={() => handleMaintenanceChange(vehiculo)}
+                        >
+                          {vehiculo.en_mantenimiento ? "Retirar mantenimiento" : "Mantenimiento"}
                         </button>
                         <button
                           type="button"
@@ -521,12 +599,11 @@ function VehiculosPage({ user }) {
                 <h2
                   id="new-vehicle-title"
                 >
-                  Nueva unidad
+                  {editingVehicle ? "Editar unidad" : "Nueva unidad"}
                 </h2>
 
                 <p>
-                  Registra los datos de
-                  la unidad vehicular.
+                  {editingVehicle ? "Actualiza los datos de la unidad vehicular." : "Registra los datos de la unidad vehicular."}
                 </p>
               </div>
 
@@ -600,6 +677,34 @@ function VehiculosPage({ user }) {
                 />
               </label>
 
+              <label>
+                Número de póliza
+                <input name="numeroPoliza" value={form.numeroPoliza} onChange={handleChange} required disabled={saving} />
+              </label>
+
+              <label>
+                Vencimiento del seguro
+                <input type="date" name="seguroVencimiento" value={form.seguroVencimiento} onChange={handleChange} required disabled={saving} />
+              </label>
+
+              <label>
+                Número de serie
+                <input name="numeroSerie" value={form.numeroSerie} onChange={handleChange} required disabled={saving} />
+              </label>
+
+              <label>
+                Tipo de vehículo
+                <input name="tipoVehiculo" value={form.tipoVehiculo} onChange={handleChange} placeholder="Ej. Camioneta" required disabled={saving} />
+              </label>
+
+              <label>
+                Propiedad
+                <select name="tipoPropiedad" value={form.tipoPropiedad} onChange={handleChange} disabled={saving}>
+                  <option value="EMPRESARIAL">Empresarial</option>
+                  <option value="PATRIMONIAL">Patrimonial</option>
+                </select>
+              </label>
+
               <div className="vehicle-name-preview">
                 <span>
                   Nombre que se guardará:
@@ -630,7 +735,7 @@ function VehiculosPage({ user }) {
                 >
                   {saving
                     ? "Guardando..."
-                    : "Guardar unidad"}
+                    : editingVehicle ? "Guardar cambios" : "Guardar unidad"}
                 </button>
               </div>
             </form>
@@ -665,6 +770,38 @@ function VehiculosPage({ user }) {
               </form>
               }
             </>}
+          </section>
+        </div>
+      )}
+
+      {(detailLoading || detailVehicle) && (
+        <div className="modal-overlay" role="presentation" onMouseDown={() => !detailLoading && setDetailVehicle(null)}>
+          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="vehicle-detail-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="form-panel-header">
+              <div><h2 id="vehicle-detail-title">Detalle de unidad</h2><p>{detailVehicle ? `${detailVehicle.marca || detailVehicle.nombre} ${detailVehicle.modelo || ""}` : "Cargando información..."}</p></div>
+              <button type="button" className="close-button" onClick={() => setDetailVehicle(null)} aria-label="Cerrar detalle" disabled={detailLoading}>×</button>
+            </div>
+            {detailLoading ? <p className="table-status">Cargando detalle...</p> : detailVehicle && (
+              <div className="mileage-summary">
+                <span><strong>Estado:</strong> {detailVehicle.disponibilidad}</span>
+                <span><strong>Núm. económico:</strong> {detailVehicle.numero_economico}</span>
+                <span><strong>Placas:</strong> {detailVehicle.placas}</span>
+                <span><strong>Tipo:</strong> {detailVehicle.tipo_vehiculo || "Sin capturar"}</span>
+                <span><strong>Propiedad:</strong> {detailVehicle.tipo_propiedad || "Sin capturar"}</span>
+                <span><strong>Núm. de serie:</strong> {detailVehicle.numero_serie || "Sin capturar"}</span>
+                <span><strong>Póliza:</strong> {detailVehicle.numero_poliza || "Sin capturar"}</span>
+                <span><strong>Vence seguro:</strong> {detailVehicle.seguro_vencimiento ? new Date(`${detailVehicle.seguro_vencimiento}T00:00:00`).toLocaleDateString("es-MX") : "Sin capturar"}</span>
+                <span><strong>Kilometraje:</strong> {detailVehicle.kilometraje_actual ?? 0} km</span>
+                {detailVehicle.folio_viaje_en_curso && <span><strong>Viaje en curso:</strong> {detailVehicle.folio_viaje_en_curso} · {detailVehicle.conductor_viaje_en_curso}</span>}
+              </div>
+            )}
+            {detailVehicle && !detailLoading && (
+              <div className="form-actions">
+                <button type="button" className="primary-button" onClick={() => { const vehicle = detailVehicle; setDetailVehicle(null); openForm(vehicle); }}>
+                  Editar datos
+                </button>
+              </div>
+            )}
           </section>
         </div>
       )}

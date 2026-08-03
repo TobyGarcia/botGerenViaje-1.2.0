@@ -53,7 +53,8 @@ export async function createTrip({
           id_vehiculos,
           nombre,
           numero_economico,
-          kilometraje_actual
+          kilometraje_actual,
+          en_mantenimiento
         FROM vehiculos
         WHERE id_vehiculos = $1
           AND activo = TRUE
@@ -67,6 +68,10 @@ export async function createTrip({
 
     if (!vehicle) {
       throw new Error("El vehículo no existe o está inactivo.");
+    }
+
+    if (vehicle.en_mantenimiento) {
+      throw new Error("El vehículo está en mantenimiento.");
     }
 
     const placesResult = await client.query(
@@ -249,6 +254,7 @@ export async function startTrip({
           vh.nombre AS vehiculo,
           vh.numero_economico,
           vh.activo AS vehiculo_activo,
+          vh.en_mantenimiento,
 
           origen.nombre AS origen,
           destino.nombre AS destino,
@@ -307,6 +313,10 @@ export async function startTrip({
       throw new Error(
         "El vehículo asignado está inactivo."
       );
+    }
+
+    if (trip.en_mantenimiento) {
+      throw new Error("El vehículo está en mantenimiento.");
     }
 
     const activeTripResult = await client.query(
