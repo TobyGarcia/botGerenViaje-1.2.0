@@ -1,73 +1,249 @@
+import { readFileSync } from "node:fs";
+import { inflateSync, deflateSync } from "node:zlib";
+import { fileURLToPath } from "node:url";
+
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+const MARGIN = 36;
+const diagramFiles = {
+  frontal: new URL("../assets/inspection-diagrams/frontal.png", import.meta.url),
+  trasera: new URL("../assets/inspection-diagrams/trasera.png", import.meta.url),
+  conductor: new URL("../assets/inspection-diagrams/conductor.png", import.meta.url),
+  pasajero: new URL("../assets/inspection-diagrams/pasajero.png", import.meta.url)
+};
+
 function pdfEscape(value) {
   return String(value ?? "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[\r\n]+/g, " ");
 }
 
-function wrap(value, width = 90) {
-  const words = String(value ?? "").split(/\s+/);
-  const lines = []; let line = "";
-  for (const word of words) {
-    if (`${line} ${word}`.trim().length > width) { if (line) lines.push(line); line = word; }
-    else line = `${line} ${word}`.trim();
+function truncate(value, length) {
+  const text = String(value ?? "").trim() || "N/A";
+  return text.length > length ? `${text.slice(0, Math.max(1, length - 3))}...` : text;
+}
+
+function color(hex) {
+  const normalized = hex.replace("#", "");
+  return [0, 2, 4].map((index) => (parseInt(normalized.slice(index, index + 2), 16) / 255).toFixed(3)).join(" ");
+}
+
+function paeth(left, up, upperLeft) {
+  const estimate = left + up - upperLeft;
+  const leftDistance = Math.abs(estimate - left);
+  const upDistance = Math.abs(estimate - up);
+  const upperLeftDistance = Math.abs(estimate - upperLeft);
+  if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) return left;
+  return upDistance <= upperLeftDistance ? up : upperLeft;
+}
+
+function readPng(buffer) {
+  if (buffer.toString("ascii", 1, 4) !== "PNG") throw new Error("El diagrama no es una imagen PNG válida.");
+  let offset = 8;
+  let width;
+  let height;
+  let bitDepth;
+  let colorType;
+  const chunks = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString("ascii", offset + 4, offset + 8);
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+      if (bitDepth !== 8 || colorType !== 2 || data[12] !== 0) throw new Error("El diagrama PNG debe usar RGB de 8 bits sin entrelazado.");
+    }
+    if (type === "IDAT") chunks.push(data);
+    if (type === "IEND") break;
   }
-  if (line) lines.push(line);
-  return lines.length ? lines : [""];
+  const channels = 3;
+  const rowLength = width * channels;
+  const decoded = inflateSync(Buffer.concat(chunks));
+  const pixels = Buffer.alloc(rowLength * height);
+  let sourceOffset = 0;
+  for (let row = 0; row < height; row += 1) {
+    const filter = decoded[sourceOffset++];
+    const rowStart = row * rowLength;
+    for (let column = 0; column < rowLength; column += 1) {
+      const value = decoded[sourceOffset++];
+      const left = column >= channels ? pixels[rowStart + column - channels] : 0;
+      const up = row > 0 ? pixels[rowStart - rowLength + column] : 0;
+      const upperLeft = row > 0 && column >= channels ? pixels[rowStart - rowLength + column - channels] : 0;
+      if (filter === 0) pixels[rowStart + column] = value;
+      else if (filter === 1) pixels[rowStart + column] = (value + left) & 255;
+      else if (filter === 2) pixels[rowStart + column] = (value + up) & 255;
+      else if (filter === 3) pixels[rowStart + column] = (value + Math.floor((left + up) / 2)) & 255;
+      else if (filter === 4) pixels[rowStart + column] = (value + paeth(left, up, upperLeft)) & 255;
+      else throw new Error("Filtro PNG no compatible.");
+    }
+  }
+  return { width, height, data: deflateSync(pixels) };
+}
+
+function imageFromDataUrl(dataUrl) {
+  if (!String(dataUrl || "").startsWith("data:image/png;base64,")) return null;
+  return readPng(Buffer.from(dataUrl.split(",")[1], "base64"));
+}
+
+function streamObject(dictionary, data) {
+  return Buffer.concat([Buffer.from(`<< ${dictionary} /Length ${data.length} >>\nstream\n`, "latin1"), data, Buffer.from("\nendstream", "latin1")]);
+}
+
+function drawText(commands, text, x, y, size = 7, options = {}) {
+  const { bold = false, fill = "#173f51", align = "left" } = options;
+  const safeText = pdfEscape(text);
+  const approximateWidth = String(text).length * size * (bold ? 0.57 : 0.5);
+  const alignedX = align === "right" ? x - approximateWidth : align === "center" ? x - approximateWidth / 2 : x;
+  commands.push(`BT /${bold ? "F2" : "F1"} ${size} Tf ${color(fill)} rg 1 0 0 1 ${alignedX.toFixed(2)} ${y.toFixed(2)} Tm (${safeText}) Tj ET`);
+}
+
+function line(commands, x1, y1, x2, y2, width = 0.55, stroke = "#466572") {
+  commands.push(`${width} w ${color(stroke)} RG ${x1} ${y1} m ${x2} ${y2} l S`);
+}
+
+function rect(commands, x, y, width, height, options = {}) {
+  const { fill, stroke = "#466572", lineWidth = 0.55 } = options;
+  const fillCommand = fill ? `${color(fill)} rg ` : "";
+  const strokeCommand = stroke ? `${color(stroke)} RG ${lineWidth} w ` : "";
+  commands.push(`${fillCommand}${strokeCommand}${x} ${y} ${width} ${height} re ${fill && stroke ? "B" : fill ? "f" : "S"}`);
+}
+
+function circle(commands, x, y, radius, stroke = "#d12d2d") {
+  const control = radius * 0.5522847498;
+  commands.push(`q ${color(stroke)} RG 1.6 w ${x + radius} ${y} m ${x + radius} ${y + control} ${x + control} ${y + radius} ${x} ${y + radius} c ${x - control} ${y + radius} ${x - radius} ${y + control} ${x - radius} ${y} c ${x - radius} ${y - control} ${x - control} ${y - radius} ${x} ${y - radius} c ${x + control} ${y - radius} ${x + radius} ${y - control} ${x + radius} ${y} c S Q`);
+}
+
+function addLabeledField(commands, label, value, x, y, width) {
+  rect(commands, x, y, width, 14, { stroke: "#6b818a" });
+  drawText(commands, label, x + 3, y + 9, 5.8, { bold: true, fill: "#365862" });
+  drawText(commands, truncate(value, Math.floor(width / 3.7)), x + 3, y + 2.3, 6.2, { fill: "#173f51" });
+}
+
+function drawImage(commands, name, image, x, y, width, height, points = []) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawnWidth = image.width * scale;
+  const drawnHeight = image.height * scale;
+  const drawnX = x + (width - drawnWidth) / 2;
+  const drawnY = y + (height - drawnHeight) / 2;
+  commands.push(`q ${drawnWidth.toFixed(2)} 0 0 ${drawnHeight.toFixed(2)} ${drawnX.toFixed(2)} ${drawnY.toFixed(2)} cm /${name} Do Q`);
+  points.forEach((point, index) => {
+    const markerX = drawnX + (Number(point.x) / 100) * drawnWidth;
+    const markerY = drawnY + (1 - Number(point.y) / 100) * drawnHeight;
+    circle(commands, markerX, markerY, 5.5);
+    drawText(commands, String(index + 1), markerX - 1.7, markerY - 1.7, 4.2, { bold: true, fill: "#d12d2d" });
+  });
 }
 
 export function buildInspectionPdf(data) {
-  const emitted = new Date(data.aprobado_en || Date.now()).toLocaleString("es-MX", { timeZone: "America/Mexico_City" });
-  const documentNumber = `SII-MX-${new Date().getFullYear()}-LOG-${String(data.id_viajes).padStart(3, "0")}`;
-  const lines = [
-    ["title", "REPORTE DE INSPECCION VEHICULAR"],
-    ["meta", `Version: 2.2 | Area responsable: Logistica`],
-    ["meta", `No. documento: ${documentNumber}`], ["meta", `Emision: ${emitted}`],
-    ["heading", "DATOS GENERALES"],
-    ["text", `Folio: ${data.folio} | Unidad: ${data.numero_economico} | Placas: ${data.placas || "N/A"}`],
-    ["text", `Vehiculo: ${data.marca || ""} ${data.modelo || data.vehiculo || ""} | Tipo: ${data.tipo_vehiculo || "N/A"}`],
-    ["text", `Serie: ${data.numero_serie || "N/A"} | Kilometraje: ${data.kilometraje_inicial} km`],
-    ["text", `Poliza: ${data.numero_poliza || "N/A"} | Vencimiento: ${data.seguro_vencimiento || "N/A"}`],
-    ["text", `Conductor: ${data.conductor} | Licencia: ${data.licencia_numero || "N/A"}`],
-    ["text", `Tipo/vigencia licencia: ${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`],
-    ["text", `Combustible: ${data.combustible} | Asignacion: ${data.tipo_asignacion}`],
-    ["heading", "INSPECCION VISUAL"],
-    ...Object.entries(data.danos || {}).map(([view, points]) => ["text", `${view}: ${points.length ? `${points.length} marca(s) registrada(s)` : "Sin danos marcados"}`]),
-    ["heading", "CHECKLIST"],
-    ...Object.entries(data.checklist || {}).map(([item, state]) => ["text", `${state.padEnd(3, " ")}  ${item}`]),
-    ["heading", "OBSERVACIONES"],
-    ["text", data.observaciones_conductor || "Sin observaciones."],
-    ["heading", "APROBACION"],
-    ["text", `Estado: ${data.estado} | Aprobador: ${data.aprobador || "Pendiente"}`],
-    ["text", `Comentario: ${data.comentario_aprobacion || "Sin comentarios"}`],
-    ["text", "Firma del conductor: capturada digitalmente en el registro de inspeccion."],
-  ];
-  const pages = []; let page = []; let y = 790;
-  for (const [type, raw] of lines) {
-    const size = type === "title" ? 16 : type === "heading" ? 12 : 9;
-    const leading = size + 5;
-    for (const text of wrap(raw, type === "title" ? 60 : 95)) {
-      if (y < 55) { pages.push(page); page = []; y = 790; }
-      page.push({ type, text, y, size }); y -= leading;
-    }
-    if (type === "heading") y -= 3;
-  }
-  if (page.length) pages.push(page);
-  const objects = [];
-  const pageIds = pages.map((_, index) => 4 + index * 2);
-  objects[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
-  objects[2] = `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`;
-  objects[3] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`;
-  pages.forEach((items, index) => {
-    const pageId = pageIds[index]; const contentId = pageId + 1;
-    const commands = items.map(item => `BT /F1 ${item.size} Tf ${item.type === "title" ? "0.05 0.28 0.38" : item.type === "heading" ? "0.05 0.55 0.7" : "0.12 0.22 0.27"} rg 50 ${item.y} Td (${pdfEscape(item.text)}) Tj ET`).join("\n");
-    const footer = `BT /F1 8 Tf 0.4 g 270 28 Td (Pagina ${index + 1} de ${pages.length}) Tj ET`;
-    const content = `${commands}\n${footer}`;
-    objects[pageId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`;
-    objects[contentId] = `<< /Length ${Buffer.byteLength(content, "latin1")} >>\nstream\n${content}\nendstream`;
+  const diagrams = Object.fromEntries(Object.entries(diagramFiles).map(([view, url]) => [view, readPng(readFileSync(fileURLToPath(url)))]));
+  const signature = imageFromDataUrl(data.firma_conductor);
+  const objects = [null];
+  const addObject = (value) => { objects.push(value); return objects.length - 1; };
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = "";
+  const regularFont = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  const boldFont = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  const imageEntries = Object.entries(diagrams);
+  if (signature) imageEntries.push(["firma", signature]);
+  const imageReferences = Object.fromEntries(imageEntries.map(([name, image], index) => [name, { name: `Im${index + 1}`, image, id: addObject(streamObject(`/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode`, image.data)) }]));
+
+  const commands = [];
+  const dark = "#173f51";
+  const border = "#466572";
+  const teal = "#3b6975";
+  const red = "#d98176";
+  rect(commands, MARGIN, 752, 540, 28, { stroke: border, lineWidth: 0.8 });
+  rect(commands, MARGIN, 752, 112, 28, { fill: "#f7fafb", stroke: border, lineWidth: 0.8 });
+  drawText(commands, "Itzamma", 59, 765, 12, { bold: true, fill: teal });
+  drawText(commands, "OIL & GAS", 64, 756, 5.4, { bold: true, fill: teal });
+  drawText(commands, "Servicios Industriales y de", 288, 768, 11.2, { bold: true, fill: teal, align: "center" });
+  drawText(commands, "Ingeniería Itzamma", 288, 756, 11.2, { bold: true, fill: teal, align: "center" });
+  const documentNumber = `SII-MX-${new Date(data.aprobado_en || Date.now()).getFullYear()}-LOG-${String(data.id_viajes || "").padStart(3, "0")}`;
+  [["Emisión", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Página", "Página 1 de 1"], ["Versión", "2.2"], ["Área Responsable", "Logística"], ["No. Documento", documentNumber]].forEach(([label, value], index) => {
+    const row = Math.floor(index / 3);
+    const col = index % 3;
+    const x = 432 + col * 48;
+    const width = 48;
+    const y = 766 - row * 13;
+    rect(commands, x, y, width, 13, { stroke: border });
+    drawText(commands, label, x + 2, y + 8.3, 4.5, { bold: true, fill: dark });
+    drawText(commands, truncate(value, 13), x + 2, y + 2.4, 4.5, { fill: dark });
   });
-  let pdf = Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "latin1"); const offsets = [0];
-  for (let id = 1; id < objects.length; id++) { offsets[id] = pdf.length; pdf = Buffer.concat([pdf, Buffer.from(`${id} 0 obj\n${objects[id]}\nendobj\n`, "latin1")]); }
-  const xref = pdf.length;
+  rect(commands, MARGIN, 736, 540, 11, { fill: "#edf4f6", stroke: border });
+  drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 739, 7.8, { bold: true, fill: dark, align: "center" });
+
+  const fields = [
+    ["Tipo de vehículo", data.tipo_vehiculo], ["Nombre del conductor", data.conductor], ["Póliza y vigencia", `${data.numero_poliza || "N/A"} ${data.seguro_vencimiento || ""}`], ["No. folio", data.folio],
+    ["No. de unidad", data.numero_economico], ["No. licencia", data.licencia_numero], ["No. serie", data.numero_serie], ["Kilometraje", `${data.kilometraje_inicial || "N/A"} km`],
+    ["Fecha", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })], ["Licencia / vigencia", `${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`], ["Placas", data.placas],
+    ["Asignación", data.tipo_asignacion], ["Combustible", data.combustible], ["Aprobación", data.estado], ["Autorizó", data.aprobador || "Pendiente"]
+  ];
+  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 666 - Math.floor(index / 4) * 15, 135));
+  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 599, 6.1, { bold: true, fill: "#c46b6d", align: "center" });
+  rect(commands, MARGIN, 397, 540, 195, { stroke: border, lineWidth: 0.8 });
+  const collage = [
+    ["frontal", 49, 496, 115, 82], ["conductor", 185, 496, 375, 82],
+    ["trasera", 49, 408, 115, 82], ["pasajero", 185, 408, 375, 82]
+  ];
+  collage.forEach(([view, x, y, width, height]) => {
+    const entry = imageReferences[view];
+    drawImage(commands, entry.name, entry.image, x, y, width, height, data.danos?.[view] || []);
+    drawText(commands, view.toUpperCase(), x + width / 2, y + height - 7, 5.5, { bold: true, fill: dark, align: "center" });
+  });
+
+  rect(commands, MARGIN, 382, 540, 10, { fill: red, stroke: border });
+  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 385, 5.7, { bold: true, fill: dark, align: "center" });
+  const entries = Object.entries(data.checklist || {});
+  const columns = 3;
+  const perColumn = Math.max(1, Math.ceil(entries.length / columns));
+  const tableTop = 370;
+  const rowHeight = Math.max(7, Math.min(10, 175 / Math.max(perColumn, 1)));
+  for (let column = 0; column < columns; column += 1) {
+    const x = MARGIN + column * 180;
+    const heading = column === 0 ? "DOCUMENTACIÓN Y EQUIPO" : column === 1 ? "CONDICIONES GENERALES" : "VERIFICAR SÓLO LO QUE APLIQUE";
+    rect(commands, x, tableTop, 180, 10, { fill: "#edf4f6", stroke: border });
+    drawText(commands, heading, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: dark, align: "center" });
+    entries.slice(column * perColumn, (column + 1) * perColumn).forEach(([item, state], row) => {
+      const y = tableTop - (row + 1) * rowHeight;
+      rect(commands, x, y, 180, rowHeight, { stroke: border });
+      line(commands, x + 17, y, x + 17, y + rowHeight, 0.4, border);
+      drawText(commands, truncate(state, 3), x + 4, y + 1.7, 4.9, { bold: true, fill: dark });
+      drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: dark });
+    });
+  }
+  const commentsTop = 184;
+  rect(commands, MARGIN, commentsTop, 540, 10, { fill: red, stroke: border });
+  drawText(commands, "COMENTARIOS DEL CONDUCTOR", PAGE_WIDTH / 2, commentsTop + 3.1, 5.8, { bold: true, fill: dark, align: "center" });
+  rect(commands, MARGIN, 132, 540, 52, { stroke: border });
+  [145, 158, 171].forEach((y) => line(commands, MARGIN, y, 576, y, 0.4, border));
+  const comment = truncate(data.observaciones_conductor || "Sin observaciones.", 150);
+  drawText(commands, comment, 42, 174, 6.2, { fill: dark });
+  drawText(commands, "Conductor:", 150, 100, 6.3, { bold: true, fill: dark });
+  drawText(commands, "Autorizó (Gerencia / Coordinación):", 430, 100, 6.3, { bold: true, fill: dark, align: "center" });
+  line(commands, 54, 74, 282, 74, 0.7, border);
+  line(commands, 330, 74, 558, 74, 0.7, border);
+  if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 76, 220, 20);
+  drawText(commands, "Nombre y firma", 168, 65, 5.3, { bold: true, fill: dark, align: "center" });
+  drawText(commands, "Nombre y firma", 444, 65, 5.3, { bold: true, fill: dark, align: "center" });
+  drawText(commands, "Fecha:", 146, 48, 5.8, { bold: true, fill: dark });
+  drawText(commands, "Fecha:", 422, 48, 5.8, { bold: true, fill: dark });
+
+  const content = Buffer.from(commands.join("\n"), "latin1");
+  const contentId = addObject(streamObject("", content));
+  const pageId = addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 ${regularFont} 0 R /F2 ${boldFont} 0 R >> /XObject << ${Object.values(imageReferences).map((reference) => `/${reference.name} ${reference.id} 0 R`).join(" ")} >> >> /Contents ${contentId} 0 R >>`);
+  objects[2] = `<< /Type /Pages /Kids [${pageId} 0 R] /Count 1 >>`;
+  let pdf = Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "latin1");
+  const offsets = [0];
+  for (let id = 1; id < objects.length; id += 1) {
+    offsets[id] = pdf.length;
+    const body = Buffer.isBuffer(objects[id]) ? objects[id] : Buffer.from(objects[id], "latin1");
+    pdf = Buffer.concat([pdf, Buffer.from(`${id} 0 obj\n`, "latin1"), body, Buffer.from("\nendobj\n", "latin1")]);
+  }
+  const startXref = pdf.length;
   let trailer = `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
-  for (let id = 1; id < objects.length; id++) trailer += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
-  trailer += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  for (let id = 1; id < objects.length; id += 1) trailer += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  trailer += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF`;
   return { buffer: Buffer.concat([pdf, Buffer.from(trailer, "latin1")]), nombre: `inspeccion-${data.folio}.pdf` };
 }

@@ -22,76 +22,124 @@ const checklistGroups = {
   "Limpieza": ["Interior", "Exterior"]
 };
 
-function SignaturePad({ onChange }) {
+const checklistStates = ["B", "R", "M", "N/A"];
+
+function SignatureCanvas({ onSave, onCancel }) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
+  const [hasInk, setHasInk] = useState(false);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ratio = window.devicePixelRatio || 1;
     canvas.width = canvas.clientWidth * ratio;
-    canvas.height = 180 * ratio;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#173f51";
+    canvas.height = 220 * ratio;
+    const context = canvas.getContext("2d");
+    context.scale(ratio, ratio);
+    context.lineWidth = 2.6;
+    context.lineCap = "round";
+    context.strokeStyle = "#173f51";
   }, []);
+
   function position(event) {
     const rect = canvasRef.current.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
+
   function start(event) {
+    const canvas = canvasRef.current;
+    event.preventDefault();
     drawingRef.current = true;
     const point = position(event);
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.beginPath(); ctx.moveTo(point.x, point.y);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    const context = canvas.getContext("2d");
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    setHasInk(true);
+    if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
   }
+
   function move(event) {
     if (!drawingRef.current) return;
+    event.preventDefault();
     const point = position(event);
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.lineTo(point.x, point.y); ctx.stroke();
+    const context = canvasRef.current.getContext("2d");
+    context.lineTo(point.x, point.y);
+    context.stroke();
   }
-  function end() {
-    if (!drawingRef.current) return;
+
+  function end(event) {
+    event?.preventDefault();
     drawingRef.current = false;
-    onChange(canvasRef.current.toDataURL("image/png"));
   }
+
   function clear() {
     const canvas = canvasRef.current;
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-    onChange("");
+    setHasInk(false);
   }
-  return <div className="signature-pad"><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} /><button type="button" onClick={clear}>Limpiar firma</button></div>;
+
+  return <div className="signature-dialog" role="dialog" aria-modal="true" aria-labelledby="signature-title">
+    <div className="signature-dialog-card">
+      <div className="signature-dialog-heading"><div><span>Confirmación</span><h3 id="signature-title">Firma del conductor</h3><p>Firma dentro del recuadro y guarda cuando termines.</p></div><button type="button" className="inspection-icon-button" onClick={onCancel} aria-label="Cancelar firma">×</button></div>
+      <canvas className="signature-canvas" ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
+      <div className="signature-dialog-actions"><button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button><button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={() => onSave(canvasRef.current.toDataURL("image/png"))}>Guardar firma</button></div>
+    </div>
+  </div>;
 }
 
-export default function InspeccionVehicular({ context, estado, onSubmit, saving }) {
+export default function InspeccionVehicular({ context, estado, onSubmit, saving, onClose }) {
   const [step, setStep] = useState(0);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [lastMarked, setLastMarked] = useState("");
   const [form, setForm] = useState({ combustible: "", tipoAsignacion: "PERMANENTE", asignacionInicio: "", asignacionFin: "", danos: {}, checklist: {}, observaciones: "", firma: "" });
   const totalSteps = 8;
-  if (estado === "PENDIENTE_APROBACION") return <section className="inspection-card"><h2>Inspección enviada</h2><p>La unidad está esperando aprobación administrativa. La campana del panel ya muestra la solicitud.</p></section>;
+  const currentView = step >= 1 && step <= 4 ? views[step - 1] : null;
+
+  function updateForm(changes) {
+    setForm((current) => ({ ...current, ...changes }));
+  }
 
   function markDamage(view, event) {
     const rect = event.currentTarget.getBoundingClientRect();
     const point = { x: Number((((event.clientX - rect.left) / rect.width) * 100).toFixed(2)), y: Number((((event.clientY - rect.top) / rect.height) * 100).toFixed(2)) };
     setForm((current) => ({ ...current, danos: { ...current.danos, [view]: [...(current.danos[view] || []), point] } }));
+    setLastMarked("Marca agregada. Toca el círculo rojo para eliminarlo.");
   }
+
+  function clearView(view) {
+    setForm((current) => ({ ...current, danos: { ...current.danos, [view]: [] } }));
+    setLastMarked("Se limpiaron las marcas de esta vista.");
+  }
+
+  function chooseChecklist(item, value) {
+    setForm((current) => ({ ...current, checklist: { ...current.checklist, [item]: value } }));
+  }
+
   function canContinue() {
     if (step === 0) return form.combustible && form.tipoAsignacion && (form.tipoAsignacion !== "TEMPORAL" || (form.asignacionInicio && form.asignacionFin));
     if (step === 5) return Object.values(checklistGroups).flat().every((item) => form.checklist[item]);
     if (step === 7) return Boolean(form.firma);
     return true;
   }
+
+  if (estado === "PENDIENTE_APROBACION") return <section className="inspection-card inspection-complete"><h2>Inspección enviada</h2><p>La unidad está esperando aprobación administrativa. Puedes cerrar esta ventana y consultar el estado desde el viaje.</p><button type="button" className="inspection-primary-button" onClick={onClose}>Cerrar</button></section>;
+
   return <section className="inspection-card">
-    <header><span>Inspección vehicular diaria</span><h2>Paso {step + 1} de {totalSteps}</h2><progress value={step + 1} max={totalSteps} /></header>
+    <header className="inspection-header"><div><span>Inspección vehicular diaria</span><h2>Paso {step + 1} de {totalSteps}</h2></div><button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar inspección">×</button><progress value={step + 1} max={totalSteps} /></header>
     {step === 0 && <div className="inspection-cover"><h3>Datos de la unidad</h3><div className="inspection-data-grid">
       <p><strong>Folio:</strong> {context.folio}</p><p><strong>Unidad:</strong> {context.numero_economico}</p><p><strong>Vehículo:</strong> {context.marca} {context.modelo}</p><p><strong>Tipo:</strong> {context.tipo_vehiculo || "Sin registro"}</p><p><strong>Conductor:</strong> {context.conductor}</p><p><strong>Licencia:</strong> {context.licencia_numero || "Sin registro"}</p><p><strong>Tipo licencia:</strong> {context.tipo_licencia || "Sin registro"}</p><p><strong>Serie:</strong> {context.numero_serie || "Sin registro"}</p><p><strong>Póliza:</strong> {context.numero_poliza || "Sin registro"}</p><p><strong>Vencimiento:</strong> {context.seguro_vencimiento || "Sin registro"}</p><p><strong>Placas:</strong> {context.placas}</p><p><strong>Kilometraje:</strong> {context.kilometraje_actual} km</p>
-    </div><label>Nivel de combustible<select value={form.combustible} onChange={(e) => setForm({...form, combustible:e.target.value})}><option value="">Selecciona</option>{["E","1/4","1/2","3/4","F"].map(v=><option key={v}>{v}</option>)}</select></label><label>Asignación<select value={form.tipoAsignacion} onChange={(e)=>setForm({...form,tipoAsignacion:e.target.value,asignacionInicio:"",asignacionFin:""})}><option value="PERMANENTE">Permanente</option><option value="TEMPORAL">Temporal</option></select></label>{form.tipoAsignacion === "TEMPORAL" && <div className="date-range"><label>Inicio<input type="date" value={form.asignacionInicio} onChange={(e)=>setForm({...form,asignacionInicio:e.target.value})}/></label><label>Fin<input type="date" value={form.asignacionFin} onChange={(e)=>setForm({...form,asignacionFin:e.target.value})}/></label></div>}</div>}
-    {step >= 1 && step <= 4 && (() => { const [key,label,image] = views[step-1]; return <div><h3>{label}</h3><p>Toca la imagen para marcar daños. Toca un punto para retirarlo.</p><div className="damage-map" onClick={(e)=>markDamage(key,e)}><img src={image} alt={label}/>{(form.danos[key]||[]).map((p,index)=><button type="button" key={`${p.x}-${p.y}-${index}`} className="damage-point" style={{left:`${p.x}%`,top:`${p.y}%`}} onClick={(e)=>{e.stopPropagation();setForm(c=>({...c,danos:{...c.danos,[key]:c.danos[key].filter((_,i)=>i!==index)}}));}} aria-label="Quitar marca"/>)}</div></div>; })()}
-    {step === 5 && <div className="inspection-checklist">{Object.entries(checklistGroups).map(([group,items])=><fieldset key={group}><legend>{group}</legend>{items.map(item=><div className="check-row" key={item}><span>{item}</span>{["B","R","M","N/A"].map(value=><label key={value}><input type="radio" name={item} value={value} checked={form.checklist[item]===value} onChange={()=>setForm(c=>({...c,checklist:{...c.checklist,[item]:value}}))}/>{value}</label>)}</div>)}</fieldset>)}</div>}
-    {step === 6 && <label>Comentarios del conductor<textarea rows="7" value={form.observaciones} onChange={(e)=>setForm({...form,observaciones:e.target.value})} placeholder="Describe daños, faltantes o condiciones relevantes"/></label>}
-    {step === 7 && <div><h3>Firma del conductor</h3><p>Firma dentro del recuadro para enviar la inspección.</p><SignaturePad onChange={(firma)=>setForm(c=>({...c,firma}))}/></div>}
-    <footer className="inspection-actions"><button type="button" disabled={step===0 || saving} onClick={()=>setStep(step-1)}>Anterior</button>{step < totalSteps-1 ? <button type="button" disabled={!canContinue()} onClick={()=>setStep(step+1)}>Siguiente</button> : <button type="button" disabled={!canContinue() || saving} onClick={()=>onSubmit(form)}>{saving ? "Enviando..." : "Enviar a aprobación"}</button>}</footer>
+    </div><div className="inspection-field-grid"><label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Asignación<select value={form.tipoAsignacion} onChange={(event) => updateForm({ tipoAsignacion: event.target.value, asignacionInicio: "", asignacionFin: "" })}><option value="PERMANENTE">Permanente</option><option value="TEMPORAL">Temporal</option></select></label></div>{form.tipoAsignacion === "TEMPORAL" && <div className="date-range"><label>Inicio<input type="date" value={form.asignacionInicio} onChange={(event) => updateForm({ asignacionInicio: event.target.value })} /></label><label>Fin<input type="date" value={form.asignacionFin} onChange={(event) => updateForm({ asignacionFin: event.target.value })} /></label></div>}</div>}
+    {currentView && (() => { const [key, label, image] = currentView; const points = form.danos[key] || []; return <div className="inspection-visual"><div className="inspection-section-heading"><div><h3>{label}</h3><p>Toca el diagrama para encerrar un daño. El círculo rojo confirma el punto marcado.</p></div><button type="button" className="inspection-secondary-button" onClick={() => clearView(key)} disabled={!points.length}>Limpiar vista</button></div><div className={`damage-map damage-map-${key}`}><div className="damage-stage" onClick={(event) => markDamage(key, event)} role="application" aria-label={`${label}. Toca para marcar daños`}><img src={image} alt={`Diagrama de ${label}`} />{points.map((point, index) => <button type="button" key={`${point.x}-${point.y}-${index}`} className="damage-point" style={{ left: `${point.x}%`, top: `${point.y}%` }} onClick={(event) => { event.stopPropagation(); setForm((current) => ({ ...current, danos: { ...current.danos, [key]: current.danos[key].filter((_, pointIndex) => pointIndex !== index) } })); setLastMarked("Marca eliminada."); }} aria-label={`Eliminar marca ${index + 1}`}><span>{index + 1}</span></button>)}</div></div><p className="damage-feedback" role="status" aria-live="polite">{lastMarked || "Aún no has marcado daños en esta vista."}</p></div>; })()}
+    {step === 5 && <div className="inspection-checklist"><div><h3>Checklist de la unidad</h3><p>Selecciona el estado de cada punto: Bueno, Regular, Malo o No aplica.</p></div>{Object.entries(checklistGroups).map(([group, items]) => <fieldset key={group}><legend>{group}</legend>{items.map((item) => <div className="check-row" key={item}><span>{item}</span><div className="check-state-toggle" role="group" aria-label={`Estado de ${item}`}>{checklistStates.map((value) => <button type="button" key={value} className={form.checklist[item] === value ? "check-state-selected" : ""} aria-pressed={form.checklist[item] === value} onClick={() => chooseChecklist(item, value)}>{value}</button>)}</div></div>)}</fieldset>)}</div>}
+    {step === 6 && <label className="inspection-textarea-label">Comentarios del conductor<textarea rows="7" value={form.observaciones} onChange={(event) => updateForm({ observaciones: event.target.value })} placeholder="Describe daños, faltantes o condiciones relevantes" /></label>}
+    {step === 7 && <div className="inspection-signature"><h3>Firma del conductor</h3><p>Abre la ventana de firma, firma y guarda para habilitar el envío.</p>{form.firma ? <div className="signature-saved"><img src={form.firma} alt="Firma capturada del conductor" /><span>Firma guardada</span></div> : <p className="signature-pending">Firma pendiente</p>}<button type="button" className="inspection-primary-button" onClick={() => setSignatureOpen(true)}>{form.firma ? "Cambiar firma" : "Abrir ventana de firma"}</button></div>}
+    <footer className="inspection-actions"><button type="button" className="inspection-secondary-button" disabled={step === 0 || saving} onClick={() => setStep((current) => current - 1)}>Anterior</button>{step < totalSteps - 1 ? <button type="button" className="inspection-primary-button" disabled={!canContinue()} onClick={() => setStep((current) => current + 1)}>Siguiente</button> : <button type="button" className="inspection-primary-button" disabled={!canContinue() || saving} onClick={() => onSubmit(form)}>{saving ? "Enviando..." : "Enviar a aprobación"}</button>}</footer>
+    {signatureOpen && <SignatureCanvas onCancel={() => setSignatureOpen(false)} onSave={(firma) => { updateForm({ firma }); setSignatureOpen(false); }} />}
   </section>;
 }

@@ -126,6 +126,7 @@ const [cancelledTrip, setCancelledTrip] =
   useState(false);
   const [inspection, setInspection] = useState(null);
   const [inspectionSaving, setInspectionSaving] = useState(false);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
 
   const [telegramAuth, setTelegramAuth] =
     useState(null);
@@ -827,6 +828,7 @@ function handleStopGps() {
     try {
       await enviarInspeccionVehicular(idViaje, data);
       await loadInspection(idViaje);
+      setInspectionOpen(false);
       setMessage("Inspección enviada. Espera la aprobación administrativa."); setMessageType("success");
     } catch (error) { setMessage(error.message); setMessageType("error"); }
     finally { setInspectionSaving(false); }
@@ -863,6 +865,7 @@ function handleStopGps() {
     setMessage("");
     setMessageType("error");
     setInspection(null);
+    setInspectionOpen(false);
 
     lastLocationSentAtRef.current = 0;
     sendingLocationRef.current=false;
@@ -1234,7 +1237,13 @@ function handleStopGps() {
     )}
 
     {!startedTrip && !finishedTrip && !cancelledTrip && (
-      inspection?.required ? <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} /> : <button
+      inspection?.required ? <button
+        type="button"
+        className="start-trip-button inspection-required-button"
+        onClick={() => setInspectionOpen(true)}
+      >
+        {inspection.inspection?.estado === "PENDIENTE_APROBACION" ? "Ver estado de inspección" : "Completar inspección vehicular"}
+      </button> : <button
         type="button"
         className="start-trip-button"
         onClick={handleStartTrip}
@@ -1365,6 +1374,13 @@ function handleStopGps() {
       </div>
     )}
   </section>
+)}
+{inspectionOpen && inspection?.required && (
+  <div className="inspection-modal-overlay" role="presentation">
+    <div className="inspection-modal-card">
+      <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} onClose={() => setInspectionOpen(false)} />
+    </div>
+  </div>
 )}
     </main>
   );
