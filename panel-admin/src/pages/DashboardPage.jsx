@@ -23,7 +23,7 @@ function formatActivityDay(value) {
   });
 }
 
-function DashboardOverview() {
+function DashboardOverview({ pendingInspections, notificationError, onOpenInspections }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
 
@@ -44,7 +44,13 @@ function DashboardOverview() {
         <article className="kpi-card"><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></article>
         <article className="kpi-card"><span>Unidades</span><strong>{summary.unidades_total}</strong><small>{summary.unidades_activas} activas</small></article>
         <article className="kpi-card"><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></article>
+        <button type="button" className="kpi-card inspection-notification-card" onClick={onOpenInspections}>
+          <span>Inspecciones pendientes</span>
+          <strong>{pendingInspections}</strong>
+          <small>{pendingInspections ? "Requieren aprobación administrativa" : "No hay inspecciones por atender"}</small>
+        </button>
       </section>
+      {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
       <section className="activity-card">
         <div><h2>Actividad de viajes</h2><p>Viajes registrados durante los últimos siete días.</p></div>
         <div className="activity-chart" aria-label="Gráfica de actividad de viajes">
@@ -87,10 +93,19 @@ function DashboardPage({
 }) {
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let active = true;
-    const refresh = () => getAdminInspeccionesPendientesCount().then(response => { if (active) setPendingInspections(response.data?.total || 0); }).catch(()=>{});
+    const refresh = () => getAdminInspeccionesPendientesCount()
+      .then((response) => {
+        if (!active) return;
+        setPendingInspections(Number(response.data?.total || 0));
+        setNotificationError("");
+      })
+      .catch((error) => {
+        if (active) setNotificationError(error.message || "Error desconocido.");
+      });
     refresh(); const timer = window.setInterval(refresh, 30000);
     return () => { active=false; window.clearInterval(timer); };
   }, []);
@@ -176,7 +191,11 @@ function DashboardPage({
               </div>
             </header>
 
-            <DashboardOverview />
+            <DashboardOverview
+              pendingInspections={pendingInspections}
+              notificationError={notificationError}
+              onOpenInspections={() => setActiveModule("inspecciones")}
+            />
           </>
         )}
 
