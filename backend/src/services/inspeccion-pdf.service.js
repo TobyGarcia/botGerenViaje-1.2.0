@@ -173,8 +173,8 @@ export function buildInspectionPdf(data) {
   rect(commands, MARGIN, 752, 112, 28, { fill: "#f7fafb", stroke: border, lineWidth: 0.8 });
   drawText(commands, "Itzamma", 59, 765, 12, { bold: true, fill: teal });
   drawText(commands, "OIL & GAS", 64, 756, 5.4, { bold: true, fill: teal });
-  drawText(commands, "Servicios Industriales y de", 288, 768, 11.2, { bold: true, fill: teal, align: "center" });
-  drawText(commands, "Ingeniería Itzamma", 288, 756, 11.2, { bold: true, fill: teal, align: "center" });
+  drawText(commands, "Servicios Industriales y de", 288, 768, 12.6, { bold: true, fill: teal, align: "center" });
+  drawText(commands, "Ingeniería Itzamma", 288, 755, 12.6, { bold: true, fill: teal, align: "center" });
   const documentNumber = `SII-MX-${new Date(data.aprobado_en || Date.now()).getFullYear()}-LOG-${String(data.id_viajes || "").padStart(3, "0")}`;
   [["Emisión", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Página", "Página 1 de 1"], ["Versión", "2.2"], ["Área Responsable", "Logística"], ["No. Documento", documentNumber]].forEach(([label, value], index) => {
     const row = Math.floor(index / 3);
@@ -187,7 +187,7 @@ export function buildInspectionPdf(data) {
     drawText(commands, truncate(value, 13), x + 2, y + 2.4, 4.5, { fill: dark });
   });
   rect(commands, MARGIN, 736, 540, 11, { fill: "#edf4f6", stroke: border });
-  drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 739, 7.8, { bold: true, fill: dark, align: "center" });
+  drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 738.4, 9.2, { bold: true, fill: dark, align: "center" });
 
   const fields = [
     ["Tipo de vehículo", data.tipo_vehiculo], ["Nombre del conductor", data.conductor], ["Póliza y vigencia", `${data.numero_poliza || "N/A"} ${data.seguro_vencimiento || ""}`], ["No. folio", data.folio],
@@ -195,8 +195,8 @@ export function buildInspectionPdf(data) {
     ["Fecha", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })], ["Licencia / vigencia", `${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`], ["Placas", data.placas],
     ["Asignación", data.tipo_asignacion], ["Combustible", data.combustible], ["Aprobación", data.estado], ["Autorizó", data.aprobador || "Pendiente"]
   ];
-  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 666 - Math.floor(index / 4) * 15, 135));
-  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 599, 6.1, { bold: true, fill: "#c46b6d", align: "center" });
+  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 668 - Math.floor(index / 4) * 16, 135));
+  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 599, 6.8, { bold: true, fill: "#c46b6d", align: "center" });
   rect(commands, MARGIN, 397, 540, 195, { stroke: border, lineWidth: 0.8 });
   const collage = [
     ["frontal", 49, 496, 115, 82], ["conductor", 185, 496, 375, 82],
@@ -205,11 +205,11 @@ export function buildInspectionPdf(data) {
   collage.forEach(([view, x, y, width, height]) => {
     const entry = imageReferences[view];
     drawImage(commands, entry.name, entry.image, x, y, width, height, data.danos?.[view] || []);
-    drawText(commands, view.toUpperCase(), x + width / 2, y + height - 7, 5.5, { bold: true, fill: dark, align: "center" });
+    drawText(commands, view.toUpperCase(), x + width / 2, y + height - 7, 6.2, { bold: true, fill: dark, align: "center" });
   });
 
   rect(commands, MARGIN, 382, 540, 10, { fill: red, stroke: border });
-  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 385, 5.7, { bold: true, fill: dark, align: "center" });
+  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 384.5, 6.3, { bold: true, fill: dark, align: "center" });
   const checklistColumns = [
     {
       title: "DOCUMENTACIÓN Y EQUIPO",
