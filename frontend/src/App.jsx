@@ -20,7 +20,6 @@ import {
 } from "./services/api.js";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
-import InspectionModal from "./components/InspectionModal/index.jsx";
 import {
   captureAndQueueLocation,
   setTrackingStatusListener,
@@ -949,6 +948,22 @@ function handleStopGps() {
     return <p className="loading-message">Cargando catálogos...</p>;
   }
 
+  // Telegram WebView maneja de forma inconsistente los portales superpuestos.
+  // La inspección es una pantalla propia para que no dependa del stacking del chat.
+  if (inspectionOpen && inspection?.required) {
+    return (
+      <main className="inspection-page">
+        <InspeccionVehicular
+          context={inspection.context}
+          estado={inspection.inspection?.estado}
+          onSubmit={submitInspection}
+          saving={inspectionSaving}
+          onClose={() => setInspectionOpen(false)}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="container">
       <h1>
@@ -1400,11 +1415,6 @@ function handleStopGps() {
       </div>
     )}
   </section>
-)}
-{inspectionOpen && inspection?.required && (
-  <InspectionModal>
-    <InspeccionVehicular context={inspection.context} estado={inspection.inspection?.estado} onSubmit={submitInspection} saving={inspectionSaving} onClose={() => setInspectionOpen(false)} />
-  </InspectionModal>
 )}
     </main>
   );
