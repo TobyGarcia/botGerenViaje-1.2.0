@@ -1370,9 +1370,6 @@
 .inspection-status-aprobada { color:#12643e; background:#e4f7ed; }
 .inspection-status-rechazada { color:#8a3030; background:#fae8e8; }
 .inspection-detail-modal { width:min(900px,100%); max-height:90vh; overflow:auto; }
-.pdf-preview-overlay { z-index:1100; }
-.pdf-preview-modal { width:min(1100px,100%); height:min(92vh,900px); display:grid; grid-template-rows:auto 1fr; }
-.pdf-preview-frame { width:100%; min-height:0; border:1px solid #d5e5eb; border-radius:10px; background:#f4f9fb; }
 .inspection-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .inspection-detail-grid p,.admin-checklist p { margin:0; padding:9px; border-radius:8px; background:#f4f9fb; }
 .damage-summary { display:flex; flex-wrap:wrap; gap:8px; }

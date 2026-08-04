@@ -42,6 +42,7 @@ function readPng(buffer) {
   let height;
   let bitDepth;
   let colorType;
+  let interlaceMethod;
   const chunks = [];
   while (offset < buffer.length) {
     const length = buffer.readUInt32BE(offset);
@@ -53,12 +54,15 @@ function readPng(buffer) {
       height = data.readUInt32BE(4);
       bitDepth = data[8];
       colorType = data[9];
-      if (bitDepth !== 8 || colorType !== 2 || data[12] !== 0) throw new Error("El diagrama PNG debe usar RGB de 8 bits sin entrelazado.");
+      interlaceMethod = data[12];
     }
     if (type === "IDAT") chunks.push(data);
     if (type === "IEND") break;
   }
-  const channels = 3;
+  if (bitDepth !== 8 || ![2, 6].includes(colorType) || interlaceMethod !== 0) {
+    throw new Error("El diagrama PNG debe usar RGB o RGBA de 8 bits sin entrelazado.");
+  }
+  const channels = colorType === 6 ? 4 : 3;
   const rowLength = width * channels;
   const decoded = inflateSync(Buffer.concat(chunks));
   const pixels = Buffer.alloc(rowLength * height);
@@ -79,7 +83,18 @@ function readPng(buffer) {
       else throw new Error("Filtro PNG no compatible.");
     }
   }
-  return { width, height, data: deflateSync(pixels) };
+  if (channels === 3) return { width, height, data: deflateSync(pixels) };
+
+  // Los diagramas con transparencia se aplanan sobre blanco porque el PDF
+  // incrusta las imágenes como RGB, sin canal alfa.
+  const rgbPixels = Buffer.alloc(width * height * 3);
+  for (let source = 0, target = 0; source < pixels.length; source += 4, target += 3) {
+    const alpha = pixels[source + 3] / 255;
+    rgbPixels[target] = Math.round(pixels[source] * alpha + 255 * (1 - alpha));
+    rgbPixels[target + 1] = Math.round(pixels[source + 1] * alpha + 255 * (1 - alpha));
+    rgbPixels[target + 2] = Math.round(pixels[source + 2] * alpha + 255 * (1 - alpha));
+  }
+  return { width, height, data: deflateSync(rgbPixels) };
 }
 
 function imageFromDataUrl(dataUrl) {
