@@ -1,5 +1,8 @@
 import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf } from "../services/inspecciones.service.js";
 import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
+import { cancelTrip } from "../services/viajes.service.js";
+import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
+import { sendDriverInspectionNotification } from "../bot/bot.js";
 
 export async function listAdminInspectionsController(request, response) {
   try { return response.json({ success: true, data: await listPendingInspections() }); }
@@ -19,13 +22,36 @@ export async function decideAdminInspectionController(request, response) {
     const approved = request.body?.aprobada;
     if (typeof approved !== "boolean") return response.status(400).json({ success: false, message: "La decisión no es válida." });
     const idInspeccion = Number(request.params.idInspeccion);
-    const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: String(request.body?.comentario || "").trim() });
+    const comment = String(request.body?.comentario || "").trim();
+    const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: comment });
+    let trip = null;
     if (data && approved) {
       const detail = await getAdminInspection(idInspeccion);
       const pdf = buildInspectionPdf(detail);
       await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
+      trip = {
+        idViaje: detail.id_viajes,
+        folio: detail.folio,
+        vehiculo: detail.vehiculo,
+        conductor: detail.conductor
+      };
     }
-    return data ? response.json({ success: true, data, message: approved ? "Inspección aprobada." : "Inspección rechazada." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
+    if (data && !approved) {
+      trip = await cancelTrip({
+        idViaje: data.id_viajes,
+        observaciones: `Inspección vehicular rechazada.${comment ? ` Motivo: ${comment}` : ""}`
+      });
+    }
+    if (data) {
+      const telegramUser = await findTelegramUserByConductorId(data.id_conductores);
+      await sendDriverInspectionNotification({
+        telegramUserId: telegramUser?.telegram_user_id,
+        approved,
+        trip,
+        comment
+      });
+    }
+    return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. El viaje fue cancelado y el conductor fue notificado." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
   } catch (error) { return response.status(500).json({ success: false, message: error.message }); }
 }
 

@@ -144,3 +144,36 @@ export async function sendTripGroupAlert({
     console.error("No fue posible enviar la alerta al grupo:", error);
   }
 }
+
+export async function sendDriverInspectionNotification({
+  telegramUserId,
+  approved,
+  trip,
+  comment
+}) {
+  if (!telegramUserId) return;
+
+  const reason = String(comment || "").trim();
+  const message = approved
+    ? [
+      "✅ Inspección vehicular aprobada",
+      `Folio: ${trip?.folio ?? "No disponible"}`,
+      `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
+      "Ya puedes abrir la Mini App e iniciar el viaje cuando estés listo."
+    ]
+    : [
+      "❌ Inspección vehicular rechazada",
+      `Folio: ${trip?.folio ?? "No disponible"}`,
+      "El viaje fue cancelado automáticamente.",
+      `Motivo: ${reason || "No se proporcionó un comentario administrativo."}`
+    ];
+
+  try {
+    await getTelegramBot().telegram.sendMessage(
+      String(telegramUserId),
+      message.join("\n")
+    );
+  } catch (error) {
+    console.error("No fue posible notificar la decisión de inspección al conductor:", error);
+  }
+}

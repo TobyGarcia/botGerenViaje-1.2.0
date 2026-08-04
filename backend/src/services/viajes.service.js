@@ -658,7 +658,7 @@ export async function finishTrip({
     client.release();
   }
 }
-export async function cancelTrip({ idViaje }) {
+export async function cancelTrip({ idViaje, observaciones = "Viaje cancelado" }) {
   const client = await databasePool.connect();
 
   try {
@@ -751,7 +751,7 @@ export async function cancelTrip({ idViaje }) {
         idViaje,
         trip.id_estado_viaje,
         cancelledState.id_estado_viaje,
-        "Viaje cancelado"
+        observaciones
       ]
     );
 

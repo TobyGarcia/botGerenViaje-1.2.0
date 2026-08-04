@@ -36,3 +36,19 @@ export async function findTelegramUserById(
 
   return result.rows[0] ?? null;
 }
+
+export async function findTelegramUserByConductorId(idConductor) {
+  const result = await databasePool.query(
+    `
+      SELECT telegram_user_id, id_conductores
+      FROM usuarios_telegram
+      WHERE id_conductores = $1
+        AND activo = TRUE
+      ORDER BY id_usuario_telegram DESC
+      LIMIT 1
+    `,
+    [idConductor]
+  );
+
+  return result.rows[0] ?? null;
+}
