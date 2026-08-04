@@ -98,6 +98,8 @@ function SignaturePad({ onSave, onCancel }) {
               className: "signature-canvas",
               width: canvasSize.width,
               height: canvasSize.height,
+              onPointerDown: () => setHasInk(true),
+              onTouchStart: () => setHasInk(true),
               "aria-label": "Área para firmar"
             }}
           />
@@ -122,6 +124,12 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
 
   function updateForm(changes) {
     setForm((current) => ({ ...current, ...changes }));
+  }
+
+  function saveSignature(firma) {
+    if (!firma || !firma.startsWith("data:image/png;base64,")) return;
+    setForm((current) => ({ ...current, firma }));
+    setSignatureOpen(false);
   }
 
   function markDamage(view, event) {
@@ -165,6 +173,6 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
     {step === 6 && <label className="inspection-textarea-label">Comentarios del conductor<textarea rows="7" value={form.observaciones} onChange={(event) => updateForm({ observaciones: event.target.value })} placeholder="Describe daños, faltantes o condiciones relevantes" /></label>}
     {step === 7 && <div className="inspection-signature"><h3>Firma del conductor</h3><p>Abre la ventana de firma, firma y guarda para habilitar el envío.</p>{form.firma ? <div className="signature-saved"><img src={form.firma} alt="Firma capturada del conductor" /><span>Firma guardada</span></div> : <p className="signature-pending">Firma pendiente</p>}<button type="button" className="inspection-primary-button" onClick={() => setSignatureOpen(true)}>{form.firma ? "Cambiar firma" : "Abrir ventana de firma"}</button></div>}
     <footer className="inspection-actions"><button type="button" className="inspection-secondary-button" disabled={step === 0 || saving} onClick={() => setStep((current) => current - 1)}>Anterior</button>{step < totalSteps - 1 ? <button type="button" className="inspection-primary-button" disabled={!canContinue()} onClick={() => setStep((current) => current + 1)}>Siguiente</button> : <button type="button" className="inspection-primary-button" disabled={!canContinue() || saving} onClick={() => onSubmit(form)}>{saving ? "Enviando..." : "Enviar a aprobación"}</button>}</footer>
-    {signatureOpen && <SignaturePad onCancel={() => setSignatureOpen(false)} onSave={(firma) => { updateForm({ firma }); setSignatureOpen(false); }} />}
+    {signatureOpen && <SignaturePad onCancel={() => setSignatureOpen(false)} onSave={saveSignature} />}
   </section>;
 }
