@@ -210,24 +210,51 @@ export function buildInspectionPdf(data) {
 
   rect(commands, MARGIN, 382, 540, 10, { fill: red, stroke: border });
   drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 385, 5.7, { bold: true, fill: dark, align: "center" });
-  const entries = Object.entries(data.checklist || {});
-  const columns = 3;
-  const perColumn = Math.max(1, Math.ceil(entries.length / columns));
+  const checklistColumns = [
+    {
+      title: "DOCUMENTACIÓN Y EQUIPO",
+      sections: [
+        { title: "DOCUMENTACIÓN DE LA UNIDAD", items: ["Tarjeta de circulación vigente", "Póliza de seguro vigente", "Verificación vigente", "Engomado de placas", "Placa delantera", "Placa trasera", "Plan de respuesta de emergencia", "Bitácora vehicular"] },
+        { title: "EXTINTOR", items: ["Plan de seguridad", "Carga vigente", "Etiqueta de inspección", "Soporte para extintor"] },
+        { title: "KIT BÁSICO DE CARRETERA", items: ["Elevador manual (gato)", "Linterna", "Triángulos reflectores (2)", "Botiquín", "Cable pasa-corriente"] }
+      ]
+    },
+    {
+      title: "CONDICIONES GENERALES",
+      sections: [
+        { title: "NEUMÁTICOS", items: ["Neumático delantero derecho", "Neumático delantero izquierdo", "Neumático trasero derecho", "Neumático trasero izquierdo", "Presión de neumáticos"] },
+        { title: "PARABRISAS Y ESPEJOS", items: ["Parabrisas frontal", "Vidrios", "Espejo lateral derecho", "Espejo lateral izquierdo", "Retrovisor"] },
+        { title: "LUCES", items: ["Delanteras", "Intermitentes", "Freno", "Reversa", "Faros de niebla"] }
+      ]
+    },
+    {
+      title: "VERIFICAR SÓLO LO QUE APLIQUE",
+      sections: [
+        { title: "REVISIÓN MECÁNICA", items: ["Aceite de motor", "Líquido refrigerante", "Fluido de transmisión", "Líquido de frenos", "Freno de mano", "Bandas de motor", "Líquido de dirección", "Batería", "Limpiador de vidrios", "Cinturones de seguridad", "Llave de cruz", "Monitor de velocidad", "Neumático de repuesto"] },
+        { title: "LIMPIEZA", items: ["Interior", "Exterior"] }
+      ]
+    }
+  ];
   const tableTop = 370;
-  const rowHeight = Math.max(7, Math.min(10, 175 / Math.max(perColumn, 1)));
-  for (let column = 0; column < columns; column += 1) {
-    const x = MARGIN + column * 180;
-    const heading = column === 0 ? "DOCUMENTACIÓN Y EQUIPO" : column === 1 ? "CONDICIONES GENERALES" : "VERIFICAR SÓLO LO QUE APLIQUE";
+  const rowHeight = 8;
+  checklistColumns.forEach((column, columnIndex) => {
+    const x = MARGIN + columnIndex * 180;
     rect(commands, x, tableTop, 180, 10, { fill: "#edf4f6", stroke: border });
-    drawText(commands, heading, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: dark, align: "center" });
-    entries.slice(column * perColumn, (column + 1) * perColumn).forEach(([item, state], row) => {
-      const y = tableTop - (row + 1) * rowHeight;
-      rect(commands, x, y, 180, rowHeight, { stroke: border });
-      line(commands, x + 17, y, x + 17, y + rowHeight, 0.4, border);
-      drawText(commands, truncate(state, 3), x + 4, y + 1.7, 4.9, { bold: true, fill: dark });
-      drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: dark });
+    drawText(commands, column.title, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: dark, align: "center" });
+    let y = tableTop;
+    column.sections.forEach((section) => {
+      y -= rowHeight;
+      rect(commands, x, y, 180, rowHeight, { fill: "#f7fafb", stroke: border });
+      drawText(commands, section.title, x + 90, y + 2.1, 4.8, { bold: true, fill: dark, align: "center" });
+      section.items.forEach((item) => {
+        y -= rowHeight;
+        rect(commands, x, y, 180, rowHeight, { stroke: border });
+        line(commands, x + 17, y, x + 17, y + rowHeight, 0.4, border);
+        drawText(commands, truncate(data.checklist?.[item] || "—", 3), x + 4, y + 1.7, 4.9, { bold: true, fill: dark });
+        drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: dark });
+      });
     });
-  }
+  });
   const commentsTop = 184;
   rect(commands, MARGIN, commentsTop, 540, 10, { fill: red, stroke: border });
   drawText(commands, "COMENTARIOS DEL CONDUCTOR", PAGE_WIDTH / 2, commentsTop + 3.1, 5.8, { bold: true, fill: dark, align: "center" });
