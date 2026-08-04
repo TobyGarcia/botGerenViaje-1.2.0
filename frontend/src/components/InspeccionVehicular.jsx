@@ -29,7 +29,7 @@ const checklistStates = ["B", "R", "M", "N/A"];
 function SignaturePad({ onSave, onCancel }) {
   const signatureRef = useRef(null);
   const canvasAreaRef = useRef(null);
-  const [hasInk, setHasInk] = useState(false);
+  const [signatureData, setSignatureData] = useState("");
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
 
   useLayoutEffect(() => {
@@ -54,13 +54,18 @@ function SignaturePad({ onSave, onCancel }) {
 
   function clear() {
     signatureRef.current?.clear();
-    setHasInk(false);
+    setSignatureData("");
+  }
+
+  function captureSignature() {
+    const signature = signatureRef.current;
+    if (!signature || signature.isEmpty()) return;
+    setSignatureData(signature.getTrimmedCanvas().toDataURL("image/png"));
   }
 
   function save() {
-    const signature = signatureRef.current;
-    if (!signature || signature.isEmpty()) return;
-    onSave(signature.getTrimmedCanvas().toDataURL("image/png"));
+    if (!signatureData) return;
+    onSave(signatureData);
   }
 
   return createPortal(
@@ -80,7 +85,7 @@ function SignaturePad({ onSave, onCancel }) {
             penColor="#173f51"
             minWidth={1.2}
             maxWidth={2.8}
-            onBegin={() => setHasInk(true)}
+            onEnd={captureSignature}
             canvasProps={{
               className: "signature-canvas",
               width: canvasSize.width,
@@ -91,7 +96,7 @@ function SignaturePad({ onSave, onCancel }) {
         </div>
         <div className="signature-dialog-actions">
           <button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button>
-          <button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={save}>Guardar firma</button>
+          <button type="button" className="inspection-primary-button" disabled={!signatureData} onClick={save}>Guardar firma</button>
         </div>
       </div>
     </div>,
