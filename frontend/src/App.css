@@ -265,7 +265,8 @@
 .signature-dialog-heading span { color:#159bc4; font-size:.76rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .signature-dialog-heading h3,.signature-dialog-heading p { margin:4px 0 0; }
 .signature-dialog-heading p { color:#607986; }
-.signature-canvas { display:block; width:100%; height:min(220px, 38dvh); box-sizing:border-box; touch-action:none; border:2px dashed #8ebfce; border-radius:12px; background:#fff; }
+.signature-canvas-area { width:100%; height:min(220px, 38dvh); overflow:hidden; border:2px dashed #8ebfce; border-radius:12px; background:#fff; }
+.signature-canvas { display:block; width:100%; height:100%; touch-action:none; }
 .signature-dialog-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
 .inspection-actions { display:flex; justify-content:space-between; gap:12px; }
 .inspection-actions > button { flex:1 1 0; }

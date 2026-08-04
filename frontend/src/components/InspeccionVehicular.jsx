@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ReactSignatureCanvas from "react-signature-canvas";
 import conductorImage from "../assets/conductor.png";
@@ -28,7 +28,29 @@ const checklistStates = ["B", "R", "M", "N/A"];
 
 function SignaturePad({ onSave, onCancel }) {
   const signatureRef = useRef(null);
+  const canvasAreaRef = useRef(null);
   const [hasInk, setHasInk] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
+
+  useLayoutEffect(() => {
+    const area = canvasAreaRef.current;
+    if (!area) return undefined;
+
+    const resizeCanvas = () => {
+      const width = Math.max(1, Math.floor(area.clientWidth));
+      const height = Math.max(1, Math.floor(area.clientHeight));
+      setCanvasSize((current) => (
+        current.width === width && current.height === height
+          ? current
+          : { width, height }
+      ));
+    };
+
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, []);
 
   function clear() {
     signatureRef.current?.clear();
@@ -52,14 +74,21 @@ function SignaturePad({ onSave, onCancel }) {
           </div>
           <button type="button" className="inspection-icon-button" onClick={onCancel} aria-label="Cancelar firma">×</button>
         </div>
-        <ReactSignatureCanvas
-          ref={signatureRef}
-          penColor="#173f51"
-          minWidth={1.2}
-          maxWidth={2.8}
-          onBegin={() => setHasInk(true)}
-          canvasProps={{ className: "signature-canvas", "aria-label": "Área para firmar" }}
-        />
+        <div className="signature-canvas-area" ref={canvasAreaRef}>
+          <ReactSignatureCanvas
+            ref={signatureRef}
+            penColor="#173f51"
+            minWidth={1.2}
+            maxWidth={2.8}
+            onBegin={() => setHasInk(true)}
+            canvasProps={{
+              className: "signature-canvas",
+              width: canvasSize.width,
+              height: canvasSize.height,
+              "aria-label": "Área para firmar"
+            }}
+          />
+        </div>
         <div className="signature-dialog-actions">
           <button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button>
           <button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={save}>Guardar firma</button>
@@ -113,7 +142,7 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
 
   if (estado === "PENDIENTE_APROBACION") return <section className="inspection-card inspection-complete"><h2>Inspección enviada</h2><p>La unidad está esperando aprobación administrativa. Puedes cerrar esta ventana y consultar el estado desde el viaje.</p><button type="button" className="inspection-primary-button" onClick={onClose}>Cerrar</button></section>;
 
-  return <section className="inspection-card" onPointerDownCapture={(event) => event.stopPropagation()}>
+  return <section className="inspection-card">
     <header className="inspection-header"><div><span>Inspección vehicular diaria</span><h2>Paso {step + 1} de {totalSteps}</h2></div><button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar inspección">×</button><progress value={step + 1} max={totalSteps} /></header>
     {step === 0 && <div className="inspection-cover"><h3>Datos de la unidad</h3><div className="inspection-data-grid">
       <p><strong>Folio:</strong> {context.folio}</p><p><strong>Unidad:</strong> {context.numero_economico}</p><p><strong>Vehículo:</strong> {context.marca} {context.modelo}</p><p><strong>Tipo:</strong> {context.tipo_vehiculo || "Sin registro"}</p><p><strong>Conductor:</strong> {context.conductor}</p><p><strong>Licencia:</strong> {context.licencia_numero || "Sin registro"}</p><p><strong>Tipo licencia:</strong> {context.tipo_licencia || "Sin registro"}</p><p><strong>Serie:</strong> {context.numero_serie || "Sin registro"}</p><p><strong>Póliza:</strong> {context.numero_poliza || "Sin registro"}</p><p><strong>Vencimiento:</strong> {context.seguro_vencimiento || "Sin registro"}</p><p><strong>Placas:</strong> {context.placas}</p><p><strong>Kilometraje:</strong> {context.kilometraje_actual} km</p>
