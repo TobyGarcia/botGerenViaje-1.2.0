@@ -29,6 +29,7 @@ const checklistStates = ["B", "R", "M", "N/A"];
 function SignaturePad({ onSave, onCancel }) {
   const signatureRef = useRef(null);
   const canvasAreaRef = useRef(null);
+  const [hasInk, setHasInk] = useState(false);
   const [signatureData, setSignatureData] = useState("");
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
 
@@ -54,6 +55,7 @@ function SignaturePad({ onSave, onCancel }) {
 
   function clear() {
     signatureRef.current?.clear();
+    setHasInk(false);
     setSignatureData("");
   }
 
@@ -64,8 +66,13 @@ function SignaturePad({ onSave, onCancel }) {
   }
 
   function save() {
-    if (!signatureData) return;
-    onSave(signatureData);
+    const signature = signatureRef.current;
+    if (!signature || !hasInk) return;
+
+    // Telegram puede no disparar onEnd al levantar el dedo fuera del canvas.
+    // En ese caso se captura el trazo directamente al pulsar Guardar.
+    const image = signatureData || signature.getTrimmedCanvas().toDataURL("image/png");
+    onSave(image);
   }
 
   return createPortal(
@@ -85,6 +92,7 @@ function SignaturePad({ onSave, onCancel }) {
             penColor="#173f51"
             minWidth={1.2}
             maxWidth={2.8}
+            onBegin={() => setHasInk(true)}
             onEnd={captureSignature}
             canvasProps={{
               className: "signature-canvas",
@@ -96,7 +104,7 @@ function SignaturePad({ onSave, onCancel }) {
         </div>
         <div className="signature-dialog-actions">
           <button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button>
-          <button type="button" className="inspection-primary-button" disabled={!signatureData} onClick={save}>Guardar firma</button>
+          <button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={save}>Guardar firma</button>
         </div>
       </div>
     </div>,
