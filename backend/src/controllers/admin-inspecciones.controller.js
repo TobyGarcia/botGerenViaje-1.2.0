@@ -43,3 +43,26 @@ export async function downloadAdminInspectionPdfController(request, response) {
   response.setHeader("Content-Disposition", `attachment; filename=\"${stored.pdf_nombre}\"`);
   return response.send(stored.pdf_documento);
 }
+
+export async function previewAdminInspectionPdfController(request, response) {
+  try {
+    const idInspeccion = Number(request.params.idInspeccion);
+    const detail = await getAdminInspection(idInspeccion);
+    if (!detail) {
+      return response.status(404).json({ success: false, message: "Inspección no encontrada." });
+    }
+
+    const pdf = buildInspectionPdf({
+      ...detail,
+      estado: detail.estado === "PENDIENTE_APROBACION" ? "PENDIENTE_APROBACION" : detail.estado,
+      aprobador: detail.aprobador || "Pendiente de aprobación",
+      aprobado_en: detail.aprobado_en || null
+    });
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `inline; filename="vista-previa-${pdf.nombre}"`);
+    response.setHeader("Cache-Control", "no-store");
+    return response.send(pdf.buffer);
+  } catch (error) {
+    return response.status(500).json({ success: false, message: error.message || "No fue posible generar la vista previa." });
+  }
+}

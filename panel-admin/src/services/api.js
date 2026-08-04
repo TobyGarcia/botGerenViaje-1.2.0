@@ -463,6 +463,11 @@ export function getAdminInspeccionDetalle(idInspeccion) {
 export function decidirAdminInspeccion(idInspeccion, aprobada, comentario) {
   return request(`/admin/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify({ aprobada, comentario }) });
 }
+export async function getAdminInspeccionPdfPreview(idInspeccion) {
+  const response = await fetch(`${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/vista-previa-pdf`, { credentials: "include" });
+  if (!response.ok) throw new Error("No fue posible generar la vista previa del PDF.");
+  return response.blob();
+}
 export async function descargarAdminInspeccionPdf(idInspeccion) {
   const response = await fetch(`${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/pdf`, { credentials: "include" });
   if (!response.ok) throw new Error("No fue posible descargar el reporte PDF.");
