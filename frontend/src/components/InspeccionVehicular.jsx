@@ -1,6 +1,5 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import ReactSignatureCanvas from "react-signature-canvas";
 import conductorImage from "../assets/conductor.png";
 import frontalImage from "../assets/frontal.png";
 import pasajeroImage from "../assets/pasajero.png";
@@ -27,52 +26,82 @@ const checklistGroups = {
 const checklistStates = ["B", "R", "M", "N/A"];
 
 function SignaturePad({ onSave, onCancel }) {
-  const signatureRef = useRef(null);
-  const canvasAreaRef = useRef(null);
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
   const [hasInk, setHasInk] = useState(false);
-  const [signatureData, setSignatureData] = useState("");
-  const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
 
-  useLayoutEffect(() => {
-    const area = canvasAreaRef.current;
-    if (!area) return undefined;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
 
-    const resizeCanvas = () => {
-      const width = Math.max(1, Math.floor(area.clientWidth));
-      const height = Math.max(1, Math.floor(area.clientHeight));
-      setCanvasSize((current) => (
-        current.width === width && current.height === height
-          ? current
-          : { width, height }
-      ));
+    const configureCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      const context = canvas.getContext("2d");
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.lineWidth = 2.8;
+      context.strokeStyle = "#173f51";
+      drawingRef.current = false;
+      setHasInk(false);
     };
 
-    resizeCanvas();
-    const observer = new ResizeObserver(resizeCanvas);
-    observer.observe(area);
-    return () => observer.disconnect();
+    const frame = window.requestAnimationFrame(configureCanvas);
+    window.addEventListener("resize", configureCanvas);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", configureCanvas);
+    };
   }, []);
 
-  function clear() {
-    signatureRef.current?.clear();
-    setHasInk(false);
-    setSignatureData("");
+  function pointFor(event) {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+    };
   }
 
-  function captureSignature() {
-    const signature = signatureRef.current;
-    if (!signature || signature.isEmpty()) return;
-    setSignatureData(signature.getTrimmedCanvas().toDataURL("image/png"));
+  function beginStroke(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
+    const point = pointFor(event);
+    drawingRef.current = true;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    canvas.setPointerCapture?.(event.pointerId);
+    setHasInk(true);
+  }
+
+  function drawStroke(event) {
+    if (!drawingRef.current) return;
+    event.preventDefault();
+    const point = pointFor(event);
+    const context = canvasRef.current.getContext("2d");
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  }
+
+  function endStroke(event) {
+    if (!drawingRef.current) return;
+    event.preventDefault();
+    drawingRef.current = false;
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    setHasInk(false);
   }
 
   function save() {
-    const signature = signatureRef.current;
-    if (!signature || !hasInk) return;
-
-    // Telegram puede no disparar onEnd al levantar el dedo fuera del canvas.
-    // En ese caso se captura el trazo directamente al pulsar Guardar.
-    const image = signatureData || signature.getTrimmedCanvas().toDataURL("image/png");
-    onSave(image);
+    if (!hasInk) return;
+    onSave(canvasRef.current.toDataURL("image/png"));
   }
 
   return createPortal(
@@ -86,22 +115,15 @@ function SignaturePad({ onSave, onCancel }) {
           </div>
           <button type="button" className="inspection-icon-button" onClick={onCancel} aria-label="Cancelar firma">×</button>
         </div>
-        <div className="signature-canvas-area" ref={canvasAreaRef}>
-          <ReactSignatureCanvas
-            ref={signatureRef}
-            penColor="#173f51"
-            minWidth={1.2}
-            maxWidth={2.8}
-            onBegin={() => setHasInk(true)}
-            onEnd={captureSignature}
-            canvasProps={{
-              className: "signature-canvas",
-              width: canvasSize.width,
-              height: canvasSize.height,
-              onPointerDown: () => setHasInk(true),
-              onTouchStart: () => setHasInk(true),
-              "aria-label": "Área para firmar"
-            }}
+        <div className="signature-canvas-area">
+          <canvas
+            ref={canvasRef}
+            className="signature-canvas"
+            aria-label="Área para firmar"
+            onPointerDown={beginStroke}
+            onPointerMove={drawStroke}
+            onPointerUp={endStroke}
+            onPointerCancel={endStroke}
           />
         </div>
         <div className="signature-dialog-actions">
