@@ -18,9 +18,9 @@ import {
   iniciarViaje,
   registrarUbicacion
 } from "./services/api.js";
-import RegistroConductor from "./components/RegistroConductor.jsx";
-import InspeccionVehicular from "./components/InspeccionVehicular.jsx";
-import InspectionModal from "./components/InspectionModal.jsx";
+import RegistroConductor from "./pages/RegistroConductor.jsx";
+import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
+import InspectionModal from "./components/InspectionModal/index.jsx";
 import {
   captureAndQueueLocation,
   setTrackingStatusListener,
@@ -128,6 +128,8 @@ const [cancelledTrip, setCancelledTrip] =
   const [inspection, setInspection] = useState(null);
   const [inspectionSaving, setInspectionSaving] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [inspectionStatus, setInspectionStatus] = useState("idle");
+  const [inspectionError, setInspectionError] = useState("");
 
   const [telegramAuth, setTelegramAuth] =
     useState(null);
@@ -815,11 +817,17 @@ function handleStopGps() {
   }
 
   async function loadInspection(idViaje) {
+    if (!idViaje) return;
+    setInspectionStatus("loading");
+    setInspectionError("");
     try {
       const response = await getInspeccionVehicular(idViaje);
       setInspection(response.data);
+      setInspectionStatus("ready");
     } catch (error) {
-      setMessage(error.message); setMessageType("error");
+      setInspection(null);
+      setInspectionStatus("error");
+      setInspectionError(error.message || "No fue posible validar la inspección vehicular.");
     }
   }
 
@@ -867,6 +875,8 @@ function handleStopGps() {
     setMessageType("error");
     setInspection(null);
     setInspectionOpen(false);
+    setInspectionStatus("idle");
+    setInspectionError("");
 
     lastLocationSentAtRef.current = 0;
     sendingLocationRef.current=false;
@@ -1238,7 +1248,22 @@ function handleStopGps() {
     )}
 
     {!startedTrip && !finishedTrip && !cancelledTrip && (
-      inspection?.required ? <button
+      inspectionStatus === "loading" || inspectionStatus === "idle" ? <button
+        type="button"
+        className="start-trip-button inspection-required-button"
+        disabled
+      >
+        Validando inspección vehicular...
+      </button> : inspectionStatus === "error" ? <div className="inspection-load-error" role="alert">
+        <p>No se pudo cargar la inspección: {inspectionError}</p>
+        <button
+          type="button"
+          className="inspection-secondary-button"
+          onClick={() => loadInspection(createdTrip?.id_viajes ?? createdTrip?.idViaje)}
+        >
+          Reintentar inspección
+        </button>
+      </div> : inspection?.required ? <button
         type="button"
         className="start-trip-button inspection-required-button"
         onClick={() => setInspectionOpen(true)}

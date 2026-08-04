@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ReactSignatureCanvas from "react-signature-canvas";
 import conductorImage from "../assets/conductor.png";
 import frontalImage from "../assets/frontal.png";
 import pasajeroImage from "../assets/pasajero.png";
@@ -25,73 +26,48 @@ const checklistGroups = {
 
 const checklistStates = ["B", "R", "M", "N/A"];
 
-function SignatureCanvas({ onSave, onCancel }) {
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(false);
+function SignaturePad({ onSave, onCancel }) {
+  const signatureRef = useRef(null);
   const [hasInk, setHasInk] = useState(false);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ratio = window.devicePixelRatio || 1;
-    const width = Math.max(1, Math.floor(canvas.getBoundingClientRect().width));
-    const height = Math.max(1, Math.floor(canvas.getBoundingClientRect().height));
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    const context = canvas.getContext("2d");
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.lineWidth = 2.6;
-    context.lineCap = "round";
-    context.strokeStyle = "#173f51";
-  }, []);
-
-  function position(event) {
-    const rect = canvasRef.current.getBoundingClientRect();
-    return {
-      x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
-      y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
-    };
-  }
-
-  function start(event) {
-    const canvas = canvasRef.current;
-    event.preventDefault();
-    drawingRef.current = true;
-    const point = position(event);
-    const context = canvas.getContext("2d");
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-    setHasInk(true);
-    if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
-  }
-
-  function move(event) {
-    if (!drawingRef.current) return;
-    event.preventDefault();
-    const point = position(event);
-    const context = canvasRef.current.getContext("2d");
-    context.lineTo(point.x, point.y);
-    context.stroke();
-  }
-
-  function end(event) {
-    event?.preventDefault();
-    drawingRef.current = false;
-  }
-
   function clear() {
-    const canvas = canvasRef.current;
-    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    signatureRef.current?.clear();
     setHasInk(false);
   }
 
-  return createPortal(<div className="signature-dialog" role="dialog" aria-modal="true" aria-labelledby="signature-title">
-    <div className="signature-dialog-card">
-      <div className="signature-dialog-heading"><div><span>Confirmación</span><h3 id="signature-title">Firma del conductor</h3><p>Firma dentro del recuadro y guarda cuando termines.</p></div><button type="button" className="inspection-icon-button" onClick={onCancel} aria-label="Cancelar firma">×</button></div>
-      <canvas className="signature-canvas" ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
-      <div className="signature-dialog-actions"><button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button><button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={() => onSave(canvasRef.current.toDataURL("image/png"))}>Guardar firma</button></div>
-    </div>
-  </div>, document.body);
+  function save() {
+    const signature = signatureRef.current;
+    if (!signature || signature.isEmpty()) return;
+    onSave(signature.getTrimmedCanvas().toDataURL("image/png"));
+  }
+
+  return createPortal(
+    <div className="signature-dialog" role="dialog" aria-modal="true" aria-labelledby="signature-title">
+      <div className="signature-dialog-card">
+        <div className="signature-dialog-heading">
+          <div>
+            <span>Confirmación</span>
+            <h3 id="signature-title">Firma del conductor</h3>
+            <p>Firma dentro del recuadro y guarda cuando termines.</p>
+          </div>
+          <button type="button" className="inspection-icon-button" onClick={onCancel} aria-label="Cancelar firma">×</button>
+        </div>
+        <ReactSignatureCanvas
+          ref={signatureRef}
+          penColor="#173f51"
+          minWidth={1.2}
+          maxWidth={2.8}
+          onBegin={() => setHasInk(true)}
+          canvasProps={{ className: "signature-canvas", "aria-label": "Área para firmar" }}
+        />
+        <div className="signature-dialog-actions">
+          <button type="button" className="inspection-secondary-button" onClick={clear}>Limpiar firma</button>
+          <button type="button" className="inspection-primary-button" disabled={!hasInk} onClick={save}>Guardar firma</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export default function InspeccionVehicular({ context, estado, onSubmit, saving, onClose }) {
@@ -147,6 +123,6 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
     {step === 6 && <label className="inspection-textarea-label">Comentarios del conductor<textarea rows="7" value={form.observaciones} onChange={(event) => updateForm({ observaciones: event.target.value })} placeholder="Describe daños, faltantes o condiciones relevantes" /></label>}
     {step === 7 && <div className="inspection-signature"><h3>Firma del conductor</h3><p>Abre la ventana de firma, firma y guarda para habilitar el envío.</p>{form.firma ? <div className="signature-saved"><img src={form.firma} alt="Firma capturada del conductor" /><span>Firma guardada</span></div> : <p className="signature-pending">Firma pendiente</p>}<button type="button" className="inspection-primary-button" onClick={() => setSignatureOpen(true)}>{form.firma ? "Cambiar firma" : "Abrir ventana de firma"}</button></div>}
     <footer className="inspection-actions"><button type="button" className="inspection-secondary-button" disabled={step === 0 || saving} onClick={() => setStep((current) => current - 1)}>Anterior</button>{step < totalSteps - 1 ? <button type="button" className="inspection-primary-button" disabled={!canContinue()} onClick={() => setStep((current) => current + 1)}>Siguiente</button> : <button type="button" className="inspection-primary-button" disabled={!canContinue() || saving} onClick={() => onSubmit(form)}>{saving ? "Enviando..." : "Enviar a aprobación"}</button>}</footer>
-    {signatureOpen && <SignatureCanvas onCancel={() => setSignatureOpen(false)} onSave={(firma) => { updateForm({ firma }); setSignatureOpen(false); }} />}
+    {signatureOpen && <SignaturePad onCancel={() => setSignatureOpen(false)} onSave={(firma) => { updateForm({ firma }); setSignatureOpen(false); }} />}
   </section>;
 }

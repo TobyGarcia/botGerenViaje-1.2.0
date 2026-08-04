@@ -270,4 +270,6 @@
 .inspection-actions > button { flex:1 1 0; }
 .inspection-complete { max-width:520px; }
 .inspection-required-button { width:100%; }
+.inspection-load-error { display:grid; gap:10px; padding:14px; border:1px solid #f3c3c3; border-radius:10px; color:#991b1b; background:#fff4f4; }
+.inspection-load-error p { margin:0; }
 @media (max-width:640px) { .inspection-modal-overlay { align-items:center; padding:12px; } .inspection-modal-card { width:100%; max-height:calc(var(--tg-viewport-stable-height,100dvh) - 24px); border-radius:20px; } .inspection-card { padding:18px; border-radius:20px; } .inspection-data-grid,.inspection-field-grid,.date-range { grid-template-columns:1fr; } .inspection-section-heading { align-items:stretch; flex-direction:column; } .damage-map { padding:8px; } .check-row { grid-template-columns:minmax(0,1fr) 92px; gap:9px; } .check-row select { width:92px; } .signature-dialog { align-items:center; padding:12px; } .signature-dialog-card { width:100%; border-radius:18px; } }
