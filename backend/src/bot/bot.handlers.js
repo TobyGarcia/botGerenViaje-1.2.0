@@ -13,9 +13,13 @@ import {
   getMiniAppKeyboard,
   getPrivateRegistrationKeyboard,
   getPrivateTripKeyboard,
-  getSupervisorMiniAppKeyboard
+  getSupervisorMiniAppKeyboard,
+  getPrivateSupervisorKeyboard
 } from "./bot.keyboards.js";
-import { registerSupervisorGroupMember } from "../services/supervisor-telegram.service.js";
+import {
+  getSupervisorAccess,
+  registerSupervisorGroupMember
+} from "../services/supervisor-telegram.service.js";
 
 function isRegisteredDriver(user) {
   return Boolean(
@@ -42,11 +46,29 @@ export function registerBotHandlers(bot) {
         `Bienvenido/a ${context.from.first_name || "supervisor/a"}.`,
         "Regístrate desde la Mini App para revisar y aprobar inspecciones.",
         "El usuario debe tener de 3 a 100 caracteres y puede usar letras, números, punto, guion y guion bajo.",
-        "Durante las pruebas solo se acepta correo @itzamna.mx."
-      ].join("\n"), getSupervisorMiniAppKeyboard());
+        "Durante las pruebas solo se acepta correo @itzamna.mx.",
+        "Por seguridad, la Mini App se abre en el chat privado con el bot."
+      ].join("\n"), getPrivateSupervisorKeyboard());
       return;
     }
     if (!isPrivateChat(context)) {
+      return;
+    }
+
+    if (startParameter === "supervisor") {
+      const access = await getSupervisorAccess(context.from.id);
+
+      if (!access.invited) {
+        await context.reply(
+          "Primero inicia el registro con /start dentro del grupo de supervisores."
+        );
+        return;
+      }
+
+      await context.reply(
+        "🛡️ Abre la supervisión de inspecciones:",
+        getSupervisorMiniAppKeyboard()
+      );
       return;
     }
   
@@ -112,8 +134,8 @@ export function registerBotHandlers(bot) {
 
       if (isSupervisorGroup(context)) {
         await context.reply(
-          "Para acceder como supervisor usa /start en este grupo.",
-          getSupervisorMiniAppKeyboard()
+          "Para acceder como supervisor usa /start en este grupo y continúa en el chat privado con el bot.",
+          getPrivateSupervisorKeyboard()
         );
         return;
       }
@@ -169,8 +191,8 @@ export function registerBotHandlers(bot) {
       if (!isPrivateChat(context)) {
         if (isSupervisorGroup(context)) {
           await context.reply(
-            "El registro de supervisor inicia con /start en este grupo.",
-            getSupervisorMiniAppKeyboard()
+            "El registro de supervisor inicia con /start en este grupo y continúa en el chat privado con el bot.",
+            getPrivateSupervisorKeyboard()
           );
           return;
         }

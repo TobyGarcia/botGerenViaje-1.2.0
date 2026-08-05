@@ -3,7 +3,7 @@
 ## Flujo implementado
 
 1. El supervisor entra al grupo cuyo ID está en `TELEGRAM_GROUP_SUPRVISOR_ID` y usa `/start` (no `/star`). Los comandos `/registro` y `/viaje` muestran una indicación para iniciar el flujo de supervisor.
-2. El bot registra su ID de Telegram como elegible y muestra la Mini App.
+2. El bot registra su ID de Telegram como elegible y muestra un enlace al chat privado. La Mini App se abre ahí, pues Telegram no permite botones de Mini App dentro de grupos.
 3. En la Mini App se registra con nombre, usuario, teléfono, correo y contraseña. Solo se permite `@itzamna.mx` durante las pruebas.
 4. Se envía un correo de bienvenida con enlace de confirmación válido por 24 horas.
 5. Tras confirmar, el supervisor vuelve a abrir la Mini App desde Telegram. Solo ve inspecciones pendientes, puede revisarlas, firmar, aprobar o rechazar.

@@ -30,6 +30,17 @@ export function getSupervisorMiniAppKeyboard() {
   return Markup.inlineKeyboard([[Markup.button.webApp("🛡️ Abrir supervisión de inspecciones", webAppUrl)]]);
 }
 
+export function getPrivateSupervisorKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.url(
+        "🛡️ Abrir supervisión en privado",
+        getPrivateBotLink("supervisor")
+      )
+    ]
+  ]);
+}
+
 export function getPrivateRegistrationKeyboard() {
   return Markup.inlineKeyboard([
     [
