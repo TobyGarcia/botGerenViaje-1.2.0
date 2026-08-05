@@ -17,9 +17,10 @@ Configura en el backend/Render:
 |---|---|
 | `TELEGRAM_GROUP_SUPRVISOR_ID` | ID numérico del grupo de supervisores. |
 | `TELEGRAM_SUPERVISOR_WEB_APP_URL` | URL HTTPS de la Mini App; puede ser la misma que `TELEGRAM_WEB_APP_URL`. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor SMTP. |
-| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Credenciales y remitente SMTP. |
-| `SUPERVISOR_EMAIL_CONFIRM_URL` | URL pública completa de `https://<api>/api/telegram/supervisor/confirmar-correo`. |
+| `SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION` | `false` durante pruebas: habilita al supervisor sin correo. Configure `true` en producción para requerir la confirmación. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor SMTP; necesarios solo con `SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION=true`. |
+| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Credenciales y remitente; necesarios solo con confirmación por correo. |
+| `SUPERVISOR_EMAIL_CONFIRM_URL` | URL pública completa de `https://<api>/api/telegram/supervisor/confirmar-correo`; necesaria solo con confirmación por correo. |
 
 Ejecuta primero la migración `008_supervisores_telegram.sql` en cada base ya existente. El script `database/scripts/migrate.sql` ya la incluye para instalaciones nuevas.
 

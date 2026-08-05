@@ -5,6 +5,10 @@ import { databasePool } from "../database/pool.js";
 
 const allowedDomains = ["itzamna.mx"];
 
+function requiresEmailConfirmation() {
+  return String(process.env.SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION) === "true";
+}
+
 export class SupervisorTelegramError extends Error {
   constructor(message, statusCode = 400) {
     super(message);
@@ -47,7 +51,12 @@ export async function getSupervisorAccess(telegramUserId) {
     WHERE a.telegram_user_id=$1 LIMIT 1`, [String(telegramUserId)]);
   const row = result.rows[0];
   if (!row) return { invited: false, registered: false, confirmed: false, user: null };
-  return { invited: true, registered: Boolean(row.id_usuarios_admin), confirmed: Boolean(row.correo_confirmado_en), user: row.id_usuarios_admin ? row : null };
+  return {
+    invited: true,
+    registered: Boolean(row.id_usuarios_admin),
+    confirmed: Boolean(row.id_usuarios_admin) && (!requiresEmailConfirmation() || Boolean(row.correo_confirmado_en)),
+    user: row.id_usuarios_admin ? row : null
+  };
 }
 
 export async function registerSupervisor({ telegramUserId, data }) {
@@ -60,18 +69,30 @@ export async function registerSupervisor({ telegramUserId, data }) {
     const existing = await client.query("SELECT id_usuarios_admin, correo_confirmado_en FROM usuarios_admin WHERE telegram_user_id=$1 FOR UPDATE", [String(telegramUserId)]);
     if (existing.rows[0]) {
       await client.query("COMMIT");
-      return { created: false, confirmationToken: null, confirmed: Boolean(existing.rows[0].correo_confirmado_en) };
+      return {
+        created: false,
+        confirmationToken: null,
+        confirmed: !requiresEmailConfirmation() || Boolean(existing.rows[0].correo_confirmado_en)
+      };
     }
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await client.query(`INSERT INTO usuarios_admin (nombre,username,correo,telefono,password_hash,rol,activo,telegram_user_id)
       VALUES ($1,$2,$3,$4,$5,'SUPERVISOR',TRUE,$6) RETURNING id_usuarios_admin,nombre,username,correo,rol`,
       [input.nombre, input.username, input.correo, input.telefono, passwordHash, String(telegramUserId)]);
-    const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    await client.query(`INSERT INTO confirmaciones_correo_supervisor (id_usuarios_admin,token_hash,expira_en)
-      VALUES ($1,$2,CURRENT_TIMESTAMP + INTERVAL '24 hours')`, [user.rows[0].id_usuarios_admin, tokenHash]);
+    let confirmationToken = null;
+    if (requiresEmailConfirmation()) {
+      confirmationToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(confirmationToken).digest("hex");
+      await client.query(`INSERT INTO confirmaciones_correo_supervisor (id_usuarios_admin,token_hash,expira_en)
+        VALUES ($1,$2,CURRENT_TIMESTAMP + INTERVAL '24 hours')`, [user.rows[0].id_usuarios_admin, tokenHash]);
+    }
     await client.query("COMMIT");
-    return { created: true, user: user.rows[0], confirmationToken: token, confirmed: false };
+    return {
+      created: true,
+      user: user.rows[0],
+      confirmationToken,
+      confirmed: !requiresEmailConfirmation()
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     if (error.code === "23505") throw new SupervisorTelegramError("El usuario o correo ya está registrado.", 409);
