@@ -6,6 +6,8 @@ import {
 import {
   loginAdmin
 } from "../services/api.js";
+import logoAQR from "../assets/LoginAssets/logoAQR.webp";
+import fleetImage from "../assets/LoginAssets/imagen_muestra.png";
 
 function LoginPage({
   onAuthenticated
@@ -103,17 +105,22 @@ function LoginPage({
             plataforma centralizada.
           </p>
 
-          <div className="fleet-placeholder">
-            Imagen temporal de flotilla
+          <div className="fleet-image">
+            <img
+              src={fleetImage}
+              alt="Flotilla de la empresa"
+            />
           </div>
         </div>
       </section>
 
       <section className="login-section">
         <div className="login-card">
-          <div className="brand-placeholder">
-            LOGO
-          </div>
+          <img
+            className="login-logo"
+            src={logoAQR}
+            alt="AQR"
+          />
 
           <span className="login-label">
             Acceso administrativo
