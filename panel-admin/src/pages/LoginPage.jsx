@@ -88,7 +88,17 @@ function LoginPage({
 
   return (
     <main className="login-page">
-      <section className="login-hero">
+      <section
+        className="login-hero"
+        style={{
+          backgroundImage: `linear-gradient(
+            to bottom,
+            rgba(7, 78, 109, 0.88) 0%,
+            rgba(16, 132, 170, 0.72) 52%,
+            rgba(16, 132, 170, 0.52) 100%
+          ), url(${fleetImage})`
+        }}
+      >
         <div className="hero-content">
           <span className="hero-label">
             Plataforma logística
@@ -104,13 +114,6 @@ function LoginPage({
             y ubicaciones desde una
             plataforma centralizada.
           </p>
-
-          <div className="fleet-image">
-            <img
-              src={fleetImage}
-              alt="Flotilla de la empresa"
-            />
-          </div>
         </div>
       </section>
 
