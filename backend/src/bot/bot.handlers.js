@@ -4,6 +4,7 @@ import {
 
 import {
   isAuthorizedGroup,
+  isSupervisorGroup,
   isPrivateChat,
   logCommand
 } from "./bot.helpers.js";
@@ -35,9 +36,7 @@ export function registerBotHandlers(bot) {
         ?.join(" ")
         ?.trim() || "";
 
-    const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID;
-    const isSupervisorGroup = supervisorGroupId && String(context.chat?.id) === String(supervisorGroupId) && ["group", "supergroup"].includes(context.chat?.type);
-    if (isSupervisorGroup) {
+    if (isSupervisorGroup(context)) {
       await registerSupervisorGroupMember({ telegramUser: context.from, groupId: context.chat.id });
       await context.reply([
         `Bienvenido/a ${context.from.first_name || "supervisor/a"}.`,
@@ -111,6 +110,14 @@ export function registerBotHandlers(bot) {
         return;
       }
 
+      if (isSupervisorGroup(context)) {
+        await context.reply(
+          "Para acceder como supervisor usa /start en este grupo.",
+          getSupervisorMiniAppKeyboard()
+        );
+        return;
+      }
+
       if (!isAuthorizedGroup(context)) {
         return;
       }
@@ -160,14 +167,22 @@ export function registerBotHandlers(bot) {
 
     try {
       if (!isPrivateChat(context)) {
-      if (!isAuthorizedGroup(context)) {
-        return;
-      }
+        if (isSupervisorGroup(context)) {
+          await context.reply(
+            "El registro de supervisor inicia con /start en este grupo.",
+            getSupervisorMiniAppKeyboard()
+          );
+          return;
+        }
 
-      await context.reply(
-        "El registro se realiza en privado.",
-        getPrivateRegistrationKeyboard()
-      );
+        if (!isAuthorizedGroup(context)) {
+          return;
+        }
+
+        await context.reply(
+          "El registro se realiza en privado.",
+          getPrivateRegistrationKeyboard()
+        );
 
         return;
       }
@@ -192,6 +207,17 @@ export function registerBotHandlers(bot) {
     logCommand(context, "ayuda");
 
     try {
+      if (isSupervisorGroup(context)) {
+        await context.reply(
+          [
+            "Comandos disponibles para supervisores:",
+            "",
+            "/start - Abrir el registro o la supervisión de inspecciones"
+          ].join("\n")
+        );
+        return;
+      }
+
       if (
       !isPrivateChat(context) &&
       !isAuthorizedGroup(context)
