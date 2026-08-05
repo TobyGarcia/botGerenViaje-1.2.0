@@ -11,8 +11,10 @@ import {
 import {
   getMiniAppKeyboard,
   getPrivateRegistrationKeyboard,
-  getPrivateTripKeyboard
+  getPrivateTripKeyboard,
+  getSupervisorMiniAppKeyboard
 } from "./bot.keyboards.js";
+import { registerSupervisorGroupMember } from "../services/supervisor-telegram.service.js";
 
 function isRegisteredDriver(user) {
   return Boolean(
@@ -33,6 +35,18 @@ export function registerBotHandlers(bot) {
         ?.join(" ")
         ?.trim() || "";
 
+    const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID;
+    const isSupervisorGroup = supervisorGroupId && String(context.chat?.id) === String(supervisorGroupId) && ["group", "supergroup"].includes(context.chat?.type);
+    if (isSupervisorGroup) {
+      await registerSupervisorGroupMember({ telegramUser: context.from, groupId: context.chat.id });
+      await context.reply([
+        `Bienvenido/a ${context.from.first_name || "supervisor/a"}.`,
+        "Regístrate desde la Mini App para revisar y aprobar inspecciones.",
+        "El usuario debe tener de 3 a 100 caracteres y puede usar letras, números, punto, guion y guion bajo.",
+        "Durante las pruebas solo se acepta correo @itzamna.mx."
+      ].join("\n"), getSupervisorMiniAppKeyboard());
+      return;
+    }
     if (!isPrivateChat(context)) {
       return;
     }

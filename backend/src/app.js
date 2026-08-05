@@ -11,6 +11,8 @@ import adminUbicacacionesRoutes from "./routes/admin-ubicaciones.routes.js"
 import adminViajesRoutes from "./routes/admin-viajes.routes.js"
 import inspeccionesRoutes from "./routes/inspecciones.routes.js";
 import adminInspeccionesRoutes from "./routes/admin-inspecciones.routes.js";
+import supervisorTelegramRoutes from "./routes/supervisor-telegram.routes.js";
+import supervisorInspeccionesRoutes from "./routes/supervisor-inspecciones.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -81,6 +83,8 @@ app.use(
   "/api/telegram",
   telegramAuthRoutes
 );
+app.use("/api/telegram/supervisor", supervisorTelegramRoutes);
+app.use("/api/supervisor/inspecciones", supervisorInspeccionesRoutes);
 
 app.use(
   "/api/admin/auth",

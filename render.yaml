@@ -37,7 +37,25 @@ services:
         sync: false
       - key: TELEGRAM_GROUP_ID
         sync: false
+      - key: TELEGRAM_GROUP_SUPRVISOR_ID
+        sync: false
       - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: TELEGRAM_SUPERVISOR_WEB_APP_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SUPERVISOR_EMAIL_CONFIRM_URL
         sync: false
       - key: TELEGRAM_INIT_DATA_MAX_AGE_SECONDS
         value: "3600"

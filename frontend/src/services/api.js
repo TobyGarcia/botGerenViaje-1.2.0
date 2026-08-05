@@ -152,3 +152,9 @@ export function registrarConductorTelegram(
     }
   );
 }
+
+export function getSupervisorAccess() { return request("/api/telegram/supervisor/acceso"); }
+export function registrarSupervisor(data) { return request("/api/telegram/supervisor/registro", { method: "POST", body: JSON.stringify(data) }); }
+export function getSupervisorInspecciones() { return request("/api/supervisor/inspecciones"); }
+export function getSupervisorInspeccion(idInspeccion) { return request(`/api/supervisor/inspecciones/${idInspeccion}`); }
+export function decidirSupervisorInspeccion(idInspeccion, data) { return request(`/api/supervisor/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify(data) }); }

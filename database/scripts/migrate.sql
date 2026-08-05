@@ -7,3 +7,4 @@
 \ir ../migrations/005_historial_kilometraje_vehiculos.sql
 \ir ../migrations/006_datos_y_disponibilidad_vehiculos.sql
 \ir ../migrations/007_inspecciones_vehiculares.sql
+\ir ../migrations/008_supervisores_telegram.sql

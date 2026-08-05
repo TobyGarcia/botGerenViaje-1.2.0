@@ -154,6 +154,7 @@ function drawImage(commands, name, image, x, y, width, height, points = []) {
 export function buildInspectionPdf(data) {
   const diagrams = Object.fromEntries(Object.entries(diagramFiles).map(([view, url]) => [view, readPng(readFileSync(fileURLToPath(url)))]));
   const signature = imageFromDataUrl(data.firma_conductor);
+  const supervisorSignature = imageFromDataUrl(data.firma_supervisor);
   const objects = [null];
   const addObject = (value) => { objects.push(value); return objects.length - 1; };
   objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
@@ -162,6 +163,7 @@ export function buildInspectionPdf(data) {
   const boldFont = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
   const imageEntries = Object.entries(diagrams);
   if (signature) imageEntries.push(["firma", signature]);
+  if (supervisorSignature) imageEntries.push(["firmaSupervisor", supervisorSignature]);
   const imageReferences = Object.fromEntries(imageEntries.map(([name, image], index) => [name, { name: `Im${index + 1}`, image, id: addObject(streamObject(`/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode`, image.data)) }]));
 
   const commands = [];
@@ -267,6 +269,7 @@ export function buildInspectionPdf(data) {
   line(commands, 54, 74, 282, 74, 0.7, border);
   line(commands, 330, 74, 558, 74, 0.7, border);
   if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 76, 220, 20);
+  if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 76, 220, 20);
   drawText(commands, "Nombre y firma", 168, 65, 5.3, { bold: true, fill: dark, align: "center" });
   drawText(commands, "Nombre y firma", 444, 65, 5.3, { bold: true, fill: dark, align: "center" });
   drawText(commands, "Fecha:", 146, 48, 5.8, { bold: true, fill: dark });

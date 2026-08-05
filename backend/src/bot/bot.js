@@ -42,6 +42,7 @@ export async function startTelegramBot() {
   await bot.telegram.setMyCommands([
     { command: "viaje", description: "Abrir el sistema de viajes" },
     { command: "registro", description: "Completar registro como conductor" },
+    { command: "start", description: "Iniciar registro o abrir el sistema" },
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 

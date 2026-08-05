@@ -96,7 +96,7 @@ export async function getAdminInspection(idInspeccion) {
     SELECT i.id_inspeccion, i.id_viajes, i.id_vehiculos, i.id_conductores,
       i.fecha_operativa, i.combustible, i.tipo_asignacion, i.asignacion_inicio,
       i.asignacion_fin, i.danos, i.checklist, i.observaciones_conductor,
-      i.firma_conductor, i.estado, i.requiere_autorizacion_fuera_horario,
+      i.firma_conductor, i.firma_supervisor, i.estado, i.requiere_autorizacion_fuera_horario,
       i.comentario_aprobacion, i.aprobado_en, i.pdf_generado_en, i.pdf_nombre,
       i.creado_en, i.actualizado_en, v.folio, v.kilometraje_inicial, c.nombre AS conductor,
       c.licencia_numero, c.tipo_licencia, c.licencia_vigente, c.licencia_vencimiento,
@@ -117,13 +117,13 @@ export async function countPendingInspections() {
   return result.rows[0].total;
 }
 
-export async function approveInspection({ idInspeccion, idUsuarioAdmin, approved, comentario }) {
+export async function approveInspection({ idInspeccion, idUsuarioAdmin, approved, comentario, firmaSupervisor = null }) {
   const result = await databasePool.query(`
     UPDATE inspecciones_vehiculares
-    SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3,
+    SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3, firma_supervisor=$4,
       aprobado_en=CURRENT_TIMESTAMP, actualizado_en=CURRENT_TIMESTAMP
-    WHERE id_inspeccion=$4 AND estado='PENDIENTE_APROBACION'
-    RETURNING *`, [approved ? "APROBADA" : "RECHAZADA", idUsuarioAdmin, comentario || null, idInspeccion]);
+    WHERE id_inspeccion=$5 AND estado='PENDIENTE_APROBACION'
+    RETURNING *`, [approved ? "APROBADA" : "RECHAZADA", idUsuarioAdmin, comentario || null, firmaSupervisor, idInspeccion]);
   return result.rows[0] ?? null;
 }
 
