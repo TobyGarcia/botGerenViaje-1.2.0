@@ -34,10 +34,12 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_WEB_APP_URL
+      - key: TELEGRAM_SUPERVISOR_WEB_APP_URL
         sync: false
       - key: TELEGRAM_GROUP_ID
         sync: false
       - key: TELEGRAM_GROUP_SUPRVISOR_ID
+        sync: false
         sync: false
       - key: TELEGRAM_BOT_USERNAME
         sync: false
