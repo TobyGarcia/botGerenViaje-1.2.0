@@ -1,7 +1,7 @@
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { confirmSupervisorEmail, getSupervisorAccess, registerSupervisor, sendSupervisorWelcomeEmail, SupervisorTelegramError } from "../services/supervisor-telegram.service.js";
 
-function telegramData(request) { return validateTelegramInitData(request.get("X-Telegram-Init-Data") || request.body?.initData || "", { botToken: process.env.TELEGRAM_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) }); }
+function telegramData(request) { return validateTelegramInitData(request.get("X-Telegram-Init-Data") || request.body?.initData || "", { botToken: process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) }); }
 function requiresEmailConfirmation() { return String(process.env.SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION) === "true"; }
 export async function supervisorAccessController(request, response) {
   try { const data = await getSupervisorAccess(telegramData(request).user.id); return response.json({ success: true, data }); }

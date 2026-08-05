@@ -18,9 +18,7 @@ import {
   enviarInspeccionVehicular,
   iniciarViaje,
   registrarUbicacion,
-  getSupervisorAccess
 } from "./services/api.js";
-import SupervisorPortal from "./pages/SupervisorPortal.jsx";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import {
@@ -144,7 +142,6 @@ const [cancelledTrip, setCancelledTrip] =
 
   const [telegramAuthAttempt, setTelegramAuthAttempt] =
     useState(0);
-  const [supervisorAccess, setSupervisorAccess] = useState(null);
 
   const telegramAuthStartedRef = useRef(false);
 
@@ -196,8 +193,6 @@ const [cancelledTrip, setCancelledTrip] =
         await autenticarTelegram(initData);
 
         setTelegramAuth(authenticationResponse.data);
-        const supervisorResponse = await getSupervisorAccess();
-        if (supervisorResponse.data?.invited) setSupervisorAccess(supervisorResponse.data);
       } catch (error) {
 
         setTelegramAuthError(
@@ -953,8 +948,6 @@ function handleStopGps() {
   if (loading) {
     return <p className="loading-message">Cargando catálogos...</p>;
   }
-
-  if (supervisorAccess?.invited) return <SupervisorPortal access={supervisorAccess} />;
 
   // Telegram WebView maneja de forma inconsistente los portales superpuestos.
   // La inspección es una pantalla propia para que no dependa del stacking del chat.

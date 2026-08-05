@@ -40,6 +40,10 @@ services:
         sync: false
       - key: TELEGRAM_GROUP_SUPRVISOR_ID
         sync: false
+      - key: TELEGRAM_SUPERVISOR_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_SUPERVISOR_BOT_USERNAME
+        sync: false
         sync: false
       - key: TELEGRAM_BOT_USERNAME
         sync: false
@@ -87,6 +91,18 @@ services:
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
+
+  - type: web
+    name: gerenciamiento-viajes-supervision
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_APP_MODE
+        value: supervisor
 
 databases:
   - name: gerenciamiento-viajes-db

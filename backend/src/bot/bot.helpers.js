@@ -8,17 +8,6 @@ export function isAuthorizedGroup(context) {
   return isGroupWithId(context, process.env.TELEGRAM_GROUP_ID);
 }
 
-export function isSupervisorGroup(context) {
-  return isGroupWithId(
-    context,
-    process.env.TELEGRAM_GROUP_SUPRVISOR_ID
-  );
-}
-
-export function isAuthorizedBotGroup(context) {
-  return isAuthorizedGroup(context) || isSupervisorGroup(context);
-}
-
 function isGroupWithId(context, configuredGroupId) {
 
   const chatType = context.chat?.type;
@@ -42,8 +31,7 @@ export function logCommand(context, command) {
     command,
     chatId: context.chat?.id,
     chatType: context.chat?.type,
-    authorizedGroup: isAuthorizedBotGroup(context),
-    supervisorGroup: isSupervisorGroup(context),
+    authorizedGroup: isAuthorizedGroup(context),
     updateId: context.update?.update_id
   });
 }

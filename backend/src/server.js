@@ -4,6 +4,10 @@ import {
   startTelegramBot,
   stopTelegramBot
 } from "./bot/bot.js";
+import {
+  startSupervisorBot,
+  stopSupervisorBot
+} from "./bot/supervisor-bot.js";
 
 const port = Number(
   process.env.PORT ||
@@ -28,6 +32,7 @@ async function startServer() {
     });
 
     await startTelegramBot();
+    await startSupervisorBot();
   } catch (error) {
     console.error(
       "No fue posible iniciar el backend:",
@@ -45,6 +50,7 @@ async function shutdown(signal) {
 
   try {
     await stopTelegramBot(signal);
+    await stopSupervisorBot(signal);
 
     if (httpServer){
       httpServer.close();
