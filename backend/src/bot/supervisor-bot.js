@@ -117,6 +117,7 @@ export async function startSupervisorBot() {
   ]);
 
   try {
+    await supervisorBotInstance.telegram.deleteWebhook({ drop_pending_updates: true });
     await supervisorBotInstance.launch({ dropPendingUpdates: true });
     supervisorBotStarted = true;
     console.log("Bot de supervisión iniciado correctamente.");

@@ -31,8 +31,17 @@ async function startServer() {
       );
     });
 
-    await startTelegramBot();
-    await startSupervisorBot();
+    try {
+      await startTelegramBot();
+    } catch (botErr) {
+      console.error("Error al intentar iniciar el bot de conductores:", botErr.message);
+    }
+
+    try {
+      await startSupervisorBot();
+    } catch (supErr) {
+      console.error("Error al intentar iniciar el bot de supervisores:", supErr.message);
+    }
   } catch (error) {
     console.error(
       "No fue posible iniciar el backend:",

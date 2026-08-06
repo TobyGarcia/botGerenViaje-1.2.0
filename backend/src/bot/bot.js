@@ -46,15 +46,21 @@ export async function startTelegramBot() {
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 
-  await bot.launch({
-    dropPendingUpdates: true
-  });
-
-  botStarted = true;
-
-  console.log(
-    "Bot de Telegram iniciado correctamente."
-  );
+  try {
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    await bot.launch({
+      dropPendingUpdates: true
+    });
+    botStarted = true;
+    console.log(
+      "Bot de Telegram iniciado correctamente."
+    );
+  } catch (error) {
+    console.error(
+      "No fue posible iniciar el bot de Telegram:",
+      error.message
+    );
+  }
 
   return bot;
 }
