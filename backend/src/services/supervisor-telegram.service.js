@@ -40,7 +40,13 @@ export async function registerSupervisorGroupMember({ telegramUser, groupId }) {
     ON CONFLICT (telegram_user_id) DO UPDATE SET telegram_username=EXCLUDED.telegram_username,
       telegram_first_name=EXCLUDED.telegram_first_name, telegram_last_name=EXCLUDED.telegram_last_name,
       telegram_group_id=EXCLUDED.telegram_group_id, habilitado_en=CURRENT_TIMESTAMP`,
-    [String(telegramUser.id), telegramUser.username, telegramUser.first_name, telegramUser.last_name, String(groupId)]);
+    [
+      String(telegramUser.id),
+      telegramUser.username || null,
+      telegramUser.first_name || null,
+      telegramUser.last_name || null,
+      String(groupId)
+    ]);
 }
 
 export async function getSupervisorAccess(telegramUserId) {
