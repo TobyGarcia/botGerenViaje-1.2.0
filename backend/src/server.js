@@ -31,6 +31,16 @@ async function startServer() {
       );
     });
 
+    if (
+      process.env.TELEGRAM_BOT_TOKEN &&
+      process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN &&
+      process.env.TELEGRAM_BOT_TOKEN === process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN
+    ) {
+      console.error(
+        "❌ ERROR CRÍTICO: TELEGRAM_BOT_TOKEN y TELEGRAM_SUPERVISOR_BOT_TOKEN son IDÉNTICOS en las variables de entorno. Cada bot DEBE tener su propio Token único generado en BotFather."
+      );
+    }
+
     try {
       await startTelegramBot();
     } catch (botErr) {
