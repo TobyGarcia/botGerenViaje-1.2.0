@@ -7,6 +7,42 @@ import {
 let botInstance = null;
 let botStarted = false;
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Reintenta el arranque del bot si Telegram responde con 409 (conflicto por
+// una instancia previa que aún no terminó de apagarse durante un deploy).
+async function launchWithRetry(bot, { maxAttempts = 5, baseDelayMs = 4000 } = {}) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      await bot.launch({ dropPendingUpdates: true });
+      return true;
+    } catch (error) {
+      const isConflict =
+        error?.response?.error_code === 409 ||
+        /409/.test(error?.message || "");
+
+      if (!isConflict || attempt === maxAttempts) {
+        console.error(
+          `No fue posible iniciar el bot de Telegram tras ${attempt} intento(s):`,
+          error.message
+        );
+        return false;
+      }
+
+      const waitMs = baseDelayMs * attempt;
+      console.warn(
+        `Conflicto 409 al iniciar el bot de Telegram (intento ${attempt}/${maxAttempts}). Reintentando en ${waitMs / 1000}s...`
+      );
+      await delay(waitMs);
+    }
+  }
+
+  return false;
+}
+
 export function getTelegramBot() {
   if (botInstance) {
     return botInstance;
@@ -46,19 +82,12 @@ export async function startTelegramBot() {
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 
-  try {
-    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    await bot.launch({
-      dropPendingUpdates: true
-    });
+  const started = await launchWithRetry(bot);
+
+  if (started) {
     botStarted = true;
     console.log(
       "Bot de Telegram iniciado correctamente."
-    );
-  } catch (error) {
-    console.error(
-      "No fue posible iniciar el bot de Telegram:",
-      error.message
     );
   }
 
