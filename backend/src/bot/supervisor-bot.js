@@ -167,3 +167,39 @@ export function stopSupervisorBot(signal) {
   supervisorBotInstance.stop(signal);
   supervisorBotStarted = false;
 }
+
+// Envía una alerta al grupo de supervisores cuando un conductor sube una
+// inspección vehicular nueva que queda pendiente de aprobación.
+export async function notifyNewInspectionRequest({
+  idInspeccion,
+  folio,
+  conductor,
+  vehiculo
+} = {}) {
+  const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+
+  if (!groupId) {
+    console.warn("No se envió la alerta de inspección: TELEGRAM_GROUP_SUPRVISOR_ID no está configurado.");
+    return;
+  }
+
+  if (!supervisorBotInstance || !supervisorBotStarted) {
+    console.warn("No se envió la alerta de inspección: el bot de supervisión no está inicializado.");
+    return;
+  }
+
+  const message = [
+    "🛎️ Nueva inspección pendiente de aprobación",
+    `Folio: ${folio ?? "No disponible"}`,
+    `Conductor: ${conductor ?? "No disponible"}`,
+    `Unidad: ${vehiculo ?? "No disponible"}`,
+    idInspeccion ? `ID inspección: ${idInspeccion}` : null,
+    "Abre la Mini App de supervisión para revisarla."
+  ].filter(Boolean).join("\n");
+
+  try {
+    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta de inspección al grupo de supervisores:", error);
+  }
+}

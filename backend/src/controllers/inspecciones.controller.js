@@ -1,6 +1,7 @@
 import { findTelegramUserById } from "../services/telegram-user.service.js";
-import { getInspectionRequirement, saveInspection } from "../services/inspecciones.service.js";
+import { getAdminInspection, getInspectionRequirement, saveInspection } from "../services/inspecciones.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
+import { notifyNewInspectionRequest } from "../bot/supervisor-bot.js";
 
 async function authenticateDriver(request) {
   const telegramData = validateTelegramInitData(request.get("X-Telegram-Init-Data") || "", {
@@ -34,6 +35,23 @@ export async function saveInspectionController(request, response) {
     if (!body.firma || !String(body.firma).startsWith('data:image/png;base64,')) throw new Error("La firma del conductor es obligatoria.");
     if (!body.checklist || Object.keys(body.checklist).length === 0) throw new Error("Completa el checklist vehicular.");
     const data = await saveInspection({ idViaje, idConductor, data: body });
+
+    // Alerta al grupo de supervisores. No debe tumbar la respuesta al
+    // conductor si el envío falla, por eso va en su propio try/catch.
+    // saveInspection() solo regresa columnas de inspecciones_vehiculares
+    // (sin folio/conductor/vehiculo), así que se piden con getAdminInspection.
+    try {
+      const detail = await getAdminInspection(data.id_inspeccion);
+      await notifyNewInspectionRequest({
+        idInspeccion: data.id_inspeccion,
+        folio: detail?.folio,
+        conductor: detail?.conductor,
+        vehiculo: detail?.vehiculo
+      });
+    } catch (notifyError) {
+      console.error("No fue posible notificar la nueva inspección al grupo de supervisores:", notifyError);
+    }
+
     return response.status(201).json({ success: true, data, message: "Inspección enviada para aprobación." });
   } catch (error) {
     return response.status(400).json({ success: false, message: error.message });
