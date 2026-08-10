@@ -24,6 +24,39 @@ function parsePositiveInteger(value) {
   return parsedValue;
 }
 
+function requestError(message, statusCode) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+async function requireTelegramDriver(request) {
+  const telegramData = validateTelegramInitData(
+    request.get("X-Telegram-Init-Data") || "",
+    {
+      botToken: process.env.TELEGRAM_BOT_TOKEN,
+      maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
+    }
+  );
+  const telegramUser = await findTelegramUserById(telegramData.user.id);
+
+  if (!telegramUser?.activo || !telegramUser?.conductor_activo || !telegramUser.id_conductores) {
+    throw requestError("El usuario de Telegram no tiene un conductor activo asociado.", 403);
+  }
+
+  return telegramUser;
+}
+
+async function requireTripOwner(request, idViaje) {
+  const telegramUser = await requireTelegramDriver(request);
+  const trip = await getTripById({ idViaje });
+
+  if (!trip) throw requestError("El viaje no existe.", 404);
+  if (Number(trip.id_conductores) !== Number(telegramUser.id_conductores)) {
+    throw requestError("No tienes permiso para modificar este viaje.", 403);
+  }
+}
+
 function normalizeTripResponse(trip) {
   return {
     idViaje: trip.id_viajes,
@@ -106,6 +139,7 @@ export async function createTripController(
   response
 ) {
   try {
+    const telegramUser = await requireTelegramDriver(request);
     const idConductor =
       parsePositiveInteger(request.body.idConductor);
 
@@ -133,6 +167,13 @@ export async function createTripController(
       return response.status(400).json({
         success: false,
         message: "El conductor no es válido."
+      });
+    }
+
+    if (idConductor !== Number(telegramUser.id_conductores)) {
+      return response.status(403).json({
+        success: false,
+        message: "No tienes permiso para crear un viaje para otro conductor."
       });
     }
 
@@ -197,7 +238,7 @@ export async function createTripController(
       error
     );
 
-    return response.status(409).json({
+    return response.status(error.statusCode || 409).json({
       success: false,
       message:
         error.message ||
@@ -222,6 +263,8 @@ export async function startTripController(
           "El identificador del viaje no es válido."
       });
     }
+
+    await requireTripOwner(request, idViaje);
 
     const inspection = await getApprovalForStart(idViaje);
     if (!inspection?.id_inspeccion) {
@@ -259,7 +302,7 @@ export async function startTripController(
       );
 
     const statusCode =
-      error.message === "El viaje no existe."
+      error.statusCode || error.message === "El viaje no existe."
         ? 404
         : isConflict
           ? 409
@@ -290,6 +333,8 @@ export async function finishTripController(
           "El identificador del viaje no es válido."
       });
     }
+
+    await requireTripOwner(request, idViaje);
 
     const kilometrajeFinal =
       Number(
@@ -326,9 +371,9 @@ export async function finishTripController(
       error
     );
 
-    let statusCode = 500;
+    let statusCode = error.statusCode || 500;
 
-    if (error.message === "El viaje no existe.") {
+    if (!error.statusCode && error.message === "El viaje no existe.") {
       statusCode = 404;
     } else if (
       error.message.includes(
@@ -363,6 +408,8 @@ export async function cancelTripController(
       });
     }
 
+    await requireTripOwner(request, idViaje);
+
     const trip = await cancelTrip({ idViaje });
 
     await sendTripGroupAlert({ action: "cancelado", trip });
@@ -375,7 +422,7 @@ export async function cancelTripController(
   } catch (error) {
     console.error("Error cancelando viaje:", error);
 
-    const statusCode = error.message === "El viaje no existe."
+    const statusCode = error.statusCode || error.message === "El viaje no existe."
       ? 404
       : error.message.includes("no puede cancelarse")
         ? 409
@@ -455,6 +502,8 @@ export async function getTripByIdController(
       });
     }
 
+    await requireTripOwner(request, idViaje);
+
     const trip = await getTripById({
       idViaje
     });
@@ -476,7 +525,7 @@ export async function getTripByIdController(
       error
     );
 
-    return response.status(500).json({
+    return response.status(error.statusCode || 500).json({
       success: false,
       message:
         "No fue posible consultar el viaje."

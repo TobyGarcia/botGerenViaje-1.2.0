@@ -569,6 +569,20 @@ function handleStopGps() {
     const finishedData =
       response.data ?? {};
 
+    // Obtiene el kilometraje ya confirmado por el servidor para el siguiente viaje.
+    const vehiclesResponse = await getVehiculos();
+    const refreshedVehicles = vehiclesResponse.data ?? [];
+    setVehiculos(refreshedVehicles);
+    setForm((current) => {
+      const selectedVehicle = refreshedVehicles.find(
+        (vehicle) => String(vehicle.id_vehiculos) === String(current.idVehiculo)
+      );
+      return {
+        ...current,
+        kilometrajeInicial: selectedVehicle?.kilometraje_actual ?? current.kilometrajeInicial
+      };
+    });
+
     setFinishedTrip(finishedData);
     setStartedTrip((current) =>({
       ...current,

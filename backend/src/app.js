@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import cookieParser from "cookie-parser";
 import catalogosRoutes from "./routes/catalogos.routes.js";
 import viajesRoutes from "./routes/viajes.routes.js";
 import ubicacionesRoutes from "./routes/ubicaciones.routes.js";
@@ -13,6 +14,7 @@ import inspeccionesRoutes from "./routes/inspecciones.routes.js";
 import adminInspeccionesRoutes from "./routes/admin-inspecciones.routes.js";
 import supervisorTelegramRoutes from "./routes/supervisor-telegram.routes.js";
 import supervisorInspeccionesRoutes from "./routes/supervisor-inspecciones.routes.js";
+import adminAuthRoutes from "./routes/admin-auth.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -139,11 +141,5 @@ app.use(
     });
   }
 );
-
-import cookieParser
-  from "cookie-parser";
-
-import adminAuthRoutes
-  from "./routes/admin-auth.routes.js";
 
 export default app;

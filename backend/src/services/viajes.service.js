@@ -114,6 +114,11 @@ export async function createTrip({
       );
     }
 
+    // Serializa la asignación del consecutivo diario sin bloquear otros días.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext('viajes-folio:' || CURRENT_DATE::TEXT))"
+    );
+
     const dailyCountResult = await client.query(
       `
         SELECT COUNT(*)::INTEGER AS total
@@ -318,6 +323,12 @@ export async function startTrip({
     if (trip.en_mantenimiento) {
       throw new Error("El vehículo está en mantenimiento.");
     }
+
+    // El bloqueo de la fila del vehículo hace exclusiva la comprobación y el inicio.
+    await client.query(
+      `SELECT id_vehiculos FROM vehiculos WHERE id_vehiculos = $1 FOR UPDATE`,
+      [trip.id_vehiculos]
+    );
 
     const activeTripResult = await client.query(
       `

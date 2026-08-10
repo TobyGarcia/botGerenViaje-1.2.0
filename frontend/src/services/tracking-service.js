@@ -11,6 +11,7 @@ let intervalId = null;
 let activeTripId = null;
 let syncPromise = null;
 let statusListener = null;
+let isStarting = false;
 
 function notify(update) {
   statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
@@ -58,14 +59,20 @@ export async function captureAndQueueLocation(idViaje) {
 
 export async function startTracking(idViaje) {
   const normalizedId = Number(idViaje);
-  if (intervalId !== null && activeTripId === normalizedId) return;
-  stopTracking({ clearState: false });
-  activeTripId = normalizedId;
-  saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
-  notify({ status: "Esperando permiso" });
-  await captureAndQueueLocation(normalizedId);
-  intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
-  await notifyPending(normalizedId, { status: "Activo" });
+  if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
+
+  isStarting = true;
+  try {
+    stopTracking({ clearState: false });
+    activeTripId = normalizedId;
+    saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
+    notify({ status: "Esperando permiso" });
+    await captureAndQueueLocation(normalizedId);
+    intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+    await notifyPending(normalizedId, { status: "Activo" });
+  } finally {
+    isStarting = false;
+  }
 }
 
 export function stopTracking({ clearState = true } = {}) {

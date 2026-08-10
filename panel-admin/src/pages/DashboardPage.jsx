@@ -199,7 +199,7 @@ function DashboardPage({
           </>
         )}
 
-        {activeModule === "conductores" && <ConductoresPage />}
+        {activeModule === "condugctores" && <ConductoresPage />}
 
         {activeModule === "unidades" && <VehiculosPage user={user} />}
 
