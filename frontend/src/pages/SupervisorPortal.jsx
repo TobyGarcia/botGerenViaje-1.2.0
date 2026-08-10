@@ -3,7 +3,7 @@ import { decidirSupervisorInspeccion, getSupervisorInspeccion, getSupervisorInsp
 
 function Signature({ onSave }) {
   const ref = useRef(null); const drawing = useRef(false); const [ink, setInk] = useState(false); const [open, setOpen] = useState(false);
-  function point(event) { const rect = ref.current.getBoundingClientRect(); return [event.clientX - rect.left, event.clientY - rect.top]; }
+  function point(event) { const canvas = ref.current; const rect = canvas.getBoundingClientRect(); return [(event.clientX - rect.left) * (canvas.width / rect.width), (event.clientY - rect.top) * (canvas.height / rect.height)]; }
   function down(event) { const [x,y] = point(event); const c = ref.current.getContext("2d"); c.beginPath(); c.moveTo(x,y); c.lineWidth=2.5; c.lineCap="round"; drawing.current=true; setInk(true); }
   function move(event) { if (!drawing.current) return; const [x,y] = point(event); const c=ref.current.getContext("2d"); c.lineTo(x,y); c.stroke(); }
   function clear() { const canvas = ref.current; canvas?.getContext("2d").clearRect(0, 0, canvas.width, canvas.height); setInk(false); }

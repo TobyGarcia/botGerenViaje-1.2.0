@@ -49,16 +49,18 @@ async function startServer() {
     }
 
     if (isTelegramPollingEnabled()) {
-      try {
-        await startTelegramBot();
-      } catch (botErr) {
-        console.error("Error al intentar iniciar el bot de conductores:", botErr.message);
+      // No se espera a que un bot termine sus reintentos de 409 antes de
+      // crear el otro. Así el supervisor puede enviar alertas aunque el bot
+      // de conductores siga recuperándose de un despliegue anterior.
+      const results = await Promise.allSettled([
+        startTelegramBot(),
+        startSupervisorBot()
+      ]);
+      if (results[0].status === "rejected") {
+        console.error("Error al intentar iniciar el bot de conductores:", results[0].reason?.message);
       }
-
-      try {
-        await startSupervisorBot();
-      } catch (supErr) {
-        console.error("Error al intentar iniciar el bot de supervisores:", supErr.message);
+      if (results[1].status === "rejected") {
+        console.error("Error al intentar iniciar el bot de supervisores:", results[1].reason?.message);
       }
     } else {
       console.log("Polling de Telegram desactivado en desarrollo. Define TELEGRAM_POLLING_ENABLED=true solo si no hay otra instancia usando esos tokens.");
