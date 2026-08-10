@@ -152,6 +152,16 @@ button:disabled {
   margin-top: 20px;
   border-color: #86efac;
   background: #f0fdf4;
+  color: #172033;
+  text-align: left;
+}
+
+button.result-card {
+  color: #172033;
+}
+
+button.result-card:hover:not(:disabled) {
+  background: #dcfce7;
 }
 
 small {

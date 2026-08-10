@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { decidirSupervisorInspeccion, getSupervisorInspeccion, getSupervisorInspecciones, registrarSupervisor } from "../services/api.js";
 
 function Signature({ onSave }) {
-  const ref = useRef(null); const drawing = useRef(false); const [ink, setInk] = useState(false);
+  const ref = useRef(null); const drawing = useRef(false); const [ink, setInk] = useState(false); const [open, setOpen] = useState(false);
   function point(event) { const rect = ref.current.getBoundingClientRect(); return [event.clientX - rect.left, event.clientY - rect.top]; }
   function down(event) { const [x,y] = point(event); const c = ref.current.getContext("2d"); c.beginPath(); c.moveTo(x,y); c.lineWidth=2.5; c.lineCap="round"; drawing.current=true; setInk(true); }
   function move(event) { if (!drawing.current) return; const [x,y] = point(event); const c=ref.current.getContext("2d"); c.lineTo(x,y); c.stroke(); }
-  return <section className="information-panel"><h3>Firma del supervisor</h3><canvas ref={ref} width="320" height="120" style={{width:"100%",border:"1px solid #466572", touchAction:"none"}} onPointerDown={down} onPointerMove={move} onPointerUp={()=>drawing.current=false} onPointerLeave={()=>drawing.current=false}/><button type="button" disabled={!ink} onClick={()=>onSave(ref.current.toDataURL("image/png"))}>Guardar firma</button></section>;
+  function clear() { const canvas = ref.current; canvas?.getContext("2d").clearRect(0, 0, canvas.width, canvas.height); setInk(false); }
+  function save() { onSave(ref.current.toDataURL("image/png")); setOpen(false); }
+  return <section className="information-panel"><h3>Firma del supervisor</h3><button type="button" onClick={()=>setOpen(true)}>Abrir ventana de firma</button>{open && <div className="signature-dialog" role="dialog" aria-modal="true" aria-label="Firma del supervisor"><section className="signature-dialog-card"><div className="signature-dialog-heading"><div><span>Autorización</span><h3>Firma del supervisor</h3><p>Firma dentro del recuadro y guarda para continuar.</p></div></div><div className="signature-canvas-area"><canvas ref={ref} className="signature-canvas" width="640" height="360" onPointerDown={down} onPointerMove={move} onPointerUp={()=>drawing.current=false} onPointerLeave={()=>drawing.current=false}/></div><div className="signature-dialog-actions"><button type="button" className="inspection-secondary-button" onClick={()=>setOpen(false)}>Cancelar</button><button type="button" className="inspection-secondary-button" disabled={!ink} onClick={clear}>Limpiar</button><button type="button" className="inspection-primary-button" disabled={!ink} onClick={save}>Guardar firma</button></div></section></div>}</section>;
 }
 
 export default function SupervisorPortal({ access }) {

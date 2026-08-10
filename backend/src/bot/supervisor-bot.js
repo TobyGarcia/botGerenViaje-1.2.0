@@ -13,7 +13,7 @@ function delay(ms) {
 
 // Reintenta el arranque del bot si Telegram responde con 409 (conflicto por
 // una instancia previa que aún no terminó de apagarse durante un deploy).
-async function launchWithRetry(bot, { maxAttempts = 5, baseDelayMs = 4000 } = {}) {
+async function launchWithRetry(bot, { maxAttempts = 10, baseDelayMs = 3000 } = {}) {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await bot.telegram.deleteWebhook({ drop_pending_updates: true });
@@ -32,7 +32,10 @@ async function launchWithRetry(bot, { maxAttempts = 5, baseDelayMs = 4000 } = {}
         return false;
       }
 
-      const waitMs = baseDelayMs * attempt;
+      // Durante un despliegue, Telegram puede conservar el long polling del
+      // proceso anterior hasta por varios segundos. Reintentar más tiempo evita
+      // que el bot quede deshabilitado cuando Render reemplaza la instancia.
+      const waitMs = Math.min(baseDelayMs * (2 ** (attempt - 1)), 30000);
       console.warn(
         `Conflicto 409 al iniciar el bot de supervisores (intento ${attempt}/${maxAttempts}). Reintentando en ${waitMs / 1000}s...`
       );
@@ -183,9 +186,15 @@ export async function notifyNewInspectionRequest({
     return;
   }
 
-  if (!supervisorBotInstance || !supervisorBotStarted) {
+  if (!supervisorBotInstance) {
     console.warn("No se envió la alerta de inspección: el bot de supervisión no está inicializado.");
     return;
+  }
+
+  // Enviar mensajes no requiere que el polling haya arrancado. Esto permite
+  // notificar al grupo incluso mientras se resuelve un 409 de getUpdates.
+  if (!supervisorBotStarted) {
+    console.warn("El polling del bot de supervisión aún no está activo; se intentará enviar la alerta al grupo de todos modos.");
   }
 
   const message = [

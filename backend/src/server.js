@@ -17,6 +17,13 @@ const port = Number(
 
 let httpServer = null;
 
+function isTelegramPollingEnabled() {
+  // En desarrollo se desactiva por defecto: ejecutar Render y el equipo local
+  // con el mismo token provoca el 409 de getUpdates. Actívalo explícitamente
+  // solo si el otro proceso está detenido o se usan tokens de desarrollo.
+  return process.env.NODE_ENV === "production" || process.env.TELEGRAM_POLLING_ENABLED === "true";
+}
+
 async function startServer() {
   try {
     await databasePool.query("SELECT 1");
@@ -41,16 +48,20 @@ async function startServer() {
       );
     }
 
-    try {
-      await startTelegramBot();
-    } catch (botErr) {
-      console.error("Error al intentar iniciar el bot de conductores:", botErr.message);
-    }
+    if (isTelegramPollingEnabled()) {
+      try {
+        await startTelegramBot();
+      } catch (botErr) {
+        console.error("Error al intentar iniciar el bot de conductores:", botErr.message);
+      }
 
-    try {
-      await startSupervisorBot();
-    } catch (supErr) {
-      console.error("Error al intentar iniciar el bot de supervisores:", supErr.message);
+      try {
+        await startSupervisorBot();
+      } catch (supErr) {
+        console.error("Error al intentar iniciar el bot de supervisores:", supErr.message);
+      }
+    } else {
+      console.log("Polling de Telegram desactivado en desarrollo. Define TELEGRAM_POLLING_ENABLED=true solo si no hay otra instancia usando esos tokens.");
     }
   } catch (error) {
     console.error(

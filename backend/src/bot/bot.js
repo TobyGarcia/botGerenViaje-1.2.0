@@ -13,7 +13,7 @@ function delay(ms) {
 
 // Reintenta el arranque del bot si Telegram responde con 409 (conflicto por
 // una instancia previa que aún no terminó de apagarse durante un deploy).
-async function launchWithRetry(bot, { maxAttempts = 5, baseDelayMs = 4000 } = {}) {
+async function launchWithRetry(bot, { maxAttempts = 10, baseDelayMs = 3000 } = {}) {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await bot.telegram.deleteWebhook({ drop_pending_updates: true });
@@ -32,7 +32,7 @@ async function launchWithRetry(bot, { maxAttempts = 5, baseDelayMs = 4000 } = {}
         return false;
       }
 
-      const waitMs = baseDelayMs * attempt;
+      const waitMs = Math.min(baseDelayMs * (2 ** (attempt - 1)), 30000);
       console.warn(
         `Conflicto 409 al iniciar el bot de Telegram (intento ${attempt}/${maxAttempts}). Reintentando en ${waitMs / 1000}s...`
       );
