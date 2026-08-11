@@ -1342,6 +1342,41 @@
 
 .notification-button { display:flex!important; align-items:center; justify-content:space-between; }
 .notification-button strong { display:grid; place-items:center; min-width:24px; height:24px; padding:0 6px; border-radius:999px; color:#fff; background:#d83b3b; font-size:.75rem; }
+
+/* Navegación compacta y desplegable */
+.admin-layout { grid-template-columns: 272px minmax(0, 1fr); transition: grid-template-columns .2s ease; }
+.sidebar { width:272px; min-width:272px; box-sizing:border-box; transition:width .2s ease, min-width .2s ease, padding .2s ease; }
+.sidebar-collapsed { grid-template-columns:76px minmax(0,1fr); }
+.sidebar-collapsed .sidebar { width:76px; min-width:76px; padding:22px 12px; overflow-x:visible; }
+.sidebar-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:32px; }
+.sidebar-brand { display:flex; align-items:center; gap:10px; margin:0; white-space:nowrap; overflow:hidden; }
+.brand-mark { display:grid; flex:0 0 34px; width:34px; height:34px; place-items:center; border-radius:10px; background:#2ab4d7; font-size:.78rem; letter-spacing:.04em; }
+.sidebar-toggle { width:36px!important; min-width:36px; height:36px; padding:0!important; display:grid; place-items:center; background:rgba(255,255,255,.13)!important; font-size:1.1rem!important; text-align:center!important; }
+.sidebar nav button,.logout-button { display:flex!important; align-items:center; gap:12px; min-height:46px; white-space:nowrap; }
+.nav-icon { display:grid; flex:0 0 22px; width:22px; place-items:center; font-size:1.08rem; text-align:center; }
+.sidebar-collapsed .sidebar-text,.sidebar-collapsed .brand-mark + .sidebar-text { display:none; }
+.sidebar-collapsed .sidebar-brand { width:0; overflow:visible; }
+.sidebar-collapsed .sidebar nav button,.sidebar-collapsed .logout-button { justify-content:center; padding:12px!important; }
+.sidebar-collapsed .notification-button strong { position:absolute; top:3px; right:3px; min-width:16px; height:16px; padding:0 3px; font-size:.62rem; }
+.sidebar-collapsed .notification-button { position:relative; }
+.user-summary { display:flex; align-items:center; gap:10px; border:1px solid #d5e5ec; color:#244e61; cursor:pointer; font:inherit; text-align:left; }
+.user-summary-copy { display:grid; gap:4px; }
+.header-avatar { display:grid; width:38px; height:38px; flex:0 0 38px; place-items:center; overflow:hidden; border-radius:50%; color:white; background:#138caf; font-weight:800; }
+.header-avatar img { width:100%; height:100%; object-fit:cover; }
+
+.profile-form { display:grid; grid-template-columns:minmax(260px,.7fr) minmax(0,1.4fr); gap:34px; max-width:960px; padding:28px; border:1px solid #d6e7ee; border-radius:18px; background:#fff; }
+.profile-photo-panel { display:flex; align-items:center; flex-direction:column; justify-content:center; gap:18px; padding:24px; border-radius:14px; background:#f4fafc; }
+.profile-photo-large { display:grid; width:220px; height:220px; place-items:center; overflow:hidden; border:6px solid #ddecf2; border-radius:50%; color:#fff; background:#168db3; font-size:4rem; font-weight:800; }
+.profile-photo-large img { width:100%; height:100%; object-fit:cover; }
+.profile-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.profile-fields label,.crop-zoom { display:grid; gap:7px; color:#315566; font-weight:700; }
+.profile-fields input { width:100%; box-sizing:border-box; padding:12px 14px; border:1px solid #cadde6; border-radius:9px; background:#f9fcfd; color:#173c4d; font:inherit; }
+.visually-hidden { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
+.crop-modal { width:min(560px,100%); }
+.crop-canvas { display:block; width:min(420px,100%); aspect-ratio:1; margin:0 auto 22px; border-radius:14px; background:#e8f1f5; }
+.crop-zoom input { accent-color:#1ba8ce; }
+.user-form-modal { width:min(760px,100%); }
+@media(max-width:900px){.profile-form{grid-template-columns:1fr}.profile-fields{grid-template-columns:1fr}.admin-layout,.sidebar-collapsed{grid-template-columns:1fr}.sidebar,.sidebar-collapsed .sidebar{position:static;width:auto;min-width:0;height:auto;padding:16px 18px}.sidebar-collapsed .sidebar-text{display:inline}.sidebar-collapsed .sidebar nav button,.sidebar-collapsed .logout-button{justify-content:flex-start;padding:12px 14px!important}.sidebar-collapsed .sidebar-brand{width:auto}.sidebar-collapsed .notification-button strong{position:static}.sidebar-toggle{display:none!important}}
 .inspection-status { display:inline-flex; padding:5px 8px; border-radius:999px; font-size:.75rem; font-weight:800; }
 .inspection-status-pendiente_aprobacion { color:#7a560b; background:#fff0c9; }
 .inspection-status-aprobada { color:#12643e; background:#e4f7ed; }

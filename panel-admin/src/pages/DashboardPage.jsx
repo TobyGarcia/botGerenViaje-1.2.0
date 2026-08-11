@@ -96,6 +96,7 @@ function DashboardPage({
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
   const [notificationError, setNotificationError] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
@@ -116,25 +117,24 @@ function DashboardPage({
   }, [user.rol]);
 
   const modules = [
-    { id: "conductores", label: "Conductores", roles: ["ADMINISTRADOR"] },
-    { id: "unidades", label: "Unidades", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "destinos", label: "Destinos", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "ubicaciones", label: "Ubicaciones", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
+    { id: "conductores", label: "Conductores", icon: "👤", roles: ["ADMINISTRADOR"] },
+    { id: "unidades", label: "Unidades", icon: "🚐", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "destinos", label: "Destinos", icon: "📍", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "ubicaciones", label: "Ubicaciones", icon: "🗺️", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
+    { id: "viajes", label: "Viajes", icon: "🧳", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
   ].filter((module) => module.roles.includes(user.rol));
   const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
 
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          Gerenciamiento viajes
-        </div>
+        <div className="sidebar-top"><div className="sidebar-brand"><span className="brand-mark">GV</span><span className="sidebar-text">Gerenciamiento viajes</span></div><button type="button" className="sidebar-toggle" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? "Desplegar menú" : "Ocultar menú"}>☰</button></div>
 
         <nav>
-          {canInspect && <button type="button" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span>🔔 Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
+          {canInspect && <button type="button" title="Inspecciones" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span className="nav-icon">🔔</span><span className="sidebar-text">Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
           <button
             type="button"
+            title="Inicio"
             className={
               activeModule === "inicio"
               ? "sidebar-active"
@@ -144,7 +144,7 @@ function DashboardPage({
               setActiveModule("inicio")
             }
           >
-            Inicio
+            <span className="nav-icon">⌂</span><span className="sidebar-text">Inicio</span>
           </button>
 
           {modules.map((module) => (
@@ -158,10 +158,11 @@ function DashboardPage({
               }
               onClick={() => setActiveModule(module.id)}
             >
-              {module.label}
+              <span className="nav-icon">{module.icon}</span><span className="sidebar-text">{module.label}</span>
             </button>
           ))}
-          {user.rol === "ADMINISTRADOR" && <button type="button" className={activeModule === "usuarios" ? "sidebar-active" : ""} onClick={() => setActiveModule("usuarios")}>Administrador de usuarios</button>}
+          {user.rol === "ADMINISTRADOR" && <button type="button" title="Administrador de usuarios" className={activeModule === "usuarios" ? "sidebar-active" : ""} onClick={() => setActiveModule("usuarios")}><span className="nav-icon">👥</span><span className="sidebar-text">Administrador de usuarios</span></button>}
+          <button type="button" title="Configuración" className={activeModule === "perfil" ? "sidebar-active" : ""} onClick={() => setActiveModule("perfil")}><span className="nav-icon">⚙️</span><span className="sidebar-text">Configuración</span></button>
         </nav>
 
         <button
@@ -169,7 +170,7 @@ function DashboardPage({
           className="logout-button"
           onClick={onLogout}
         >
-          Cerrar sesión
+          <span className="nav-icon">↪</span><span className="sidebar-text">Cerrar sesión</span>
         </button>
       </aside>
 
@@ -188,12 +189,15 @@ function DashboardPage({
               </div>
 
               <button type="button" className="user-summary" onClick={() => setActiveModule("perfil")} title="Personalizar perfil">
+                <span className="header-avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.nombre?.charAt(0)}</span>
+                <span className="user-summary-copy">
                 <strong>
                   {user.username}
                 </strong>
 
                 <span>
                   {user.rol}
+                </span>
                 </span>
               </button>
             </header>
