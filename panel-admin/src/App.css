@@ -1360,7 +1360,8 @@
 .sidebar-collapsed .notification-button strong { position:absolute; top:3px; right:3px; min-width:16px; height:16px; padding:0 3px; font-size:.62rem; }
 .sidebar-collapsed .notification-button { position:relative; }
 .sidebar-collapsed .sidebar { position:sticky; z-index:30; }
-.sidebar-collapsed .sidebar:hover { width:272px; min-width:272px; padding:28px 20px; box-shadow:18px 0 36px rgba(10,54,72,.18); }
+.sidebar-collapsed .sidebar:hover { width:272px; min-width:272px; padding:22px 12px; box-shadow:18px 0 36px rgba(10,54,72,.18); }
+.sidebar-collapsed .sidebar:hover nav { padding:0 8px; }
 .sidebar-collapsed .sidebar:hover .sidebar-text { display:inline; }
 .sidebar-collapsed .sidebar:hover .sidebar-brand { width:auto; overflow:hidden; }
 .sidebar-collapsed .sidebar:hover .sidebar nav button,.sidebar-collapsed .sidebar:hover .logout-button { justify-content:flex-start; padding:12px 14px!important; }

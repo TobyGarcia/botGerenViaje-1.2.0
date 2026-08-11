@@ -31,6 +31,12 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function updateExpiry(part, value) {
+    const [year = "", month = "", day = ""] = form.licenciaVencimiento.split("-");
+    const next = { year, month, day, [part]: value };
+    setForm((current) => ({ ...current, licenciaVencimiento: next.year && next.month && next.day ? `${next.year}-${next.month}-${next.day}` : "" }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (savingRef.current) return;
@@ -70,7 +76,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         </label>
         <label>
           Fecha de vencimiento
-          <input name="licenciaVencimiento" type="date" value={form.licenciaVencimiento} onChange={handleChange} required />
+          <span className="date-selects"><select value={form.licenciaVencimiento.split("-")[2] || ""} onChange={e=>updateExpiry("day",e.target.value)} required><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.licenciaVencimiento.split("-")[1] || ""} onChange={e=>updateExpiry("month",e.target.value)} required><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.licenciaVencimiento.split("-")[0] || ""} onChange={e=>updateExpiry("year",e.target.value)} required><option value="">yyyy</option>{Array.from({length:16},(_,i)=>String(new Date().getFullYear()+i)).map(year=><option key={year}>{year}</option>)}</select></span>
         </label>
         <label>
           Tipo de licencia

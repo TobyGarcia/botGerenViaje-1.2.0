@@ -96,7 +96,6 @@ function DashboardPage({
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
   const [notificationError, setNotificationError] = useState("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
@@ -126,9 +125,9 @@ function DashboardPage({
   const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
 
   return (
-    <div className={`admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div className="admin-layout sidebar-collapsed">
       <aside className="sidebar">
-        <div className="sidebar-top"><div className="sidebar-brand"><span className="brand-mark">GV</span><span className="sidebar-text">Gerenciamiento viajes</span></div><button type="button" className="sidebar-toggle" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? "Desplegar menú" : "Ocultar menú"}>☰</button></div>
+        <div className="sidebar-top"><div className="sidebar-brand"><span className="brand-mark">GV</span><span className="sidebar-text">Gerenciamiento viajes</span></div></div>
 
         <nav>
           {canInspect && <button type="button" title="Inspecciones" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span className="nav-icon">🔔</span><span className="sidebar-text">Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
