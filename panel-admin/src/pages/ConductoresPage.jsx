@@ -221,17 +221,9 @@ function ConductoresPage() {
   async function handleStatusChange(
     conductor
   ) {
-    const nextStatus =
-      !conductor.activo;
-
-    const action =
-      nextStatus
-        ? "reactivar"
-        : "dar de baja";
-
     const confirmed =
       window.confirm(
-        `¿Confirmas que deseas ${action} a ${conductor.nombre}?`
+        `¿Eliminar permanentemente a ${conductor.nombre}? También se eliminará su usuario de Telegram. Sus viajes históricos se conservarán.`
       );
 
     if (!confirmed) {
@@ -248,19 +240,11 @@ function ConductoresPage() {
       const response =
         await updateAdminConductorStatus(
           conductor.id_conductores,
-          nextStatus
+          false
         );
 
       setConductores((current) =>
-        current.map((item) =>
-          item.id_conductores ===
-          conductor.id_conductores
-            ? {
-                ...item,
-                ...response.data
-              }
-            : item
-        )
+        current.filter((item) => item.id_conductores !== conductor.id_conductores)
       );
 
       setMessage(
@@ -269,23 +253,6 @@ function ConductoresPage() {
 
       setMessageType("success");
 
-      /*
-       * Si el filtro actual ya no incluye
-       * el nuevo estado, recargamos.
-       */
-      if (
-        status === "ACTIVOS" &&
-        !nextStatus
-      ) {
-        await loadConductores();
-      }
-
-      if (
-        status === "INACTIVOS" &&
-        nextStatus
-      ) {
-        await loadConductores();
-      }
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -618,8 +585,8 @@ function ConductoresPage() {
                           conductor.id_conductores
                             ? "Actualizando..."
                             : conductor.activo
-                              ? "Dar de baja"
-                              : "Reactivar"}
+                              ? "Eliminar"
+                              : "Eliminar"}
                         </button>
                       </td>
                     </tr>

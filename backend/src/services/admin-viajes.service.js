@@ -137,12 +137,12 @@ export async function listAdminTrips({
           v.actualizado_en,
 
           c.id_conductores,
-          c.nombre AS conductor,
+          COALESCE(c.nombre, v.conductor_nombre_historico, 'Conductor eliminado') AS conductor,
 
           vh.id_vehiculos,
-          vh.nombre AS vehiculo,
-          vh.numero_economico,
-          vh.placas,
+          COALESCE(vh.nombre, v.vehiculo_nombre_historico, 'Unidad eliminada') AS vehiculo,
+          COALESCE(vh.numero_economico, v.vehiculo_numero_economico_historico) AS numero_economico,
+          COALESCE(vh.placas, v.vehiculo_placas_historico) AS placas,
 
           origen.id_lugares AS id_origen,
           origen.nombre AS origen,
@@ -161,11 +161,11 @@ export async function listAdminTrips({
 
         FROM viajes v
 
-        INNER JOIN conductores c
+        LEFT JOIN conductores c
           ON c.id_conductores =
              v.id_conductores
 
-        INNER JOIN vehiculos vh
+        LEFT JOIN vehiculos vh
           ON vh.id_vehiculos =
              v.id_vehiculos
 
@@ -191,10 +191,14 @@ export async function listAdminTrips({
           v.id_viajes,
           c.id_conductores,
           c.nombre,
+          v.conductor_nombre_historico,
           vh.id_vehiculos,
           vh.nombre,
           vh.numero_economico,
           vh.placas,
+          v.vehiculo_nombre_historico,
+          v.vehiculo_numero_economico_historico,
+          v.vehiculo_placas_historico,
           origen.id_lugares,
           origen.nombre,
           origen.direccion,
@@ -238,12 +242,12 @@ export async function getAdminTripById(
           v.actualizado_en,
 
           c.id_conductores,
-          c.nombre AS conductor,
+          COALESCE(c.nombre, v.conductor_nombre_historico, 'Conductor eliminado') AS conductor,
 
           vh.id_vehiculos,
-          vh.nombre AS vehiculo,
-          vh.numero_economico,
-          vh.placas,
+          COALESCE(vh.nombre, v.vehiculo_nombre_historico, 'Unidad eliminada') AS vehiculo,
+          COALESCE(vh.numero_economico, v.vehiculo_numero_economico_historico) AS numero_economico,
+          COALESCE(vh.placas, v.vehiculo_placas_historico) AS placas,
 
           origen.id_lugares AS id_origen,
           origen.nombre AS origen,
@@ -258,11 +262,11 @@ export async function getAdminTripById(
 
         FROM viajes v
 
-        INNER JOIN conductores c
+        LEFT JOIN conductores c
           ON c.id_conductores =
              v.id_conductores
 
-        INNER JOIN vehiculos vh
+        LEFT JOIN vehiculos vh
           ON vh.id_vehiculos =
              v.id_vehiculos
 

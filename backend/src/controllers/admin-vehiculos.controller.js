@@ -299,11 +299,12 @@ export async function updateAdminVehicleStatusController(
         success: true,
         data: updatedVehicle,
         message:
-          activo
-            ? "Vehículo reactivado correctamente."
-            : "Vehículo dado de baja correctamente."
+          "Vehículo eliminado. El historial de viajes se conserva."
       });
   } catch (error) {
+    if (["TRIP_IN_PROGRESS", "VEHICLE_DELETED"].includes(error.code)) {
+      return response.status(409).json({ success: false, message: error.message });
+    }
     console.error(
       "Error actualizando vehículo:",
       error.message

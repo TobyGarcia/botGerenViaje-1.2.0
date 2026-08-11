@@ -190,38 +190,22 @@ export async function updateAdminDriverStatus({
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
-    const result =
-    await client.query(
-      `
-        UPDATE conductores
-        SET
-          activo = $1
-        WHERE id_conductores = $2
-        RETURNING
-          id_conductores,
-          nombre,
-          telefono,
-          licencia_numero,
-          licencia_vencimiento,
-          licencia_vigente,
-          activo
-      `,
-      [
-        activo,
-        idConductor
-      ]
-    );
-
-    const driver = result.rows[0] ?? null;
-
-    // Dar de baja al conductor también deshabilita sus cuentas vinculadas,
-    // sin borrar viajes ni su evidencia histórica.
-    if (driver && !activo) {
-      await client.query("UPDATE usuarios_telegram SET activo=FALSE WHERE id_conductores=$1", [idConductor]);
-      await client.query("UPDATE usuarios_admin SET activo=FALSE, actualizado_en=CURRENT_TIMESTAMP WHERE id_conductores=$1", [idConductor]);
+    if (activo) {
+      const error = new Error("Un conductor eliminado no puede reactivarse; crea un registro nuevo.");
+      error.code = "DRIVER_DELETED";
+      throw error;
     }
+    const inProgress = await client.query(`SELECT 1 FROM viajes v INNER JOIN estados_viaje e ON e.id_estado_viaje=v.id_estado_viaje WHERE v.id_conductores=$1 AND e.nombre='EN_CURSO' LIMIT 1`, [idConductor]);
+    if (inProgress.rows[0]) {
+      const error = new Error("No se puede eliminar un conductor con un viaje en curso.");
+      error.code = "TRIP_IN_PROGRESS";
+      throw error;
+    }
+    await client.query(`UPDATE viajes v SET conductor_nombre_historico=COALESCE(v.conductor_nombre_historico,c.nombre) FROM conductores c WHERE v.id_conductores=$1 AND c.id_conductores=$1`, [idConductor]);
+    const result = await client.query(`DELETE FROM conductores WHERE id_conductores=$1 RETURNING id_conductores, nombre`, [idConductor]);
+    const driver = result.rows[0] ?? null;
     await client.query("COMMIT");
-    return driver;
+    return driver ? { ...driver, deleted: true } : null;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

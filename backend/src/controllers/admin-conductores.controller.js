@@ -235,11 +235,12 @@ export async function updateAdminDriverStatusController(
         success: true,
         data: updatedDriver,
         message:
-          activo
-            ? "Conductor reactivado correctamente."
-            : "Conductor dado de baja correctamente."
+          "Conductor y su usuario de Telegram eliminados. El historial de viajes se conserva."
       });
   } catch (error) {
+    if (["TRIP_IN_PROGRESS", "DRIVER_DELETED"].includes(error.code)) {
+      return response.status(409).json({ success: false, message: error.message });
+    }
     console.error(
       "Error actualizando conductor:",
       error.message

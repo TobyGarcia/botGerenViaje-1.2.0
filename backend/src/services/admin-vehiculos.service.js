@@ -317,27 +317,21 @@ export async function updateAdminVehicleStatus({
   idVehiculo,
   activo
 }) {
-  const result =
-    await databasePool.query(
-      `
-        UPDATE vehiculos
-        SET
-          activo = $1
-        WHERE id_vehiculos = $2
-        RETURNING
-          id_vehiculos,
-          nombre,
-          numero_economico,
-          placas,
-          activo
-      `,
-      [
-        activo,
-        idVehiculo
-      ]
-    );
-
-  return result.rows[0] ?? null;
+  if (activo) {
+    const error = new Error("Una unidad eliminada no puede reactivarse; registra una nueva.");
+    error.code = "VEHICLE_DELETED";
+    throw error;
+  }
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    const inProgress = await client.query(`SELECT 1 FROM viajes v INNER JOIN estados_viaje e ON e.id_estado_viaje=v.id_estado_viaje WHERE v.id_vehiculos=$1 AND e.nombre='EN_CURSO' LIMIT 1`, [idVehiculo]);
+    if (inProgress.rows[0]) { const error = new Error("No se puede eliminar una unidad con un viaje en curso."); error.code="TRIP_IN_PROGRESS"; throw error; }
+    await client.query(`UPDATE viajes v SET vehiculo_nombre_historico=COALESCE(v.vehiculo_nombre_historico,vh.nombre), vehiculo_numero_economico_historico=COALESCE(v.vehiculo_numero_economico_historico,vh.numero_economico), vehiculo_placas_historico=COALESCE(v.vehiculo_placas_historico,vh.placas) FROM vehiculos vh WHERE v.id_vehiculos=$1 AND vh.id_vehiculos=$1`, [idVehiculo]);
+    const result = await client.query(`DELETE FROM vehiculos WHERE id_vehiculos=$1 RETURNING id_vehiculos, nombre`, [idVehiculo]);
+    await client.query("COMMIT");
+    return result.rows[0] ? { ...result.rows[0], deleted: true } : null;
+  } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
 export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento }) {

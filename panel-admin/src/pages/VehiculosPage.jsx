@@ -239,17 +239,9 @@ function VehiculosPage({ user }) {
   async function handleStatusChange(
     vehiculo
   ) {
-    const nextStatus =
-      !vehiculo.activo;
-
-    const action =
-      nextStatus
-        ? "reactivar"
-        : "dar de baja";
-
     const confirmed =
       window.confirm(
-        `¿Confirmas que deseas ${action} la unidad ${vehiculo.nombre}?`
+        `¿Eliminar permanentemente la unidad ${vehiculo.nombre}? Sus viajes e historial se conservarán.`
       );
 
     if (!confirmed) {
@@ -266,19 +258,11 @@ function VehiculosPage({ user }) {
       const response =
         await updateAdminVehiculoStatus(
           vehiculo.id_vehiculos,
-          nextStatus
+          false
         );
 
       setVehiculos((current) =>
-        current.map((item) =>
-          item.id_vehiculos ===
-          vehiculo.id_vehiculos
-            ? {
-                ...item,
-                ...response.data
-              }
-            : item
-        )
+        current.filter((item) => item.id_vehiculos !== vehiculo.id_vehiculos)
       );
 
       setMessage(
@@ -287,19 +271,6 @@ function VehiculosPage({ user }) {
 
       setMessageType("success");
 
-      if (
-        status === "ACTIVOS" &&
-        !nextStatus
-      ) {
-        await loadVehiculos();
-      }
-
-      if (
-        status === "INACTIVOS" &&
-        nextStatus
-      ) {
-        await loadVehiculos();
-      }
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -565,8 +536,8 @@ function VehiculosPage({ user }) {
                           vehiculo.id_vehiculos
                             ? "Actualizando..."
                             : vehiculo.activo
-                              ? "Dar de baja"
-                              : "Reactivar"}
+                              ? "Eliminar"
+                              : "Eliminar"}
                         </button>}
                       </td>
                     </tr>
