@@ -21,7 +21,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     licenciaNumero: "",
     tipoLicencia: "",
     empresa: "",
-    licenciaVencimiento: ""
+    licenciaVencimiento: "",
+    vencimientoDia: "",
+    vencimientoMes: "",
+    vencimientoAnio: ""
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -32,9 +35,15 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
   }
 
   function updateExpiry(part, value) {
-    const [year = "", month = "", day = ""] = form.licenciaVencimiento.split("-");
-    const next = { year, month, day, [part]: value };
-    setForm((current) => ({ ...current, licenciaVencimiento: next.year && next.month && next.day ? `${next.year}-${next.month}-${next.day}` : "" }));
+    setForm((current) => {
+      const next = { ...current, [part]: value };
+      return {
+        ...next,
+        licenciaVencimiento: next.vencimientoAnio && next.vencimientoMes && next.vencimientoDia
+          ? `${next.vencimientoAnio}-${next.vencimientoMes}-${next.vencimientoDia}`
+          : ""
+      };
+    });
   }
 
   async function handleSubmit(event) {
@@ -76,7 +85,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         </label>
         <label>
           Fecha de vencimiento
-          <span className="date-selects"><select value={form.licenciaVencimiento.split("-")[2] || ""} onChange={e=>updateExpiry("day",e.target.value)} required><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.licenciaVencimiento.split("-")[1] || ""} onChange={e=>updateExpiry("month",e.target.value)} required><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.licenciaVencimiento.split("-")[0] || ""} onChange={e=>updateExpiry("year",e.target.value)} required><option value="">yyyy</option>{Array.from({length:16},(_,i)=>String(new Date().getFullYear()+i)).map(year=><option key={year}>{year}</option>)}</select></span>
+          <span className="date-selects"><select value={form.vencimientoDia} onChange={e=>updateExpiry("vencimientoDia",e.target.value)} required><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.vencimientoMes} onChange={e=>updateExpiry("vencimientoMes",e.target.value)} required><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.vencimientoAnio} onChange={e=>updateExpiry("vencimientoAnio",e.target.value)} required><option value="">yyyy</option>{Array.from({length:16},(_,i)=>String(new Date().getFullYear()+i)).map(year=><option key={year}>{year}</option>)}</select></span>
         </label>
         <label>
           Tipo de licencia

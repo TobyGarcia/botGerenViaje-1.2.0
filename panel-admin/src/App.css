@@ -1362,6 +1362,8 @@
 .sidebar-collapsed .sidebar { position:sticky; z-index:30; }
 .sidebar-collapsed .sidebar:hover { width:272px; min-width:272px; padding:22px 12px; box-shadow:18px 0 36px rgba(10,54,72,.18); }
 .sidebar-collapsed .sidebar:hover nav { padding:0 8px; }
+.sidebar nav button,.sidebar .notification-button,.sidebar .logout-button { justify-content:flex-start!important; text-align:left!important; }
+.sidebar .notification-button strong { margin-left:auto; }
 .sidebar-collapsed .sidebar:hover .sidebar-text { display:inline; }
 .sidebar-collapsed .sidebar:hover .sidebar-brand { width:auto; overflow:hidden; }
 .sidebar-collapsed .sidebar:hover .sidebar nav button,.sidebar-collapsed .sidebar:hover .logout-button { justify-content:flex-start; padding:12px 14px!important; }
