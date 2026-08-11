@@ -30,13 +30,10 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
-      return undefined;
-    }
     getAdminDashboardSummary()
       .then((response) => setSummary(response.data))
       .catch((requestError) => setError(requestError.message));
-  }, [user.rol]);
+  }, []);
 
   if (error) return <p className="module-message module-message-error">{error}</p>;
   if (!summary) return <p className="table-status">Cargando indicadores...</p>;
@@ -101,6 +98,9 @@ function DashboardPage({
   const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
+    if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
+      return undefined;
+    }
     let active = true;
     const refresh = () => getAdminInspeccionesPendientesCount()
       .then((response) => {
@@ -113,7 +113,7 @@ function DashboardPage({
       });
     refresh(); const timer = window.setInterval(refresh, 30000);
     return () => { active=false; window.clearInterval(timer); };
-  }, []);
+  }, [user.rol]);
 
   const modules = [
     { id: "conductores", label: "Conductores", roles: ["ADMINISTRADOR"] },
