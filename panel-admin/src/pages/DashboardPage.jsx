@@ -96,7 +96,7 @@ function DashboardPage({
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
   const [notificationError, setNotificationError] = useState("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {

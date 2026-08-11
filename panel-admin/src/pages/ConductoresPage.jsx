@@ -15,8 +15,14 @@ const initialForm = {
   telefono: "",
   licenciaNumero: "",
   tipoLicencia: "",
+  empresa: "",
   licenciaVencimiento: ""
 };
+
+const empresas = ["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"];
+const dias = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const anios = Array.from({ length: 16 }, (_, index) => String(new Date().getFullYear() + index));
 
 function formatDate(value) {
   if (!value) {
@@ -164,6 +170,12 @@ function ConductoresPage() {
     setMessage("");
   }
 
+  function updateExpiry(part, value) {
+    const [year = "", month = "", day = ""] = form.licenciaVencimiento.split("-");
+    const next = { year, month, day, [part]: value };
+    setForm((current) => ({ ...current, licenciaVencimiento: next.year && next.month && next.day ? `${next.year}-${next.month}-${next.day}` : "" }));
+  }
+
   function closeForm() {
     if (saving) {
       return;
@@ -246,6 +258,7 @@ function ConductoresPage() {
       setConductores((current) =>
         current.filter((item) => item.id_conductores !== conductor.id_conductores)
       );
+      await loadConductores();
 
       setMessage(
         response.message
@@ -423,17 +436,13 @@ function ConductoresPage() {
               </label>
 
               <label>
-                Vencimiento de licencia
+                Empresa
+                <select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{empresas.map((empresa) => <option key={empresa} value={empresa}>{empresa}</option>)}</select>
+              </label>
 
-                <input
-                  type="date"
-                  name="licenciaVencimiento"
-                  value={
-                    form.licenciaVencimiento
-                  }
-                  onChange={handleChange}
-                  required
-                />
+              <label>
+                Vencimiento de licencia
+                <span className="date-selects"><select value={form.licenciaVencimiento.split("-")[2] || ""} onChange={e=>updateExpiry("day",e.target.value)} required><option value="">Día</option>{dias.map(day=><option key={day}>{day}</option>)}</select><select value={form.licenciaVencimiento.split("-")[1] || ""} onChange={e=>updateExpiry("month",e.target.value)} required><option value="">Mes</option>{meses.map((month,index)=><option key={month} value={String(index+1).padStart(2,"0")}>{month}</option>)}</select><select value={form.licenciaVencimiento.split("-")[0] || ""} onChange={e=>updateExpiry("year",e.target.value)} required><option value="">Año</option>{anios.map(year=><option key={year}>{year}</option>)}</select></span>
               </label>
 
               <label>
@@ -482,6 +491,7 @@ function ConductoresPage() {
                 <tr>
                   <th>Conductor</th>
                   <th>Teléfono</th>
+                  <th>Empresa</th>
                   <th>Licencia</th>
                   <th>Vencimiento</th>
                   <th>Telegram</th>
@@ -508,6 +518,8 @@ function ConductoresPage() {
                         {conductor.telefono ||
                           "No registrado"}
                       </td>
+
+                      <td>{conductor.empresa || "No registrada"}</td>
 
                       <td>
                         <span>

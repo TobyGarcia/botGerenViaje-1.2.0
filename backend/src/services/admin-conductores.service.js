@@ -53,6 +53,7 @@ export async function listAdminDrivers({
         SELECT
           c.id_conductores,
           c.nombre,
+          c.empresa,
           c.telefono,
           c.licencia_numero,
           c.tipo_licencia,
@@ -87,6 +88,7 @@ export async function createAdminDriver({
   telefono,
   licenciaNumero,
   tipoLicencia,
+  empresa,
   licenciaVencimiento
 }) {
   const expirationDate =
@@ -139,6 +141,7 @@ export async function createAdminDriver({
             telefono,
             licencia_numero,
             tipo_licencia,
+            empresa,
             licencia_vencimiento,
             licencia_vigente,
             activo
@@ -150,6 +153,7 @@ export async function createAdminDriver({
             $4,
             $5,
             $6,
+            $7,
             TRUE
           )
           RETURNING
@@ -158,6 +162,7 @@ export async function createAdminDriver({
             telefono,
             licencia_numero,
             tipo_licencia,
+            empresa,
             licencia_vencimiento,
             licencia_vigente,
             activo
@@ -167,6 +172,7 @@ export async function createAdminDriver({
           telefono,
           licenciaNumero,
           tipoLicencia,
+          empresa,
           licenciaVencimiento,
           licenciaVigente
         ]

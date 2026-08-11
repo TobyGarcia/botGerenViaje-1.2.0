@@ -124,6 +124,8 @@ export function createAdminConductor(
         tipoLicencia:
           conductor.tipoLicencia,
 
+        empresa: conductor.empresa,
+
         licenciaVencimiento:
           conductor.licenciaVencimiento
       })

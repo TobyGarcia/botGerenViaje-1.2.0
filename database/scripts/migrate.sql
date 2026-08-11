@@ -10,3 +10,4 @@
 \ir ../migrations/008_supervisores_telegram.sql
 \ir ../migrations/009_roles_perfiles_y_conservacion_historial.sql
 \ir ../migrations/010_eliminacion_fisica_catalogos_con_historial.sql
+\ir ../migrations/011_empresa_conductor.sql

@@ -23,6 +23,8 @@ function normalizeDriverInput(body) {
 
     tipoLicencia: String(body?.tipoLicencia || "").trim(),
 
+    empresa: String(body?.empresa || "").trim().toUpperCase(),
+
     licenciaVencimiento:
       String(
         body?.licenciaVencimiento || ""
@@ -51,6 +53,7 @@ function validateDriverInput(driver) {
   if (!driver.tipoLicencia) {
     return "El tipo de licencia es obligatorio.";
   }
+  if (!["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"].includes(driver.empresa)) return "Selecciona una empresa válida.";
 
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(

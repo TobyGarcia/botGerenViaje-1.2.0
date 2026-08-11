@@ -264,6 +264,7 @@ function VehiculosPage({ user }) {
       setVehiculos((current) =>
         current.filter((item) => item.id_vehiculos !== vehiculo.id_vehiculos)
       );
+      await loadVehiculos();
 
       setMessage(
         response.message

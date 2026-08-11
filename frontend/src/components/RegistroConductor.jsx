@@ -20,6 +20,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     telefono: "",
     licenciaNumero: "",
     tipoLicencia: "",
+    empresa: "",
     licenciaVencimiento: ""
   });
   const [saving, setSaving] = useState(false);
@@ -75,6 +76,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
           Tipo de licencia
           <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} maxLength="50" placeholder="Ej. Federal B" required />
         </label>
+        <label>Empresa<select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"].map(empresa=><option key={empresa}>{empresa}</option>)}</select></label>
         <button type="submit" disabled={saving}>
           {saving ? "Guardando..." : "Completar registro"}
         </button>
