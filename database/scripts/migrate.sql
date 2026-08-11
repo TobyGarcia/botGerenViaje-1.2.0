@@ -8,3 +8,4 @@
 \ir ../migrations/006_datos_y_disponibilidad_vehiculos.sql
 \ir ../migrations/007_inspecciones_vehiculares.sql
 \ir ../migrations/008_supervisores_telegram.sql
+\ir ../migrations/009_roles_perfiles_y_conservacion_historial.sql

@@ -8,6 +8,7 @@ import {
   getAdminViajeDetalle,
   getAdminViajes
 } from "../services/api.js";
+import TripMap from "../components/TripMap.jsx";
 
 function formatDate(value) {
   if (!value) {
@@ -103,7 +104,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function ViajesPage() {
+function ViajesPage({ user }) {
+  const canDelete = user?.rol === "ADMINISTRADOR";
   const [viajes, setViajes] =
     useState([]);
 
@@ -716,7 +718,7 @@ function ViajesPage() {
                             Ver detalle
                           </button>
 
-                          <button
+                          {canDelete && <button
                             type="button"
                             className="danger-button"
                             onClick={() =>
@@ -726,7 +728,7 @@ function ViajesPage() {
                             }
                           >
                             Eliminar
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -967,6 +969,20 @@ function ViajesPage() {
                             .join(", ")
                         : "Sin acompañantes"}
                     </p>
+                  </div>
+                </section>
+
+                <section className="trip-text-detail">
+                  <div>
+                    <span>Ubicación GPS actual</span>
+                    <TripMap locations={selectedLocations.map((location) => ({
+                      idUbicacion: location.id_ubicaciones_viaje,
+                      latitud: location.latitud,
+                      longitud: location.longitud,
+                      fechaGps: location.fecha_gps,
+                      precisionMetros: location.precision_metros,
+                      velocidad: location.velocidad
+                    }))} />
                   </div>
                 </section>
 

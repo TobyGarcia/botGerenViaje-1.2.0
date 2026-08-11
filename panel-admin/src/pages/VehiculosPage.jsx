@@ -29,7 +29,8 @@ const initialForm = {
 };
 
 function VehiculosPage({ user }) {
-  const canManageMileage = ["ADMINISTRADOR", "SUPERVISOR"].includes(user?.rol);
+  const canManageMileage = user?.rol === "ADMINISTRADOR";
+  const canEditVehicle = user?.rol === "ADMINISTRADOR";
   const [vehiculos, setVehiculos] =
     useState([]);
 
@@ -532,18 +533,18 @@ function VehiculosPage({ user }) {
                         <button type="button" className="secondary-button" onClick={() => openDetail(vehiculo)}>
                           Ver detalle
                         </button>
-                        <button type="button" className="secondary-button" onClick={() => openForm(vehiculo)}>
+                        {canEditVehicle && <button type="button" className="secondary-button" onClick={() => openForm(vehiculo)}>
                           Modificar
-                        </button>
-                        <button
+                        </button>}
+                        {canEditVehicle && <button
                           type="button"
                           className="secondary-button"
                           disabled={updatingId === vehiculo.id_vehiculos || vehiculo.disponibilidad === "EN_VIAJE"}
                           onClick={() => handleMaintenanceChange(vehiculo)}
                         >
                           {vehiculo.en_mantenimiento ? "Retirar mantenimiento" : "Mantenimiento"}
-                        </button>
-                        <button
+                        </button>}
+                        {canEditVehicle && <button
                           type="button"
                           className={
                             vehiculo.activo
@@ -566,7 +567,7 @@ function VehiculosPage({ user }) {
                             : vehiculo.activo
                               ? "Dar de baja"
                               : "Reactivar"}
-                        </button>
+                        </button>}
                       </td>
                     </tr>
                   )
@@ -797,9 +798,9 @@ function VehiculosPage({ user }) {
             )}
             {detailVehicle && !detailLoading && (
               <div className="form-actions">
-                <button type="button" className="primary-button" onClick={() => { const vehicle = detailVehicle; setDetailVehicle(null); openForm(vehicle); }}>
+                {canEditVehicle && <button type="button" className="primary-button" onClick={() => { const vehicle = detailVehicle; setDetailVehicle(null); openForm(vehicle); }}>
                   Editar datos
-                </button>
+                </button>}
               </div>
             )}
           </section>

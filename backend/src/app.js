@@ -15,6 +15,7 @@ import adminInspeccionesRoutes from "./routes/admin-inspecciones.routes.js";
 import supervisorTelegramRoutes from "./routes/supervisor-telegram.routes.js";
 import supervisorInspeccionesRoutes from "./routes/supervisor-inspecciones.routes.js";
 import adminAuthRoutes from "./routes/admin-auth.routes.js";
+import adminUsuariosRoutes from "./routes/admin-usuarios.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -47,7 +48,7 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 
 app.use(express.urlencoded({
@@ -92,6 +93,7 @@ app.use(
   "/api/admin/auth",
   adminAuthRoutes
 );
+app.use("/api/admin/usuarios", adminUsuariosRoutes);
 
 app.use(
   "/api/admin/conductores",

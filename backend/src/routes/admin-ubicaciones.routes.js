@@ -10,6 +10,7 @@ import {
 import {
   requireAdminSession
 } from "../middlewares/admin-auth.middleware.js";
+import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router =
   Router();
@@ -20,11 +21,13 @@ router.use(
 
 router.get(
   "/",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"),
   listAdminTripLocationsController
 );
 
 router.get(
   "/:idViaje",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"),
   getAdminTripLocationDetailController
 );
 

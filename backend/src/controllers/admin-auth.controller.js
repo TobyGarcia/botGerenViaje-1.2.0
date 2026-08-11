@@ -22,6 +22,11 @@ function serializeAdminUser(user) {
     correo:
       user.correo,
 
+    telefono: user.telefono,
+    contactoEmergencia: user.contacto_emergencia,
+    avatarUrl: user.avatar_url,
+    idConductor: user.id_conductores ? Number(user.id_conductores) : null,
+
     rol:
       user.rol,
 

@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { requireAdminRoles, requireAdminSession } from "../middlewares/admin-auth.middleware.js";
+import { createAdminUserController, deleteAdminUserController, listAdminUsersController, updateAdminUserController, updateOwnProfileController } from "../controllers/admin-usuarios.controller.js";
+const router=Router();
+router.use(requireAdminSession);
+router.get("/perfil", (req,res) => res.json({success:true,data:req.adminUser}));
+router.patch("/perfil", updateOwnProfileController);
+router.use(requireAdminRoles("ADMINISTRADOR"));
+router.get("/", listAdminUsersController); router.post("/", createAdminUserController); router.patch("/:idUsuario", updateAdminUserController); router.delete("/:idUsuario", deleteAdminUserController);
+export default router;

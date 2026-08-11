@@ -4,7 +4,8 @@ import {
 
 export async function listAdminTripLocations({
   search = "",
-  status = "TODOS"
+  status = "TODOS",
+  idConductor = null
 } = {}) {
   const normalizedSearch = String(search).trim();
   const normalizedStatus = String(status).trim().toUpperCase();
@@ -28,6 +29,11 @@ export async function listAdminTripLocations({
   if (normalizedStatus && normalizedStatus !== "TODOS") {
     values.push(normalizedStatus);
     conditions.push(`UPPER(ev.nombre) = $${values.length}`);
+  }
+
+  if (idConductor) {
+    values.push(idConductor);
+    conditions.push(`v.id_conductores = $${values.length}`);
   }
 
   const whereClause = conditions.length > 0
@@ -107,7 +113,7 @@ export async function listAdminTripLocations({
   return result.rows;
 }
 
-export async function getAdminTripLocationDetail(idViaje) {
+export async function getAdminTripLocationDetail(idViaje, idConductor = null) {
   const tripResult = await databasePool.query(
     `
       SELECT
@@ -138,9 +144,10 @@ export async function getAdminTripLocationDetail(idViaje) {
       INNER JOIN estados_viaje ev
         ON ev.id_estado_viaje = v.id_estado_viaje
       WHERE v.id_viajes = $1
+        AND ($2::integer IS NULL OR v.id_conductores = $2)
       LIMIT 1
     `,
-    [idViaje]
+    [idViaje, idConductor]
   );
 
   const trip = tripResult.rows[0];

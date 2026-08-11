@@ -198,7 +198,12 @@ export async function listAdminTripLocationsController(
           request.query.search,
 
         status:
-          request.query.status
+          request.query.status,
+
+        idConductor:
+          request.adminUser.rol === "OPERADOR"
+            ? request.adminUser.id_conductores
+            : null
       });
 
     return response
@@ -259,7 +264,10 @@ export async function getAdminTripLocationDetailController(
 
     const result =
       await getAdminTripLocationDetail(
-        idViaje
+        idViaje,
+        request.adminUser.rol === "OPERADOR"
+          ? request.adminUser.id_conductores
+          : null
       );
 
     if (!result) {

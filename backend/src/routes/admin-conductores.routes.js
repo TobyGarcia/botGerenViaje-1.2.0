@@ -11,6 +11,7 @@ import {
 import {
   requireAdminSession
 } from "../middlewares/admin-auth.middleware.js";
+import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
@@ -20,16 +21,19 @@ router.use(
 
 router.get(
   "/",
+  requireAdminRoles("ADMINISTRADOR"),
   listAdminDriversController
 );
 
 router.post(
   "/",
+  requireAdminRoles("ADMINISTRADOR"),
   createAdminDriverController
 );
 
 router.patch(
   "/:idConductor/estado",
+  requireAdminRoles("ADMINISTRADOR"),
   updateAdminDriverStatusController
 );
 

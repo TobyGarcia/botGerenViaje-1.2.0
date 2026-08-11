@@ -208,6 +208,12 @@ export function createAdminVehiculo(
   );
 }
 
+export function getAdminUsers() { return request("/admin/usuarios"); }
+export function createAdminUser(user) { return request("/admin/usuarios", { method: "POST", body: JSON.stringify(user) }); }
+export function updateAdminUser(id, user) { return request(`/admin/usuarios/${id}`, { method: "PATCH", body: JSON.stringify(user) }); }
+export function deleteAdminUser(id) { return request(`/admin/usuarios/${id}`, { method: "DELETE" }); }
+export function updateMyProfile(profile) { return request("/admin/usuarios/perfil", { method: "PATCH", body: JSON.stringify(profile) }); }
+
 export function getAdminVehiculoDetalle(idVehiculo) {
   return request(`/admin/vehiculos/${idVehiculo}`);
 }

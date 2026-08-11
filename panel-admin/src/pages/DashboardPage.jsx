@@ -9,6 +9,8 @@ import DestinosPage from "./DestinosPage.jsx";
 import UbicacionesPage from "./UbicacionesPage.jsx";
 import ViajesPage from "./ViajesPage.jsx";
 import InspeccionesPage from "./InspeccionesPage.jsx";
+import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
+import PerfilPage from "./PerfilPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount } from "../services/api.js";
 
 function formatActivityDay(value) {
@@ -28,10 +30,13 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
+      return undefined;
+    }
     getAdminDashboardSummary()
       .then((response) => setSummary(response.data))
       .catch((requestError) => setError(requestError.message));
-  }, []);
+  }, [user.rol]);
 
   if (error) return <p className="module-message module-message-error">{error}</p>;
   if (!summary) return <p className="table-status">Cargando indicadores...</p>;
@@ -111,12 +116,13 @@ function DashboardPage({
   }, []);
 
   const modules = [
-    { id: "conductores", label: "Conductores" },
-    { id: "unidades", label: "Unidades" },
-    { id: "destinos", label: "Destinos" },
-    { id: "ubicaciones", label: "Ubicaciones" },
-    { id: "viajes", label: "Viajes" }
-  ];
+    { id: "conductores", label: "Conductores", roles: ["ADMINISTRADOR"] },
+    { id: "unidades", label: "Unidades", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "destinos", label: "Destinos", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "ubicaciones", label: "Ubicaciones", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
+    { id: "viajes", label: "Viajes", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
+  ].filter((module) => module.roles.includes(user.rol));
+  const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
 
   return (
     <div className="admin-layout">
@@ -126,7 +132,7 @@ function DashboardPage({
         </div>
 
         <nav>
-          <button type="button" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span>🔔 Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>
+          {canInspect && <button type="button" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span>🔔 Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
           <button
             type="button"
             className={
@@ -155,6 +161,7 @@ function DashboardPage({
               {module.label}
             </button>
           ))}
+          {user.rol === "ADMINISTRADOR" && <button type="button" className={activeModule === "usuarios" ? "sidebar-active" : ""} onClick={() => setActiveModule("usuarios")}>Administrador de usuarios</button>}
         </nav>
 
         <button
@@ -180,7 +187,7 @@ function DashboardPage({
                 </h1>
               </div>
 
-              <div className="user-summary">
+              <button type="button" className="user-summary" onClick={() => setActiveModule("perfil")} title="Personalizar perfil">
                 <strong>
                   {user.username}
                 </strong>
@@ -188,27 +195,30 @@ function DashboardPage({
                 <span>
                   {user.rol}
                 </span>
-              </div>
+              </button>
             </header>
 
-            <DashboardOverview
+            {user.rol !== "OPERADOR" && <DashboardOverview
               pendingInspections={pendingInspections}
               notificationError={notificationError}
               onOpenInspections={() => setActiveModule("inspecciones")}
-            />
+            />}
+            {user.rol === "OPERADOR" && <p className="table-status">Consulta tus viajes y ubicaciones desde el menú lateral.</p>}
           </>
         )}
 
-        {activeModule === "condugctores" && <ConductoresPage />}
+        {activeModule === "conductores" && <ConductoresPage />}
 
         {activeModule === "unidades" && <VehiculosPage user={user} />}
 
-        {activeModule === "destinos" && <DestinosPage />}
+        {activeModule === "destinos" && <DestinosPage user={user} />}
 
         {activeModule === "ubicaciones" && <UbicacionesPage />}
 
-        {activeModule === "viajes" && <ViajesPage />}
+        {activeModule === "viajes" && <ViajesPage user={user} />}
         {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
+        {activeModule === "usuarios" && user.rol === "ADMINISTRADOR" && <UsuariosAdminPage currentUser={user} />}
+        {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
 
         {modules
           .filter(

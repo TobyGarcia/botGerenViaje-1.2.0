@@ -17,7 +17,9 @@ const initialForm = {
   direccion: ""
 };
 
-function DestinosPage() {
+function DestinosPage({ user }) {
+  const canEdit = user?.rol === "ADMINISTRADOR";
+  const canCreate = ["ADMINISTRADOR", "SUPERVISOR"].includes(user?.rol);
   const [destinos, setDestinos] =
     useState([]);
 
@@ -324,13 +326,13 @@ function DestinosPage() {
           </p>
         </div>
 
-        <button
+        {canCreate && <button
           type="button"
           className="primary-button"
           onClick={openForm}
         >
           + Nuevo destino
-        </button>
+        </button>}
       </header>
 
       <section className="module-toolbar">
@@ -443,7 +445,7 @@ function DestinosPage() {
                       </td>
 
                       <td className="table-actions">
-                        <button
+                        {canEdit && <button
                           type="button"
                           className="edit-button"
                           onClick={() =>
@@ -451,9 +453,9 @@ function DestinosPage() {
                           }
                         >
                           Editar
-                        </button>
+                        </button>}
 
-                        <button
+                        {canEdit && <button
                           type="button"
                           className={
                             destino.activo
@@ -476,7 +478,7 @@ function DestinosPage() {
                             : destino.activo
                               ? "Dar de baja"
                               : "Reactivar"}
-                        </button>
+                        </button>}
                       </td>
                     </tr>
                   )

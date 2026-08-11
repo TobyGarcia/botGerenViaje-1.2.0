@@ -187,8 +187,11 @@ export async function updateAdminDriverStatus({
   idConductor,
   activo
 }) {
-  const result =
-    await databasePool.query(
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    const result =
+    await client.query(
       `
         UPDATE conductores
         SET
@@ -209,5 +212,20 @@ export async function updateAdminDriverStatus({
       ]
     );
 
-  return result.rows[0] ?? null;
+    const driver = result.rows[0] ?? null;
+
+    // Dar de baja al conductor también deshabilita sus cuentas vinculadas,
+    // sin borrar viajes ni su evidencia histórica.
+    if (driver && !activo) {
+      await client.query("UPDATE usuarios_telegram SET activo=FALSE WHERE id_conductores=$1", [idConductor]);
+      await client.query("UPDATE usuarios_admin SET activo=FALSE, actualizado_en=CURRENT_TIMESTAMP WHERE id_conductores=$1", [idConductor]);
+    }
+    await client.query("COMMIT");
+    return driver;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

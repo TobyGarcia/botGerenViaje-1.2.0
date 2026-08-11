@@ -17,6 +17,7 @@ import {
 import {
   requireAdminSession
 } from "../middlewares/admin-auth.middleware.js";
+import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
@@ -26,27 +27,30 @@ router.use(
 
 router.get(
   "/",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
   listAdminVehiclesController
 );
 
 router.post(
   "/",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
   createAdminVehicleController
 );
 
-router.get("/:idVehiculo", getAdminVehicleDetailController);
-router.patch("/:idVehiculo", updateAdminVehicleController);
+router.get("/:idVehiculo", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleDetailController);
+router.patch("/:idVehiculo", requireAdminRoles("ADMINISTRADOR"), updateAdminVehicleController);
 
-router.get("/:idVehiculo/kilometraje", getAdminVehicleMileageHistoryController);
-router.get("/:idVehiculo/kilometraje/resumen", getAdminVehicleMileageSummaryController);
-router.post("/:idVehiculo/kilometraje", createAdminVehicleMileageReadingController);
-router.post("/:idVehiculo/kilometraje/correccion", createAdminVehicleMileageReadingController);
+router.get("/:idVehiculo/kilometraje", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleMileageHistoryController);
+router.get("/:idVehiculo/kilometraje/resumen", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleMileageSummaryController);
+router.post("/:idVehiculo/kilometraje", requireAdminRoles("ADMINISTRADOR"), createAdminVehicleMileageReadingController);
+router.post("/:idVehiculo/kilometraje/correccion", requireAdminRoles("ADMINISTRADOR"), createAdminVehicleMileageReadingController);
 
 router.patch(
   "/:idVehiculo/estado",
+  requireAdminRoles("ADMINISTRADOR"),
   updateAdminVehicleStatusController
 );
 
-router.patch("/:idVehiculo/mantenimiento", updateAdminVehicleMaintenanceController);
+router.patch("/:idVehiculo/mantenimiento", requireAdminRoles("ADMINISTRADOR"), updateAdminVehicleMaintenanceController);
 
 export default router;

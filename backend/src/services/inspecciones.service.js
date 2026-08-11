@@ -51,23 +51,26 @@ export async function saveInspection({ idViaje, idConductor, data }) {
   return result.rows[0];
 }
 
-export async function getApprovalForStart(idViaje) {
+export async function getApprovalForStart(idViaje, idConductor) {
   const result = await databasePool.query(`
     SELECT i.estado, i.id_inspeccion
     FROM viajes v
     LEFT JOIN inspecciones_vehiculares i
       ON i.id_vehiculos = v.id_vehiculos
+      AND i.id_conductores = $2
       AND i.fecha_operativa = ${operationalDateSql}::date
       AND i.estado = 'APROBADA'
     WHERE v.id_viajes = $1
-    ORDER BY i.aprobado_en DESC NULLS LAST LIMIT 1`, [idViaje]);
+    ORDER BY i.aprobado_en DESC NULLS LAST LIMIT 1`, [idViaje, idConductor]);
   return result.rows[0] ?? null;
 }
 
 export async function getInspectionRequirement({ idViaje, idConductor }) {
   const context = await getInspectionContext({ idViaje, idConductor });
   if (!context) return null;
-  const approved = await getApprovalForStart(idViaje);
+  // La aprobación es por conductor/usuario y fecha operativa, no por unidad.
+  // Un segundo conductor que tome el mismo vehículo debe inspeccionarlo.
+  const approved = await getApprovalForStart(idViaje, idConductor);
   return {
     required: !approved?.id_inspeccion,
     approved: Boolean(approved?.id_inspeccion),

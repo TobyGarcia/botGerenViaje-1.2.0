@@ -45,7 +45,8 @@ export async function listAdminTrips({
   search = "",
   status = "TODOS",
   dateFrom = "",
-  dateTo = ""
+  dateTo = "",
+  idConductor = null
 } = {}) {
   const normalizedSearch =
     String(search).trim();
@@ -105,6 +106,11 @@ export async function listAdminTrips({
     conditions.push(
       `v.fecha <= $${values.length}::date`
     );
+  }
+
+  if (idConductor) {
+    values.push(idConductor);
+    conditions.push(`v.id_conductores = $${values.length}`);
   }
 
   const whereClause =
@@ -210,7 +216,8 @@ export async function listAdminTrips({
 }
 
 export async function getAdminTripById(
-  idViaje
+  idViaje,
+  idConductor = null
 ) {
   const tripResult =
     await databasePool.query(
@@ -272,9 +279,10 @@ export async function getAdminTripById(
              v.id_estado_viaje
 
         WHERE v.id_viajes = $1
+          AND ($2::integer IS NULL OR v.id_conductores = $2)
         LIMIT 1
       `,
-      [idViaje]
+      [idViaje, idConductor]
     );
 
   const trip =

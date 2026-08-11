@@ -61,3 +61,19 @@ export async function requireAdminSession(
       });
   }
 }
+
+/** Restricción de autorización centralizada. La interfaz oculta acciones,
+ * pero el servidor siempre conserva la última palabra. */
+export function requireAdminRoles(...roles) {
+  const allowedRoles = new Set(roles);
+
+  return (request, response, next) => {
+    if (!allowedRoles.has(request.adminUser?.rol)) {
+      return response.status(403).json({
+        success: false,
+        message: "Tu rol no tiene permiso para realizar esta acción."
+      });
+    }
+    return next();
+  };
+}

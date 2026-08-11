@@ -176,7 +176,12 @@ export async function listAdminTripsController(
           request.query.dateFrom,
 
         dateTo:
-          request.query.dateTo
+          request.query.dateTo,
+
+        idConductor:
+          request.adminUser.rol === "OPERADOR"
+            ? request.adminUser.id_conductores
+            : null
       });
 
     return response
@@ -231,7 +236,10 @@ export async function getAdminTripController(
 
     const result =
       await getAdminTripById(
-        idViaje
+        idViaje,
+        request.adminUser.rol === "OPERADOR"
+          ? request.adminUser.id_conductores
+          : null
       );
 
     if (!result) {
