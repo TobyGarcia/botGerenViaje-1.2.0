@@ -370,8 +370,15 @@ function ViajesPage({ user }) {
     }
 
     try {
-      const response = await getAdminViajes({ status: "TODOS" });
+      const activeFilters = { search, status, dateFrom, dateTo };
+      const response = await getAdminViajes(activeFilters);
       const trips = response.data ?? [];
+      const filterSummary = [
+        search.trim() ? `Búsqueda: ${search.trim()}` : null,
+        status !== "TODOS" ? `Estado: ${status.replaceAll("_", " ")}` : null,
+        dateFrom ? `Desde: ${formatDate(dateFrom)}` : null,
+        dateTo ? `Hasta: ${formatDate(dateTo)}` : null
+      ].filter(Boolean).join(" · ") || "Sin filtros aplicados";
       const rows = trips.map((trip) => `
         <tr>
           <td>${escapeHtml(trip.folio)}</td>
@@ -403,6 +410,7 @@ function ViajesPage({ user }) {
           <body>
             <h1>Histórico de viajes</h1>
             <p>Generado el ${escapeHtml(new Date().toLocaleString("es-MX"))}. Total: ${trips.length} viajes.</p>
+            <p>Filtros: ${escapeHtml(filterSummary)}</p>
             <table>
               <thead><tr><th>Folio</th><th>Fecha</th><th>Conductor</th><th>Unidad</th><th>Núm. económico</th><th>Origen</th><th>Destino</th><th>Estado</th></tr></thead>
               <tbody>${rows}</tbody>
@@ -424,7 +432,7 @@ function ViajesPage({ user }) {
 
   async function exportTripsCsv() {
     try {
-      const response = await getAdminViajes({ status: "TODOS" });
+      const response = await getAdminViajes({ search, status, dateFrom, dateTo });
       const trips = response.data ?? [];
       const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
       const rows = trips.map((trip) => [
