@@ -1411,4 +1411,13 @@
 .approval-signature canvas { width:100%; height:150px; touch-action:none; background:#fff; border:1px dashed #8da9b4; border-radius:10px; cursor:crosshair; }
 .approval-signature > div { display:flex; align-items:center; gap:12px; }
 .approval-signature small { color:#526e78; }
-@media(max-width:640px){.inspection-detail-grid,.admin-checklist{grid-template-columns:1fr;}.inspection-decision-panel{grid-template-columns:1fr;}.inspection-preview-button{justify-self:stretch;}.inspection-decision-actions{justify-content:stretch;}.inspection-decision-actions button{flex:1;}}
+.damage-viewer { display:grid; gap:10px; margin:22px 0; }
+.damage-viewer h3,.damage-viewer p { margin:0; }
+.damage-viewer > p { color:#526e78; }
+.damage-viewer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.damage-viewer-grid figure { min-width:0; margin:0; padding:10px; border:1px solid #d5e5eb; border-radius:12px; background:#f7fbfc; }
+.damage-viewer-grid figcaption { margin-bottom:8px; color:#244e60; font-weight:800; text-align:center; }
+.damage-viewer-stage { position:relative; width:100%; line-height:0; }
+.damage-viewer-stage img { display:block; width:100%; height:auto; user-select:none; }
+.damage-viewer-point { position:absolute; z-index:2; display:grid; width:26px; height:26px; place-items:center; border:2px solid #dc2626; border-radius:50%; color:#b91c1c; background:rgba(255,255,255,.54); transform:translate(-50%,-50%); box-shadow:0 1px 4px #0005; font-size:11px; line-height:1; }
+@media(max-width:640px){.inspection-detail-grid,.admin-checklist,.damage-viewer-grid{grid-template-columns:1fr;}.inspection-decision-panel{grid-template-columns:1fr;}.inspection-preview-button{justify-self:stretch;}.inspection-decision-actions{justify-content:stretch;}.inspection-decision-actions button{flex:1;}}
