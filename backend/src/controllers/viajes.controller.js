@@ -55,6 +55,7 @@ async function requireTripOwner(request, idViaje) {
   if (Number(trip.id_conductores) !== Number(telegramUser.id_conductores)) {
     throw requestError("No tienes permiso para modificar este viaje.", 403);
   }
+  return telegramUser;
 }
 
 function normalizeTripResponse(trip) {
@@ -264,9 +265,9 @@ export async function startTripController(
       });
     }
 
-    await requireTripOwner(request, idViaje);
+    const telegramUser = await requireTripOwner(request, idViaje);
 
-    const inspection = await getApprovalForStart(idViaje);
+    const inspection = await getApprovalForStart(idViaje, telegramUser.id_conductores);
     if (!inspection?.id_inspeccion) {
       return response.status(409).json({ success: false, message: "La inspección vehicular diaria debe estar aprobada antes de iniciar el viaje." });
     }
