@@ -33,6 +33,17 @@ function validateRegistration({ nombre, username, correo, telefono, password, co
   return { nombre: nombre.trim(), username: username.trim().toLowerCase(), correo: email, telefono: telefono.trim(), password };
 }
 
+function validateExistingAccountLink({ idUsuarioAdmin, password }) {
+  const id = Number(idUsuarioAdmin);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new SupervisorTelegramError("El ID de usuario administrativo no es válido.");
+  }
+  if (!String(password || "")) {
+    throw new SupervisorTelegramError("La contraseña de la cuenta existente es obligatoria.");
+  }
+  return { idUsuarioAdmin: id, password: String(password) };
+}
+
 export async function registerSupervisorGroupMember({ telegramUser, groupId }) {
   await databasePool.query(`
     INSERT INTO accesos_supervisor_telegram (telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, telegram_group_id)
@@ -104,6 +115,63 @@ export async function registerSupervisor({ telegramUserId, data }) {
     if (error.code === "23505") throw new SupervisorTelegramError("El usuario o correo ya está registrado.", 409);
     throw error;
   } finally { client.release(); }
+}
+
+export async function linkExistingSupervisor({ telegramUserId, data }) {
+  const input = validateExistingAccountLink(data);
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    const invite = await client.query("SELECT telegram_user_id FROM accesos_supervisor_telegram WHERE telegram_user_id=$1 FOR UPDATE", [String(telegramUserId)]);
+    if (!invite.rows[0]) throw new SupervisorTelegramError("Debes iniciar el registro desde el grupo de supervisores.", 403);
+
+    const linkedAccount = await client.query(
+      "SELECT id_usuarios_admin FROM usuarios_admin WHERE telegram_user_id=$1 FOR UPDATE",
+      [String(telegramUserId)]
+    );
+    if (linkedAccount.rows[0] && Number(linkedAccount.rows[0].id_usuarios_admin) !== input.idUsuarioAdmin) {
+      throw new SupervisorTelegramError("Tu cuenta de Telegram ya está vinculada a otro usuario administrativo.", 409);
+    }
+
+    const account = await client.query(`
+      SELECT id_usuarios_admin, nombre, correo, password_hash, rol, activo, telegram_user_id, correo_confirmado_en
+      FROM usuarios_admin WHERE id_usuarios_admin=$1 FOR UPDATE`, [input.idUsuarioAdmin]);
+    const user = account.rows[0];
+    if (!user || user.rol !== "SUPERVISOR" || !user.activo) {
+      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese ID o contraseña.", 401);
+    }
+    if (!await bcrypt.compare(input.password, user.password_hash)) {
+      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese ID o contraseña.", 401);
+    }
+    if (user.telegram_user_id && String(user.telegram_user_id) !== String(telegramUserId)) {
+      throw new SupervisorTelegramError("Esta cuenta de supervisor ya está vinculada a otra cuenta de Telegram.", 409);
+    }
+
+    await client.query(`UPDATE usuarios_admin
+      SET telegram_user_id=$1, actualizado_en=CURRENT_TIMESTAMP
+      WHERE id_usuarios_admin=$2`, [String(telegramUserId), input.idUsuarioAdmin]);
+
+    let confirmationToken = null;
+    if (requiresEmailConfirmation() && !user.correo_confirmado_en) {
+      if (!user.correo) throw new SupervisorTelegramError("La cuenta existente necesita un correo para confirmar el acceso.");
+      confirmationToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(confirmationToken).digest("hex");
+      await client.query(`INSERT INTO confirmaciones_correo_supervisor (id_usuarios_admin,token_hash,expira_en)
+        VALUES ($1,$2,CURRENT_TIMESTAMP + INTERVAL '24 hours')`, [input.idUsuarioAdmin, tokenHash]);
+    }
+    await client.query("COMMIT");
+    return {
+      linked: true,
+      user: { id_usuarios_admin: user.id_usuarios_admin, nombre: user.nombre, correo: user.correo },
+      confirmationToken,
+      confirmed: !requiresEmailConfirmation() || Boolean(user.correo_confirmado_en)
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function sendSupervisorWelcomeEmail({ user, token }) {
