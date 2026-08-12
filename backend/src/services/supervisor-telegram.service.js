@@ -33,15 +33,15 @@ function validateRegistration({ nombre, username, correo, telefono, password, co
   return { nombre: nombre.trim(), username: username.trim().toLowerCase(), correo: email, telefono: telefono.trim(), password };
 }
 
-function validateExistingAccountLink({ idUsuarioAdmin, password }) {
-  const id = Number(idUsuarioAdmin);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new SupervisorTelegramError("El ID de usuario administrativo no es válido.");
+function validateExistingAccountLink({ username, password }) {
+  const normalizedUsername = String(username || "").trim().toLowerCase();
+  if (!normalizedUsername) {
+    throw new SupervisorTelegramError("El nombre de usuario administrativo es obligatorio.");
   }
   if (!String(password || "")) {
     throw new SupervisorTelegramError("La contraseña de la cuenta existente es obligatoria.");
   }
-  return { idUsuarioAdmin: id, password: String(password) };
+  return { username: normalizedUsername, password: String(password) };
 }
 
 export async function registerSupervisorGroupMember({ telegramUser, groupId }) {
@@ -129,19 +129,18 @@ export async function linkExistingSupervisor({ telegramUserId, data }) {
       "SELECT id_usuarios_admin FROM usuarios_admin WHERE telegram_user_id=$1 FOR UPDATE",
       [String(telegramUserId)]
     );
-    if (linkedAccount.rows[0] && Number(linkedAccount.rows[0].id_usuarios_admin) !== input.idUsuarioAdmin) {
-      throw new SupervisorTelegramError("Tu cuenta de Telegram ya está vinculada a otro usuario administrativo.", 409);
-    }
-
     const account = await client.query(`
       SELECT id_usuarios_admin, nombre, correo, password_hash, rol, activo, telegram_user_id, correo_confirmado_en
-      FROM usuarios_admin WHERE id_usuarios_admin=$1 FOR UPDATE`, [input.idUsuarioAdmin]);
+      FROM usuarios_admin WHERE LOWER(username)=$1 FOR UPDATE`, [input.username]);
     const user = account.rows[0];
+    if (linkedAccount.rows[0] && Number(linkedAccount.rows[0].id_usuarios_admin) !== Number(user?.id_usuarios_admin)) {
+      throw new SupervisorTelegramError("Tu cuenta de Telegram ya está vinculada a otro usuario administrativo.", 409);
+    }
     if (!user || user.rol !== "SUPERVISOR" || !user.activo) {
-      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese ID o contraseña.", 401);
+      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese usuario o contraseña.", 401);
     }
     if (!await bcrypt.compare(input.password, user.password_hash)) {
-      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese ID o contraseña.", 401);
+      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese usuario o contraseña.", 401);
     }
     if (user.telegram_user_id && String(user.telegram_user_id) !== String(telegramUserId)) {
       throw new SupervisorTelegramError("Esta cuenta de supervisor ya está vinculada a otra cuenta de Telegram.", 409);
@@ -149,7 +148,7 @@ export async function linkExistingSupervisor({ telegramUserId, data }) {
 
     await client.query(`UPDATE usuarios_admin
       SET telegram_user_id=$1, actualizado_en=CURRENT_TIMESTAMP
-      WHERE id_usuarios_admin=$2`, [String(telegramUserId), input.idUsuarioAdmin]);
+      WHERE id_usuarios_admin=$2`, [String(telegramUserId), user.id_usuarios_admin]);
 
     let confirmationToken = null;
     if (requiresEmailConfirmation() && !user.correo_confirmado_en) {
@@ -157,7 +156,7 @@ export async function linkExistingSupervisor({ telegramUserId, data }) {
       confirmationToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(confirmationToken).digest("hex");
       await client.query(`INSERT INTO confirmaciones_correo_supervisor (id_usuarios_admin,token_hash,expira_en)
-        VALUES ($1,$2,CURRENT_TIMESTAMP + INTERVAL '24 hours')`, [input.idUsuarioAdmin, tokenHash]);
+        VALUES ($1,$2,CURRENT_TIMESTAMP + INTERVAL '24 hours')`, [user.id_usuarios_admin, tokenHash]);
     }
     await client.query("COMMIT");
     return {
