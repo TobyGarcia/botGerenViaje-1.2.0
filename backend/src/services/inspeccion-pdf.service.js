@@ -270,8 +270,8 @@ export function buildInspectionPdf(data) {
   line(commands, 330, 74, 558, 74, 0.7, border);
   if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 76, 220, 20);
   if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 76, 220, 20);
-  drawText(commands, "Nombre y firma", 168, 65, 5.3, { bold: true, fill: dark, align: "center" });
-  drawText(commands, "Nombre y firma", 444, 65, 5.3, { bold: true, fill: dark, align: "center" });
+  drawText(commands, truncate(data.conductor, 42), 168, 65, 5.3, { bold: true, fill: dark, align: "center" });
+  drawText(commands, truncate(data.aprobador, 42), 444, 65, 5.3, { bold: true, fill: dark, align: "center" });
   drawText(commands, "Fecha:", 146, 48, 5.8, { bold: true, fill: dark });
   drawText(commands, "Fecha:", 422, 48, 5.8, { bold: true, fill: dark });
 

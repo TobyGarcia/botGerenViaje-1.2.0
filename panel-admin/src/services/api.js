@@ -468,8 +468,8 @@ export function getAdminInspeccionesPendientesCount() {
 export function getAdminInspeccionDetalle(idInspeccion) {
   return request(`/admin/inspecciones/${idInspeccion}`);
 }
-export function decidirAdminInspeccion(idInspeccion, aprobada, comentario) {
-  return request(`/admin/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify({ aprobada, comentario }) });
+export function decidirAdminInspeccion(idInspeccion, aprobada, comentario, firma) {
+  return request(`/admin/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify({ aprobada, comentario, firma }) });
 }
 export function getAdminInspeccionPdfPreviewUrl(idInspeccion) {
   return `${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/vista-previa-pdf`;

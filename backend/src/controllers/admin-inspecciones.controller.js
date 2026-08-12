@@ -23,7 +23,9 @@ export async function decideAdminInspectionController(request, response) {
     if (typeof approved !== "boolean") return response.status(400).json({ success: false, message: "La decisión no es válida." });
     const idInspeccion = Number(request.params.idInspeccion);
     const comment = String(request.body?.comentario || "").trim();
-    const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: comment });
+    const signature = String(request.body?.firma || "");
+    if (approved && !signature.startsWith("data:image/png;base64,")) return response.status(400).json({ success: false, message: "La firma del aprobador es obligatoria." });
+    const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: comment, firmaSupervisor: approved ? signature : null });
     let trip = null;
     if (data && approved) {
       const detail = await getAdminInspection(idInspeccion);

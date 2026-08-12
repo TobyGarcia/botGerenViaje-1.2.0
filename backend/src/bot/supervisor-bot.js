@@ -177,7 +177,8 @@ export async function notifyNewInspectionRequest({
   idInspeccion,
   folio,
   conductor,
-  vehiculo
+  vehiculo,
+  danos
 } = {}) {
   const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
 
@@ -202,6 +203,7 @@ export async function notifyNewInspectionRequest({
     `Folio: ${folio ?? "No disponible"}`,
     `Conductor: ${conductor ?? "No disponible"}`,
     `Unidad: ${vehiculo ?? "No disponible"}`,
+    `Daños marcados: ${Object.entries(danos || {}).map(([vista, puntos]) => `${vista}: ${Array.isArray(puntos) ? puntos.length : 0}`).filter(([, total]) => total > 0).map(([vista, total]) => `${vista} (${total})`).join(", ") || "Sin daños marcados"}`,
     idInspeccion ? `ID inspección: ${idInspeccion}` : null,
     "Abre la Mini App de supervisión para revisarla."
   ].filter(Boolean).join("\n");
