@@ -67,9 +67,9 @@
   display: block;
   width: min(180px, 100%);
   max-height: 86px;
-  margin-bottom: 32px;
+  margin: 0 auto 32px;
   object-fit: contain;
-  object-position: left center;
+  object-position: center;
 }
 
 .login-label {
@@ -1354,6 +1354,7 @@
 .sidebar-toggle { width:36px!important; min-width:36px; height:36px; padding:0!important; display:grid; place-items:center; background:rgba(255,255,255,.13)!important; font-size:1.1rem!important; text-align:center!important; }
 .sidebar nav button,.logout-button { display:flex!important; align-items:center; gap:12px; min-height:46px; white-space:nowrap; }
 .nav-icon { display:grid; flex:0 0 22px; width:22px; place-items:center; font-size:1.08rem; text-align:center; }
+.nav-icon-image { display:block; width:22px; height:22px; object-fit:contain; }
 .sidebar-collapsed .sidebar-text,.sidebar-collapsed .brand-mark + .sidebar-text { display:none; }
 .sidebar-collapsed .sidebar-brand { width:0; overflow:visible; }
 .sidebar-collapsed .sidebar nav button,.sidebar-collapsed .logout-button { justify-content:center; padding:12px!important; }

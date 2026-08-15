@@ -12,6 +12,20 @@ import InspeccionesPage from "./InspeccionesPage.jsx";
 import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount } from "../services/api.js";
+import inicioIcon from "../assets/icons-side-bar/Inicio.png";
+import conductoresIcon from "../assets/icons-side-bar/conductores.png";
+import vehiculosIcon from "../assets/icons-side-bar/vehiculos.png";
+import destinosIcon from "../assets/icons-side-bar/destinos.png";
+import ubicacionesIcon from "../assets/icons-side-bar/ubicaciones.png";
+import viajesIcon from "../assets/icons-side-bar/viajes.png";
+import inspeccionesIcon from "../assets/icons-side-bar/inspecciones.png";
+import usuariosIcon from "../assets/icons-side-bar/administrador_Usuarios.png";
+import configuracionIcon from "../assets/icons-side-bar/configuracion.png";
+import cerrarSesionIcon from "../assets/icons-side-bar/icons.png";
+
+function SidebarIcon({ src, alt = "" }) {
+  return <img className="nav-icon-image" src={src} alt={alt} aria-hidden={alt ? undefined : "true"} />;
+}
 
 function formatActivityDay(value) {
   const datePart = String(value || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
@@ -116,11 +130,11 @@ function DashboardPage({
   }, [user.rol]);
 
   const modules = [
-    { id: "conductores", label: "Conductores", icon: "👤", roles: ["ADMINISTRADOR"] },
-    { id: "unidades", label: "Unidades", icon: "🚐", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "destinos", label: "Destinos", icon: "📍", roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "ubicaciones", label: "Ubicaciones", icon: "🗺️", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", icon: "🧳", roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
+    { id: "conductores", label: "Conductores", icon: conductoresIcon, roles: ["ADMINISTRADOR"] },
+    { id: "unidades", label: "Unidades", icon: vehiculosIcon, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "destinos", label: "Destinos", icon: destinosIcon, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "ubicaciones", label: "Ubicaciones", icon: ubicacionesIcon, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
+    { id: "viajes", label: "Viajes", icon: viajesIcon, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
   ].filter((module) => module.roles.includes(user.rol));
   const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
 
@@ -130,7 +144,7 @@ function DashboardPage({
         <div className="sidebar-top"><div className="sidebar-brand"><span className="brand-mark">GV</span><span className="sidebar-text">Gerenciamiento viajes</span></div></div>
 
         <nav>
-          {canInspect && <button type="button" title="Inspecciones" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span className="nav-icon">🔔</span><span className="sidebar-text">Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
+          {canInspect && <button type="button" title="Inspecciones" className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`} onClick={()=>setActiveModule("inspecciones")}><span className="nav-icon"><SidebarIcon src={inspeccionesIcon} /></span><span className="sidebar-text">Inspecciones</span>{pendingInspections>0&&<strong>{pendingInspections}</strong>}</button>}
           <button
             type="button"
             title="Inicio"
@@ -143,7 +157,7 @@ function DashboardPage({
               setActiveModule("inicio")
             }
           >
-            <span className="nav-icon">⌂</span><span className="sidebar-text">Inicio</span>
+            <span className="nav-icon"><SidebarIcon src={inicioIcon} /></span><span className="sidebar-text">Inicio</span>
           </button>
 
           {modules.map((module) => (
@@ -157,11 +171,11 @@ function DashboardPage({
               }
               onClick={() => setActiveModule(module.id)}
             >
-              <span className="nav-icon">{module.icon}</span><span className="sidebar-text">{module.label}</span>
+              <span className="nav-icon"><SidebarIcon src={module.icon} /></span><span className="sidebar-text">{module.label}</span>
             </button>
           ))}
-          {user.rol === "ADMINISTRADOR" && <button type="button" title="Administrador de usuarios" className={activeModule === "usuarios" ? "sidebar-active" : ""} onClick={() => setActiveModule("usuarios")}><span className="nav-icon">👥</span><span className="sidebar-text">Administrador de usuarios</span></button>}
-          <button type="button" title="Configuración" className={activeModule === "perfil" ? "sidebar-active" : ""} onClick={() => setActiveModule("perfil")}><span className="nav-icon">⚙️</span><span className="sidebar-text">Configuración</span></button>
+          {user.rol === "ADMINISTRADOR" && <button type="button" title="Administrador de usuarios" className={activeModule === "usuarios" ? "sidebar-active" : ""} onClick={() => setActiveModule("usuarios")}><span className="nav-icon"><SidebarIcon src={usuariosIcon} /></span><span className="sidebar-text">Administrador de usuarios</span></button>}
+          <button type="button" title="Configuración" className={activeModule === "perfil" ? "sidebar-active" : ""} onClick={() => setActiveModule("perfil")}><span className="nav-icon"><SidebarIcon src={configuracionIcon} /></span><span className="sidebar-text">Configuración</span></button>
         </nav>
 
         <button
@@ -169,7 +183,7 @@ function DashboardPage({
           className="logout-button"
           onClick={onLogout}
         >
-          <span className="nav-icon">↪</span><span className="sidebar-text">Cerrar sesión</span>
+          <span className="nav-icon"><SidebarIcon src={cerrarSesionIcon} /></span><span className="sidebar-text">Cerrar sesión</span>
         </button>
       </aside>
 
