@@ -138,96 +138,90 @@ function DashboardPage({ user, onLogout }) {
   const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
 
   return (
-    <div className={`admin-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <span className="brand-mark">GV</span>
-            <span className="sidebar-text">Gerenciamiento viajes</span>
+    <div className="admin-layout">
+      <div className="sidebar-wrapper">
+        <aside className="sidebar">
+          <div className="sidebar-top">
+            <div className="sidebar-brand">
+              <span className="brand-mark">GV</span>
+              <span className="sidebar-text">Gerenciamiento viajes</span>
+            </div>
           </div>
-          <button
-            type="button"
-            className="sidebar-toggle"
-            title={isSidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
-            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-          >
-            <IconToggleSidebar isCollapsed={isSidebarCollapsed} size={18} />
-          </button>
-        </div>
 
-        <nav>
-          {canInspect && (
-            <button
-              type="button"
-              title="Inspecciones"
-              className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`}
-              onClick={() => setActiveModule("inspecciones")}
-            >
-              <span className="nav-icon"><IconInspecciones size={20} /></span>
-              <span className="sidebar-text">Inspecciones</span>
-              {pendingInspections > 0 && <strong>{pendingInspections}</strong>}
-            </button>
-          )}
-
-          <button
-            type="button"
-            title="Inicio"
-            className={activeModule === "inicio" ? "sidebar-active" : ""}
-            onClick={() => setActiveModule("inicio")}
-          >
-            <span className="nav-icon"><IconInicio size={20} /></span>
-            <span className="sidebar-text">Inicio</span>
-          </button>
-
-          {modules.map((module) => {
-            const IconComponent = module.icon;
-            return (
+          <nav>
+            {canInspect && (
               <button
-                key={module.id}
                 type="button"
-                title={module.label}
-                className={activeModule === module.id ? "sidebar-active" : ""}
-                onClick={() => setActiveModule(module.id)}
+                title="Inspecciones"
+                className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`}
+                onClick={() => setActiveModule("inspecciones")}
               >
-                <span className="nav-icon"><IconComponent size={20} /></span>
-                <span className="sidebar-text">{module.label}</span>
+                <span className="nav-icon"><IconInspecciones size={20} /></span>
+                <span className="sidebar-text">Inspecciones</span>
+                {pendingInspections > 0 && <strong>{pendingInspections}</strong>}
               </button>
-            );
-          })}
+            )}
 
-          {user.rol === "ADMINISTRADOR" && (
             <button
               type="button"
-              title="Administrador de usuarios"
-              className={activeModule === "usuarios" ? "sidebar-active" : ""}
-              onClick={() => setActiveModule("usuarios")}
+              title="Inicio"
+              className={activeModule === "inicio" ? "sidebar-active" : ""}
+              onClick={() => setActiveModule("inicio")}
             >
-              <span className="nav-icon"><IconUsuarios size={20} /></span>
-              <span className="sidebar-text">Administrador de usuarios</span>
+              <span className="nav-icon"><IconInicio size={20} /></span>
+              <span className="sidebar-text">Inicio</span>
             </button>
-          )}
+
+            {modules.map((module) => {
+              const IconComponent = module.icon;
+              return (
+                <button
+                  key={module.id}
+                  type="button"
+                  title={module.label}
+                  className={activeModule === module.id ? "sidebar-active" : ""}
+                  onClick={() => setActiveModule(module.id)}
+                >
+                  <span className="nav-icon"><IconComponent size={20} /></span>
+                  <span className="sidebar-text">{module.label}</span>
+                </button>
+              );
+            })}
+
+            {user.rol === "ADMINISTRADOR" && (
+              <button
+                type="button"
+                title="Administrador de usuarios"
+                className={activeModule === "usuarios" ? "sidebar-active" : ""}
+                onClick={() => setActiveModule("usuarios")}
+              >
+                <span className="nav-icon"><IconUsuarios size={20} /></span>
+                <span className="sidebar-text">Administrador de usuarios</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              title="Configuración"
+              className={activeModule === "perfil" ? "sidebar-active" : ""}
+              onClick={() => setActiveModule("perfil")}
+            >
+              <span className="nav-icon"><IconConfiguracion size={20} /></span>
+              <span className="sidebar-text">Configuración</span>
+            </button>
+          </nav>
 
           <button
             type="button"
-            title="Configuración"
-            className={activeModule === "perfil" ? "sidebar-active" : ""}
-            onClick={() => setActiveModule("perfil")}
+            className="logout-button"
+            onClick={onLogout}
+            title="Cerrar sesión"
           >
-            <span className="nav-icon"><IconConfiguracion size={20} /></span>
-            <span className="sidebar-text">Configuración</span>
+            <span className="nav-icon"><IconCerrarSesion size={20} /></span>
+            <span className="sidebar-text">Cerrar sesión</span>
           </button>
-        </nav>
-
-        <button
-          type="button"
-          className="logout-button"
-          onClick={onLogout}
-          title="Cerrar sesión"
-        >
-          <span className="nav-icon"><IconCerrarSesion size={20} /></span>
-          <span className="sidebar-text">Cerrar sesión</span>
-        </button>
-      </aside>
+        </aside>
+      </div>
 
       <main className="dashboard-content">
         {activeModule === "inicio" && (
