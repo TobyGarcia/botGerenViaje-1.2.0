@@ -1,16 +1,4 @@
-import {
-  useEffect,
-  useState
-} from "react";
-
-import ConductoresPage from "./ConductoresPage.jsx";
-import VehiculosPage from "./VehiculosPage.jsx";
-import DestinosPage from "./DestinosPage.jsx";
-import {
-  useEffect,
-  useState
-} from "react";
-
+import { useEffect, useState } from "react";
 import ConductoresPage from "./ConductoresPage.jsx";
 import VehiculosPage from "./VehiculosPage.jsx";
 import DestinosPage from "./DestinosPage.jsx";
@@ -110,10 +98,7 @@ function ModulePlaceholder({ title }) {
   );
 }
 
-function DashboardPage({
-  user,
-  onLogout
-}) {
+function DashboardPage({ user, onLogout }) {
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
   const [notificationError, setNotificationError] = useState("");
@@ -124,60 +109,168 @@ function DashboardPage({
       return undefined;
     }
     let active = true;
-    const refresh = () => getAdminInspeccionesPendientesCount()
-      .then((response) => {
-        if (!active) return;
-        setPendingInspections(Number(response.data?.total || 0));
-        setNotificationError("");
-      })
-      .catch((error) => {
-        if (active) setNotificationError(error.message || "Error desconocido.");
-      });
-    refresh(); const timer = window.setInterval(refresh, 30000);
-    return () => { active=false; window.clearInterval(timer); };
+    const refresh = () =>
+      getAdminInspeccionesPendientesCount()
+        .then((response) => {
+          if (!active) return;
+          setPendingInspections(Number(response.data?.total || 0));
+          setNotificationError("");
+        })
+        .catch((error) => {
+          if (active) setNotificationError(error.message || "Error desconocido.");
+        });
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, [user.rol]);
 
   const modules = [
-                <span>
-                  Panel administrativo
-                </span>
+    { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR"] },
+    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
+    { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
+    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
+  ].filter((module) => module.roles.includes(user.rol));
 
-                <h1>
-                  Bienvenido, {user.nombre}
-                </h1>
+  const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
+
+  return (
+    <div className={`admin-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <div className="sidebar-brand">
+            <span className="brand-mark">GV</span>
+            <span className="sidebar-text">Gerenciamiento viajes</span>
+          </div>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            title={isSidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
+            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+          >
+            <IconToggleSidebar isCollapsed={isSidebarCollapsed} size={18} />
+          </button>
+        </div>
+
+        <nav>
+          {canInspect && (
+            <button
+              type="button"
+              title="Inspecciones"
+              className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`}
+              onClick={() => setActiveModule("inspecciones")}
+            >
+              <span className="nav-icon"><IconInspecciones size={20} /></span>
+              <span className="sidebar-text">Inspecciones</span>
+              {pendingInspections > 0 && <strong>{pendingInspections}</strong>}
+            </button>
+          )}
+
+          <button
+            type="button"
+            title="Inicio"
+            className={activeModule === "inicio" ? "sidebar-active" : ""}
+            onClick={() => setActiveModule("inicio")}
+          >
+            <span className="nav-icon"><IconInicio size={20} /></span>
+            <span className="sidebar-text">Inicio</span>
+          </button>
+
+          {modules.map((module) => {
+            const IconComponent = module.icon;
+            return (
+              <button
+                key={module.id}
+                type="button"
+                title={module.label}
+                className={activeModule === module.id ? "sidebar-active" : ""}
+                onClick={() => setActiveModule(module.id)}
+              >
+                <span className="nav-icon"><IconComponent size={20} /></span>
+                <span className="sidebar-text">{module.label}</span>
+              </button>
+            );
+          })}
+
+          {user.rol === "ADMINISTRADOR" && (
+            <button
+              type="button"
+              title="Administrador de usuarios"
+              className={activeModule === "usuarios" ? "sidebar-active" : ""}
+              onClick={() => setActiveModule("usuarios")}
+            >
+              <span className="nav-icon"><IconUsuarios size={20} /></span>
+              <span className="sidebar-text">Administrador de usuarios</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            title="Configuración"
+            className={activeModule === "perfil" ? "sidebar-active" : ""}
+            onClick={() => setActiveModule("perfil")}
+          >
+            <span className="nav-icon"><IconConfiguracion size={20} /></span>
+            <span className="sidebar-text">Configuración</span>
+          </button>
+        </nav>
+
+        <button
+          type="button"
+          className="logout-button"
+          onClick={onLogout}
+          title="Cerrar sesión"
+        >
+          <span className="nav-icon"><IconCerrarSesion size={20} /></span>
+          <span className="sidebar-text">Cerrar sesión</span>
+        </button>
+      </aside>
+
+      <main className="dashboard-content">
+        {activeModule === "inicio" && (
+          <>
+            <header className="dashboard-header">
+              <div>
+                <span>Panel administrativo</span>
+                <h1>Bienvenido, {user.nombre}</h1>
               </div>
 
-              <button type="button" className="user-summary" onClick={() => setActiveModule("perfil")} title="Personalizar perfil">
-                <span className="header-avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.nombre?.charAt(0)}</span>
-                <span className="user-summary-copy">
-                <strong>
-                  {user.username}
-                </strong>
-
-                <span>
-                  {user.rol}
+              <button
+                type="button"
+                className="user-summary"
+                onClick={() => setActiveModule("perfil")}
+                title="Personalizar perfil"
+              >
+                <span className="header-avatar">
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.nombre?.charAt(0)}
                 </span>
+                <span className="user-summary-copy">
+                  <strong>{user.username}</strong>
+                  <span>{user.rol}</span>
                 </span>
               </button>
             </header>
 
-            {user.rol !== "OPERADOR" && <DashboardOverview
-              pendingInspections={pendingInspections}
-              notificationError={notificationError}
-              onOpenInspections={() => setActiveModule("inspecciones")}
-            />}
-            {user.rol === "OPERADOR" && <p className="table-status">Consulta tus viajes y ubicaciones desde el menú lateral.</p>}
+            {user.rol !== "OPERADOR" && (
+              <DashboardOverview
+                pendingInspections={pendingInspections}
+                notificationError={notificationError}
+                onOpenInspections={() => setActiveModule("inspecciones")}
+              />
+            )}
+            {user.rol === "OPERADOR" && (
+              <p className="table-status">Consulta tus viajes y ubicaciones desde el menú lateral.</p>
+            )}
           </>
         )}
 
         {activeModule === "conductores" && <ConductoresPage />}
-
         {activeModule === "unidades" && <VehiculosPage user={user} />}
-
         {activeModule === "destinos" && <DestinosPage user={user} />}
-
         {activeModule === "ubicaciones" && <UbicacionesPage />}
-
         {activeModule === "viajes" && <ViajesPage user={user} />}
         {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
         {activeModule === "usuarios" && user.rol === "ADMINISTRADOR" && <UsuariosAdminPage currentUser={user} />}
@@ -194,13 +287,9 @@ function DashboardPage({
           )
           .map((module) =>
             activeModule === module.id ? (
-              <ModulePlaceholder
-                key={module.id}
-                title={module.label}
-              />
+              <ModulePlaceholder key={module.id} title={module.label} />
             ) : null
           )}
-
       </main>
     </div>
   );
