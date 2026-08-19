@@ -7,37 +7,26 @@ import {
   loginAdmin
 } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
-import fleetImage from "../assets/LoginAssets/imagen_muestra.png";
+import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
 
 function LoginPage({
   onAuthenticated
 }) {
-  const [form, setForm] =
-    useState({
-      username: "",
-      password: ""
-    });
+  const [form, setForm] = useState({
+    username: "",
+    password: ""
+  });
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const submittingRef =
-    useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const submittingRef = useRef(false);
 
   function handleChange(event) {
-    const {
-      name,
-      value
-    } = event.target;
-
+    const { name, value } = event.target;
     setForm((current) => ({
       ...current,
       [name]: value
     }));
-
     setMessage("");
   }
 
@@ -48,16 +37,10 @@ function LoginPage({
       return;
     }
 
-    const username =
-      form.username.trim();
+    const username = form.username.trim();
 
-    if (
-      !username ||
-      !form.password
-    ) {
-      setMessage(
-        "Captura usuario y contraseña."
-      );
+    if (!username || !form.password) {
+      setMessage("Captura usuario y contraseña.");
       return;
     }
 
@@ -66,20 +49,14 @@ function LoginPage({
     setMessage("");
 
     try {
-      const response =
-        await loginAdmin({
-          username,
-          password:
-            form.password
-        });
+      const response = await loginAdmin({
+        username,
+        password: form.password
+      });
 
-      onAuthenticated(
-        response.data.user
-      );
+      onAuthenticated(response.data.user);
     } catch (error) {
-      setMessage(
-        error.message
-      );
+      setMessage(error.message);
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -88,17 +65,17 @@ function LoginPage({
 
   return (
     <main className="login-page">
-      <section
-        className="login-hero"
-        style={{
-          backgroundImage: `linear-gradient(
-            to bottom,
-            rgba(7, 78, 109, 0.88) 0%,
-            rgba(16, 132, 170, 0.72) 52%,
-            rgba(16, 132, 170, 0.52) 100%
-          ), url(${fleetImage})`
-        }}
-      >
+      <section className="login-hero">
+        <video
+          className="hero-video"
+          src={aquarioVideo}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="hero-overlay" />
+
         <div className="hero-content">
           <span className="hero-label">
             Plataforma logística
@@ -109,82 +86,82 @@ function LoginPage({
           </h1>
 
           <p>
-            Control de conductores,
-            unidades, destinos, viajes
-            y ubicaciones desde una
-            plataforma centralizada.
+            Control inteligente de conductores, unidades, destinos, viajes y seguimiento en tiempo real desde una plataforma centralizada.
           </p>
         </div>
       </section>
 
       <section className="login-section">
         <div className="login-card">
-          <img
-            className="login-logo"
-            src={logoAQR}
-            alt="AQR"
-          />
-
-          <span className="login-label">
-            Acceso administrativo
-          </span>
-
-          <h2>Bienvenido</h2>
-
-          <p className="login-description">
-            Ingresa tus credenciales para
-            acceder al panel.
-          </p>
-
-          <form
-            onSubmit={handleSubmit}
-          >
-            <label htmlFor="username">
-              Usuario
-            </label>
-
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              value={form.username}
-              onChange={handleChange}
-              disabled={loading}
-              required
+          <div className="login-header">
+            <img
+              className="login-logo"
+              src={logoAQR}
+              alt="AQR Logistics"
             />
+            <span className="login-label">
+              Acceso administrativo
+            </span>
+            <h2>Bienvenido</h2>
+            <p className="login-description">
+              Ingresa tus credenciales autorizadas para acceder al panel de administración.
+            </p>
+          </div>
 
-            <label htmlFor="password">
-              Contraseña
-            </label>
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="username">Usuario</label>
+              <div className="input-wrapper">
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="Ej. admin"
+                  value={form.username}
+                  onChange={handleChange}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
 
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={handleChange}
-              disabled={loading}
-              required
-            />
+            <div className="form-group">
+              <label htmlFor="password">Contraseña</label>
+              <div className="input-wrapper">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
 
             {message && (
-              <p
-                className="login-error"
-                role="alert"
-              >
+              <p className="login-error" role="alert">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
                 {message}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-            >
-              {loading
-                ? "Validando..."
-                : "Entrar"}
+            <button type="submit" className="login-submit-btn" disabled={loading}>
+              {loading ? (
+                <span className="spinner-container">
+                  <span className="btn-spinner" /> Validando...
+                </span>
+              ) : (
+                "Entrar al sistema"
+              )}
             </button>
           </form>
         </div>
@@ -194,3 +171,4 @@ function LoginPage({
 }
 
 export default LoginPage;
+
