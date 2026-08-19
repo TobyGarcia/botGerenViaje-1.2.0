@@ -2015,7 +2015,235 @@
 .user-form-modal { width:min(760px,100%); }
 .driver-form select { width:100%; padding:12px 14px; border:1px solid #cadde6; border-radius:9px; background:#f9fcfd; color:#173c4d; font:inherit; }
 .date-selects { display:grid; grid-template-columns:.7fr 1.25fr .9fr; gap:8px; }
-@media(max-width:900px){.profile-form{grid-template-columns:1fr}.profile-fields{grid-template-columns:1fr}.admin-layout,.sidebar-collapsed{grid-template-columns:1fr}.sidebar,.sidebar-collapsed .sidebar{position:static;width:auto;min-width:0;height:auto;padding:16px 18px}.sidebar-collapsed .sidebar-text{display:inline}.sidebar-collapsed .sidebar nav button,.sidebar-collapsed .logout-button{justify-content:flex-start;padding:12px 14px!important}.sidebar-collapsed .sidebar-brand{width:auto}.sidebar-collapsed .notification-button strong{position:static}.sidebar-toggle{display:none!important}}
+
+/* ==========================================================================
+   DISEÑO RESPONSIVO MÓVIL (MOBILE & TABLET ADAPTATIVE SYSTEM)
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  /* Contenedor Principal en Disposición Vertical */
+  .admin-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* Barra de Navegación Superior Fija en Móvil */
+  .sidebar-wrapper {
+    position: sticky !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    z-index: 500 !important;
+  }
+
+  .sidebar {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 10px 14px !important;
+    background: linear-gradient(90deg, #116e95 0%, #0c4d6a 100%) !important;
+    box-shadow: 0 4px 16px rgba(10, 54, 72, 0.25) !important;
+    white-space: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .sidebar:hover {
+    width: 100% !important;
+    padding: 10px 14px !important;
+    box-shadow: 0 4px 16px rgba(10, 54, 72, 0.25) !important;
+  }
+
+  .sidebar-top {
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-brand {
+    gap: 8px !important;
+  }
+
+  .brand-mark {
+    width: 34px !important;
+    height: 34px !important;
+    flex: 0 0 34px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .sidebar-text {
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    font-size: 0.88rem !important;
+  }
+
+  .sidebar nav {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 !important;
+    padding: 0 10px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar nav button,
+  .logout-button {
+    width: auto !important;
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    font-size: 0.84rem !important;
+    border-radius: 10px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .logout-button {
+    margin-top: 0 !important;
+    margin-left: auto !important;
+    padding: 8px 10px !important;
+  }
+
+  .notification-button strong {
+    opacity: 1 !important;
+    position: relative !important;
+    margin-left: 6px !important;
+  }
+
+  /* Área Principal del Dashboard */
+  .dashboard-content {
+    padding: 20px 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .user-summary {
+    margin-left: 0 !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    box-sizing: border-box !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .module-toolbar {
+    grid-template-columns: 1fr !important;
+    padding: 14px !important;
+  }
+
+  .profile-form,
+  .profile-fields {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar nav button .sidebar-text {
+    display: none !important;
+  }
+
+  .sidebar-brand .sidebar-text {
+    display: inline-block !important;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ranking-card,
+  .activity-heatmap-card {
+    padding: 18px 14px !important;
+    gap: 16px !important;
+    border-radius: 14px !important;
+  }
+
+  .ranking-header,
+  .activity-heatmap-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .ranking-segmented-control {
+    width: 100% !important;
+    display: flex !important;
+    box-sizing: border-box !important;
+  }
+
+  .ranking-tab-btn {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 8px 6px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .ranking-row {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+
+  .ranking-badge {
+    width: 32px !important;
+    height: 32px !important;
+    flex: 0 0 32px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .ranking-title-area {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+
+  .ranking-sub-info {
+    font-size: 0.76rem !important;
+  }
+
+  .heatmap-container {
+    padding: 12px 10px !important;
+  }
+
+  .inspection-detail-grid,
+  .admin-checklist,
+  .damage-viewer-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inspection-decision-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inspection-preview-button {
+    justify-self: stretch !important;
+  }
+
+  .inspection-decision-actions {
+    justify-content: stretch !important;
+  }
+
+  .inspection-decision-actions button {
+    flex: 1 !important;
+  }
+}
+
 .inspection-status { display:inline-flex; padding:5px 8px; border-radius:999px; font-size:.75rem; font-weight:800; }
 .inspection-status-pendiente_aprobacion { color:#7a560b; background:#fff0c9; }
 .inspection-status-aprobada { color:#12643e; background:#e4f7ed; }
@@ -2048,4 +2276,3 @@
 .damage-viewer-stage { position:relative; width:100%; line-height:0; }
 .damage-viewer-stage img { display:block; width:100%; height:auto; user-select:none; }
 .damage-viewer-point { position:absolute; z-index:2; display:grid; width:26px; height:26px; place-items:center; border:2px solid #dc2626; border-radius:50%; color:#b91c1c; background:rgba(255,255,255,.54); transform:translate(-50%,-50%); box-shadow:0 1px 4px #0005; font-size:11px; line-height:1; }
-@media(max-width:640px){.inspection-detail-grid,.admin-checklist,.damage-viewer-grid{grid-template-columns:1fr;}.inspection-decision-panel{grid-template-columns:1fr;}.inspection-preview-button{justify-self:stretch;}.inspection-decision-actions{justify-content:stretch;}.inspection-decision-actions button{flex:1;}}
