@@ -1,7 +1,36 @@
 :root {
-  font-family: Arial, sans-serif;
-  color: #1f2937;
-  background: #f3f4f6;
+  /* Paleta Institucional Unificada (Cyan / Ocean Blue) */
+  --primary-color: #116e95;
+  --primary-hover: #0c5677;
+  --primary-dark: #0c4d6a;
+  --primary-gradient: linear-gradient(135deg, #116e95 0%, #0c4d6a 100%);
+  --accent-cyan: #26b8dc;
+  --accent-cyan-light: #e6f7fc;
+
+  /* Colores Neutros y Fondos */
+  --bg-page: #f4f8fb;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f8fcfe;
+  --border-card: #d6e8ef;
+  --border-subtle: #e2eef3;
+
+  /* Tipografía */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --text-main: #123d50;
+  --text-muted: #5b7b8a;
+  --text-inverse: #ffffff;
+
+  /* Estados y Badges */
+  --status-success-bg: #e4f7ed;
+  --status-success-text: #12643e;
+  --status-warning-bg: #fff0c9;
+  --status-warning-text: #7a560b;
+  --status-danger-bg: #fae8e8;
+  --status-danger-text: #8a3030;
+
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background: var(--bg-page);
 }
 
 * {
@@ -13,6 +42,8 @@ body {
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
+  background: var(--bg-page);
+  color: var(--text-main);
 }
 
 html,
@@ -29,22 +60,31 @@ body,
   padding: 24px 16px;
 }
 
+h1, h2, h3, h4 {
+  color: var(--text-main);
+  font-weight: 800;
+  margin-top: 0;
+}
+
 h1 {
   margin-bottom: 24px;
 }
 
 form {
   display: grid;
-  gap: 16px;
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
+  gap: 18px;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(18, 66, 88, 0.05);
 }
 
 label {
   display: grid;
-  gap: 6px;
-  font-weight: 600;
+  gap: 7px;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 input,
@@ -52,23 +92,26 @@ select,
 textarea,
 button {
   width: 100%;
-  padding: 12px;
+  padding: 12px 14px;
   font: inherit;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 input,
 select,
 textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #cce3ed;
+  background: #ffffff;
+  color: var(--text-main);
 }
 
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 button:focus-visible {
-  outline: 3px solid #93c5fd;
+  outline: 3px solid rgba(35, 169, 207, 0.22);
   outline-offset: 2px;
+  border-color: var(--accent-cyan);
 }
 
 textarea {
@@ -79,46 +122,59 @@ textarea {
 button {
   border: 0;
   cursor: pointer;
-  background: #2563eb;
-  color: white;
-  font-weight: 700;
+  background: var(--primary-gradient);
+  color: var(--text-inverse);
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(17, 110, 149, 0.22);
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .message {
   margin-top: 16px;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
+  padding: 14px;
+  background: var(--bg-card);
+  border-radius: 12px;
 }
 
 .message-success {
-  border: 1px solid #86efac;
-  background: #f0fdf4;
-  color: #166534;
+  border: 1px solid #a3e8c5;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  font-weight: 700;
 }
 
 .message-error {
   border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+  font-weight: 700;
 }
 
 .loading-message {
   padding: 24px;
   text-align: center;
+  color: var(--text-muted);
 }
+
 .summary-card,
 .information-panel,
 .result-card {
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #dbe2ea;
-  border-radius: 10px;
+  padding: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(18, 66, 88, 0.04);
 }
 
 .summary-card {
@@ -128,8 +184,9 @@ button:disabled {
 }
 
 .information-panel {
-  margin-top: 8px;
-  background: #f8fafc;
+  margin-top: 10px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
 }
 
 .information-panel p,
@@ -138,44 +195,41 @@ button:disabled {
 }
 
 .status-valid {
-  color: #15803d;
-  font-weight: 700;
+  color: var(--status-success-text);
+  font-weight: 800;
 }
 
 .status-invalid,
 .validation-error {
-  color: #b91c1c;
-  font-weight: 700;
+  color: var(--status-danger-text);
+  font-weight: 800;
 }
 
 .result-card {
   margin-top: 20px;
-  border-color: #86efac;
-  background: #f0fdf4;
-  color: #172033;
+  border-color: #a3e8c5;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
   text-align: left;
 }
 
 button.result-card {
-  color: #172033;
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
 }
 
 button.result-card:hover:not(:disabled) {
-  background: #dcfce7;
+  background: #d4f3e3;
 }
 
 small {
-  color: #64748b;
-  font-weight: 400;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .start-trip-button {
   margin-top: 16px;
-  background: #15803d;
-}
-
-.start-trip-button:hover:not(:disabled) {
-  background: #166534;
+  background: var(--primary-gradient);
 }
 
 .companions-toggle {
@@ -186,10 +240,11 @@ small {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  color: #334155;
+  color: var(--text-main);
   background: transparent;
   text-align: left;
   transition: background 180ms ease;
+  box-shadow: none;
 }
 
 .companions-toggle-active {
@@ -232,7 +287,7 @@ small {
 }
 
 .companions-toggle-active .companions-toggle-track {
-  background: linear-gradient(135deg, #4ade80, #3b82f6);
+  background: linear-gradient(135deg, #116e95, #26b8dc);
 }
 
 .companions-toggle-active .companions-toggle-thumb {
@@ -240,36 +295,35 @@ small {
 }
 
 .status-pending {
-  color: #b45309;
-  font-weight: 700;
+  color: var(--status-warning-text);
+  font-weight: 800;
 }
 
 .status-in-progress {
-  color: #15803d;
-  font-weight: 700;
+  color: var(--status-success-text);
+  font-weight: 800;
 }
 
 .status-cancelled {
-  color: #b91c1c;
-  font-weight: 700;
+  color: var(--status-danger-text);
+  font-weight: 800;
 }
 
 .cancel-trip-button {
   margin-top: 12px;
-  background: #b91c1c;
+  background: var(--status-danger-text);
 }
 
 .cancel-trip-button:hover:not(:disabled) {
-  background: #991b1b;
+  background: #732323;
 }
 
 .gps-panel {
   margin-top: 16px;
-  padding: 16px;
-
-  background: #eff6ff;
-  border: 1px solid #93c5fd;
-  border-radius: 10px;
+  padding: 18px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
 }
 
 .gps-panel h3 {
@@ -277,27 +331,27 @@ small {
 }
 
 .gps-button {
-  background: #2563eb;
+  background: var(--primary-gradient);
 }
 
 .stop-gps-button {
-  background: #b91c1c;
+  background: var(--status-danger-text);
 }
 
 .finish-trip-form {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #bfdbfe;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .finish-trip-button {
   margin-top: 12px;
-  background: #b91c1c;
+  background: var(--status-danger-text);
 }
 
 .new-trip-button {
   margin-top: 16px;
-  background: #2563eb;
+  background: var(--primary-gradient);
 }
 
 .completed-trip-actions {
@@ -311,19 +365,19 @@ small {
 }
 
 .exit-app-button {
-  background: #475569;
+  background: var(--text-muted);
 }
 
 .exit-app-button:hover:not(:disabled) {
-  background: #334155;
+  background: var(--text-main);
 }
 
 .location-details {
   margin-top: 14px;
-  padding: 12px;
-
+  padding: 14px;
   background: #ffffff;
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
 }
 
 .location-details p {

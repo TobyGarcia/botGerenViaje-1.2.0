@@ -41,13 +41,14 @@
 
 .telegram-auth-error button {
   justify-self: center;
-  padding: 11px 18px;
+  padding: 12px 20px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   color: #ffffff;
-  background: #1ba8ce;
+  background: linear-gradient(135deg, #116e95 0%, #0c4d6a 100%);
+  box-shadow: 0 4px 14px rgba(17, 110, 149, 0.22);
   font: inherit;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
 }
 
