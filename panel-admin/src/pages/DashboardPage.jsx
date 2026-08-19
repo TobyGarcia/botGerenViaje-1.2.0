@@ -61,7 +61,11 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
           <small>{pendingInspections ? "Requieren aprobación administrativa" : "No hay inspecciones por atender"}</small>
         </button>
       </section>
+
       {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
+
+      <RankingWidget rankingUnidades={summary.ranking_unidades} rankingDestinos={summary.ranking_destinos} />
+
       <section className="activity-card">
         <div><h2>Actividad de viajes</h2><p>Viajes registrados durante los últimos siete días.</p></div>
         <div className="activity-chart" aria-label="Gráfica de actividad de viajes">
@@ -74,6 +78,90 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
           ))}
         </div>
       </section>
+    </section>
+  );
+}
+
+function RankingWidget({ rankingUnidades = [], rankingDestinos = [] }) {
+  const [rankingTab, setRankingTab] = useState("unidades");
+
+  const isUnidades = rankingTab === "unidades";
+  const list = isUnidades ? rankingUnidades : rankingDestinos;
+
+  const maxVal = Math.max(1, ...list.map((item) => Number(isUnidades ? item.total_viajes : item.total_visitas)));
+
+  return (
+    <section className="ranking-card">
+      <div className="ranking-header">
+        <div>
+          <h2>🏆 Ranking de Viajes</h2>
+          <p>Métricas acumuladas por vehículos más utilizados y destinos con mayor frecuencia de visitas (excluyendo base operacional).</p>
+        </div>
+
+        <div className="ranking-segmented-control">
+          <button
+            type="button"
+            className={`ranking-tab-btn ${isUnidades ? "active" : ""}`}
+            onClick={() => setRankingTab("unidades")}
+          >
+            🚚 Unidades más usadas
+          </button>
+          <button
+            type="button"
+            className={`ranking-tab-btn ${!isUnidades ? "active" : ""}`}
+            onClick={() => setRankingTab("destinos")}
+          >
+            📍 Destinos más visitados
+          </button>
+        </div>
+      </div>
+
+      {list.length === 0 ? (
+        <div className="ranking-empty">
+          <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : "destinos"}.</p>
+        </div>
+      ) : (
+        <div className="ranking-list">
+          {list.map((item, index) => {
+            const count = Number(isUnidades ? item.total_viajes : item.total_visitas);
+            const percentage = Math.max(8, Math.round((count / maxVal) * 100));
+            const rank = index + 1;
+
+            return (
+              <div key={isUnidades ? item.id_vehiculos || index : item.id_destino || index} className="ranking-row">
+                <div className={`ranking-badge rank-${rank <= 3 ? rank : "other"}`}>
+                  {rank === 1 && "🥇"}
+                  {rank === 2 && "🥈"}
+                  {rank === 3 && "🥉"}
+                  {rank > 3 && `#${rank}`}
+                </div>
+
+                <div className="ranking-info">
+                  <div className="ranking-title-area">
+                    <strong className="ranking-item-name">{item.nombre}</strong>
+                    {isUnidades ? (
+                      <span className="ranking-sub-info">
+                        Eco: <strong>{item.numero_economico}</strong> • Placas: <strong>{item.placas}</strong> • Total KM: <strong>{item.total_km} km</strong>
+                      </span>
+                    ) : (
+                      <span className="ranking-sub-info">{item.direccion || "Destino registrado en sistema"}</span>
+                    )}
+                  </div>
+
+                  <div className="ranking-bar-wrapper">
+                    <div className="ranking-bar-background">
+                      <div className="ranking-bar-fill" style={{ width: `${percentage}%` }} />
+                    </div>
+                    <span className="ranking-count">
+                      <strong>{count}</strong> {isUnidades ? (count === 1 ? "viaje" : "viajes") : (count === 1 ? "visita" : "visitas")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

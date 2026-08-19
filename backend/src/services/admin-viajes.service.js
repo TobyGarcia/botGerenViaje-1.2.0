@@ -3,7 +3,7 @@ import {
 } from "../database/pool.js";
 
 export async function getAdminDashboardSummary() {
-  const [summaryResult, activityResult] = await Promise.all([
+  const [summaryResult, activityResult, rankingUnidadesResult, rankingDestinosResult] = await Promise.all([
     databasePool.query(
       `
         SELECT
@@ -32,12 +32,45 @@ export async function getAdminDashboardSummary() {
         GROUP BY serie.fecha
         ORDER BY serie.fecha
       `
+    ),
+    databasePool.query(
+      `
+        SELECT
+          v.id_vehiculos,
+          COALESCE(vh.nombre, v.vehiculo_nombre_historico, 'Unidad sin nombre') AS nombre,
+          COALESCE(vh.numero_economico, v.vehiculo_numero_economico_historico, 'N/A') AS numero_economico,
+          COALESCE(vh.placas, v.vehiculo_placas_historico, 'N/A') AS placas,
+          COUNT(v.id_viajes)::INTEGER AS total_viajes,
+          COALESCE(SUM(v.kilometros_recorridos), 0)::NUMERIC(10,1) AS total_km
+        FROM viajes v
+        LEFT JOIN vehiculos vh ON vh.id_vehiculos = v.id_vehiculos
+        GROUP BY v.id_vehiculos, vh.nombre, v.vehiculo_nombre_historico, vh.numero_economico, v.vehiculo_numero_economico_historico, vh.placas, v.vehiculo_placas_historico
+        ORDER BY total_viajes DESC, total_km DESC
+        LIMIT 10
+      `
+    ),
+    databasePool.query(
+      `
+        SELECT
+          destino.id_lugares AS id_destino,
+          destino.nombre AS nombre,
+          COALESCE(destino.direccion, '') AS direccion,
+          COUNT(v.id_viajes)::INTEGER AS total_visitas
+        FROM viajes v
+        INNER JOIN lugares destino ON destino.id_lugares = v.id_destino
+        WHERE LOWER(destino.nombre) NOT LIKE '%base%'
+        GROUP BY destino.id_lugares, destino.nombre, destino.direccion
+        ORDER BY total_visitas DESC, destino.nombre ASC
+        LIMIT 10
+      `
     )
   ]);
 
   return {
     ...summaryResult.rows[0],
-    actividad: activityResult.rows
+    actividad: activityResult.rows,
+    ranking_unidades: rankingUnidadesResult.rows,
+    ranking_destinos: rankingDestinosResult.rows
   };
 }
 

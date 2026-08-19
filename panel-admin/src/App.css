@@ -557,6 +557,201 @@
   letter-spacing: 0.05em;
 }
 
+/* Seccion de Ranking de Viajes */
+.ranking-card {
+  padding: 28px;
+  border: 1px solid #d6e8ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(18, 66, 88, 0.05);
+  display: grid;
+  gap: 24px;
+}
+
+.ranking-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ranking-header h2 {
+  margin: 0 0 4px;
+  color: #123d50;
+  font-size: 1.35rem;
+}
+
+.ranking-header p {
+  margin: 0;
+  color: #607986;
+  font-size: 0.9rem;
+}
+
+.ranking-segmented-control {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 14px;
+  background: #ebf4f8;
+  border: 1px solid #d2e4ed;
+}
+
+.ranking-tab-btn {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #486676;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ranking-tab-btn:hover {
+  color: #126b91;
+}
+
+.ranking-tab-btn.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #116e95 0%, #0d5574 100%);
+  box-shadow: 0 4px 12px rgba(17, 110, 149, 0.25);
+}
+
+.ranking-list {
+  display: grid;
+  gap: 14px;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e3eef3;
+  border-radius: 14px;
+  background: #f8fcfe;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ranking-row:hover {
+  transform: translateY(-2px);
+  border-color: #bce0ed;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(18, 66, 88, 0.06);
+}
+
+.ranking-badge {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ranking-badge.rank-1 {
+  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  color: #b45309;
+}
+
+.ranking-badge.rank-2 {
+  background: #f8fafc;
+  border: 1.5px solid #94a3b8;
+  color: #475569;
+}
+
+.ranking-badge.rank-3 {
+  background: #fff7ed;
+  border: 1.5px solid #ea580c;
+  color: #9a3412;
+}
+
+.ranking-badge.rank-other {
+  background: #eef6f9;
+  border: 1px solid #c9e0ea;
+  color: #416778;
+  font-size: 0.85rem;
+}
+
+.ranking-info {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-title-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ranking-item-name {
+  color: #123d50;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.ranking-sub-info {
+  color: #607986;
+  font-size: 0.82rem;
+}
+
+.ranking-sub-info strong {
+  color: #1a607d;
+}
+
+.ranking-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ranking-bar-background {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: #e4eff3;
+  overflow: hidden;
+}
+
+.ranking-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #26b8dc 0%, #116e95 100%);
+  transition: width 0.4s ease;
+}
+
+.ranking-count {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: #517180;
+  white-space: nowrap;
+}
+
+.ranking-count strong {
+  color: #116e95;
+  font-weight: 800;
+}
+
+.ranking-empty {
+  padding: 32px;
+  text-align: center;
+  color: #607986;
+  background: #f8fcfe;
+  border-radius: 12px;
+  border: 1px dashed #cadde6;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
