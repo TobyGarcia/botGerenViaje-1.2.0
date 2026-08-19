@@ -348,6 +348,12 @@ function DashboardPage({ user, onLogout }) {
   const [pendingInspections, setPendingInspections] = useState(0);
   const [notificationError, setNotificationError] = useState("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleSelectModule = (moduleId) => {
+    setActiveModule(moduleId);
+    setIsMobileMenuOpen(false);
+  };
 
   useEffect(() => {
     if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
@@ -384,22 +390,43 @@ function DashboardPage({ user, onLogout }) {
 
   return (
     <div className="admin-layout">
+      {/* Fondo oscuro al abrir el menú en móviles */}
+      {isMobileMenuOpen && (
+        <div
+          className="mobile-menu-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       <div className="sidebar-wrapper">
-        <aside className="sidebar">
+        <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <div className="sidebar-top">
             <div className="sidebar-brand">
               <span className="brand-mark">GV</span>
               <span className="sidebar-text">Gerenciamiento viajes</span>
             </div>
+
+            {/* Botón de Menú Hamburguesa para Móviles */}
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              aria-label="Abrir menú de navegación"
+            >
+              {isMobileMenuOpen ? "✕" : "☰"}
+              {pendingInspections > 0 && !isMobileMenuOpen && (
+                <span className="mobile-badge-dot">{pendingInspections}</span>
+              )}
+            </button>
           </div>
 
-          <nav>
+          <nav className="sidebar-nav">
             {canInspect && (
               <button
                 type="button"
                 title="Inspecciones"
                 className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`}
-                onClick={() => setActiveModule("inspecciones")}
+                onClick={() => handleSelectModule("inspecciones")}
               >
                 <span className="nav-icon"><IconInspecciones size={20} /></span>
                 <span className="sidebar-text">Inspecciones</span>
@@ -411,7 +438,7 @@ function DashboardPage({ user, onLogout }) {
               type="button"
               title="Inicio"
               className={activeModule === "inicio" ? "sidebar-active" : ""}
-              onClick={() => setActiveModule("inicio")}
+              onClick={() => handleSelectModule("inicio")}
             >
               <span className="nav-icon"><IconInicio size={20} /></span>
               <span className="sidebar-text">Inicio</span>
@@ -425,7 +452,7 @@ function DashboardPage({ user, onLogout }) {
                   type="button"
                   title={module.label}
                   className={activeModule === module.id ? "sidebar-active" : ""}
-                  onClick={() => setActiveModule(module.id)}
+                  onClick={() => handleSelectModule(module.id)}
                 >
                   <span className="nav-icon"><IconComponent size={20} /></span>
                   <span className="sidebar-text">{module.label}</span>
@@ -438,7 +465,7 @@ function DashboardPage({ user, onLogout }) {
                 type="button"
                 title="Administrador de usuarios"
                 className={activeModule === "usuarios" ? "sidebar-active" : ""}
-                onClick={() => setActiveModule("usuarios")}
+                onClick={() => handleSelectModule("usuarios")}
               >
                 <span className="nav-icon"><IconUsuarios size={20} /></span>
                 <span className="sidebar-text">Administrador de usuarios</span>
@@ -449,22 +476,22 @@ function DashboardPage({ user, onLogout }) {
               type="button"
               title="Configuración"
               className={activeModule === "perfil" ? "sidebar-active" : ""}
-              onClick={() => setActiveModule("perfil")}
+              onClick={() => handleSelectModule("perfil")}
             >
               <span className="nav-icon"><IconConfiguracion size={20} /></span>
               <span className="sidebar-text">Configuración</span>
             </button>
-          </nav>
 
-          <button
-            type="button"
-            className="logout-button"
-            onClick={onLogout}
-            title="Cerrar sesión"
-          >
-            <span className="nav-icon"><IconCerrarSesion size={20} /></span>
-            <span className="sidebar-text">Cerrar sesión</span>
-          </button>
+            <button
+              type="button"
+              className="logout-button mobile-logout"
+              onClick={onLogout}
+              title="Cerrar sesión"
+            >
+              <span className="nav-icon"><IconCerrarSesion size={20} /></span>
+              <span className="sidebar-text">Cerrar sesión</span>
+            </button>
+          </nav>
         </aside>
       </div>
 
