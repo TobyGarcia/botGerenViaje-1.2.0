@@ -1,8 +1,38 @@
+:root {
+  /* Paleta Institucional Principal (Cyan / Ocean Blue) */
+  --primary-color: #116e95;
+  --primary-hover: #0c5677;
+  --primary-dark: #0c4d6a;
+  --primary-gradient: linear-gradient(135deg, #116e95 0%, #0c4d6a 100%);
+  --accent-cyan: #26b8dc;
+  --accent-cyan-light: #e6f7fc;
+
+  /* Colores Neutros y Fondos */
+  --bg-page: #f4f8fb;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f8fcfe;
+  --border-card: #d6e8ef;
+  --border-subtle: #e2eef3;
+
+  /* Tipografía */
+  --text-main: #123d50;
+  --text-muted: #5b7b8a;
+  --text-inverse: #ffffff;
+
+  /* Estados y Badges */
+  --status-success-bg: #e4f7ed;
+  --status-success-text: #12643e;
+  --status-warning-bg: #fff0c9;
+  --status-warning-text: #7a560b;
+  --status-danger-bg: #fae8e8;
+  --status-danger-text: #8a3030;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
-  background: #f4f8fb;
+  background: var(--bg-page);
 }
 
 .login-hero {

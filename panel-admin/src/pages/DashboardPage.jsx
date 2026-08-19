@@ -421,6 +421,16 @@ function DashboardPage({ user, onLogout }) {
           </div>
 
           <nav className="sidebar-nav">
+            <button
+              type="button"
+              title="Inicio"
+              className={activeModule === "inicio" ? "sidebar-active" : ""}
+              onClick={() => handleSelectModule("inicio")}
+            >
+              <span className="nav-icon"><IconInicio size={20} /></span>
+              <span className="sidebar-text">Inicio</span>
+            </button>
+
             {canInspect && (
               <button
                 type="button"
@@ -433,16 +443,6 @@ function DashboardPage({ user, onLogout }) {
                 {pendingInspections > 0 && <strong>{pendingInspections}</strong>}
               </button>
             )}
-
-            <button
-              type="button"
-              title="Inicio"
-              className={activeModule === "inicio" ? "sidebar-active" : ""}
-              onClick={() => handleSelectModule("inicio")}
-            >
-              <span className="nav-icon"><IconInicio size={20} /></span>
-              <span className="sidebar-text">Inicio</span>
-            </button>
 
             {modules.map((module) => {
               const IconComponent = module.icon;
