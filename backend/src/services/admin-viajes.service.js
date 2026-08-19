@@ -23,7 +23,7 @@ export async function getAdminDashboardSummary() {
           serie.fecha::date AS fecha,
           COUNT(v.id_viajes)::INTEGER AS total
         FROM generate_series(
-          CURRENT_DATE - INTERVAL '6 days',
+          CURRENT_DATE - INTERVAL '364 days',
           CURRENT_DATE,
           INTERVAL '1 day'
         ) AS serie(fecha)

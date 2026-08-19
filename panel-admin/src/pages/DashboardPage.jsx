@@ -47,8 +47,6 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
   if (error) return <p className="module-message module-message-error">{error}</p>;
   if (!summary) return <p className="table-status">Cargando indicadores...</p>;
 
-  const maxActivity = Math.max(1, ...summary.actividad.map((item) => Number(item.total)));
-
   return (
     <section className="dashboard-overview">
       <section className="kpi-grid">
@@ -64,20 +62,179 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
 
       {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
 
+      {/* Disposición en columna para Ranking y Gráfico de Calor */}
       <RankingWidget rankingUnidades={summary.ranking_unidades} rankingDestinos={summary.ranking_destinos} />
 
-      <section className="activity-card">
-        <div><h2>Actividad de viajes</h2><p>Viajes registrados durante los últimos siete días.</p></div>
-        <div className="activity-chart" aria-label="Gráfica de actividad de viajes">
-          {summary.actividad.map((item) => (
-            <div className="activity-column" key={item.fecha}>
-              <span className="activity-value">{item.total}</span>
-              <div className="activity-bar-area"><div className="activity-bar" style={{ height: `${Math.max(6, (Number(item.total) / maxActivity) * 100)}%` }} /></div>
-              <small>{formatActivityDay(item.fecha)}</small>
-            </div>
-          ))}
+      <ActivityHeatmapCard actividad={summary.actividad} />
+    </section>
+  );
+}
+
+function ActivityHeatmapCard({ actividad = [] }) {
+  const [rangeFilter, setRangeFilter] = useState("anual");
+  const [tooltip, setTooltip] = useState(null);
+
+  const items = actividad.map((item) => {
+    const rawStr = String(item.fecha || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] || item.fecha;
+    const [y, m, d] = String(rawStr || "").split("-").map(Number);
+    const dateObj = new Date(y || 2026, (m || 1) - 1, d || 1);
+    return {
+      rawStr,
+      dateObj,
+      total: Number(item.total || 0)
+    };
+  });
+
+  let filteredItems = items;
+  if (rangeFilter === "semanal") {
+    filteredItems = items.slice(-14);
+  } else if (rangeFilter === "mensual") {
+    filteredItems = items.slice(-35);
+  } else {
+    filteredItems = items.slice(-364);
+  }
+
+  const getLevel = (count) => {
+    if (count === 0) return 0;
+    if (count === 1) return 1;
+    if (count <= 3) return 2;
+    if (count <= 6) return 3;
+    return 4;
+  };
+
+  const formatTooltipDate = (item) => {
+    if (!item.dateObj || isNaN(item.dateObj.getTime())) return item.rawStr;
+    const str = item.dateObj.toLocaleDateString("es-MX", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const getMonthLabels = () => {
+    if (rangeFilter === "semanal") return ["Últimas 2 semanas"];
+    if (rangeFilter === "mensual") return ["Últimos 30 días"];
+
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const labels = [];
+    let lastMonth = -1;
+
+    filteredItems.forEach((item, idx) => {
+      if (item.dateObj && !isNaN(item.dateObj.getTime())) {
+        const m = item.dateObj.getMonth();
+        if (m !== lastMonth) {
+          lastMonth = m;
+          labels.push({ index: idx, name: monthNames[m] });
+        }
+      }
+    });
+    return labels;
+  };
+
+  const totalViajesPeriodo = filteredItems.reduce((acc, curr) => acc + curr.total, 0);
+
+  return (
+    <section className="activity-heatmap-card">
+      <div className="activity-heatmap-header">
+        <div>
+          <h2>📊 Actividad de Viajes</h2>
+          <p>
+            {rangeFilter === "semanal" && "Frecuencia de viajes registrados en las últimas 2 semanas."}
+            {rangeFilter === "mensual" && "Frecuencia de viajes registrados durante el último mes."}
+            {rangeFilter === "anual" && "Mapa de calor anual de viajes (últimas 52 semanas)."}{" "}
+            <strong>({totalViajesPeriodo} {totalViajesPeriodo === 1 ? "viaje registrado" : "viajes registrados"})</strong>
+          </p>
         </div>
-      </section>
+
+        <div className="ranking-segmented-control">
+          <button
+            type="button"
+            className={`ranking-tab-btn ${rangeFilter === "semanal" ? "active" : ""}`}
+            onClick={() => setRangeFilter("semanal")}
+          >
+            📅 Semanal
+          </button>
+          <button
+            type="button"
+            className={`ranking-tab-btn ${rangeFilter === "mensual" ? "active" : ""}`}
+            onClick={() => setRangeFilter("mensual")}
+          >
+            📆 Mensual
+          </button>
+          <button
+            type="button"
+            className={`ranking-tab-btn ${rangeFilter === "anual" ? "active" : ""}`}
+            onClick={() => setRangeFilter("anual")}
+          >
+            🗓️ Anual
+          </button>
+        </div>
+      </div>
+
+      <div className="heatmap-container">
+        <div className="heatmap-days-legend">
+          <span>Lun</span>
+          <span>Mié</span>
+          <span>Vie</span>
+        </div>
+
+        <div className="heatmap-grid-scroll">
+          {rangeFilter === "anual" && (
+            <div className="heatmap-month-labels">
+              {getMonthLabels().map((lbl, i) => (
+                <span key={i} style={{ gridColumnStart: Math.max(1, Math.floor(lbl.index / 7) + 1) }}>
+                  {lbl.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className={`heatmap-grid mode-${rangeFilter}`}>
+            {filteredItems.map((item, idx) => {
+              const lvl = getLevel(item.total);
+              return (
+                <div
+                  key={idx}
+                  className={`heatmap-cell level-${lvl}`}
+                  onMouseEnter={(e) => {
+                    const rect = e.target.getBoundingClientRect();
+                    setTooltip({
+                      text: `${formatTooltipDate(item)}: ${item.total} ${item.total === 1 ? "viaje" : "viajes"}`,
+                      x: rect.left + rect.width / 2,
+                      y: rect.top - 8
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {tooltip && (
+        <div className="heatmap-tooltip" style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}>
+          {tooltip.text}
+        </div>
+      )}
+
+      <div className="heatmap-footer">
+        <span className="heatmap-note">
+          {rangeFilter === "anual" ? "Se muestran 365 días de actividad registrada" : "Visualización por matriz de cuadrícula de calor"}
+        </span>
+
+        <div className="heatmap-scale-legend">
+          <span>Menos</span>
+          <div className="heatmap-cell level-0" />
+          <div className="heatmap-cell level-1" />
+          <div className="heatmap-cell level-2" />
+          <div className="heatmap-cell level-3" />
+          <div className="heatmap-cell level-4" />
+          <span>Más</span>
+        </div>
+      </div>
     </section>
   );
 }

@@ -557,6 +557,13 @@
   letter-spacing: 0.05em;
 }
 
+/* Disposición de la Vista de Inicio (Formato Columna) */
+.dashboard-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
 /* Seccion de Ranking de Viajes */
 .ranking-card {
   padding: 28px;
@@ -750,6 +757,175 @@
   background: #f8fcfe;
   border-radius: 12px;
   border: 1px dashed #cadde6;
+}
+
+/* Seccion de Gráfico de Cuadrícula de Calor (Heatmap Grid) */
+.activity-heatmap-card {
+  padding: 28px;
+  border: 1px solid #d6e8ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(18, 66, 88, 0.05);
+  display: grid;
+  gap: 24px;
+}
+
+.activity-heatmap-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.activity-heatmap-header h2 {
+  margin: 0 0 4px;
+  color: #123d50;
+  font-size: 1.35rem;
+}
+
+.activity-heatmap-header p {
+  margin: 0;
+  color: #607986;
+  font-size: 0.9rem;
+}
+
+.activity-heatmap-header p strong {
+  color: #116e95;
+}
+
+.heatmap-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid #e2eef3;
+  border-radius: 14px;
+  background: #f8fcfe;
+  overflow-x: auto;
+}
+
+.heatmap-days-legend {
+  display: grid;
+  grid-template-rows: repeat(7, 13px);
+  gap: 4px;
+  padding-top: 24px;
+  color: #607986;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 13px;
+}
+
+.heatmap-days-legend span:nth-child(1) { grid-row: 2; }
+.heatmap-days-legend span:nth-child(2) { grid-row: 4; }
+.heatmap-days-legend span:nth-child(3) { grid-row: 6; }
+
+.heatmap-grid-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.heatmap-month-labels {
+  display: grid;
+  grid-template-columns: repeat(53, 13px);
+  gap: 4px;
+  color: #607986;
+  font-size: 0.75rem;
+  font-weight: 700;
+  height: 16px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 13px);
+  grid-auto-flow: column;
+  gap: 4px;
+}
+
+.heatmap-grid.mode-semanal {
+  grid-template-columns: repeat(2, 28px);
+  grid-template-rows: repeat(7, 28px);
+  gap: 6px;
+}
+
+.heatmap-grid.mode-mensual {
+  grid-template-columns: repeat(5, 22px);
+  grid-template-rows: repeat(7, 22px);
+  gap: 5px;
+}
+
+.heatmap-grid.mode-anual {
+  grid-template-columns: repeat(53, 13px);
+  grid-template-rows: repeat(7, 13px);
+  gap: 4px;
+}
+
+.heatmap-cell {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  cursor: pointer;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.3);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.heatmap-cell.level-0 { background: #ebf3f7; border: 1px solid #e1ecf1; }
+.heatmap-cell.level-1 { background: #96dbe9; border: 1px solid #7eccdf; }
+.heatmap-cell.level-2 { background: #3abde0; border: 1px solid #2db0d3; }
+.heatmap-cell.level-3 { background: #168fb5; border: 1px solid #127ea1; }
+.heatmap-cell.level-4 { background: #0c4d6a; border: 1px solid #093f57; }
+
+.heatmap-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.heatmap-note {
+  color: #607986;
+  font-size: 0.84rem;
+}
+
+.heatmap-scale-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #607986;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.heatmap-scale-legend .heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.heatmap-tooltip {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #113849;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .dashboard-grid {
