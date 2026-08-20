@@ -16,6 +16,16 @@ const port = Number(
 );
 
 let httpServer = null;
+let shuttingDown = false;
+
+const configuredDatabaseRetryDelayMs = Number(
+  process.env.DATABASE_RETRY_DELAY_MS || 5000
+);
+const databaseRetryDelayMs =
+  Number.isFinite(configuredDatabaseRetryDelayMs) &&
+  configuredDatabaseRetryDelayMs > 0
+    ? configuredDatabaseRetryDelayMs
+    : 5000;
 
 function isTelegramPollingEnabled() {
   // En desarrollo se desactiva por defecto: ejecutar Render y el equipo local
@@ -24,20 +34,8 @@ function isTelegramPollingEnabled() {
   return process.env.NODE_ENV === "production" || process.env.TELEGRAM_POLLING_ENABLED === "true";
 }
 
-async function startServer() {
+async function startBots() {
   try {
-    await databasePool.query("SELECT 1");
-
-    console.log(
-      "Conexión inicial con PostgreSQL verificada."
-    );
-
-    httpServer = app.listen(port, "0.0.0.0", () => {
-      console.log(
-        `Backend escuchando en el puerto ${port}.`
-      );
-    });
-
     if (
       process.env.TELEGRAM_BOT_TOKEN &&
       process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN &&
@@ -66,16 +64,49 @@ async function startServer() {
       console.log("Polling de Telegram desactivado en desarrollo. Define TELEGRAM_POLLING_ENABLED=true solo si no hay otra instancia usando esos tokens.");
     }
   } catch (error) {
-    console.error(
-      "No fue posible iniciar el backend:",
-      error
-    );
-
-    process.exit(1);
+    console.error("Error iniciando las integraciones del backend:", error);
   }
 }
 
+async function initializeDependencies() {
+  let attempt = 0;
+
+  while (!shuttingDown) {
+    attempt += 1;
+
+    try {
+      await databasePool.query("SELECT 1");
+      console.log("Conexión inicial con PostgreSQL verificada.");
+      await startBots();
+      return;
+    } catch (error) {
+      console.error(
+        `PostgreSQL no está disponible (intento ${attempt}). Se reintentará en ${databaseRetryDelayMs} ms:`,
+        error.message
+      );
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, databaseRetryDelayMs);
+      });
+    }
+  }
+}
+
+function startServer() {
+  httpServer = app.listen(port, "0.0.0.0", () => {
+    console.log(`Backend escuchando en el puerto ${port}.`);
+    void initializeDependencies();
+  });
+
+  httpServer.on("error", (error) => {
+    console.error("No fue posible abrir el puerto del backend:", error);
+    process.exit(1);
+  });
+}
+
 async function shutdown(signal) {
+  shuttingDown = true;
+
   console.log(
     `Señal ${signal} recibida. Cerrando servidor.`
   );
