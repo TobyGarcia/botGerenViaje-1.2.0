@@ -2,12 +2,20 @@ import pg from "pg";
 
 const { Pool } = pg;
 
+const isSslEnabled =
+  process.env.DATABASE_SSL === "true" ||
+  process.env.DATABASE_URL?.includes("sslmode=require");
+
 export const databasePool = new Pool({
   connectionString: process.env.DATABASE_URL,
 
-  ssl:{
-    rejectUnauthorized: false
-  },
+  ...(isSslEnabled
+    ? {
+        ssl: {
+          rejectUnauthorized: false
+        }
+      }
+    : {}),
 
   max: 10,
 
