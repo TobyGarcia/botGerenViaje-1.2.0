@@ -1,0 +1,159 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: viajes-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gerenciamiento_viajes}
+      POSTGRES_USER: ${POSTGRES_USER:-viajes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-America/Mexico_City}
+
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/database/migrations:ro
+      - ./database/seeds:/database/seeds:ro
+      - ./database/scripts:/database/scripts:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-viajes_user} -d ${POSTGRES_DB:-gerenciamiento_viajes}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - viajes_network
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: viajes-backend
+    restart: unless-stopped
+    command: ["npm", "start"]
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      TZ: ${TZ:-America/Mexico_City}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEB_APP_URL: ${TELEGRAM_WEB_APP_URL}
+      TELEGRAM_GROUP_ID: ${TELEGRAM_GROUP_ID}
+      TELEGRAM_GROUP_SUPRVISOR_ID: ${TELEGRAM_GROUP_SUPRVISOR_ID}
+      TELEGRAM_SUPERVISOR_BOT_TOKEN: ${TELEGRAM_SUPERVISOR_BOT_TOKEN}
+      TELEGRAM_SUPERVISOR_BOT_USERNAME: ${TELEGRAM_SUPERVISOR_BOT_USERNAME}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_SUPERVISOR_WEB_APP_URL: ${TELEGRAM_SUPERVISOR_WEB_APP_URL}
+      SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION: ${SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION:-false}
+      TELEGRAM_INIT_DATA_MAX_AGE_SECONDS: ${TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:-3600}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN:-8h}
+      ADMIN_COOKIE_NAME: ${ADMIN_COOKIE_NAME:-admin_session}
+      ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-true}
+      ADMIN_COOKIE_SAME_SITE: ${ADMIN_COOKIE_SAME_SITE:-lax}
+      ADMIN_LOGIN_MAX_ATTEMPTS: ${ADMIN_LOGIN_MAX_ATTEMPTS:-5}
+      ADMIN_LOGIN_BLOCK_MINUTES: ${ADMIN_LOGIN_BLOCK_MINUTES:-15}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SUPERVISOR_EMAIL_CONFIRM_URL: ${SUPERVISOR_EMAIL_CONFIRM_URL:-}
+
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    healthcheck:
+      test: 
+        [
+          "CMD", 
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - viajes_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: viajes-frontend
+    restart: unless-stopped
+
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://127.0.0.1/ || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - viajes_network
+
+  panel-admin:
+    build: 
+      context: ./panel-admin
+      dockerfile: Dockerfile
+    container_name: viajes-panel-admin
+    restart: unless-stopped
+
+    ports:
+      - "${PANEL_ADMIN_PORT:-8081}:80"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://127.0.0.1/health || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - viajes_network
+
+volumes:
+  postgres_data:
+    name: viajes_postgres_data_prod
+
+networks:
+  viajes_network:
+    name: viajes_network_prod
+    driver: bridge
