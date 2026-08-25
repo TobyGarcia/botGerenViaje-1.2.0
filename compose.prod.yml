@@ -11,7 +11,7 @@ services:
       TZ: ${TZ:-America/Mexico_City}
 
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -73,7 +73,7 @@ services:
       SUPERVISOR_EMAIL_CONFIRM_URL: ${SUPERVISOR_EMAIL_CONFIRM_URL:-}
 
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
 
     depends_on:
       postgres:
@@ -102,7 +102,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
 
     depends_on:
       backend:
@@ -130,7 +130,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${PANEL_ADMIN_PORT:-8081}:80"
+      - "127.0.0.1:${PANEL_ADMIN_PORT:-8081}:80"
 
     depends_on:
       backend:
