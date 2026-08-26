@@ -35,6 +35,20 @@ const initialForm = {
   personalAsignadoNombre: ""
 };
 
+function formatVehicleDate(value) {
+  if (!value) return "Sin capturar";
+  const datePart = String(value).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (datePart) {
+    const [y, m, d] = datePart.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString("es-MX");
+    }
+  }
+  const fallbackDate = new Date(value);
+  return !isNaN(fallbackDate.getTime()) ? fallbackDate.toLocaleDateString("es-MX") : "Sin capturar";
+}
+
 function VehiculosPage({ user }) {
   const canManageMileage = user?.rol === "ADMINISTRADOR";
   const canEditVehicle = user?.rol === "ADMINISTRADOR";
@@ -917,7 +931,7 @@ function VehiculosPage({ user }) {
                 <span><strong>Propiedad:</strong> {detailVehicle.tipo_propiedad || "Sin capturar"}</span>
                 <span><strong>Núm. de serie:</strong> {detailVehicle.numero_serie || "Sin capturar"}</span>
                 <span><strong>Póliza:</strong> {detailVehicle.numero_poliza || "Sin capturar"}</span>
-                <span><strong>Vence seguro:</strong> {detailVehicle.seguro_vencimiento ? new Date(`${detailVehicle.seguro_vencimiento}T00:00:00`).toLocaleDateString("es-MX") : "Sin capturar"}</span>
+                <span><strong>Vence seguro:</strong> {formatVehicleDate(detailVehicle.seguro_vencimiento)}</span>
                 <span><strong>Kilometraje:</strong> {detailVehicle.kilometraje_actual ?? 0} km</span>
                 {detailVehicle.folio_viaje_en_curso && <span><strong>Viaje en curso:</strong> {detailVehicle.folio_viaje_en_curso} · {detailVehicle.conductor_viaje_en_curso}</span>}
               </div>
