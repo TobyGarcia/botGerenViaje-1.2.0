@@ -17,7 +17,6 @@ export async function getAzureAccessToken() {
     );
   }
 
-  // Reutilizar token si aún es válido (con margen de 60 segundos)
   if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
     return cachedToken;
   }
@@ -48,6 +47,86 @@ export async function getAzureAccessToken() {
   tokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000;
 
   return cachedToken;
+}
+
+/**
+ * Genera la URL de inicio de sesión interactivo de Microsoft Entra ID (OAuth 2.0).
+ */
+export function getAzureOAuthLoginUrl({ redirectUri, state = "admin_login" }) {
+  const tenantId = process.env.AZURE_TENANT_ID || "common";
+  const clientId = process.env.AZURE_CLIENT_ID;
+
+  if (!clientId) {
+    throw new Error("AZURE_CLIENT_ID no está configurado en .env.");
+  }
+
+  const scope = encodeURIComponent("openid profile email User.Read");
+  const encodedRedirect = encodeURIComponent(redirectUri);
+
+  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodedRedirect}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}`;
+}
+
+/**
+ * Intercambia el código de autorización devuelto por Microsoft por un Access Token del usuario.
+ */
+export async function exchangeCodeForUserToken({ code, redirectUri }) {
+  const tenantId = process.env.AZURE_TENANT_ID || "common";
+  const clientId = process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.AZURE_CLIENT_SECRET;
+
+  const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+
+  const params = new URLSearchParams();
+  params.append("grant_type", "authorization_code");
+  params.append("client_id", clientId);
+  params.append("client_secret", clientSecret);
+  params.append("code", code);
+  params.append("redirect_uri", redirectUri);
+  params.append("scope", "openid profile email User.Read");
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params.toString()
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error en intercambio de token con Microsoft (${response.status}): ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Consulta la identidad real y verificada del usuario usando la API de Microsoft Graph (/v1.0/me).
+ */
+export async function getVerifiedUserProfileFromMicrosoft(userAccessToken) {
+  const response = await fetch("https://graph.microsoft.com/v1.0/me", {
+    headers: {
+      Authorization: `Bearer ${userAccessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error al obtener perfil verificado de Microsoft Graph: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const verifiedEmail = data.mail || data.userPrincipalName;
+
+  if (!verifiedEmail) {
+    throw new Error("Microsoft no devolvió un correo electrónico verificado para esta cuenta.");
+  }
+
+  return {
+    email: verifiedEmail.toLowerCase().trim(),
+    displayName: data.displayName,
+    id: data.id
+  };
 }
 
 /**
