@@ -866,6 +866,16 @@
   font-size: 0.75rem;
   font-weight: 700;
   height: 16px;
+  position: relative;
+}
+
+.heatmap-month-label {
+  grid-row: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 0.72rem;
+  color: #5c7482;
+  font-weight: 700;
 }
 
 .heatmap-grid {
@@ -899,6 +909,11 @@
   border-radius: 3px;
   transition: transform 0.15s ease, filter 0.15s ease;
   cursor: pointer;
+}
+
+.heatmap-cell-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .heatmap-cell:hover {

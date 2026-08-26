@@ -75,11 +75,18 @@ function ActivityHeatmapCard({ actividad = [] }) {
   const [tooltip, setTooltip] = useState(null);
 
   const items = actividad.map((item) => {
-    const rawStr = String(item.fecha || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] || item.fecha;
-    const [y, m, d] = String(rawStr || "").split("-").map(Number);
-    const dateObj = new Date(y || 2026, (m || 1) - 1, d || 1);
+    let dateObj = null;
+    if (item.fecha) {
+      const rawStr = String(item.fecha).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+      if (rawStr) {
+        const [y, m, d] = rawStr.split("-").map(Number);
+        dateObj = new Date(y, m - 1, d);
+      } else {
+        dateObj = new Date(item.fecha);
+      }
+    }
     return {
-      rawStr,
+      rawStr: item.fecha,
       dateObj,
       total: Number(item.total || 0)
     };
@@ -103,7 +110,7 @@ function ActivityHeatmapCard({ actividad = [] }) {
   };
 
   const formatTooltipDate = (item) => {
-    if (!item.dateObj || isNaN(item.dateObj.getTime())) return item.rawStr;
+    if (!item || !item.dateObj || isNaN(item.dateObj.getTime())) return item?.rawStr || "";
     const str = item.dateObj.toLocaleDateString("es-MX", {
       weekday: "long",
       year: "numeric",
@@ -113,23 +120,47 @@ function ActivityHeatmapCard({ actividad = [] }) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
+  // Cálculo de día inicial y placeholders para vista anual
+  let startDayOfWeek = 0;
+  if (rangeFilter === "anual" && filteredItems.length > 0 && filteredItems[0].dateObj) {
+    startDayOfWeek = filteredItems[0].dateObj.getDay(); // 0 = Dom, 1 = Lun, ..., 6 = Sáb
+  }
+
+  // Preparamos los elementos del grid (con placeholders al inicio si es anual)
+  const gridCells = [];
+  if (rangeFilter === "anual") {
+    for (let i = 0; i < startDayOfWeek; i++) {
+      gridCells.push({ isPlaceholder: true });
+    }
+  }
+  filteredItems.forEach((item) => {
+    gridCells.push({ ...item, isPlaceholder: false });
+  });
+
+  // Generar etiquetas de meses con cálculo estricto de columna y margen anti-colisión
   const getMonthLabels = () => {
-    if (rangeFilter === "semanal") return ["Últimas 2 semanas"];
-    if (rangeFilter === "mensual") return ["Últimos 30 días"];
+    if (rangeFilter !== "anual" || filteredItems.length === 0) return [];
 
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const labels = [];
     let lastMonth = -1;
+    let lastCol = -10;
 
     filteredItems.forEach((item, idx) => {
       if (item.dateObj && !isNaN(item.dateObj.getTime())) {
         const m = item.dateObj.getMonth();
         if (m !== lastMonth) {
           lastMonth = m;
-          labels.push({ index: idx, name: monthNames[m] });
+          const col = Math.floor((idx + startDayOfWeek) / 7) + 1;
+          // Garantizar distancia mínima de 3 columnas (~51px) entre etiquetas para evitar solapamientos
+          if (col - lastCol >= 3 && col <= 51) {
+            labels.push({ col, name: monthNames[m] });
+            lastCol = col;
+          }
         }
       }
     });
+
     return labels;
   };
 
@@ -184,7 +215,7 @@ function ActivityHeatmapCard({ actividad = [] }) {
           {rangeFilter === "anual" && (
             <div className="heatmap-month-labels">
               {getMonthLabels().map((lbl, i) => (
-                <span key={i} style={{ gridColumnStart: Math.max(1, Math.floor(lbl.index / 7) + 1) }}>
+                <span key={i} className="heatmap-month-label" style={{ gridColumnStart: lbl.col }}>
                   {lbl.name}
                 </span>
               ))}
@@ -192,8 +223,11 @@ function ActivityHeatmapCard({ actividad = [] }) {
           )}
 
           <div className={`heatmap-grid mode-${rangeFilter}`}>
-            {filteredItems.map((item, idx) => {
-              const lvl = getLevel(item.total);
+            {gridCells.map((cell, idx) => {
+              if (cell.isPlaceholder) {
+                return <div key={`ph-${idx}`} className="heatmap-cell heatmap-cell-placeholder" />;
+              }
+              const lvl = getLevel(cell.total);
               return (
                 <div
                   key={idx}
@@ -201,7 +235,7 @@ function ActivityHeatmapCard({ actividad = [] }) {
                   onMouseEnter={(e) => {
                     const rect = e.target.getBoundingClientRect();
                     setTooltip({
-                      text: `${formatTooltipDate(item)}: ${item.total} ${item.total === 1 ? "viaje" : "viajes"}`,
+                      text: `${formatTooltipDate(cell)}: ${cell.total} ${cell.total === 1 ? "viaje" : "viajes"}`,
                       x: rect.left + rect.width / 2,
                       y: rect.top - 8
                     });
