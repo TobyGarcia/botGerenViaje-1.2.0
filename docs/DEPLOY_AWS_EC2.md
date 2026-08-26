@@ -79,8 +79,12 @@ server {
 
 ---
 
-### Opción B: Dominio Único con Rutas (`gv.aspromex.mx`)
-Si todo se sirve bajo el mismo dominio de nivel superior `gv.aspromex.mx`:
+### Configuración Estructurada de Dominio Único (`gv.aspromex.mx`)
+Estructura de rutas asignadas para módulos y funciones:
+- **Panel Administrativo Web**: `https://gv.aspromex.mx/` -> (`127.0.0.1:8081`)
+- **Bot de Viaje (Mini App Conductor)**: `https://gv.aspromex.mx/conductor` -> (`127.0.0.1:8080`)
+- **Bot de Supervisor (Mini App Supervisor)**: `https://gv.aspromex.mx/supervisor` -> (`127.0.0.1:8080`)
+- **API Express Backend**: `https://gv.aspromex.mx/api/` -> (`127.0.0.1:3000`)
 
 ```nginx
 server {
@@ -106,18 +110,35 @@ server {
         proxy_set_header Host $host;
     }
 
-    # Panel Administrativo Web
-    location /admin/ {
-        proxy_pass http://127.0.0.1:8081/;
+    # Bot de Viaje (Mini App Conductor)
+    location /conductor/ {
+        proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Mini App de Telegram (Frontend Principal)
+    location = /conductor {
+        return 301 /conductor/;
+    }
+
+    # Bot de Supervisor (Mini App Supervisor)
+    location /supervisor/ {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /supervisor {
+        return 301 /supervisor/;
+    }
+
+    # Panel Administrativo Web (Raíz /)
     location / {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:8081/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
