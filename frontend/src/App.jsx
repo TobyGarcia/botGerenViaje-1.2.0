@@ -78,6 +78,7 @@ function normalizeConductor(conductor) {
 
 function App() {
   const [form, setForm] = useState(initialForm);
+  const [listaAcompanantes, setListaAcompanantes] = useState([""]);
   const [conductores, setConductores] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
   const [lugares, setLugares] = useState([]);
@@ -1115,45 +1116,125 @@ function handleStopGps() {
           </select>
         </label>
 
-        <label className="companions-field">
-          <span className="companions-label-row">
-            <span>Acompañantes</span>
-          <button
-            type="button"
-            className={`companions-toggle ${
-              form.viajaAcompanado ? "companions-toggle-active" : ""
-            }`}
-            role="switch"
-            aria-checked={form.viajaAcompanado}
-            onClick={() => {
-              setForm((current) => ({
-                ...current,
-                viajaAcompanado: !current.viajaAcompanado,
-                acompanantes: current.viajaAcompanado
-                  ? ""
-                  : current.acompanantes
-              }));
-            }}
-          >
-            <span className="companions-toggle-track" aria-hidden="true">
-              <span className="companions-toggle-thumb" />
-            </span>
-          </button>
-          </span>
-          <input
-            type="text"
-            name="acompanantes"
-            value={form.acompanantes}
-            onChange={handleChange}
-            placeholder={
-              form.viajaAcompanado
-                ? "Juan Pérez, María López"
-                : "Viajo solo"
+        {(() => {
+          const selectedVehicle = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
+          const vehicleTypeStr = String(selectedVehicle?.tipo_vehiculo || selectedVehicle?.nombre || "").toLowerCase();
+
+          let maxAcompanantes = 4;
+          if (vehicleTypeStr.includes("maquinaria") || vehicleTypeStr.includes("retro") || vehicleTypeStr.includes("remolque") || vehicleTypeStr.includes("mecanica") || vehicleTypeStr.includes("tractor")) {
+            maxAcompanantes = 1;
+          } else if (vehicleTypeStr.includes("auto") || vehicleTypeStr.includes("sedan") || vehicleTypeStr.includes("hatchback") || vehicleTypeStr.includes("automovil")) {
+            maxAcompanantes = 3;
+          } else if (vehicleTypeStr.includes("camioneta") || vehicleTypeStr.includes("pickup") || vehicleTypeStr.includes("suv") || vehicleTypeStr.includes("van")) {
+            maxAcompanantes = 4;
+          }
+
+          const updateFormAcompanantes = (newList) => {
+            const joinedStr = newList.filter((s) => s.trim() !== "").join(", ");
+            setForm((cur) => ({ ...cur, acompanantes: joinedStr }));
+          };
+
+          const handleCompanionChange = (index, value) => {
+            const newList = [...listaAcompanantes];
+            newList[index] = value;
+            setListaAcompanantes(newList);
+            updateFormAcompanantes(newList);
+          };
+
+          const addCompanionField = () => {
+            if (listaAcompanantes.length < maxAcompanantes) {
+              const newList = [...listaAcompanantes, ""];
+              setListaAcompanantes(newList);
+              updateFormAcompanantes(newList);
             }
-            aria-label="Nombres de acompañantes"
-            disabled={!form.viajaAcompanado}
-          />
-        </label>
+          };
+
+          const removeCompanionField = (index) => {
+            const newList = listaAcompanantes.filter((_, i) => i !== index);
+            const finalList = newList.length === 0 ? [""] : newList;
+            setListaAcompanantes(finalList);
+            updateFormAcompanantes(finalList);
+          };
+
+          const toggleViajaAcompanado = () => {
+            setForm((current) => {
+              const nextState = !current.viajaAcompanado;
+              if (!nextState) {
+                setListaAcompanantes([""]);
+                return { ...current, viajaAcompanado: false, acompanantes: "" };
+              }
+              return { ...current, viajaAcompanado: true };
+            });
+          };
+
+          return (
+            <div className="companions-container">
+              <div className="companions-header">
+                <div className="companions-title-group">
+                  <span>Acompañantes</span>
+                  {form.viajaAcompanado && (
+                    <span className="companions-count-badge">
+                      {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
+                    </span>
+                  )}
+                </div>
+                <div className="companions-controls">
+                  {form.viajaAcompanado && (
+                    <button
+                      type="button"
+                      className="add-companion-btn"
+                      onClick={addCompanionField}
+                      disabled={listaAcompanantes.length >= maxAcompanantes}
+                      title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
+                    >
+                      + Agregar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`companions-toggle ${form.viajaAcompanado ? "companions-toggle-active" : ""}`}
+                    role="switch"
+                    aria-checked={form.viajaAcompanado}
+                    onClick={toggleViajaAcompanado}
+                  >
+                    <span className="companions-toggle-track" aria-hidden="true">
+                      <span className="companions-toggle-thumb" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {form.viajaAcompanado && (
+                <div className="companions-inputs-wrapper">
+                  <small className="companions-rule-hint">
+                    {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
+                  </small>
+                  {listaAcompanantes.map((nombre, index) => (
+                    <div key={index} className="companion-row">
+                      <input
+                        type="text"
+                        value={nombre}
+                        onChange={(e) => handleCompanionChange(index, e.target.value)}
+                        placeholder={`Nombre del acompañante ${index + 1}`}
+                        required={index === 0}
+                      />
+                      {listaAcompanantes.length > 1 && (
+                        <button
+                          type="button"
+                          className="remove-companion-btn"
+                          onClick={() => removeCompanionField(index)}
+                          title="Quitar acompañante"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <label>
           Motivo de movilización

@@ -173,8 +173,8 @@ export function buildInspectionPdf(data) {
   const red = "#d98176";
   rect(commands, MARGIN, 752, 540, 28, { stroke: border, lineWidth: 0.8 });
   rect(commands, MARGIN, 752, 112, 28, { fill: "#f7fafb", stroke: border, lineWidth: 0.8 });
-  drawText(commands, "Itzamma", 59, 765, 12, { bold: true, fill: teal });
-  drawText(commands, "OIL & GAS", 64, 756, 5.4, { bold: true, fill: teal });
+  drawText(commands, "Itzamma", 92, 766, 12.5, { bold: true, fill: teal, align: "center" });
+  drawText(commands, "OIL & GAS", 92, 756, 5.6, { bold: true, fill: teal, align: "center" });
   drawText(commands, "Servicios Industriales y de", 288, 768, 12.6, { bold: true, fill: teal, align: "center" });
   drawText(commands, "Ingeniería Itzamma", 288, 755, 12.6, { bold: true, fill: teal, align: "center" });
   const documentNumber = `SII-MX-${new Date(data.aprobado_en || Date.now()).getFullYear()}-LOG-${String(data.id_viajes || "").padStart(3, "0")}`;
@@ -207,7 +207,7 @@ export function buildInspectionPdf(data) {
   collage.forEach(([view, x, y, width, height]) => {
     const entry = imageReferences[view];
     drawImage(commands, entry.name, entry.image, x, y, width, height, data.danos?.[view] || []);
-    drawText(commands, view.toUpperCase(), x + width / 2, y + height - 7, 6.2, { bold: true, fill: dark, align: "center" });
+    drawText(commands, view.toUpperCase(), x + width / 2, y + height + 2, 6.2, { bold: true, fill: dark, align: "center" });
   });
 
   rect(commands, MARGIN, 382, 540, 10, { fill: red, stroke: border });
