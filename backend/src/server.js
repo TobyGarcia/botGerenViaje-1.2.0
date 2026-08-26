@@ -1,3 +1,25 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Cargar variables de entorno desde .env nativamente (Node 20+)
+const envFilesToLoad = [
+  resolve(process.cwd(), ".env"),
+  resolve(process.cwd(), "../.env"),
+  resolve(process.cwd(), "backend/.env")
+];
+
+for (const envFile of envFilesToLoad) {
+  if (existsSync(envFile)) {
+    try {
+      if (typeof process.loadEnvFile === "function") {
+        process.loadEnvFile(envFile);
+      }
+    } catch {
+      // Ignorar si ya se cargaron previamente
+    }
+  }
+}
+
 import app from "./app.js";
 import { databasePool } from "./database/pool.js";
 import {
