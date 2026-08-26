@@ -11,6 +11,8 @@ import {
   getAdminVehiculoKilometraje,
   getAdminVehiculoKilometrajeResumen,
   getAdminVehiculos,
+  getAdminConductores,
+  getAdminUsers,
   updateAdminVehiculoMantenimiento,
   updateAdminVehiculo,
   updateAdminVehiculoStatus
@@ -25,7 +27,12 @@ const initialForm = {
   seguroVencimiento: "",
   numeroSerie: "",
   tipoVehiculo: "",
-  tipoPropiedad: "EMPRESARIAL"
+  tipoPropiedad: "EMPRESARIAL",
+  color: "",
+  tipoPersonalAsignado: "",
+  idConductorAsignado: "",
+  idSupervisorAsignado: "",
+  personalAsignadoNombre: ""
 };
 
 function VehiculosPage({ user }) {
@@ -71,6 +78,25 @@ function VehiculosPage({ user }) {
   const [mileageForm, setMileageForm] = useState({ kilometraje: "", observaciones: "" });
   const [detailVehicle, setDetailVehicle] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const [conductoresOptions, setConductoresOptions] = useState([]);
+  const [supervisoresOptions, setSupervisoresOptions] = useState([]);
+
+  useEffect(() => {
+    async function loadOptions() {
+      try {
+        const [condRes, userRes] = await Promise.all([
+          getAdminConductores({ status: "ACTIVOS" }),
+          getAdminUsers()
+        ]);
+        setConductoresOptions(condRes.data ?? []);
+        setSupervisoresOptions((userRes.data ?? []).filter((u) => u.activo));
+      } catch (err) {
+        console.error("Error cargando opciones de personal asignado:", err);
+      }
+    }
+    loadOptions();
+  }, []);
 
   const submittingRef =
     useRef(false);
@@ -163,6 +189,15 @@ function VehiculosPage({ user }) {
   }
 
   function openForm(vehiculo = null) {
+    let tipoPersonal = "";
+    if (vehiculo?.id_conductor_asignado) {
+      tipoPersonal = "CONDUCTOR";
+    } else if (vehiculo?.id_supervisor_asignado) {
+      tipoPersonal = "SUPERVISOR";
+    } else if (vehiculo?.personal_asignado_nombre || vehiculo?.personal_asignado) {
+      tipoPersonal = "OTRO";
+    }
+
     setForm(vehiculo ? {
       marca: vehiculo.marca || "",
       modelo: vehiculo.modelo || "",
@@ -172,7 +207,12 @@ function VehiculosPage({ user }) {
       seguroVencimiento: vehiculo.seguro_vencimiento ? String(vehiculo.seguro_vencimiento).slice(0, 10) : "",
       numeroSerie: vehiculo.numero_serie || "",
       tipoVehiculo: vehiculo.tipo_vehiculo || "",
-      tipoPropiedad: vehiculo.tipo_propiedad || "EMPRESARIAL"
+      tipoPropiedad: vehiculo.tipo_propiedad || "EMPRESARIAL",
+      color: vehiculo.color || "",
+      tipoPersonalAsignado: tipoPersonal,
+      idConductorAsignado: vehiculo.id_conductor_asignado ? String(vehiculo.id_conductor_asignado) : "",
+      idSupervisorAsignado: vehiculo.id_supervisor_asignado ? String(vehiculo.id_supervisor_asignado) : "",
+      personalAsignadoNombre: vehiculo.personal_asignado_nombre || vehiculo.personal_asignado || ""
     } : initialForm);
     setEditingVehicle(vehiculo);
     setMessage("");
@@ -452,6 +492,8 @@ function VehiculosPage({ user }) {
                   <th>Unidad</th>
                   <th>Número económico</th>
                   <th>Placas</th>
+                  <th>Color</th>
+                  <th>Personal asignado</th>
                   <th>Kilometraje actual</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -480,6 +522,14 @@ function VehiculosPage({ user }) {
 
                       <td>
                         {vehiculo.placas}
+                      </td>
+
+                      <td>
+                        {vehiculo.color || "—"}
+                      </td>
+
+                      <td>
+                        {vehiculo.personal_asignado || "—"}
                       </td>
 
                       <td>{vehiculo.kilometraje_actual ?? 0} km</td>
@@ -678,6 +728,108 @@ function VehiculosPage({ user }) {
                 </select>
               </label>
 
+              <label>
+                Color
+                <input
+                  name="color"
+                  value={form.color}
+                  onChange={handleChange}
+                  placeholder="Ej. Blanco / Rojo"
+                  disabled={saving}
+                />
+              </label>
+
+              <label>
+                Personal Asignado (Persona a cargo)
+                <select
+                  name="tipoPersonalAsignado"
+                  value={form.tipoPersonalAsignado}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((cur) => ({
+                      ...cur,
+                      tipoPersonalAsignado: val,
+                      idConductorAsignado: "",
+                      idSupervisorAsignado: "",
+                      personalAsignadoNombre: ""
+                    }));
+                  }}
+                  disabled={saving}
+                >
+                  <option value="">-- Sin asignar --</option>
+                  <option value="CONDUCTOR">Conductor</option>
+                  <option value="SUPERVISOR">Supervisor / Administrador</option>
+                  <option value="OTRO">Otro / Texto libre</option>
+                </select>
+              </label>
+
+              {form.tipoPersonalAsignado === "CONDUCTOR" && (
+                <label>
+                  Seleccionar Conductor
+                  <select
+                    name="idConductorAsignado"
+                    value={form.idConductorAsignado}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const cond = conductoresOptions.find((c) => String(c.id_conductores) === String(id));
+                      setForm((cur) => ({
+                        ...cur,
+                        idConductorAsignado: id,
+                        personalAsignadoNombre: cond ? cond.nombre : ""
+                      }));
+                    }}
+                    disabled={saving}
+                  >
+                    <option value="">-- Selecciona un conductor --</option>
+                    {conductoresOptions.map((c) => (
+                      <option key={c.id_conductores} value={c.id_conductores}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {form.tipoPersonalAsignado === "SUPERVISOR" && (
+                <label>
+                  Seleccionar Supervisor / Admin
+                  <select
+                    name="idSupervisorAsignado"
+                    value={form.idSupervisorAsignado}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const userObj = supervisoresOptions.find((u) => String(u.id_usuarios_admin) === String(id));
+                      setForm((cur) => ({
+                        ...cur,
+                        idSupervisorAsignado: id,
+                        personalAsignadoNombre: userObj ? userObj.nombre : ""
+                      }));
+                    }}
+                    disabled={saving}
+                  >
+                    <option value="">-- Selecciona un supervisor --</option>
+                    {supervisoresOptions.map((u) => (
+                      <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
+                        {u.nombre} ({u.rol})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {form.tipoPersonalAsignado === "OTRO" && (
+                <label>
+                  Nombre del personal asignado
+                  <input
+                    name="personalAsignadoNombre"
+                    value={form.personalAsignadoNombre}
+                    onChange={handleChange}
+                    placeholder="Ej. ADMINISTRATIVO"
+                    disabled={saving}
+                  />
+                </label>
+              )}
+
               <div className="vehicle-name-preview">
                 <span>
                   Nombre que se guardará:
@@ -759,6 +911,8 @@ function VehiculosPage({ user }) {
                 <span><strong>Estado:</strong> {detailVehicle.disponibilidad}</span>
                 <span><strong>Núm. económico:</strong> {detailVehicle.numero_economico}</span>
                 <span><strong>Placas:</strong> {detailVehicle.placas}</span>
+                <span><strong>Color:</strong> {detailVehicle.color || "Sin capturar"}</span>
+                <span><strong>Personal asignado:</strong> {detailVehicle.personal_asignado || "Sin asignar"}</span>
                 <span><strong>Tipo:</strong> {detailVehicle.tipo_vehiculo || "Sin capturar"}</span>
                 <span><strong>Propiedad:</strong> {detailVehicle.tipo_propiedad || "Sin capturar"}</span>
                 <span><strong>Núm. de serie:</strong> {detailVehicle.numero_serie || "Sin capturar"}</span>

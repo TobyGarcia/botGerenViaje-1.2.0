@@ -188,23 +188,19 @@ export function createAdminVehiculo(
     {
       method: "POST",
       body: JSON.stringify({
-        marca:
-          vehiculo.marca,
-
-        modelo:
-          vehiculo.modelo,
-
-        numeroEconomico:
-          vehiculo.numeroEconomico,
-
-        placas:
-          vehiculo.placas,
-
+        marca: vehiculo.marca,
+        modelo: vehiculo.modelo,
+        numeroEconomico: vehiculo.numeroEconomico,
+        placas: vehiculo.placas,
         numeroPoliza: vehiculo.numeroPoliza,
         seguroVencimiento: vehiculo.seguroVencimiento,
         numeroSerie: vehiculo.numeroSerie,
         tipoVehiculo: vehiculo.tipoVehiculo,
-        tipoPropiedad: vehiculo.tipoPropiedad
+        tipoPropiedad: vehiculo.tipoPropiedad,
+        color: vehiculo.color,
+        idConductorAsignado: vehiculo.idConductorAsignado,
+        idSupervisorAsignado: vehiculo.idSupervisorAsignado,
+        personalAsignadoNombre: vehiculo.personalAsignadoNombre
       })
     }
   );

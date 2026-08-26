@@ -51,7 +51,15 @@ function normalizeVehicleInput(body) {
 
     tipoVehiculo: String(body?.tipoVehiculo || "").trim(),
 
-    tipoPropiedad: String(body?.tipoPropiedad || "").trim().toUpperCase()
+    tipoPropiedad: String(body?.tipoPropiedad || "").trim().toUpperCase(),
+
+    color: String(body?.color || "").trim(),
+
+    idConductorAsignado: body?.idConductorAsignado ? Number(body.idConductorAsignado) : null,
+
+    idSupervisorAsignado: body?.idSupervisorAsignado ? Number(body.idSupervisorAsignado) : null,
+
+    personalAsignadoNombre: String(body?.personalAsignadoNombre || body?.personalAsignado || "").trim()
   };
 }
 
@@ -100,6 +108,14 @@ function validateVehicleInput(vehicle) {
 
   if (vehicle.placas.length > 20) {
     return "El número de placas es demasiado largo.";
+  }
+
+  if (vehicle.color && vehicle.color.length > 50) {
+    return "El color del vehículo es demasiado largo.";
+  }
+
+  if (vehicle.personalAsignadoNombre && vehicle.personalAsignadoNombre.length > 150) {
+    return "El nombre del personal asignado es demasiado largo.";
   }
 
   return null;

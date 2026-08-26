@@ -38,6 +38,8 @@ export async function listAdminVehicles({
         OR v.numero_economico ILIKE $${values.length}
         OR v.placas ILIKE $${values.length}
         OR v.numero_serie ILIKE $${values.length}
+        OR v.color ILIKE $${values.length}
+        OR COALESCE(c_asig.nombre, s_asig.nombre, v.personal_asignado_nombre) ILIKE $${values.length}
       )
     `);
   }
@@ -72,6 +74,13 @@ export async function listAdminVehicles({
           v.placas,
           v.tipo_vehiculo,
           v.tipo_propiedad,
+          v.color,
+          v.id_conductor_asignado,
+          v.id_supervisor_asignado,
+          v.personal_asignado_nombre,
+          COALESCE(c_asig.nombre, s_asig.nombre, v.personal_asignado_nombre) AS personal_asignado,
+          c_asig.nombre AS conductor_asignado_nombre,
+          s_asig.nombre AS supervisor_asignado_nombre,
           v.en_mantenimiento,
           v.activo,
           COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
@@ -84,6 +93,8 @@ export async function listAdminVehicles({
             ELSE 'DISPONIBLE'
           END AS disponibilidad
         FROM vehiculos v
+        LEFT JOIN conductores c_asig ON c_asig.id_conductores = v.id_conductor_asignado
+        LEFT JOIN usuarios_admin s_asig ON s_asig.id_usuarios_admin = v.id_supervisor_asignado
         LEFT JOIN LATERAL (
           SELECT kilometraje, fecha_lectura
           FROM historial_kilometraje_vehiculos
@@ -123,7 +134,11 @@ export async function createAdminVehicle({
   seguroVencimiento,
   numeroSerie,
   tipoVehiculo,
-  tipoPropiedad
+  tipoPropiedad,
+  color = null,
+  idConductorAsignado = null,
+  idSupervisorAsignado = null,
+  personalAsignadoNombre = null
 }) {
   const nombre =
     buildVehicleName(
@@ -190,6 +205,10 @@ export async function createAdminVehicle({
             numero_serie,
             tipo_vehiculo,
             tipo_propiedad,
+            color,
+            id_conductor_asignado,
+            id_supervisor_asignado,
+            personal_asignado_nombre,
             activo
           )
           VALUES (
@@ -203,6 +222,10 @@ export async function createAdminVehicle({
             $8,
             $9,
             $10,
+            $11,
+            $12,
+            $13,
+            $14,
             TRUE
           )
           RETURNING
@@ -217,6 +240,10 @@ export async function createAdminVehicle({
             numero_serie,
             tipo_vehiculo,
             tipo_propiedad,
+            color,
+            id_conductor_asignado,
+            id_supervisor_asignado,
+            personal_asignado_nombre,
             activo
         `,
         [
@@ -229,7 +256,11 @@ export async function createAdminVehicle({
           seguroVencimiento,
           numeroSerie,
           tipoVehiculo,
-          tipoPropiedad
+          tipoPropiedad,
+          color || null,
+          idConductorAsignado || null,
+          idSupervisorAsignado || null,
+          personalAsignadoNombre || null
         ]
       );
 
@@ -250,7 +281,12 @@ export async function getAdminVehicleDetail(idVehiculo) {
       SELECT
         v.id_vehiculos, v.nombre, v.marca, v.modelo, v.numero_economico,
         v.placas, v.numero_poliza, v.seguro_vencimiento, v.numero_serie,
-        v.tipo_vehiculo, v.tipo_propiedad, v.en_mantenimiento, v.activo,
+        v.tipo_vehiculo, v.tipo_propiedad, v.color,
+        v.id_conductor_asignado, v.id_supervisor_asignado, v.personal_asignado_nombre,
+        COALESCE(c_asig.nombre, s_asig.nombre, v.personal_asignado_nombre) AS personal_asignado,
+        c_asig.nombre AS conductor_asignado_nombre,
+        s_asig.nombre AS supervisor_asignado_nombre,
+        v.en_mantenimiento, v.activo,
         COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
         ultima_lectura.fecha_lectura AS fecha_ultima_lectura,
         viaje_en_curso.id_viajes AS id_viaje_en_curso,
@@ -263,6 +299,8 @@ export async function getAdminVehicleDetail(idVehiculo) {
           ELSE 'DISPONIBLE'
         END AS disponibilidad
       FROM vehiculos v
+      LEFT JOIN conductores c_asig ON c_asig.id_conductores = v.id_conductor_asignado
+      LEFT JOIN usuarios_admin s_asig ON s_asig.id_usuarios_admin = v.id_supervisor_asignado
       LEFT JOIN LATERAL (
         SELECT kilometraje, fecha_lectura
         FROM historial_kilometraje_vehiculos
@@ -288,7 +326,11 @@ export async function getAdminVehicleDetail(idVehiculo) {
   return result.rows[0] ?? null;
 }
 
-export async function updateAdminVehicle({ idVehiculo, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad }) {
+export async function updateAdminVehicle({
+  idVehiculo, marca, modelo, numeroEconomico, placas, numeroPoliza,
+  seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad,
+  color = null, idConductorAsignado = null, idSupervisorAsignado = null, personalAsignadoNombre = null
+}) {
   const nombre = buildVehicleName(marca, modelo);
   const result = await databasePool.query(
     `
@@ -296,19 +338,27 @@ export async function updateAdminVehicle({ idVehiculo, marca, modelo, numeroEcon
       SET nombre = $1, marca = $2, modelo = $3, numero_economico = $4,
           placas = $5, numero_poliza = $6, seguro_vencimiento = $7,
           numero_serie = $8, tipo_vehiculo = $9, tipo_propiedad = $10,
+          color = $11, id_conductor_asignado = $12, id_supervisor_asignado = $13,
+          personal_asignado_nombre = $14,
           actualizado_en = CURRENT_TIMESTAMP
-      WHERE id_vehiculos = $11
+      WHERE id_vehiculos = $15
         AND NOT EXISTS (
           SELECT 1 FROM vehiculos duplicado
-          WHERE duplicado.id_vehiculos <> $11
+          WHERE duplicado.id_vehiculos <> $15
             AND (LOWER(duplicado.numero_economico) = LOWER($4)
               OR LOWER(duplicado.placas) = LOWER($5)
               OR LOWER(duplicado.numero_serie) = LOWER($8))
         )
       RETURNING id_vehiculos, nombre, marca, modelo, numero_economico, placas,
-        numero_poliza, seguro_vencimiento, numero_serie, tipo_vehiculo, tipo_propiedad
+        numero_poliza, seguro_vencimiento, numero_serie, tipo_vehiculo, tipo_propiedad,
+        color, id_conductor_asignado, id_supervisor_asignado, personal_asignado_nombre
     `,
-    [nombre, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad, idVehiculo]
+    [
+      nombre, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento,
+      numeroSerie, tipoVehiculo, tipoPropiedad, color || null,
+      idConductorAsignado || null, idSupervisorAsignado || null,
+      personalAsignadoNombre || null, idVehiculo
+    ]
   );
   return result.rows[0] ?? null;
 }
