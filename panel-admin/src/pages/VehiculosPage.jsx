@@ -18,6 +18,15 @@ import {
   updateAdminVehiculoStatus
 } from "../services/api.js";
 
+import {
+  IconHistorial,
+  IconVerDetalle,
+  IconEditar,
+  IconMantenimiento,
+  IconEliminar,
+  IconReactivar
+} from "../components/Icons.jsx";
+
 const initialForm = {
   marca: "",
   modelo: "",
@@ -52,14 +61,11 @@ function formatVehicleDate(value) {
 function VehiculosPage({ user }) {
   const canManageMileage = user?.rol === "ADMINISTRADOR";
   const canEditVehicle = user?.rol === "ADMINISTRADOR";
-  const [vehiculos, setVehiculos] =
-    useState([]);
-
-  const [search, setSearch] =
-    useState("");
-
-  const [status, setStatus] =
-    useState("TODOS");
+  const [vehiculos, setVehiculos] = useState([]);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("TODOS");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [loading, setLoading] =
     useState(true);
@@ -128,6 +134,7 @@ function VehiculosPage({ user }) {
       setVehiculos(
         response.data ?? []
       );
+      setCurrentPage(1);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -409,6 +416,13 @@ function VehiculosPage({ user }) {
     finally { setMileageSaving(false); }
   }
 
+  const totalFiltered = vehiculos.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedVehiculos = vehiculos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -441,11 +455,10 @@ function VehiculosPage({ user }) {
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Marca, modelo, número económico o placas"
           />
         </label>
@@ -455,11 +468,10 @@ function VehiculosPage({ user }) {
 
           <select
             value={status}
-            onChange={(event) =>
-              setStatus(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="TODOS">
               Todos
@@ -499,52 +511,38 @@ function VehiculosPage({ user }) {
             No se encontraron unidades.
           </p>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Unidad</th>
-                  <th>Número económico</th>
-                  <th>Placas</th>
-                  <th>Color</th>
-                  <th>Personal asignado</th>
-                  <th>Kilometraje actual</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Unidad</th>
+                    <th>Número económico</th>
+                    <th>Placas</th>
+                    <th>Color</th>
+                    <th>Personal asignado</th>
+                    <th>Kilometraje actual</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {vehiculos.map(
-                  (vehiculo) => (
-                    <tr
-                      key={
-                        vehiculo.id_vehiculos
-                      }
-                    >
+                <tbody>
+                  {paginatedVehiculos.map((vehiculo) => (
+                    <tr key={vehiculo.id_vehiculos}>
                       <td>
                         <strong>
                           {vehiculo.marca || vehiculo.nombre} {vehiculo.modelo || ""}
                         </strong>
                       </td>
 
-                      <td>
-                        {
-                          vehiculo.numero_economico
-                        }
-                      </td>
+                      <td>{vehiculo.numero_economico}</td>
 
-                      <td>
-                        {vehiculo.placas}
-                      </td>
+                      <td>{vehiculo.placas}</td>
 
-                      <td>
-                        {vehiculo.color || "—"}
-                      </td>
+                      <td>{vehiculo.color || "—"}</td>
 
-                      <td>
-                        {vehiculo.personal_asignado || "—"}
-                      </td>
+                      <td>{vehiculo.personal_asignado || "—"}</td>
 
                       <td>{vehiculo.kilometraje_actual ?? 0} km</td>
 
@@ -563,54 +561,97 @@ function VehiculosPage({ user }) {
                       </td>
 
                       <td>
-                        <button type="button" className="secondary-button" onClick={() => openMileage(vehiculo)}>
-                          Historial
-                        </button>
-                        <button type="button" className="secondary-button" onClick={() => openDetail(vehiculo)}>
-                          Ver detalle
-                        </button>
-                        {canEditVehicle && <button type="button" className="secondary-button" onClick={() => openForm(vehiculo)}>
-                          Modificar
-                        </button>}
-                        {canEditVehicle && <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={updatingId === vehiculo.id_vehiculos || vehiculo.disponibilidad === "EN_VIAJE"}
-                          onClick={() => handleMaintenanceChange(vehiculo)}
-                        >
-                          {vehiculo.en_mantenimiento ? "Retirar mantenimiento" : "Mantenimiento"}
-                        </button>}
-                        {canEditVehicle && <button
-                          type="button"
-                          className={
-                            vehiculo.activo
-                              ? "danger-button"
-                              : "reactivate-button"
-                          }
-                          disabled={
-                            updatingId ===
-                            vehiculo.id_vehiculos
-                          }
-                          onClick={() =>
-                            handleStatusChange(
-                              vehiculo
-                            )
-                          }
-                        >
-                          {updatingId ===
-                          vehiculo.id_vehiculos
-                            ? "Actualizando..."
-                            : vehiculo.activo
-                              ? "Eliminar"
-                              : "Eliminar"}
-                        </button>}
+                        <div className="table-action-icons">
+                          <button
+                            type="button"
+                            className="action-icon-btn action-icon-history"
+                            onClick={() => openMileage(vehiculo)}
+                            title="Ver historial de kilometraje"
+                            aria-label="Ver historial de kilometraje"
+                          >
+                            <IconHistorial size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="action-icon-btn action-icon-detail"
+                            onClick={() => openDetail(vehiculo)}
+                            title="Ver detalle de unidad"
+                            aria-label="Ver detalle de unidad"
+                          >
+                            <IconVerDetalle size={16} />
+                          </button>
+                          {canEditVehicle && (
+                            <button
+                              type="button"
+                              className="action-icon-btn action-icon-edit"
+                              onClick={() => openForm(vehiculo)}
+                              title="Editar unidad"
+                              aria-label="Editar unidad"
+                            >
+                              <IconEditar size={16} />
+                            </button>
+                          )}
+                          {canEditVehicle && (
+                            <button
+                              type="button"
+                              className={`action-icon-btn action-icon-maintenance ${vehiculo.en_mantenimiento ? "active-maintenance" : ""}`}
+                              disabled={updatingId === vehiculo.id_vehiculos || vehiculo.disponibilidad === "EN_VIAJE"}
+                              onClick={() => handleMaintenanceChange(vehiculo)}
+                              title={vehiculo.en_mantenimiento ? "Retirar de mantenimiento" : "Poner en mantenimiento"}
+                              aria-label={vehiculo.en_mantenimiento ? "Retirar de mantenimiento" : "Poner en mantenimiento"}
+                            >
+                              <IconMantenimiento size={16} />
+                            </button>
+                          )}
+                          {canEditVehicle && (
+                            <button
+                              type="button"
+                              className={`action-icon-btn ${vehiculo.activo ? "action-icon-delete" : "action-icon-restore"}`}
+                              disabled={updatingId === vehiculo.id_vehiculos}
+                              onClick={() => handleStatusChange(vehiculo)}
+                              title={vehiculo.activo ? "Dar de baja unidad" : "Reactivar unidad"}
+                              aria-label={vehiculo.activo ? "Dar de baja unidad" : "Reactivar unidad"}
+                            >
+                              {vehiculo.activo ? <IconEliminar size={16} /> : <IconReactivar size={16} />}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalFiltered > 0 && (
+              <div className="table-pagination">
+                <span className="pagination-info">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} unidades
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="pagination-page-indicator">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 

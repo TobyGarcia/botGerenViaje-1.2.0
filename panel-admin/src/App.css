@@ -2364,3 +2364,130 @@
     flex: 1 !important;
   }
 }
+
+/* Botones de acción con iconos en tablas (Vehículos y módulos) */
+.table-action-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #d0e3ec;
+  background: #f7fbfd;
+  color: #3b525e;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  padding: 0;
+}
+
+.action-icon-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.action-icon-history:hover:not(:disabled) {
+  background: #e8f4f8;
+  color: #116e95;
+  border-color: #b0d4e3;
+}
+
+.action-icon-detail:hover:not(:disabled) {
+  background: #e6f6f9;
+  color: #0d829b;
+  border-color: #9fe0ec;
+}
+
+.action-icon-edit:hover:not(:disabled) {
+  background: #eef6fc;
+  color: #1875bb;
+  border-color: #aed1ec;
+}
+
+.action-icon-maintenance:hover:not(:disabled) {
+  background: #fff8eb;
+  color: #d97706;
+  border-color: #fcd34d;
+}
+
+.action-icon-maintenance.active-maintenance {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #f59e0b;
+}
+
+.action-icon-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.action-icon-restore:hover:not(:disabled) {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #86efac;
+}
+
+.action-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Paginación de tablas */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e5eff4;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  font-size: 0.85rem;
+  color: #556e7a;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid #cfdfe7;
+  background: #f8fcfe;
+  color: #116e95;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #116e95;
+  color: #ffffff;
+  border-color: #116e95;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f1f5f7;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+}
+
+.pagination-page-indicator {
+  font-weight: 600;
+  color: #2c424e;
+}
