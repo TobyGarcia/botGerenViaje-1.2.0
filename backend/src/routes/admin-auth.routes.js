@@ -5,6 +5,7 @@ import {
 import {
   getAdminSessionController,
   loginAdminController,
+  loginWithTenantEmailController,
   logoutAdminController
 } from "../controllers/admin-auth.controller.js";
 
@@ -17,6 +18,11 @@ const router = Router();
 router.post(
   "/login",
   loginAdminController
+);
+
+router.post(
+  "/tenant-login",
+  loginWithTenantEmailController
 );
 
 router.get(

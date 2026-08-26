@@ -56,7 +56,7 @@ export async function authenticateAdminUser({
             bloqueado_hasta,
             ultimo_acceso_en
           FROM usuarios_admin
-          WHERE LOWER(username) = $1
+          WHERE LOWER(username) = $1 OR LOWER(correo) = $1
           LIMIT 1
           FOR UPDATE
         `,
@@ -227,3 +227,42 @@ export async function findActiveAdminById(
 
   return result.rows[0] ?? null;
 }
+
+export async function authenticateAdminByTenantEmail({ email }) {
+  if (!email) {
+    return { authenticated: false, reason: "EMAIL_REQUIRED" };
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  const userResult = await databasePool.query(
+    `SELECT id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, ultimo_acceso_en
+     FROM usuarios_admin
+     WHERE LOWER(correo) = $1 LIMIT 1`,
+    [normalizedEmail]
+  );
+
+  const user = userResult.rows[0];
+
+  if (!user) {
+    return { authenticated: false, reason: "NOT_IN_WHITELIST" };
+  }
+
+  if (!user.activo) {
+    return { authenticated: false, reason: "INACTIVE" };
+  }
+
+  const updateResult = await databasePool.query(
+    `UPDATE usuarios_admin
+     SET intentos_fallidos = 0, bloqueado_hasta = NULL, ultimo_acceso_en = CURRENT_TIMESTAMP, actualizado_en = CURRENT_TIMESTAMP
+     WHERE id_usuarios_admin = $1
+     RETURNING id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, ultimo_acceso_en`,
+    [user.id_usuarios_admin]
+  );
+
+  return {
+    authenticated: true,
+    user: updateResult.rows[0]
+  };
+}
+

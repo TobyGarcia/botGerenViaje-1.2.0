@@ -1,6 +1,11 @@
 import {
-  authenticateAdminUser
+  authenticateAdminUser,
+  authenticateAdminByTenantEmail
 } from "../services/admin-auth.service.js";
+
+import {
+  validateTenantEmailAndWhitelist
+} from "../services/azure-auth.service.js";
 
 import {
   createAdminSessionToken,
@@ -180,3 +185,50 @@ export function getAdminSessionController(
       }
     });
 }
+
+export async function loginWithTenantEmailController(request, response) {
+  try {
+    const email = String(request.body?.email || "").trim();
+
+    if (!email) {
+      return response.status(400).json({
+        success: false,
+        message: "El correo electrónico es obligatorio."
+      });
+    }
+
+    const whitelistValidation = await validateTenantEmailAndWhitelist(email);
+    if (!whitelistValidation.authorized) {
+      return response.status(403).json({
+        success: false,
+        message: whitelistValidation.reason || "Correo no autorizado en el tenant o lista blanca."
+      });
+    }
+
+    const result = await authenticateAdminByTenantEmail({ email });
+    if (!result.authenticated) {
+      return response.status(401).json({
+        success: false,
+        message: "No fue posible autenticar con la cuenta solicitada."
+      });
+    }
+
+    const token = createAdminSessionToken(result.user);
+    response.cookie(getAdminCookieName(), token, getAdminCookieOptions());
+
+    return response.status(200).json({
+      success: true,
+      data: {
+        authenticated: true,
+        user: serializeAdminUser(result.user)
+      }
+    });
+  } catch (error) {
+    console.error("Error en login por correo tenant:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: "Error al autenticar por correo del tenant."
+    });
+  }
+}
+

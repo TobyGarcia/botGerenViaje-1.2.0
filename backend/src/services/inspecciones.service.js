@@ -134,7 +134,17 @@ export async function storeInspectionPdf({ idInspeccion, nombre, document }) {
   await databasePool.query(`UPDATE inspecciones_vehiculares SET pdf_nombre=$1, pdf_documento=$2, pdf_generado_en=CURRENT_TIMESTAMP WHERE id_inspeccion=$3`, [nombre, document, idInspeccion]);
 }
 
+export async function updateInspectionSharePointDetails({ idInspeccion, webUrl, itemId }) {
+  await databasePool.query(
+    `UPDATE inspecciones_vehiculares
+     SET sharepoint_web_url=$1, sharepoint_item_id=$2, sharepoint_subido_en=CURRENT_TIMESTAMP
+     WHERE id_inspeccion=$3`,
+    [webUrl, itemId, idInspeccion]
+  );
+}
+
 export async function getStoredInspectionPdf(idInspeccion) {
-  const result = await databasePool.query("SELECT pdf_nombre, pdf_documento FROM inspecciones_vehiculares WHERE id_inspeccion=$1", [idInspeccion]);
+  const result = await databasePool.query("SELECT pdf_nombre, pdf_documento, sharepoint_web_url FROM inspecciones_vehiculares WHERE id_inspeccion=$1", [idInspeccion]);
   return result.rows[0] ?? null;
 }
+

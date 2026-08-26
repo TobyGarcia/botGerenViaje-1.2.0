@@ -57,6 +57,17 @@ export function loginAdmin({
   );
 }
 
+export function loginWithTenantEmail({ email }) {
+  return request(
+    "/admin/auth/tenant-login",
+    {
+      method: "POST",
+      body: JSON.stringify({ email })
+    }
+  );
+}
+
+
 export function getAdminSession() {
   return request(
     "/admin/auth/session"

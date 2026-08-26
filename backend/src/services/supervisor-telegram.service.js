@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import nodemailer from "nodemailer";
 import { databasePool } from "../database/pool.js";
+import { validateTenantEmailAndWhitelist } from "./azure-auth.service.js";
 
 const allowedDomains = ["itzamna.mx"];
 
@@ -190,3 +191,59 @@ export async function confirmSupervisorEmail(token) {
   if (!result.rows[0]) throw new SupervisorTelegramError("El enlace de confirmación no es válido o expiró.", 400);
   await databasePool.query("UPDATE confirmaciones_correo_supervisor SET confirmado_en=CURRENT_TIMESTAMP WHERE token_hash=$1", [tokenHash]);
 }
+
+export async function linkSupervisorByTenantEmail({ telegramUserId, email }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new SupervisorTelegramError("El correo corporativo es obligatorio.");
+  }
+
+  const whitelistCheck = await validateTenantEmailAndWhitelist(normalizedEmail);
+  if (!whitelistCheck.authorized) {
+    throw new SupervisorTelegramError(whitelistCheck.reason || "El correo no está autorizado en la lista blanca.");
+  }
+
+  const user = whitelistCheck.user;
+
+  if (user.rol !== "SUPERVISOR" && user.rol !== "ADMINISTRADOR") {
+    throw new SupervisorTelegramError("La cuenta registrada no tiene permisos de rol SUPERVISOR o ADMINISTRADOR.", 403);
+  }
+
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Asegurar registro de Telegram en accesos_supervisor_telegram
+    await client.query(
+      `INSERT INTO accesos_supervisor_telegram (telegram_user_id, habilitado_en)
+       VALUES ($1, CURRENT_TIMESTAMP)
+       ON CONFLICT (telegram_user_id) DO NOTHING`,
+      [String(telegramUserId)]
+    );
+
+    // Vincular el usuario administrativo con telegram_user_id y auto-confirmarlo
+    const updateResult = await client.query(
+      `UPDATE usuarios_admin
+       SET telegram_user_id = $1,
+           correo_confirmado_en = COALESCE(correo_confirmado_en, CURRENT_TIMESTAMP),
+           actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_usuarios_admin = $2
+       RETURNING id_usuarios_admin, nombre, username, correo, rol, activo, telegram_user_id`,
+      [String(telegramUserId), user.id_usuarios_admin]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      linked: true,
+      confirmed: true,
+      user: updateResult.rows[0]
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+

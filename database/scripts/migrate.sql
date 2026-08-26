@@ -12,3 +12,5 @@
 \ir ../migrations/010_eliminacion_fisica_catalogos_con_historial.sql
 \ir ../migrations/011_empresa_conductor.sql
 \ir ../migrations/012_color_y_personal_asignado_vehiculos.sql
+\ir ../migrations/013_sharepoint_y_tenant_auth.sql
+

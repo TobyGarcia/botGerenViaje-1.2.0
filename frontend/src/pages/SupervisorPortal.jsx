@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { decidirSupervisorInspeccion, getSupervisorInspeccion, getSupervisorInspecciones, registrarSupervisor, vincularCuentaSupervisor } from "../services/api.js";
+import { decidirSupervisorInspeccion, getSupervisorInspeccion, getSupervisorInspecciones, ingresarCorreoSupervisor, registrarSupervisor, vincularCuentaSupervisor } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
 
 function Signature({ onSave }) {
@@ -15,15 +15,64 @@ function Signature({ onSave }) {
 export default function SupervisorPortal({ access, onAccessChanged }) {
   const [form, setForm] = useState({ nombre:"", username:"", correo:"", telefono:"", password:"", confirmacionPassword:"" });
   const [linkForm, setLinkForm] = useState({ username:"", password:"" });
-  const [registrationMode, setRegistrationMode] = useState("link");
+  const [tenantEmail, setTenantEmail] = useState("");
+  const [registrationMode, setRegistrationMode] = useState("tenant_email"); // "tenant_email" | "link" | "new"
   const [items, setItems] = useState([]); const [detail, setDetail] = useState(null); const [message,setMessage]=useState(""); const [signature,setSignature]=useState(""); const [comment,setComment]=useState("");
+  
   async function load() { try { setItems((await getSupervisorInspecciones()).data); } catch(error) { setMessage(error.message); } }
   useEffect(()=>{ if (access.confirmed) load(); }, [access.confirmed]);
+  
+  async function submitTenantEmail(event) { event.preventDefault(); try { const result = await ingresarCorreoSupervisor(tenantEmail); setMessage(result.message); await onAccessChanged(); } catch(error) { setMessage(error.message); } }
   async function submitRegistration(event) { event.preventDefault(); try { const result=await registrarSupervisor(form); setMessage(result.message); await onAccessChanged(); } catch(error) { setMessage(error.message); } }
   async function submitLink(event) { event.preventDefault(); try { const result=await vincularCuentaSupervisor(linkForm); setMessage(result.message); await onAccessChanged(); } catch(error) { setMessage(error.message); } }
   async function open(id) { try { setDetail((await getSupervisorInspeccion(id)).data); setSignature(""); } catch(error) { setMessage(error.message); } }
   async function decide(aprobada) { try { const result=await decidirSupervisorInspeccion(detail.id_inspeccion,{aprobada,comentario:comment,firma:signature}); setMessage(result.message); setDetail(null); load(); } catch(error) { setMessage(error.message); } }
-  if (!access.registered) return <main className="container"><h1>Acceso de supervisor</h1><p>Si ya tienes una cuenta de supervisor creada en el panel administrativo, vincúlala para conservar tus datos. Crea una cuenta solo si aún no existe.</p><div className="form-actions"><button type="button" className={registrationMode==="link" ? "inspection-primary-button" : "inspection-secondary-button"} onClick={()=>setRegistrationMode("link")}>Vincular cuenta existente</button><button type="button" className={registrationMode==="new" ? "inspection-primary-button" : "inspection-secondary-button"} onClick={()=>setRegistrationMode("new")}>Crear cuenta nueva</button></div>{registrationMode==="link" ? <form onSubmit={submitLink}><label>Usuario administrativo<input required autoCapitalize="none" autoCorrect="off" value={linkForm.username} onChange={e=>setLinkForm({...linkForm,username:e.target.value})}/></label><label>Contraseña de la cuenta existente<input required type="password" value={linkForm.password} onChange={e=>setLinkForm({...linkForm,password:e.target.value})}/></label><button type="submit">Vincular mi cuenta</button></form> : <><p>Elige un usuario de 3 a 100 caracteres: letras, números, punto, guion o guion bajo. Durante pruebas solo se acepta @itzamna.mx.</p><form onSubmit={submitRegistration}>{[["nombre","Nombre completo","text"],["username","Usuario","text"],["correo","Correo corporativo","email"],["telefono","Teléfono","tel"],["password","Contraseña (mínimo 10 caracteres)","password"],["confirmacionPassword","Confirmar contraseña","password"]].map(([key,label,type])=><label key={key}>{label}<input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<button type="submit">Crear cuenta</button></form></>}{message&&<p className="message message-error">{message}</p>}</main>;
+  
+  if (!access.registered) return (
+    <main className="container">
+      <h1>Acceso de supervisor</h1>
+      <p>Ingresa con tu correo corporativo registrado en el tenant o vincula tu cuenta administrativa existente.</p>
+      <div className="form-actions" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+        <button type="button" className={registrationMode==="tenant_email" ? "inspection-primary-button" : "inspection-secondary-button"} onClick={()=>{ setRegistrationMode("tenant_email"); setMessage(""); }}>Correo Corporativo (Tenant)</button>
+        <button type="button" className={registrationMode==="link" ? "inspection-primary-button" : "inspection-secondary-button"} onClick={()=>{ setRegistrationMode("link"); setMessage(""); }}>Vincular por Usuario</button>
+        <button type="button" className={registrationMode==="new" ? "inspection-primary-button" : "inspection-secondary-button"} onClick={()=>{ setRegistrationMode("new"); setMessage(""); }}>Crear cuenta</button>
+      </div>
+
+      {registrationMode === "tenant_email" && (
+        <form onSubmit={submitTenantEmail}>
+          <label>
+            Correo Corporativo Registrado
+            <input required type="email" placeholder="usuario@aspromex.com" value={tenantEmail} onChange={e=>setTenantEmail(e.target.value)}/>
+          </label>
+          <small style={{ display: "block", color: "#64748b", marginBottom: "12px" }}>
+            Se verificará que tu correo esté registrado en la lista blanca de administración.
+          </small>
+          <button type="submit" className="inspection-primary-button">Ingresar con mi Correo</button>
+        </form>
+      )}
+
+      {registrationMode === "link" && (
+        <form onSubmit={submitLink}>
+          <label>Usuario administrativo<input required autoCapitalize="none" autoCorrect="off" value={linkForm.username} onChange={e=>setLinkForm({...linkForm,username:e.target.value})}/></label>
+          <label>Contraseña de la cuenta existente<input required type="password" value={linkForm.password} onChange={e=>setLinkForm({...linkForm,password:e.target.value})}/></label>
+          <button type="submit" className="inspection-primary-button">Vincular mi cuenta</button>
+        </form>
+      )}
+
+      {registrationMode === "new" && (
+        <>
+          <p>Elige un usuario de 3 a 100 caracteres. Se validará contra la lista blanca del dominio.</p>
+          <form onSubmit={submitRegistration}>
+            {[["nombre","Nombre completo","text"],["username","Usuario","text"],["correo","Correo corporativo","email"],["telefono","Teléfono","tel"],["password","Contraseña (mínimo 10 caracteres)","password"],["confirmacionPassword","Confirmar contraseña","password"]].map(([key,label,type])=><label key={key}>{label}<input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}
+            <button type="submit" className="inspection-primary-button">Crear cuenta</button>
+          </form>
+        </>
+      )}
+
+      {message && <p className="message message-error">{message}</p>}
+    </main>
+  );
+
   if (!access.confirmed) return <main className="container"><h1>Confirma tu correo</h1><p>Te enviamos un enlace de bienvenida. Ábrelo y vuelve a entrar desde Telegram para activar las aprobaciones.</p>{message&&<p>{message}</p>}</main>;
   return <main className="container"><h1>Inspecciones pendientes</h1>{message&&<p className="message message-success">{message}</p>}{!detail ? <section>{items.length ? items.map(item=><button type="button" key={item.id_inspeccion} className="result-card" onClick={()=>open(item.id_inspeccion)}><strong>{item.folio}</strong><br/>{item.conductor} · {item.vehiculo} ({item.numero_economico})</button>) : <p>No hay inspecciones pendientes.</p>}</section> : <section className="result-card"><button type="button" onClick={()=>setDetail(null)}>← Volver</button><h2>{detail.folio}</h2><p><strong>Conductor:</strong> {detail.conductor}</p><p><strong>Unidad:</strong> {detail.vehiculo} · {detail.numero_economico}</p><p><strong>Combustible:</strong> {detail.combustible}</p><p><strong>Observaciones:</strong> {detail.observaciones_conductor||"Sin observaciones"}</p><DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/><h3>Checklist</h3><div className="table-wrapper checklist-table-wrapper"><table className="admin-table checklist-table"><thead><tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr></thead><tbody>{Object.entries(detail.checklist||{}).map(([name,state])=><tr key={name}><td>{name}</td><td style={{ textAlign: "center" }}><span className={`checklist-badge checklist-badge-${state==="B"?"good":state==="R"?"regular":state==="M"?"bad":"na"}`}>{state}</span></td></tr>)}</tbody></table></div><label>Comentario<textarea value={comment} onChange={e=>setComment(e.target.value)}/></label>{signature ? <p>Firma guardada.</p> : <Signature onSave={setSignature}/>}<button type="button" disabled={!signature} onClick={()=>decide(false)}>Rechazar</button><button type="button" disabled={!signature} onClick={()=>decide(true)}>Aprobar y generar PDF</button></section>}</main>;
 }
