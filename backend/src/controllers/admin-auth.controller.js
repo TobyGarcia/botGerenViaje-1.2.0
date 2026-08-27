@@ -42,7 +42,7 @@ function getAzureRedirectUri(request) {
     const protocol = request.headers["x-forwarded-proto"] || "https";
     return `${protocol}://${host.replace(/\/+$/, "")}`;
   }
-  return "https://gv.aspromex.com";
+  return "https://gv.aspromex.mx";
 }
 
 function getAdminPanelUrl(request) {
