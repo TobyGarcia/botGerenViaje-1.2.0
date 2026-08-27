@@ -80,11 +80,11 @@ function LoginPage({ onAuthenticated }) {
             <img className="login-logo" src={logoAQR} alt="AQR Logistics" />
             <div className="azure-badge-container">
               <span className="azure-badge">
-                <svg width="15" height="15" viewBox="0 0 23 23" fill="none">
-                  <path fill="#f25022" d="M1 1h10v10H1z"/>
-                  <path fill="#7fba00" d="M12 1h10v10H1z"/>
-                  <path fill="#00a4ef" d="M1 12h10v10H1z"/>
-                  <path fill="#ffb900" d="M12 12h10v10H1z"/>
+                <svg width="15" height="15" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0" y="0" width="10" height="10" fill="#f25022"/>
+                  <rect x="11" y="0" width="10" height="10" fill="#7fba00"/>
+                  <rect x="0" y="11" width="10" height="10" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="10" height="10" fill="#ffb900"/>
                 </svg>
                 Microsoft Azure Entra ID
               </span>
@@ -109,11 +109,11 @@ function LoginPage({ onAuthenticated }) {
                 </span>
               ) : (
                 <>
-                  <svg width="22" height="22" viewBox="0 0 23 23" fill="none">
-                    <path fill="#f25022" d="M1 1h10v10H1z"/>
-                    <path fill="#7fba00" d="M12 1h10v10H1z"/>
-                    <path fill="#00a4ef" d="M1 12h10v10H1z"/>
-                    <path fill="#ffb900" d="M12 12h10v10H1z"/>
+                  <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="10" height="10" fill="#f25022"/>
+                    <rect x="11" y="0" width="10" height="10" fill="#7fba00"/>
+                    <rect x="0" y="11" width="10" height="10" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="10" height="10" fill="#ffb900"/>
                   </svg>
                   Iniciar sesión con Microsoft (Azure AD)
                 </>
