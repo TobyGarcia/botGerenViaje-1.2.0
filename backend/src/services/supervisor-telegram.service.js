@@ -137,8 +137,8 @@ export async function linkExistingSupervisor({ telegramUserId, data }) {
     if (linkedAccount.rows[0] && Number(linkedAccount.rows[0].id_usuarios_admin) !== Number(user?.id_usuarios_admin)) {
       throw new SupervisorTelegramError("Tu cuenta de Telegram ya está vinculada a otro usuario administrativo.", 409);
     }
-    if (!user || user.rol !== "SUPERVISOR" || !user.activo) {
-      throw new SupervisorTelegramError("No encontramos un supervisor activo con ese usuario o contraseña.", 401);
+    if (!user || !["SUPERVISOR", "ADMINISTRADOR"].includes(user.rol) || !user.activo) {
+      throw new SupervisorTelegramError("No encontramos un supervisor o administrador activo con ese usuario o contraseña.", 401);
     }
     if (!await bcrypt.compare(input.password, user.password_hash)) {
       throw new SupervisorTelegramError("No encontramos un supervisor activo con ese usuario o contraseña.", 401);

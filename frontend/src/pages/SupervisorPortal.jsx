@@ -15,28 +15,29 @@ function Signature({ onSave }) {
 export default function SupervisorPortal({ access, onAccessChanged }) {
   const [tenantEmail, setTenantEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState([]); const [detail, setDetail] = useState(null); const [message,setMessage]=useState(""); const [signature,setSignature]=useState(""); const [comment,setComment]=useState("");
+  const [items, setItems] = useState([]); const [detail, setDetail] = useState(null); const [message,setMessage]=useState(""); const [errorMessage,setErrorMessage]=useState(""); const [signature,setSignature]=useState(""); const [comment,setComment]=useState("");
   
-  async function load() { try { setItems((await getSupervisorInspecciones()).data); } catch(error) { setMessage(error.message); } }
+  async function load() { try { setErrorMessage(""); setItems((await getSupervisorInspecciones()).data); } catch(error) { setErrorMessage(error.message); } }
   useEffect(()=>{ if (access.confirmed) load(); }, [access.confirmed]);
   
   async function submitTenantEmail(event) {
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setErrorMessage("");
     try {
       const result = await ingresarCorreoSupervisor(tenantEmail.trim());
       setMessage(result.message);
       await onAccessChanged();
     } catch(error) {
-      setMessage(error.message);
+      setErrorMessage(error.message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function open(id) { try { setDetail((await getSupervisorInspeccion(id)).data); setSignature(""); } catch(error) { setMessage(error.message); } }
-  async function decide(aprobada) { try { const result=await decidirSupervisorInspeccion(detail.id_inspeccion,{aprobada,comentario:comment,firma:signature}); setMessage(result.message); setDetail(null); load(); } catch(error) { setMessage(error.message); } }
+  async function open(id) { try { setErrorMessage(""); setDetail((await getSupervisorInspeccion(id)).data); setSignature(""); } catch(error) { setErrorMessage(error.message); } }
+  async function decide(aprobada) { try { setErrorMessage(""); const result=await decidirSupervisorInspeccion(detail.id_inspeccion,{aprobada,comentario:comment,firma:signature}); setMessage(result.message); setDetail(null); load(); } catch(error) { setErrorMessage(error.message); } }
   
   if (!access.registered) return (
     <main className="container">
@@ -56,10 +57,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </button>
       </form>
 
-      {message && <p className="message message-error" style={{ marginTop: "16px" }}>{message}</p>}
+      {errorMessage && <p className="message message-error" style={{ marginTop: "16px" }}>{errorMessage}</p>}
+      {message && <p className="message message-success" style={{ marginTop: "16px" }}>{message}</p>}
     </main>
   );
 
-  if (!access.confirmed) return <main className="container"><h1>Confirma tu correo</h1><p>Te enviamos un enlace de bienvenida. Ábrelo y vuelve a entrar desde Telegram para activar las aprobaciones.</p>{message&&<p>{message}</p>}</main>;
-  return <main className="container"><h1>Inspecciones pendientes</h1>{message&&<p className="message message-success">{message}</p>}{!detail ? <section>{items.length ? items.map(item=><button type="button" key={item.id_inspeccion} className="result-card" onClick={()=>open(item.id_inspeccion)}><strong>{item.folio}</strong><br/>{item.conductor} · {item.vehiculo} ({item.numero_economico})</button>) : <p>No hay inspecciones pendientes.</p>}</section> : <section className="result-card"><button type="button" onClick={()=>setDetail(null)}>← Volver</button><h2>{detail.folio}</h2><p><strong>Conductor:</strong> {detail.conductor}</p><p><strong>Unidad:</strong> {detail.vehiculo} · {detail.numero_economico}</p><p><strong>Combustible:</strong> {detail.combustible}</p><p><strong>Observaciones:</strong> {detail.observaciones_conductor||"Sin observaciones"}</p><DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/><h3>Checklist</h3><div className="table-wrapper checklist-table-wrapper"><table className="admin-table checklist-table"><thead><tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr></thead><tbody>{Object.entries(detail.checklist||{}).map(([name,state])=><tr key={name}><td>{name}</td><td style={{ textAlign: "center" }}><span className={`checklist-badge checklist-badge-${state==="B"?"good":state==="R"?"regular":state==="M"?"bad":"na"}`}>{state}</span></td></tr>)}</tbody></table></div><label>Comentario<textarea value={comment} onChange={e=>setComment(e.target.value)}/></label>{signature ? <p>Firma guardada.</p> : <Signature onSave={setSignature}/>}<button type="button" disabled={!signature} onClick={()=>decide(false)}>Rechazar</button><button type="button" disabled={!signature} onClick={()=>decide(true)}>Aprobar y generar PDF</button></section>}</main>;
+  if (!access.confirmed) return <main className="container"><h1>Confirma tu correo</h1><p>Te enviamos un enlace de bienvenida. Ábrelo y vuelve a entrar desde Telegram para activar las aprobaciones.</p>{errorMessage&&<p className="message message-error">{errorMessage}</p>}{message&&<p className="message message-success">{message}</p>}</main>;
+  return <main className="container"><h1>Inspecciones pendientes</h1>{errorMessage&&<p className="message message-error">{errorMessage}</p>}{message&&<p className="message message-success">{message}</p>}{!detail ? <section>{items.length ? items.map(item=><button type="button" key={item.id_inspeccion} className="result-card" onClick={()=>open(item.id_inspeccion)}><strong>{item.folio}</strong><br/>{item.conductor} · {item.vehiculo} ({item.numero_economico})</button>) : <p>No hay inspecciones pendientes.</p>}</section> : <section className="result-card"><button type="button" onClick={()=>setDetail(null)}>← Volver</button><h2>{detail.folio}</h2><p><strong>Conductor:</strong> {detail.conductor}</p><p><strong>Unidad:</strong> {detail.vehiculo} · {detail.numero_economico}</p><p><strong>Combustible:</strong> {detail.combustible}</p><p><strong>Observaciones:</strong> {detail.observaciones_conductor||"Sin observaciones"}</p><DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/><h3>Checklist</h3><div className="table-wrapper checklist-table-wrapper"><table className="admin-table checklist-table"><thead><tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr></thead><tbody>{Object.entries(detail.checklist||{}).map(([name,state])=><tr key={name}><td>{name}</td><td style={{ textAlign: "center" }}><span className={`checklist-badge checklist-badge-${state==="B"?"good":state==="R"?"regular":state==="M"?"bad":"na"}`}>{state}</span></td></tr>)}</tbody></table></div><label>Comentario<textarea value={comment} onChange={e=>setComment(e.target.value)}/></label>{signature ? <p>Firma guardada.</p> : <Signature onSave={setSignature}/>}<button type="button" disabled={!signature} onClick={()=>decide(false)}>Rechazar</button><button type="button" disabled={!signature} onClick={()=>decide(true)}>Aprobar y generar PDF</button></section>}</main>;
 }
