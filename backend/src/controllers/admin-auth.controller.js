@@ -40,9 +40,9 @@ function getAzureRedirectUri(request) {
   const host = request.headers["x-forwarded-host"] || request.get("host");
   if (host && !host.includes("localhost") && !host.startsWith("127.") && !host.startsWith("backend")) {
     const protocol = request.headers["x-forwarded-proto"] || "https";
-    return `${protocol}://${host}/`;
+    return `${protocol}://${host.replace(/\/+$/, "")}`;
   }
-  return "https://gv.aspromex.com/";
+  return "https://gv.aspromex.com";
 }
 
 function getAdminPanelUrl(request) {
