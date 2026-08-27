@@ -34,9 +34,9 @@ function serializeAdminUser(user) {
 
 function getAzureRedirectUri(request) {
   if (process.env.AZURE_REDIRECT_URI) {
-    return process.env.AZURE_REDIRECT_URI;
+    return process.env.AZURE_REDIRECT_URI.trim();
   }
-  const protocol = request.headers["x-forwarded-proto"] || request.protocol || "http";
+  const protocol = request.headers["x-forwarded-proto"] || (request.secure ? "https" : "http");
   const host = request.headers["x-forwarded-host"] || request.get("host");
   return `${protocol}://${host}/api/admin/auth/azure/callback`;
 }
