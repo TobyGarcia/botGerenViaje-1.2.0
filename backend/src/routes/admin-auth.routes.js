@@ -6,6 +6,7 @@ import {
   getAdminSessionController,
   initiateAzureOAuthLoginController,
   azureOAuthCallbackController,
+  exchangeAzureOAuthCodeController,
   loginAdminController,
   loginWithTenantEmailController,
   logoutAdminController
@@ -35,6 +36,11 @@ router.get(
 router.get(
   "/azure/callback",
   azureOAuthCallbackController
+);
+
+router.post(
+  "/azure/exchange-code",
+  exchangeAzureOAuthCodeController
 );
 
 router.get(

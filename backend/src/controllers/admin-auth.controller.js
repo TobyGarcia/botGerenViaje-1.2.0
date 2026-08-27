@@ -38,7 +38,8 @@ function getAzureRedirectUri(request) {
   }
   const protocol = request.headers["x-forwarded-proto"] || (request.secure ? "https" : "http");
   const host = request.headers["x-forwarded-host"] || request.get("host");
-  return `${protocol}://${host}/api/admin/auth/azure/callback`;
+  // Si no hay URI fija, por defecto usa la raíz del origen (ej. https://gv.aspromex.com/)
+  return `${protocol}://${host}/`;
 }
 
 function getAdminPanelUrl(request) {
@@ -49,7 +50,9 @@ function getAdminPanelUrl(request) {
   if (corsOrigins.length > 0) {
     return corsOrigins[0];
   }
-  return "http://localhost:5173";
+  const protocol = request.headers["x-forwarded-proto"] || (request.secure ? "https" : "http");
+  const host = request.headers["x-forwarded-host"] || request.get("host");
+  return `${protocol}://${host}`;
 }
 
 export async function loginAdminController(request, response) {
@@ -130,7 +133,7 @@ export function getAdminSessionController(request, response) {
 
 /**
  * Inicia el flujo OAuth 2.0 interactivo de Microsoft Entra ID.
- * Redirige la ventana del usuario directamente a login.microsoftonline.com
+ * Usa la Redirect URI configurada por el administrador (ej. https://gv.aspromex.com/).
  */
 export function initiateAzureOAuthLoginController(request, response) {
   try {
@@ -145,8 +148,69 @@ export function initiateAzureOAuthLoginController(request, response) {
 }
 
 /**
- * Callback de Microsoft Azure AD después del login interactivo.
- * Intercambia el código, obtiene el correo verificado en Microsoft y comprueba la Lista Blanca.
+ * Intercambia el código devuelto por Microsoft enviado desde el frontend o callback HTTP.
+ * Aplica Doble Match (Verificación Microsoft Graph + Lista Blanca BD).
+ */
+export async function exchangeAzureOAuthCodeController(request, response) {
+  try {
+    const code = String(request.body?.code || request.query?.code || "").trim();
+    const redirectUri = String(request.body?.redirectUri || getAzureRedirectUri(request)).trim();
+
+    if (!code) {
+      return response.status(400).json({
+        success: false,
+        message: "No se recibió el código de autorización de Microsoft."
+      });
+    }
+
+    // 1. Intercambiar código por Access Token de usuario
+    const userTokens = await exchangeCodeForUserToken({ code, redirectUri });
+
+    // 2. Obtener identidad verificada desde Microsoft Graph API (/v1.0/me)
+    const verifiedProfile = await getVerifiedUserProfileFromMicrosoft(userTokens.access_token);
+    const verifiedEmail = verifiedProfile.email;
+
+    console.log(`[Azure OAuth] Autenticado en Microsoft: ${verifiedEmail}`);
+
+    // 3. Doble Match: Verificar presencia activa en la Lista Blanca
+    const whitelistCheck = await validateTenantEmailAndWhitelist(verifiedEmail);
+    if (!whitelistCheck.authorized) {
+      return response.status(403).json({
+        success: false,
+        message: whitelistCheck.reason || `El correo ${verifiedEmail} autenticó en Microsoft pero no está registrado en la lista blanca de administradores.`
+      });
+    }
+
+    // 4. Iniciar sesión administrativa
+    const result = await authenticateAdminByTenantEmail({ email: verifiedEmail });
+    if (!result.authenticated) {
+      return response.status(401).json({
+        success: false,
+        message: "No fue posible activar la sesión administrativa."
+      });
+    }
+
+    const token = createAdminSessionToken(result.user);
+    response.cookie(getAdminCookieName(), token, getAdminCookieOptions());
+
+    return response.status(200).json({
+      success: true,
+      data: {
+        authenticated: true,
+        user: serializeAdminUser(result.user)
+      }
+    });
+  } catch (error) {
+    console.error("Error al intercambiar código de Microsoft:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "Error al autenticar con Microsoft."
+    });
+  }
+}
+
+/**
+ * Callback HTTP directo de Microsoft Azure AD.
  */
 export async function azureOAuthCallbackController(request, response) {
   const adminUrl = getAdminPanelUrl(request);
@@ -164,28 +228,19 @@ export async function azureOAuthCallbackController(request, response) {
 
   try {
     const redirectUri = getAzureRedirectUri(request);
-
-    // 1. Intercambiar código por tokens de usuario
     const userTokens = await exchangeCodeForUserToken({ code, redirectUri });
-
-    // 2. Obtener identidad autenticada y verificada directamente desde Microsoft Graph API
     const verifiedProfile = await getVerifiedUserProfileFromMicrosoft(userTokens.access_token);
     const verifiedEmail = verifiedProfile.email;
 
-    console.log(`[Azure OAuth] Usuario autenticado exitosamente en Microsoft: ${verifiedEmail}`);
-
-    // 3. Verificar Doble Match: Comprobar dominio de Tenant y presencia activa en la Lista Blanca
     const whitelistCheck = await validateTenantEmailAndWhitelist(verifiedEmail);
     if (!whitelistCheck.authorized) {
-      console.warn(`[Azure OAuth] Acceso denegado: ${verifiedEmail} autenticó en Microsoft pero no está en la Lista Blanca BD.`);
       return response.redirect(
         `${adminUrl}/?error=${encodeURIComponent(
-          whitelistCheck.reason || `El correo ${verifiedEmail} autenticó en Microsoft pero no está registrado en la lista blanca de administradores.`
+          whitelistCheck.reason || `El correo ${verifiedEmail} autenticó en Microsoft pero no está registrado en la lista blanca.`
         )}`
       );
     }
 
-    // 4. Iniciar sesión administrativa en el sistema
     const result = await authenticateAdminByTenantEmail({ email: verifiedEmail });
     if (!result.authenticated) {
       return response.redirect(`${adminUrl}/?error=${encodeURIComponent("No fue posible activar la sesión administrativa.")}`);
@@ -194,7 +249,6 @@ export async function azureOAuthCallbackController(request, response) {
     const token = createAdminSessionToken(result.user);
     response.cookie(getAdminCookieName(), token, getAdminCookieOptions());
 
-    // 5. Redirigir de regreso al panel administrativo con sesión activa
     return response.redirect(`${adminUrl}/`);
   } catch (error) {
     console.error("Excepción en callback de Azure OAuth:", error.message);

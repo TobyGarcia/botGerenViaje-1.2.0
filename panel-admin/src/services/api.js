@@ -67,6 +67,17 @@ export function loginWithTenantEmail({ email }) {
   );
 }
 
+export function exchangeAzureOAuthCode({ code, redirectUri }) {
+  return request(
+    "/admin/auth/azure/exchange-code",
+    {
+      method: "POST",
+      body: JSON.stringify({ code, redirectUri })
+    }
+  );
+}
+
+
 
 export function getAdminSession() {
   return request(

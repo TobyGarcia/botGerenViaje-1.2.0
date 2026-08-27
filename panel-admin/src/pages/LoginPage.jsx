@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { loginWithTenantEmail } from "../services/api.js";
+import { loginWithTenantEmail, exchangeAzureOAuthCode } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
 
@@ -14,15 +14,33 @@ function LoginPage({ onAuthenticated }) {
   const submittingRef = useRef(false);
 
   useEffect(() => {
-    // Detectar si el backend devolvió un error de autenticación en la URL
     const urlParams = new URLSearchParams(window.location.search);
+    const codeParam = urlParams.get("code");
     const errorParam = urlParams.get("error");
+
     if (errorParam) {
       setMessage(decodeURIComponent(errorParam));
-      // Limpiar la URL sin recargar la página
       window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (codeParam) {
+      setLoading(true);
+      setMessage("Autenticando en Microsoft...");
+
+      // Usar la raíz de la web como Redirect URI por defecto si no hay otra definida
+      const redirectUri = window.location.origin + "/";
+      exchangeAzureOAuthCode({ code: codeParam, redirectUri })
+        .then((response) => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          onAuthenticated(response.data.user);
+        })
+        .catch((error) => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setMessage(error.message || "Error al completar inicio de sesión con Microsoft.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
-  }, []);
+  }, [onAuthenticated]);
 
   function handleChange(event) {
     setEmail(event.target.value);
@@ -122,7 +140,7 @@ function LoginPage({ onAuthenticated }) {
                     <path fill="#f35325" d="M1 1h10v10H1z"/>
                     <path fill="#81bc06" d="M12 1h10v10H12z"/>
                     <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                    <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                    <path fill="#ffba08" d="M12 12h10v10H1z"/>
                   </svg>
                   Iniciar sesión con Microsoft (Azure AD)
                 </>
