@@ -135,13 +135,35 @@ export function getAdminSessionController(request, response) {
 }
 
 /**
- * Inicia el flujo OAuth 2.0 interactivo de Microsoft Entra ID.
- * Usa la Redirect URI configurada por el administrador (ej. https://gv.aspromex.com/).
+ * Retorna en JSON la URL completa de autorización de Microsoft Azure AD.
+ */
+export function getAzureOAuthUrlController(request, response) {
+  try {
+    const redirectUri = getAzureRedirectUri(request);
+    const authUrl = getAzureOAuthLoginUrl({ redirectUri });
+    console.log(`[Azure OAuth] Generada URL de Microsoft. Redirect URI: "${redirectUri}"`);
+    return response.json({
+      success: true,
+      authUrl,
+      redirectUri
+    });
+  } catch (error) {
+    console.error("Error al generar la URL de login de Azure:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "Error al obtener URL de Microsoft."
+    });
+  }
+}
+
+/**
+ * Redirección directa por HTTP GET.
  */
 export function initiateAzureOAuthLoginController(request, response) {
   try {
     const redirectUri = getAzureRedirectUri(request);
     const authUrl = getAzureOAuthLoginUrl({ redirectUri });
+    console.log(`[Azure OAuth] Solicitando login a Microsoft. Redirect URI: "${redirectUri}"`);
     return response.redirect(authUrl);
   } catch (error) {
     console.error("Error al generar la URL de login de Azure:", error.message);
@@ -151,7 +173,7 @@ export function initiateAzureOAuthLoginController(request, response) {
 }
 
 /**
- * Intercambia el código devuelto por Microsoft enviado desde el frontend o callback HTTP.
+ * Intercambia el código devuelto por Microsoft.
  * Aplica Doble Match (Verificación Microsoft Graph + Lista Blanca BD).
  */
 export async function exchangeAzureOAuthCodeController(request, response) {
@@ -166,16 +188,12 @@ export async function exchangeAzureOAuthCodeController(request, response) {
       });
     }
 
-    // 1. Intercambiar código por Access Token de usuario
     const userTokens = await exchangeCodeForUserToken({ code, redirectUri });
-
-    // 2. Obtener identidad verificada desde Microsoft Graph API (/v1.0/me)
     const verifiedProfile = await getVerifiedUserProfileFromMicrosoft(userTokens.access_token);
     const verifiedEmail = verifiedProfile.email;
 
     console.log(`[Azure OAuth] Autenticado en Microsoft: ${verifiedEmail}`);
 
-    // 3. Doble Match: Verificar presencia activa en la Lista Blanca
     const whitelistCheck = await validateTenantEmailAndWhitelist(verifiedEmail);
     if (!whitelistCheck.authorized) {
       return response.status(403).json({
@@ -184,7 +202,6 @@ export async function exchangeAzureOAuthCodeController(request, response) {
       });
     }
 
-    // 4. Iniciar sesión administrativa
     const result = await authenticateAdminByTenantEmail({ email: verifiedEmail });
     if (!result.authenticated) {
       return response.status(401).json({

@@ -4,6 +4,7 @@ import {
 
 import {
   getAdminSessionController,
+  getAzureOAuthUrlController,
   initiateAzureOAuthLoginController,
   azureOAuthCallbackController,
   exchangeAzureOAuthCodeController,
@@ -26,6 +27,11 @@ router.post(
 router.post(
   "/tenant-login",
   loginWithTenantEmailController
+);
+
+router.get(
+  "/azure/url",
+  getAzureOAuthUrlController
 );
 
 router.get(

@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { loginWithTenantEmail, exchangeAzureOAuthCode } from "../services/api.js";
+import { loginWithTenantEmail, exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
-
-// Construir la URL base de la API
-const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-const API_BASE_URL = configuredApiBaseUrl.replace(/\/api$/, "");
 
 function LoginPage({ onAuthenticated }) {
   const [email, setEmail] = useState("");
@@ -25,7 +21,6 @@ function LoginPage({ onAuthenticated }) {
       setLoading(true);
       setMessage("Autenticando en Microsoft...");
 
-      // Usar la raíz de la web como Redirect URI por defecto si no hay otra definida
       const redirectUri = window.location.origin + "/";
       exchangeAzureOAuthCode({ code: codeParam, redirectUri })
         .then((response) => {
@@ -47,11 +42,21 @@ function LoginPage({ onAuthenticated }) {
     setMessage("");
   }
 
-  function handleAzureMicrosoftLogin() {
+  async function handleAzureMicrosoftLogin() {
     setLoading(true);
     setMessage("");
-    // Redirigir a Microsoft Entra ID para autenticación interactiva (Doble Match)
-    window.location.href = `${API_BASE_URL}/api/admin/auth/azure/login`;
+    try {
+      const response = await getAzureOAuthUrl();
+      if (response?.authUrl) {
+        console.log("Redirigiendo a Microsoft:", response.authUrl);
+        window.location.href = response.authUrl;
+      } else {
+        throw new Error("No fue posible obtener la URL de inicio de sesión de Microsoft.");
+      }
+    } catch (error) {
+      setLoading(false);
+      setMessage(error.message || "Error al conectar con Microsoft.");
+    }
   }
 
   async function handleTenantEmailSubmit(event) {
@@ -138,7 +143,7 @@ function LoginPage({ onAuthenticated }) {
                 <>
                   <svg width="20" height="20" viewBox="0 0 23 23" fill="none">
                     <path fill="#f35325" d="M1 1h10v10H1z"/>
-                    <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                    <path fill="#81bc06" d="M12 1h10v10H1z"/>
                     <path fill="#05a6f0" d="M1 12h10v10H1z"/>
                     <path fill="#ffba08" d="M12 12h10v10H1z"/>
                   </svg>

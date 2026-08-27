@@ -67,6 +67,10 @@ export function loginWithTenantEmail({ email }) {
   );
 }
 
+export function getAzureOAuthUrl() {
+  return request("/admin/auth/azure/url");
+}
+
 export function exchangeAzureOAuthCode({ code, redirectUri }) {
   return request(
     "/admin/auth/azure/exchange-code",
