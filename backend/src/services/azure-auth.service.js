@@ -63,7 +63,7 @@ export function getAzureOAuthLoginUrl({ redirectUri, state = "admin_login" }) {
   const scope = encodeURIComponent("openid profile email User.Read");
   const encodedRedirect = encodeURIComponent(redirectUri);
 
-  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodedRedirect}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}`;
+  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodedRedirect}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}&prompt=select_account`;
 }
 
 /**
