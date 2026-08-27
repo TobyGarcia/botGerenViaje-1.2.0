@@ -131,8 +131,13 @@ export function validateTelegramInitData(
   const ageSeconds =
     currentUnixTime - authDate;
 
-  // Permitir hasta 10 minutos (600s) de tolerancia por desfase de reloj (clock skew)
-  if (ageSeconds < -600) {
+  // Log de tiempos para diagnosticar desfase de reloj
+  if (ageSeconds < 0) {
+    console.warn(`[Telegram Auth Warning] Desfase detectado. Servidor Unix: ${currentUnixTime}, Telegram auth_date: ${authDate}, Diferencia: ${ageSeconds}s`);
+  }
+
+  // Permitir hasta 24 horas (86400s) de tolerancia por desincronización del reloj del servidor
+  if (ageSeconds < -86400) {
     throw new Error(
       "Telegram auth_date pertenece al futuro."
     );
