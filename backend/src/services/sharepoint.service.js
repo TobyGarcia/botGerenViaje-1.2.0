@@ -1,12 +1,12 @@
 import { getAzureAccessToken } from "./azure-auth.service.js";
 
+const DEFAULT_SHAREPOINT_URL =
+  "https://itzamnaoilandgas.sharepoint.com/sites/TecnologasdelaInformacin/Documentos%20compartidos/Forms/AllItems.aspx?id=%2Fsites%2FTecnologasdelaInformacin%2FDocumentos%20compartidos%2FDiagramas%20y%20Planos%2Ftest%5F1%5FGV";
+
 /**
  * Parsea el destino de SharePoint a partir de una URL completa (SHAREPOINT_URL)
  * o de las variables SHAREPOINT_SITE_ID y SHAREPOINT_FOLDER_PATH.
  */
-const DEFAULT_SHAREPOINT_URL =
-  "https://itzamnaoilandgas.sharepoint.com/sites/TecnologasdelaInformacin/Documentos%20compartidos/Forms/AllItems.aspx?id=%2Fsites%2FTecnologasdelaInformacin%2FDocumentos%20compartidos%2FDiagramas%20y%20Planos%2Ftest%5F1%5FGV";
-
 export function parseSharePointTarget() {
   const fullUrl = (process.env.SHAREPOINT_URL || DEFAULT_SHAREPOINT_URL).trim();
 
@@ -46,6 +46,33 @@ export function parseSharePointTarget() {
 }
 
 /**
+ * Resuelve el Site ID único de Microsoft Graph API para un sitio de SharePoint.
+ */
+async function resolveSharePointSiteId(siteIdentifier, accessToken) {
+  if (!siteIdentifier || siteIdentifier === "root") {
+    return "root";
+  }
+
+  try {
+    const siteUrl = `https://graph.microsoft.com/v1.0/sites/${siteIdentifier}`;
+    const res = await fetch(siteUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (res.ok) {
+      const siteData = await res.json();
+      if (siteData?.id) {
+        return siteData.id;
+      }
+    }
+  } catch (err) {
+    console.warn("[SharePoint] No se pudo obtener siteId específico, usando identificador:", err.message);
+  }
+
+  return siteIdentifier;
+}
+
+/**
  * Sube un archivo PDF a la carpeta de SharePoint mediante Microsoft Graph API.
  * Utiliza autenticación de aplicación (client_credentials) con Azure AD.
  */
@@ -69,11 +96,20 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer }) {
     const accessToken = await getAzureAccessToken();
     const { siteIdentifier, folderPath } = parseSharePointTarget();
 
+    // Resolver el id de sitio único de Microsoft Graph para evitar colisiones sintácticas de colones (:)
+    const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
+
     const cleanFilename = String(filename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
-    
-    // Construir la URL del endpoint de Microsoft Graph API para la subida directa del PDF
-    const folderSegment = folderPath ? `${folderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
-    const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteIdentifier}:/drive/root:/${folderSegment}${encodeURIComponent(cleanFilename)}:/content`;
+    const encodedFilename = encodeURIComponent(cleanFilename);
+
+    // Construir la URL exacta del endpoint de Microsoft Graph API para la subida de archivos en la unidad raíz
+    let uploadUrl = "";
+    if (folderPath) {
+      const folderSegment = folderPath.split("/").map(encodeURIComponent).join("/");
+      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}/${encodedFilename}:/content`;
+    } else {
+      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodedFilename}:/content`;
+    }
 
     console.log(`[SharePoint] Subiendo "${cleanFilename}" a sitio "${siteIdentifier}" en carpeta "${folderPath}"...`);
 
