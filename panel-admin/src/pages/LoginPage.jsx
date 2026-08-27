@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { loginWithTenantEmail, exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
+import { useEffect, useState } from "react";
+import { exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
 
 function LoginPage({ onAuthenticated }) {
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const submittingRef = useRef(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -37,11 +35,6 @@ function LoginPage({ onAuthenticated }) {
     }
   }, [onAuthenticated]);
 
-  function handleChange(event) {
-    setEmail(event.target.value);
-    setMessage("");
-  }
-
   async function handleAzureMicrosoftLogin() {
     setLoading(true);
     setMessage("");
@@ -56,31 +49,6 @@ function LoginPage({ onAuthenticated }) {
     } catch (error) {
       setLoading(false);
       setMessage(error.message || "Error al conectar con Microsoft.");
-    }
-  }
-
-  async function handleTenantEmailSubmit(event) {
-    event.preventDefault();
-    if (submittingRef.current) return;
-
-    const normalizedEmail = email.trim();
-    if (!normalizedEmail) {
-      setMessage("Ingresa tu correo corporativo del tenant.");
-      return;
-    }
-
-    submittingRef.current = true;
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const response = await loginWithTenantEmail({ email: normalizedEmail });
-      onAuthenticated(response.data.user);
-    } catch (error) {
-      setMessage(error.message || "No fue posible verificar tu correo corporativo.");
-    } finally {
-      submittingRef.current = false;
-      setLoading(false);
     }
   }
 
@@ -112,23 +80,23 @@ function LoginPage({ onAuthenticated }) {
             <img className="login-logo" src={logoAQR} alt="AQR Logistics" />
             <div className="azure-badge-container">
               <span className="azure-badge">
-                <svg width="14" height="14" viewBox="0 0 23 23" fill="none">
-                  <path fill="#f35325" d="M1 1h10v10H1z"/>
-                  <path fill="#81bc06" d="M12 1h10v10H12z"/>
-                  <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                  <path fill="#ffba08" d="M12 12h10v10H1z"/>
+                <svg width="15" height="15" viewBox="0 0 23 23" fill="none">
+                  <path fill="#f25022" d="M1 1h10v10H1z"/>
+                  <path fill="#7fba00" d="M12 1h10v10H1z"/>
+                  <path fill="#00a4ef" d="M1 12h10v10H1z"/>
+                  <path fill="#ffb900" d="M12 12h10v10H1z"/>
                 </svg>
                 Microsoft Azure Entra ID
               </span>
             </div>
-            <h2>Bienvenido</h2>
+            <h2>Acceso Administrativo</h2>
             <p className="login-description">
-              Autentícate de forma segura con tu cuenta de Microsoft del tenant y verificación en Lista Blanca.
+              Autenticación corporativa obligatoria mediante Microsoft Azure Entra ID y verificación en Lista Blanca.
             </p>
           </div>
 
           <div className="login-actions-container">
-            {/* BOTÓN PRINCIPAL: DOBLE MATCH CON AUTENTICACIÓN INTERACTIVA DE MICROSOFT */}
+            {/* ÚNICA VÍA DE INGRESO: BOTÓN OFICIAL DE MICROSOFT AZURE AD SSO */}
             <button
               type="button"
               className="login-submit-btn tenant-submit-btn microsoft-sso-btn"
@@ -141,62 +109,33 @@ function LoginPage({ onAuthenticated }) {
                 </span>
               ) : (
                 <>
-                  <svg width="20" height="20" viewBox="0 0 23 23" fill="none">
-                    <path fill="#f35325" d="M1 1h10v10H1z"/>
-                    <path fill="#81bc06" d="M12 1h10v10H1z"/>
-                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                    <path fill="#ffba08" d="M12 12h10v10H1z"/>
+                  <svg width="22" height="22" viewBox="0 0 23 23" fill="none">
+                    <path fill="#f25022" d="M1 1h10v10H1z"/>
+                    <path fill="#7fba00" d="M12 1h10v10H1z"/>
+                    <path fill="#00a4ef" d="M1 12h10v10H1z"/>
+                    <path fill="#ffb900" d="M12 12h10v10H1z"/>
                   </svg>
                   Iniciar sesión con Microsoft (Azure AD)
                 </>
               )}
             </button>
 
-            <div className="login-divider">
-              <span>o verificar por correo registrado</span>
-            </div>
-
-            <form onSubmit={handleTenantEmailSubmit} className="login-form">
-              <div className="form-group">
-                <div className="input-wrapper email-input-wrapper">
-                  <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="usuario@aspromex.com"
-                    value={email}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                  />
-                </div>
-              </div>
-
-              {message && (
-                <p className="login-error" role="alert">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                  </svg>
-                  {message}
-                </p>
-              )}
-
-              <button type="submit" className="login-secondary-submit-btn" disabled={loading}>
-                Validar Correo en Lista Blanca
-              </button>
-            </form>
+            {message && (
+              <p className="login-error" role="alert">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                {message}
+              </p>
+            )}
           </div>
 
           <div className="login-footer-security">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
             Doble Verificación: Autenticación Microsoft + Lista Blanca BD
           </div>
