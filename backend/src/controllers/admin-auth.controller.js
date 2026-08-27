@@ -33,13 +33,16 @@ function serializeAdminUser(user) {
 }
 
 function getAzureRedirectUri(request) {
-  if (process.env.AZURE_REDIRECT_URI) {
-    return process.env.AZURE_REDIRECT_URI.trim();
+  const configured = (process.env.AZURE_REDIRECT_URI || "").trim();
+  if (configured) {
+    return configured;
   }
-  const protocol = request.headers["x-forwarded-proto"] || (request.secure ? "https" : "http");
   const host = request.headers["x-forwarded-host"] || request.get("host");
-  // Si no hay URI fija, por defecto usa la raíz del origen (ej. https://gv.aspromex.com/)
-  return `${protocol}://${host}/`;
+  if (host && !host.includes("localhost") && !host.startsWith("127.") && !host.startsWith("backend")) {
+    const protocol = request.headers["x-forwarded-proto"] || "https";
+    return `${protocol}://${host}/`;
+  }
+  return "https://gv.aspromex.com/";
 }
 
 function getAdminPanelUrl(request) {
