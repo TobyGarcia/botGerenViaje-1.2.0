@@ -131,7 +131,8 @@ export function validateTelegramInitData(
   const ageSeconds =
     currentUnixTime - authDate;
 
-  if (ageSeconds < -30) {
+  // Permitir hasta 10 minutos (600s) de tolerancia por desfase de reloj (clock skew)
+  if (ageSeconds < -600) {
     throw new Error(
       "Telegram auth_date pertenece al futuro."
     );
