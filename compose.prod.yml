@@ -40,6 +40,9 @@ services:
     restart: unless-stopped
     command: ["npm", "start"]
 
+    env_file:
+      - .env
+
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -71,6 +74,16 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       SUPERVISOR_EMAIL_CONFIRM_URL: ${SUPERVISOR_EMAIL_CONFIRM_URL:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_CLIENT_SECRET_ID: ${AZURE_CLIENT_SECRET_ID:-}
+      AZURE_TENANT_DOMAIN: ${AZURE_TENANT_DOMAIN:-}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-}
+      SHAREPOINT_URL: ${SHAREPOINT_URL:-}
+      SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID:-root}
+      SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-Inspecciones}
+      ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-}
 
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3000}:3000"

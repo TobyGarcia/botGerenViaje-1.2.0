@@ -66,6 +66,9 @@ services:
       context: ./backend
     container_name: viajes-backend
     restart: unless-stopped
+    env_file:
+      - .env
+
     environment:
       NODE_ENV: ${NODE_ENV}
       BACKEND_PORT: 3000
@@ -87,6 +90,16 @@ services:
       ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-false}
       ADMIN_LOGIN_MAX_ATTEMPTS: ${ADMIN_LOGIN_MAX_ATTEMPTS:-5}
       ADMIN_LOGIN_BLOCK_MINUTES: ${ADMIN_LOGIN_BLOCK_MINUTES:-15}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_CLIENT_SECRET_ID: ${AZURE_CLIENT_SECRET_ID:-}
+      AZURE_TENANT_DOMAIN: ${AZURE_TENANT_DOMAIN:-}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-}
+      SHAREPOINT_URL: ${SHAREPOINT_URL:-}
+      SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID:-root}
+      SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-Inspecciones}
+      ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-}
     
     ports:
       - "${BACKEND_PORT:-3000}:3000"
