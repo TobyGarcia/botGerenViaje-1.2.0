@@ -4,8 +4,11 @@ import { getAzureAccessToken } from "./azure-auth.service.js";
  * Parsea el destino de SharePoint a partir de una URL completa (SHAREPOINT_URL)
  * o de las variables SHAREPOINT_SITE_ID y SHAREPOINT_FOLDER_PATH.
  */
+const DEFAULT_SHAREPOINT_URL =
+  "https://itzamnaoilandgas.sharepoint.com/sites/TecnologasdelaInformacin/Documentos%20compartidos/Forms/AllItems.aspx?id=%2Fsites%2FTecnologasdelaInformacin%2FDocumentos%20compartidos%2FDiagramas%20y%20Planos%2Ftest%5F1%5FGV";
+
 export function parseSharePointTarget() {
-  const fullUrl = (process.env.SHAREPOINT_URL || "").trim();
+  const fullUrl = (process.env.SHAREPOINT_URL || DEFAULT_SHAREPOINT_URL).trim();
 
   if (fullUrl) {
     try {

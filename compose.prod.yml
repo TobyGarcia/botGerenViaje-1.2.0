@@ -80,7 +80,7 @@ services:
       AZURE_CLIENT_SECRET_ID: ${AZURE_CLIENT_SECRET_ID:-}
       AZURE_TENANT_DOMAIN: ${AZURE_TENANT_DOMAIN:-}
       AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-https://gv.aspromex.mx}
-      SHAREPOINT_URL: ${SHAREPOINT_URL:-}
+      SHAREPOINT_URL: ${SHAREPOINT_URL:-https://itzamnaoilandgas.sharepoint.com/sites/TecnologasdelaInformacin/Documentos%20compartidos/Forms/AllItems.aspx?id=%2Fsites%2FTecnologasdelaInformacin%2FDocumentos%20compartidos%2FDiagramas%20y%20Planos%2Ftest%5F1%5FGV}
       SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID:-root}
       SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-Inspecciones}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-}
