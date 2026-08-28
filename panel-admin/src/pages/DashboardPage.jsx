@@ -10,6 +10,7 @@ import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
+import logoAquarioBlanco from "../assets/page_assets/AQUARIO_BLANCO.png";
 import {
   IconInicio,
   IconInspecciones,
@@ -519,7 +520,7 @@ function DashboardPage({ user, onLogout }) {
         <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <img className="sidebar-brand-logo" src={logoAQR} alt="Logo" />
+              <img className="sidebar-brand-logo" src={logoAquarioBlanco} alt="AQUARIO" />
               <span className="sidebar-text sidebar-brand-title">Gerenciamiento viajes</span>
             </div>
 
