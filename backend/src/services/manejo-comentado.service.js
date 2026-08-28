@@ -3,6 +3,54 @@ import { generateManejoComentadoPDF, saveEvaluationPDFLocally } from "./manejo-c
 import { getTelegramBot } from "../bot/bot.js";
 import { findTelegramUserByConductorId } from "./telegram-user.service.js";
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function sendCourseNotificationToTelegramGroups({ titulo, fechaCursoOral, fechaEvaluacionInicio, fechaEvaluacionFin, idConductores = [], notas = "" }) {
+  try {
+    const bot = getTelegramBot();
+    if (!bot) return;
+
+    const groupIds = new Set();
+    if (process.env.TELEGRAM_GROUP_ID) groupIds.add(process.env.TELEGRAM_GROUP_ID);
+    if (process.env.TELEGRAM_SUPERVISOR_CHAT_ID) groupIds.add(process.env.TELEGRAM_SUPERVISOR_CHAT_ID);
+
+    try {
+      const groupRes = await databasePool.query(
+        `SELECT DISTINCT telegram_group_id FROM accesos_supervisor_telegram WHERE telegram_group_id IS NOT NULL`
+      );
+      groupRes.rows.forEach((r) => {
+        if (r.telegram_group_id) groupIds.add(String(r.telegram_group_id));
+      });
+    } catch {
+      // Ignorar errores de consulta DB
+    }
+
+    const htmlMsg = `🚗 <b>NUEVO CURSO DE MANEJO COMENTADO PROGRAMADO</b>\n\n` +
+      `📌 <b>Título:</b> ${escapeHtml(titulo)}\n` +
+      `📅 <b>Curso Oral:</b> ${fechaCursoOral}\n` +
+      `🗓 <b>Evaluación Práctica:</b> del ${fechaEvaluacionInicio} al ${fechaEvaluacionFin}\n` +
+      `👥 <b>Conductores Asignados:</b> ${idConductores.length} integrante(s)\n` +
+      (notas ? `📝 <b>Notas:</b> ${escapeHtml(notas)}\n` : "") +
+      `\nPor favor estar atentos a las indicaciones del instructor.`;
+
+    for (const chatId of groupIds) {
+      try {
+        await bot.telegram.sendMessage(chatId, htmlMsg, { parse_mode: "HTML" });
+      } catch (err) {
+        console.error(`Error enviando notificación de curso al grupo Telegram (${chatId}):`, err.message);
+      }
+    }
+  } catch (botErr) {
+    console.warn("No fue posible enviar notificación de curso a Telegram:", botErr.message);
+  }
+}
+
+
 // Calcula estado de vigencia considerando la regla semestral (6 meses = 180 días)
 function calculateValidityStatus(fechaManejoComentado) {
   if (!fechaManejoComentado) {
@@ -164,24 +212,17 @@ export async function scheduleManejoComentadoCourse({
     await client.query("COMMIT");
 
     // Notificar al grupo de viaje o avisos mediante Telegram Bot
-    try {
-      const bot = getTelegramBot();
-      const groupChatId = process.env.TELEGRAM_SUPERVISOR_CHAT_ID || process.env.TELEGRAM_GROUP_CHAT_ID;
+    await sendCourseNotificationToTelegramGroups({
+      titulo,
+      fechaCursoOral,
+      fechaEvaluacionInicio,
+      fechaEvaluacionFin,
+      idConductores,
+      notas
+    });
 
-      if (bot && groupChatId) {
-        const msg = `🚗 *NUEVO CURSO DE MANEJO COMENTADO PROGRAMADO*\n\n` +
-          `📌 *Título:* ${titulo}\n` +
-          `📅 *Curso Oral:* ${fechaCursoOral}\n` +
-          `🗓 *Evaluación Práctica:* del ${fechaEvaluacionInicio} al ${fechaEvaluacionFin}\n` +
-          `👥 *Conductores Asignados:* ${idConductores.length} integrante(s)\n` +
-          (notas ? `📝 *Notas:* ${notas}\n` : "") +
-          `\nPor favor estar atentos a las indicaciones del instructor.`;
+    return curso;
 
-        await bot.telegram.sendMessage(groupChatId, msg, { parse_mode: "Markdown" }).catch(() => {});
-      }
-    } catch (botErr) {
-      console.warn("No fue posible enviar notificación de curso a Telegram:", botErr.message);
-    }
 
     return curso;
   } catch (error) {

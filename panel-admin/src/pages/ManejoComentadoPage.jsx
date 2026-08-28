@@ -17,12 +17,12 @@ function formatDate(value) {
 function getBadgeClass(estado) {
   switch (estado) {
     case "VIGENTE":
-      return "status-badge status-badge-success";
+      return "status-badge status-active";
     case "PROXIMO_A_VENCER":
-      return "status-badge status-badge-warning";
+      return "status-badge status-pending";
     case "VENCIDO":
     case "SIN_REGISTRO":
-      return "status-badge status-badge-danger";
+      return "status-badge status-inactive";
     default:
       return "status-badge";
   }
@@ -130,7 +130,7 @@ export default function ManejoComentadoPage({ user }) {
 
     try {
       await programarCursoManejoComentado(cursoForm);
-      setMessage("Curso de Manejo Comentado programado y notificado al equipo.");
+      setMessage("Curso de Manejo Comentado programado y notificado al grupo de Telegram.");
       setMessageType("success");
       setShowProgramarModal(false);
       loadData();
@@ -185,19 +185,30 @@ export default function ManejoComentadoPage({ user }) {
           <p>Supervisión, agendamiento de cursos y control de vigencia semestral (6 meses) para conductores.</p>
         </div>
 
-        <div className="header-actions" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        <div className="header-actions" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           {["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"].includes(user.rol) && (
             <>
+              <a
+                href="/evaluacion"
+                target="_blank"
+                rel="noreferrer"
+                className="secondary-button"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                📱 Aplicativo Móvil (/evaluacion)
+              </a>
+
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="secondary-button"
                 onClick={() => setShowRenovarModal(true)}
               >
-                + Renovar Manejo Comentado
+                + Renovar Directo
               </button>
+
               <button
                 type="button"
-                className="btn btn-primary"
+                className="primary-button"
                 onClick={() => setShowProgramarModal(true)}
               >
                 📅 Programar Curso
@@ -213,21 +224,21 @@ export default function ManejoComentadoPage({ user }) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border-color, #e2e8f0)", marginBottom: "1rem" }}>
+      {/* Navegación por Pestañas */}
+      <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid #d5e5ec", marginBottom: "1.5rem" }}>
         <button
           type="button"
-          className={`btn ${activeTab === "conductores" ? "btn-primary" : "btn-secondary"}`}
+          className={activeTab === "conductores" ? "primary-button" : "secondary-button"}
           onClick={() => setActiveTab("conductores")}
-          style={{ borderRadius: "8px 8px 0 0" }}
+          style={{ borderRadius: "8px 8px 0 0", padding: "10px 20px" }}
         >
           Conductores y Vigencias
         </button>
         <button
           type="button"
-          className={`btn ${activeTab === "cursos" ? "btn-primary" : "btn-secondary"}`}
+          className={activeTab === "cursos" ? "primary-button" : "secondary-button"}
           onClick={() => setActiveTab("cursos")}
-          style={{ borderRadius: "8px 8px 0 0" }}
+          style={{ borderRadius: "8px 8px 0 0", padding: "10px 20px" }}
         >
           Cursos Programados ({cursos.length})
         </button>
@@ -235,20 +246,20 @@ export default function ManejoComentadoPage({ user }) {
 
       {activeTab === "conductores" && (
         <>
-          <div className="filters-bar" style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+          <div className="search-bar" style={{ display: "flex", gap: "1rem", marginBottom: "1.2rem", flexWrap: "wrap" }}>
             <input
               type="search"
-              placeholder="Buscar conductor..."
+              placeholder="Buscar conductor por nombre o empresa..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="form-control"
-              style={{ maxWidth: "300px" }}
+              className="search-input"
+              style={{ maxWidth: "320px" }}
             />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="form-control"
-              style={{ maxWidth: "220px" }}
+              className="filter-select"
+              style={{ maxWidth: "240px", padding: "10px 14px", borderRadius: "8px", border: "1px solid #c2d8e3" }}
             >
               <option value="TODOS">Todos los estatus</option>
               <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
@@ -264,7 +275,7 @@ export default function ManejoComentadoPage({ user }) {
             <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
           ) : (
             <div className="table-wrapper">
-              <table className="data-table">
+              <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Conductor</th>
@@ -281,12 +292,12 @@ export default function ManejoComentadoPage({ user }) {
                     <tr key={conductor.id_conductores}>
                       <td>
                         <strong>{conductor.nombre}</strong>
-                        {conductor.telefono && <small style={{ display: "block", color: "gray" }}>{conductor.telefono}</small>}
+                        {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
                       </td>
                       <td>{conductor.empresa || "N/A"}</td>
                       <td>
                         {conductor.licencia_numero}
-                        <small style={{ display: "block", color: "gray" }}>{conductor.tipo_licencia}</small>
+                        <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
                       </td>
                       <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
                       <td>{formatDate(conductor.fecha_vencimiento)}</td>
@@ -296,13 +307,26 @@ export default function ManejoComentadoPage({ user }) {
                         </span>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => handleSelectConductorRenovar(conductor)}
-                        >
-                          Renovar
-                        </button>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <a
+                            href="/evaluacion"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="secondary-button"
+                            style={{ padding: "4px 10px", fontSize: "0.8rem", textDecoration: "none" }}
+                            title="Evaluar desde la app móvil"
+                          >
+                            📱 Evaluar Móvil
+                          </a>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            style={{ padding: "4px 10px", fontSize: "0.8rem" }}
+                            onClick={() => handleSelectConductorRenovar(conductor)}
+                          >
+                            Renovar Directo
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -318,7 +342,7 @@ export default function ManejoComentadoPage({ user }) {
           {cursos.length === 0 ? (
             <p className="table-status">No hay cursos de manejo comentado agendados.</p>
           ) : (
-            <table className="data-table">
+            <table className="admin-table">
               <thead>
                 <tr>
                   <th>Curso</th>
@@ -334,7 +358,7 @@ export default function ManejoComentadoPage({ user }) {
                   <tr key={c.id_curso}>
                     <td>
                       <strong>{c.titulo}</strong>
-                      {c.notas && <small style={{ display: "block", color: "gray" }}>{c.notas}</small>}
+                      {c.notas && <small style={{ display: "block", color: "#607986" }}>{c.notas}</small>}
                     </td>
                     <td>{formatDate(c.fecha_curso_oral)}</td>
                     <td>
@@ -343,13 +367,13 @@ export default function ManejoComentadoPage({ user }) {
                     <td>{c.instructor_nombre || "Sin asignar"}</td>
                     <td>{c.programador_nombre || "Admin"}</td>
                     <td>
-                      <span className="status-badge status-badge-info" style={{ marginRight: "4px" }}>
+                      <span className="status-badge status-active" style={{ marginRight: "4px" }}>
                         Total: {c.total_participantes}
                       </span>
-                      <span className="status-badge status-badge-success" style={{ marginRight: "4px" }}>
+                      <span className="status-badge status-active" style={{ marginRight: "4px", backgroundColor: "#e4f7ed", color: "#12643e" }}>
                         Aprobados: {c.aprobados}
                       </span>
-                      <span className="status-badge status-badge-danger">
+                      <span className="status-badge status-inactive">
                         Pendientes: {c.pendientes}
                       </span>
                     </td>
@@ -364,8 +388,8 @@ export default function ManejoComentadoPage({ user }) {
       {/* Modal Renovar Manejo Comentado */}
       {showRenovarModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: "500px" }}>
-            <h2>Renovar Manejo Comentado</h2>
+          <div className="modal-card">
+            <h2>Renovar Manejo Comentado (Directo)</h2>
             <form onSubmit={handleRenovarSubmit}>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label>Selecciona el Conductor *</label>
@@ -430,16 +454,16 @@ export default function ManejoComentadoPage({ user }) {
                 />
               </div>
 
-              <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="secondary-button"
                   onClick={() => setShowRenovarModal(false)}
                   disabled={saving}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button type="submit" className="primary-button" disabled={saving}>
                   {saving ? "Guardando..." : "Guardar y Renovar"}
                 </button>
               </div>
@@ -451,10 +475,10 @@ export default function ManejoComentadoPage({ user }) {
       {/* Modal Programar Curso */}
       {showProgramarModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
+          <div className="modal-card" style={{ maxWidth: "620px", maxHeight: "90vh", overflowY: "auto" }}>
             <h2>Programar Curso de Manejo Comentado</h2>
-            <p style={{ color: "gray", fontSize: "0.9rem" }}>
-              Define la fecha del curso oral, la ventana de evaluación práctica y selecciona manualmente a tu equipo.
+            <p style={{ color: "#607986", fontSize: "0.9rem", marginBottom: "1rem" }}>
+              Define la fecha del curso oral, la ventana de evaluación práctica y selecciona manualmente a los integrantes del equipo.
             </p>
             <form onSubmit={handleProgramarSubmit}>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
@@ -506,11 +530,11 @@ export default function ManejoComentadoPage({ user }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                   <label style={{ margin: 0 }}>Integrantes de tu equipo a ingresar * ({cursoForm.idConductores.length} seleccionados)</label>
                   <div>
-                    <button type="button" className="btn btn-sm btn-link" onClick={selectAllDrivers}>Todos</button>
-                    <button type="button" className="btn btn-sm btn-link" onClick={deselectAllDrivers}>Ninguno</button>
+                    <button type="button" className="btn-link" onClick={selectAllDrivers}>Todos</button>
+                    <button type="button" className="btn-link" onClick={deselectAllDrivers}>Ninguno</button>
                   </div>
                 </div>
-                <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #ccc", padding: "8px", borderRadius: "6px" }}>
+                <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #c2d8e3", padding: "10px", borderRadius: "8px", background: "#fdfefe" }}>
                   {conductores.map((c) => {
                     const isChecked = cursoForm.idConductores.includes(c.id_conductores);
                     return (
@@ -520,7 +544,7 @@ export default function ManejoComentadoPage({ user }) {
                           checked={isChecked}
                           onChange={() => toggleDriverSelection(c.id_conductores)}
                         />
-                        <span>{c.nombre} <small style={{ color: "gray" }}>({c.empresa || "Sin Empresa"}) - {c.estado_vigencia}</small></span>
+                        <span>{c.nombre} <small style={{ color: "#607986" }}>({c.empresa || "Sin Empresa"}) - {c.estado_vigencia}</small></span>
                       </label>
                     );
                   })}
@@ -538,17 +562,17 @@ export default function ManejoComentadoPage({ user }) {
                 />
               </div>
 
-              <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="secondary-button"
                   onClick={() => setShowProgramarModal(false)}
                   disabled={saving}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Programando..." : "Programar y Notificar"}
+                <button type="submit" className="primary-button" disabled={saving}>
+                  {saving ? "Programando..." : "Programar y Notificar a Telegram"}
                 </button>
               </div>
             </form>
