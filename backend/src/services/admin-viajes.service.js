@@ -51,6 +51,8 @@ export async function getAdminDashboardSummary() {
           COALESCE(SUM(v.kilometros_recorridos), 0)::NUMERIC(10,1) AS total_km
         FROM viajes v
         LEFT JOIN vehiculos vh ON vh.id_vehiculos = v.id_vehiculos
+        INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje
+        WHERE ev.nombre = 'FINALIZADO'
         GROUP BY v.id_vehiculos
         ORDER BY total_viajes DESC, total_km DESC
         LIMIT 10
@@ -71,7 +73,9 @@ export async function getAdminDashboardSummary() {
           COUNT(v.id_viajes)::INTEGER AS total_visitas
         FROM viajes v
         INNER JOIN lugares destino ON destino.id_lugares = v.id_destino
-        WHERE LOWER(destino.nombre) NOT LIKE '%base%'
+        INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje
+        WHERE ev.nombre = 'FINALIZADO'
+          AND LOWER(destino.nombre) NOT LIKE '%base%'
         GROUP BY destino.id_lugares, destino.nombre
         ORDER BY total_visitas DESC, destino.nombre ASC
         LIMIT 10
