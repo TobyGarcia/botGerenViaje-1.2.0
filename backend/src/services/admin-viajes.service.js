@@ -37,6 +37,7 @@ export async function getAdminDashboardSummary() {
 
   let ranking_unidades = [];
   let ranking_destinos = [];
+  let ranking_conductores = [];
 
   try {
     const unidadesRes = await databasePool.query(
@@ -81,11 +82,36 @@ export async function getAdminDashboardSummary() {
     console.error("Error consultando ranking de destinos:", err);
   }
 
+  try {
+    const conductoresRes = await databasePool.query(
+      `
+        SELECT
+          c.id_conductores,
+          c.nombre,
+          COALESCE(c.empresa, '') AS empresa,
+          COALESCE(c.telefono, '') AS telefono,
+          COUNT(v.id_viajes)::INTEGER AS total_viajes,
+          COALESCE(SUM(v.kilometros_recorridos), 0)::NUMERIC(10,1) AS total_km
+        FROM viajes v
+        INNER JOIN conductores c ON c.id_conductores = v.id_conductores
+        INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje
+        WHERE ev.nombre = 'FINALIZADO'
+        GROUP BY c.id_conductores, c.nombre, c.empresa, c.telefono
+        ORDER BY total_viajes DESC, total_km DESC
+        LIMIT 10
+      `
+    );
+    ranking_conductores = conductoresRes.rows;
+  } catch (err) {
+    console.error("Error consultando ranking de conductores:", err);
+  }
+
   return {
     ...summaryResult.rows[0],
     actividad: activityResult.rows,
     ranking_unidades,
-    ranking_destinos
+    ranking_destinos,
+    ranking_conductores
   };
 }
 

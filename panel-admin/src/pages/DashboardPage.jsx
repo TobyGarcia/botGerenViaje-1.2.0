@@ -101,7 +101,11 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
       {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
 
       {/* Disposición en columna para Ranking y Gráfico de Calor */}
-      <RankingWidget rankingUnidades={summary.ranking_unidades} rankingDestinos={summary.ranking_destinos} />
+      <RankingWidget
+        rankingUnidades={summary.ranking_unidades}
+        rankingDestinos={summary.ranking_destinos}
+        rankingConductores={summary.ranking_conductores}
+      />
 
       <ActivityHeatmapCard actividad={summary.actividad} />
     </section>
@@ -311,20 +315,28 @@ function ActivityHeatmapCard({ actividad = [] }) {
   );
 }
 
-function RankingWidget({ rankingUnidades = [], rankingDestinos = [] }) {
+function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingConductores = [] }) {
   const [rankingTab, setRankingTab] = useState("unidades");
 
   const isUnidades = rankingTab === "unidades";
-  const list = isUnidades ? rankingUnidades : rankingDestinos;
+  const isDestinos = rankingTab === "destinos";
+  const isConductores = rankingTab === "conductores";
 
-  const maxVal = Math.max(1, ...list.map((item) => Number(isUnidades ? item.total_viajes : item.total_visitas)));
+  let list = rankingUnidades;
+  if (isDestinos) list = rankingDestinos;
+  if (isConductores) list = rankingConductores;
+
+  const maxVal = Math.max(
+    1,
+    ...list.map((item) => Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas))
+  );
 
   return (
     <section className="ranking-card">
       <div className="ranking-header">
         <div>
           <h2>🏆 Ranking de Viajes</h2>
-          <p>Métricas acumuladas por vehículos más utilizados y destinos con mayor frecuencia de visitas (excluyendo base operacional).</p>
+          <p>Métricas acumuladas por vehículos más utilizados, destinos con mayor frecuencia y top conductores (viajes finalizados).</p>
         </div>
 
         <div className="ranking-segmented-control">
@@ -337,27 +349,40 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [] }) {
           </button>
           <button
             type="button"
-            className={`ranking-tab-btn ${!isUnidades ? "active" : ""}`}
+            className={`ranking-tab-btn ${isDestinos ? "active" : ""}`}
             onClick={() => setRankingTab("destinos")}
           >
             📍 Destinos más visitados
+          </button>
+          <button
+            type="button"
+            className={`ranking-tab-btn ${isConductores ? "active" : ""}`}
+            onClick={() => setRankingTab("conductores")}
+          >
+            👤 Top Conductores
           </button>
         </div>
       </div>
 
       {list.length === 0 ? (
         <div className="ranking-empty">
-          <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : "destinos"}.</p>
+          <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
       ) : (
         <div className="ranking-list">
           {list.map((item, index) => {
-            const count = Number(isUnidades ? item.total_viajes : item.total_visitas);
+            const count = Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas);
             const percentage = Math.max(8, Math.round((count / maxVal) * 100));
             const rank = index + 1;
 
+            const itemKey = isUnidades
+              ? item.id_vehiculos || index
+              : isDestinos
+              ? item.id_destino || index
+              : item.id_conductores || index;
+
             return (
-              <div key={isUnidades ? item.id_vehiculos || index : item.id_destino || index} className="ranking-row">
+              <div key={itemKey} className="ranking-row">
                 <div className={`ranking-badge rank-${rank <= 3 ? rank : "other"}`}>
                   {rank === 1 && "🥇"}
                   {rank === 2 && "🥈"}
@@ -368,12 +393,18 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [] }) {
                 <div className="ranking-info">
                   <div className="ranking-title-area">
                     <strong className="ranking-item-name">{item.nombre}</strong>
-                    {isUnidades ? (
+                    {isUnidades && (
                       <span className="ranking-sub-info">
                         Eco: <strong>{item.numero_economico}</strong> • Placas: <strong>{item.placas}</strong> • Total KM: <strong>{item.total_km} km</strong>
                       </span>
-                    ) : (
+                    )}
+                    {isDestinos && (
                       <span className="ranking-sub-info">{item.direccion || "Destino registrado en sistema"}</span>
+                    )}
+                    {isConductores && (
+                      <span className="ranking-sub-info">
+                        Empresa: <strong>{item.empresa || "N/A"}</strong> • Tel: <strong>{item.telefono || "N/A"}</strong> • Total KM: <strong>{item.total_km} km</strong>
+                      </span>
                     )}
                   </div>
 
@@ -382,7 +413,18 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [] }) {
                       <div className="ranking-bar-fill" style={{ width: `${percentage}%` }} />
                     </div>
                     <span className="ranking-count">
-                      <strong>{count}</strong> {isUnidades ? (count === 1 ? "viaje" : "viajes") : (count === 1 ? "visita" : "visitas")}
+                      <strong>{count}</strong>{" "}
+                      {isConductores
+                        ? count === 1
+                          ? "viaje finalizado"
+                          : "viajes finalizados"
+                        : isUnidades
+                        ? count === 1
+                          ? "viaje"
+                          : "viajes"
+                        : count === 1
+                        ? "visita"
+                        : "visitas"}
                     </span>
                   </div>
                 </div>
