@@ -100,7 +100,7 @@ const sendingLocationRef = useRef(false);
   const [modalAlertMessage, setModalAlertMessage] = useState("");
 
   function triggerModalError(errMsg) {
-    setMessage(errMsg);
+    setMessage("");
     setMessageType("error");
     setModalAlertMessage(errMsg);
     if (window.Telegram?.WebApp?.showAlert) {
@@ -111,6 +111,7 @@ const sendingLocationRef = useRef(false);
       }
     }
   }
+
 
 
 const [gpsStatus, setGpsStatus] =

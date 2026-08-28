@@ -324,12 +324,24 @@ export async function submitInstructorEvaluation({
   calificacion,
   comentarios = "",
   rubrica = {},
-  idInstructor = null
+  idInstructor = null,
+  nombreInstructor = ""
 }) {
   const client = await databasePool.connect();
 
   try {
     await client.query("BEGIN");
+
+    let evaluadorNombreText = String(nombreInstructor || "").trim();
+    if (!evaluadorNombreText && idInstructor) {
+      const instRes = await client.query(
+        `SELECT nombre FROM usuarios_admin WHERE id_usuarios_admin = $1 LIMIT 1`,
+        [idInstructor]
+      );
+      if (instRes.rows[0]?.nombre) {
+        evaluadorNombreText = instRes.rows[0].nombre;
+      }
+    }
 
     const conductorRes = await client.query(
       `SELECT id_conductores, nombre, empresa FROM conductores WHERE id_conductores = $1 LIMIT 1`,
@@ -386,12 +398,14 @@ export async function submitInstructorEvaluation({
       id_evaluacion: evalRow.id_evaluacion,
       conductor_nombre: conductor.nombre,
       empresa: conductor.empresa,
+      evaluador_nombre: evaluadorNombreText || "Instructor Autorizado",
       fecha_evaluacion: evalRow.fecha_evaluacion,
       calificacion: evalRow.calificacion,
       estado_evaluacion: evalRow.estado_evaluacion,
       comentarios: evalRow.comentarios,
       rubrica: evalRow.rubrica
     });
+
 
     const pdfUrl = saveEvaluationPDFLocally(pdf);
     if (pdfUrl) {

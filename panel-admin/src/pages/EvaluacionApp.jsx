@@ -1,4 +1,4 @@
-import { Component, useEffect, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import "../App.css";
 import { getManejoComentadoConductores, enviarEvaluacionManejoComentado } from "../services/api.js";
 
@@ -63,15 +63,28 @@ function EvaluacionAppContent({ user, onLogout }) {
   const [pendingSync, setPendingSync] = useState([]);
   const [conductores, setConductores] = useState([]);
   const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [nombreInstructor, setNombreInstructor] = useState(user?.nombre || "");
   const [comentarios, setComentarios] = useState("");
   const [rubrica, setRubrica] = useState(() => {
     const initial = {};
     rubrosDef.forEach((r) => { initial[r.id] = r.points; });
     return initial;
   });
+
+  // Canvas Firma Digital
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState("info");
+
+  useEffect(() => {
+    if (user?.nombre && !nombreInstructor) {
+      setNombreInstructor(user.nombre);
+    }
+  }, [user]);
 
   useEffect(() => {
     const handleOnline = () => { setIsOnline(true); syncLocalQueue(); };
@@ -147,6 +160,55 @@ function EvaluacionAppContent({ user, onLogout }) {
     }
   }
 
+  // Lógica del Canvas de Firma Digital
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  };
+
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const pos = getCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const pos = getCoordinates(e);
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    setHasSignature(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+  };
+
   const calificacionTotal = Object.values(rubrica).reduce((sum, val) => sum + Number(val || 0), 0);
   const estadoEvaluacion = calificacionTotal >= 70 ? "APROBADO" : "REPROBADO";
 
@@ -162,11 +224,27 @@ function EvaluacionAppContent({ user, onLogout }) {
       return;
     }
 
+    if (!nombreInstructor.trim()) {
+      setStatusMessage("Debes proporcionar el nombre del instructor / evaluador.");
+      setStatusType("error");
+      return;
+    }
+
+    if (!hasSignature) {
+      setStatusMessage("Debes firmar la evaluación en el recuadro digital antes de guardar.");
+      setStatusType("error");
+      return;
+    }
+
     setSaving(true);
     setStatusMessage("");
 
+    const signatureDataUrl = canvasRef.current ? canvasRef.current.toDataURL("image/png") : "";
+
     const evalPayload = {
       idConductor: Number(selectedDriverId),
+      nombreInstructor: nombreInstructor.trim(),
+      firmaDataUrl: signatureDataUrl,
       calificacion: calificacionTotal,
       comentarios,
       rubrica
@@ -199,6 +277,7 @@ function EvaluacionAppContent({ user, onLogout }) {
   function resetForm() {
     setSelectedDriverId("");
     setComentarios("");
+    clearSignature();
     const initial = {};
     rubrosDef.forEach((r) => { initial[r.id] = r.points; });
     setRubrica(initial);
@@ -294,7 +373,6 @@ function EvaluacionAppContent({ user, onLogout }) {
                   "--value-percent": `${(rubrica[r.id] / r.points) * 100}%`
                 }}
               />
-
             </div>
           ))}
         </fieldset>
@@ -327,6 +405,58 @@ function EvaluacionAppContent({ user, onLogout }) {
             style={{ width: "100%", padding: "8px", marginTop: "4px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
           />
         </label>
+
+        {/* Firma y Datos del Instructor */}
+        <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px", marginBottom: "1.5rem" }}>
+          <legend style={{ padding: "0 6px", fontWeight: "bold", color: "#1e293b" }}>
+            Datos y Firma Digital del Instructor *
+          </legend>
+
+          <label style={{ display: "block", marginBottom: "1rem" }}>
+            <strong>Nombre del Instructor / Evaluador *</strong>
+            <input
+              type="text"
+              value={nombreInstructor}
+              onChange={(e) => setNombreInstructor(e.target.value)}
+              placeholder="Nombre completo del instructor"
+              style={{ width: "100%", padding: "8px", marginTop: "4px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+              required
+            />
+          </label>
+
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <strong>Firma Digital del Instructor *</strong>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                onClick={clearSignature}
+              >
+                Limpiar Firma
+              </button>
+            </div>
+
+            <div style={{ border: "2px dashed #94a3b8", borderRadius: "8px", background: "#f8fafc", padding: "4px", textAlign: "center" }}>
+              <canvas
+                ref={canvasRef}
+                width={480}
+                height={160}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                style={{ width: "100%", height: "140px", touchAction: "none", background: "#ffffff", borderRadius: "6px" }}
+              />
+            </div>
+            <small style={{ color: "#64748b", display: "block", marginTop: "4px", textAlign: "center" }}>
+              Utiliza tu dedo o stylus sobre el recuadro blanco para firmar la evaluación.
+            </small>
+          </div>
+        </fieldset>
 
         <button
           type="submit"

@@ -5,6 +5,7 @@ export async function getConductores() {
     SELECT
       id_conductores,
       nombre,
+      empresa,
       licencia_numero,
       tipo_licencia,
       licencia_vigente,
@@ -14,6 +15,7 @@ export async function getConductores() {
       telefono
     FROM conductores
     WHERE activo = TRUE
+
 
     ORDER BY nombre ASC
   `);
