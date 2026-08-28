@@ -44,6 +44,13 @@ export function getLugares() {
   return request("/api/catalogos/lugares");
 }
 
+export function createLugar({ nombre, direccion }) {
+  return request("/api/catalogos/lugares", {
+    method: "POST",
+    body: JSON.stringify({ nombre, direccion })
+  });
+}
+
 export function createViaje(payload) {
   return request("/api/viajes", {
     method: "POST",

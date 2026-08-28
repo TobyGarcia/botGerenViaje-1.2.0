@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  addLugar,
   listConductores,
   listEstadosViaje,
   listLugares,
@@ -22,6 +23,11 @@ router.get(
 router.get(
   "/lugares",
   listLugares
+);
+
+router.post(
+  "/lugares",
+  addLugar
 );
 
 router.get(

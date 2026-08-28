@@ -8,6 +8,7 @@ import "./App.css";
 import {
   autenticarTelegram,
   cancelarViaje,
+  createLugar,
   createViaje,
   finalizarViaje,
   getConductores,
@@ -98,6 +99,49 @@ const sendingLocationRef = useRef(false);
   const [trackingGps, setTrackingGps] =
     useState(false);
   const [modalAlertMessage, setModalAlertMessage] = useState("");
+
+  // Estado para modal/formulario de nuevo destino
+  const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
+  const [newDestinoForm, setNewDestinoForm] = useState({ nombre: "", direccion: "" });
+  const [savingNewDestino, setSavingNewDestino] = useState(false);
+
+  async function handleSaveNewDestino(e) {
+    e.preventDefault();
+    const nombre = newDestinoForm.nombre.trim();
+    if (!nombre) return;
+
+    setSavingNewDestino(true);
+    try {
+      const response = await createLugar({
+        nombre,
+        direccion: newDestinoForm.direccion.trim()
+      });
+      const nuevoLugar = response.data;
+
+      // Recargar catálogo de lugares
+      const lugaresRes = await getLugares();
+      const nuevosLugares = lugaresRes.data ?? [];
+      setLugares(nuevosLugares);
+
+      // Asignar el nuevo destino automáticamente al formulario de viaje
+      if (nuevoLugar?.id_lugares) {
+        setForm((current) => ({
+          ...current,
+          idDestino: String(nuevoLugar.id_lugares)
+        }));
+      }
+
+      setMessage(`Destino "${nuevoLugar.nombre || nombre}" registrado y seleccionado correctamente.`);
+      setMessageType("success");
+      setShowAddDestinoModal(false);
+      setNewDestinoForm({ nombre: "", direccion: "" });
+    } catch (err) {
+      setMessage(err.message || "Error al agregar nuevo destino.");
+      setMessageType("error");
+    } finally {
+      setSavingNewDestino(false);
+    }
+  }
 
   function triggerModalError(errMsg) {
     setMessage("");
@@ -677,6 +721,11 @@ function handleStopGps() {
   function handleChange(event) {
     const { name, value } = event.target;
 
+    if (name === "idDestino" && value === "NUEVO_DESTINO") {
+      setShowAddDestinoModal(true);
+      return;
+    }
+
     setForm((current) => {
       const updatedForm = { ...current, [name]: value };
 
@@ -1129,7 +1178,27 @@ function handleStopGps() {
                 {lugar.nombre}
               </option>
             ))}
+            <option value="NUEVO_DESTINO">➕ Agregar nuevo destino...</option>
           </select>
+          <div style={{ marginTop: "4px", textAlign: "right" }}>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setShowAddDestinoModal(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#2e81ab",
+                fontSize: "0.84rem",
+                fontWeight: "700",
+                cursor: "pointer",
+                padding: "2px 0",
+                textDecoration: "underline"
+              }}
+            >
+              ➕ ¿No encuentras tu destino? Agrégalo aquí
+            </button>
+          </div>
         </label>
 
         {(() => {
@@ -1526,8 +1595,58 @@ function handleStopGps() {
         </button>
       </div>
     )}
-  </section>
-)}
+      {showAddDestinoModal && (
+        <div className="modal-overlay" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "grid", placeItems: "center", background: "rgba(8, 25, 34, 0.65)", backdropFilter: "blur(3px)", padding: "16px" }}>
+          <div className="modal-card" style={{ width: "min(480px, 100%)", background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: "1.3rem", color: "#000000" }}>➕ Registrar Nuevo Destino</h2>
+            <p style={{ margin: "0 0 18px", fontSize: "0.88rem", color: "#5b7b8a" }}>
+              Escribe el nombre del nuevo destino si no aparece en el catálogo. Se seleccionará automáticamente para tu viaje.
+            </p>
+
+            <form onSubmit={handleSaveNewDestino} style={{ display: "grid", gap: "14px", padding: 0, border: "none", boxShadow: "none" }}>
+              <label style={{ display: "grid", gap: "6px", fontWeight: "700" }}>
+                Nombre del destino *
+                <input
+                  type="text"
+                  placeholder="Ej. Pozo Akal-C, Planta Coatzacoalcos..."
+                  value={newDestinoForm.nombre}
+                  onChange={(e) => setNewDestinoForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                  required
+                  autoFocus
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: "6px", fontWeight: "700" }}>
+                Dirección / Referencia (Opcional)
+                <input
+                  type="text"
+                  placeholder="Ej. Carretera Fed. KM 45"
+                  value={newDestinoForm.direccion}
+                  onChange={(e) => setNewDestinoForm((prev) => ({ ...prev, direccion: e.target.value }))}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddDestinoModal(false)}
+                  disabled={savingNewDestino}
+                  style={{ padding: "10px 16px", borderRadius: "8px", background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", fontWeight: "700", cursor: "pointer", width: "auto" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNewDestino}
+                  style={{ padding: "10px 18px", borderRadius: "8px", background: "var(--primary-gradient)", color: "#fff", border: 0, fontWeight: "800", cursor: "pointer", width: "auto" }}
+                >
+                  {savingNewDestino ? "Guardando..." : "Guardar y Seleccionar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

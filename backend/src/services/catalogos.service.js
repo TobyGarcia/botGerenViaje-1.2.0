@@ -70,6 +70,31 @@ export async function getLugares() {
   return result.rows;
 }
 
+export async function createLugar({ nombre, direccion = "" }) {
+  const normalizedNombre = String(nombre || "").trim();
+  const normalizedDireccion = String(direccion || "").trim();
+
+  if (!normalizedNombre) {
+    throw new Error("El nombre del destino es obligatorio.");
+  }
+
+  const existing = await databasePool.query(
+    `SELECT id_lugares, nombre, direccion, activo FROM lugares WHERE LOWER(nombre) = LOWER($1) AND activo = TRUE LIMIT 1`,
+    [normalizedNombre]
+  );
+
+  if (existing.rows.length > 0) {
+    return existing.rows[0];
+  }
+
+  const result = await databasePool.query(
+    `INSERT INTO lugares (nombre, direccion, activo) VALUES ($1, $2, TRUE) RETURNING id_lugares, nombre, direccion, activo`,
+    [normalizedNombre, normalizedDireccion]
+  );
+
+  return result.rows[0];
+}
+
 export async function getEstadosViaje() {
   const result = await databasePool.query(`
     SELECT

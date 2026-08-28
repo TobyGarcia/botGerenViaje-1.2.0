@@ -1,4 +1,5 @@
 import {
+  createLugar,
   getConductores,
   getEstadosViaje,
   getLugares,
@@ -76,6 +77,25 @@ export async function listLugares(
       success: false,
       message:
         "No fue posible consultar los lugares."
+    });
+  }
+}
+
+export async function addLugar(request, response) {
+  try {
+    const { nombre, direccion } = request.body || {};
+    const nuevoLugar = await createLugar({ nombre, direccion });
+
+    return response.status(201).json({
+      success: true,
+      message: "Destino registrado correctamente.",
+      data: nuevoLugar
+    });
+  } catch (error) {
+    console.error("Error registrando destino desde catálogo:", error);
+    return response.status(400).json({
+      success: false,
+      message: error.message || "No fue posible registrar el destino."
     });
   }
 }
