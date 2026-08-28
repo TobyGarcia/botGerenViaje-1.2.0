@@ -11,7 +11,7 @@
   ],
   "start_url": "/evaluacion",
   "background_color": "#ffffff",
-  "theme_color": "#116e95",
+  "theme_color": "#2e81ab",
   "display": "standalone",
   "orientation": "portrait"
 }

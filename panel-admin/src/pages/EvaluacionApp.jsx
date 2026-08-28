@@ -309,7 +309,7 @@ function EvaluacionAppContent({ user, onLogout }) {
 
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <div>
-          <h1 style={{ fontSize: "1.4rem", margin: 0, color: "#116e95" }}>Evaluación Práctica Móvil</h1>
+          <h1 style={{ fontSize: "1.4rem", margin: 0, color: "#2e81ab" }}>Evaluación Práctica Móvil</h1>
           <small style={{ color: "#64748b" }}>Instructor/Admin: {user?.nombre || "Usuario"} ({user?.rol})</small>
         </div>
 

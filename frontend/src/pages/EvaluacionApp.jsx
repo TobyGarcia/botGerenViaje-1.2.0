@@ -379,7 +379,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     return (
       <div className="container" style={{ maxWidth: "420px", marginTop: "2rem", padding: "1.5rem" }}>
         <header style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <h1 style={{ fontSize: "1.5rem", color: "#116e95", margin: "0 0 6px" }}>Manejo Comentado</h1>
+          <h1 style={{ fontSize: "1.5rem", color: "#2e81ab", margin: "0 0 6px" }}>Manejo Comentado</h1>
           <p style={{ color: "#64748b", fontSize: "0.9rem", margin: 0 }}>Acceso para Instructores / Evaluadores</p>
         </header>
 
@@ -442,7 +442,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
 
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <div>
-          <h1 style={{ fontSize: "1.4rem", margin: 0, color: "#116e95" }}>Evaluación Práctica Móvil</h1>
+          <h1 style={{ fontSize: "1.4rem", margin: 0, color: "#2e81ab" }}>Evaluación Práctica Móvil</h1>
           <small style={{ color: "#64748b" }}>Instructor: {user.nombre} ({user.rol})</small>
         </div>
 
