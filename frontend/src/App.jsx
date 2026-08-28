@@ -1595,6 +1595,8 @@ function handleStopGps() {
         </button>
       </div>
     )}
+  </section>
+)}
       {showAddDestinoModal && (
         <div className="modal-overlay" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "grid", placeItems: "center", background: "rgba(8, 25, 34, 0.65)", backdropFilter: "blur(3px)", padding: "16px" }}>
           <div className="modal-card" style={{ width: "min(480px, 100%)", background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
