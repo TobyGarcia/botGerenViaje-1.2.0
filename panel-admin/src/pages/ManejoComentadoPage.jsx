@@ -225,20 +225,18 @@ export default function ManejoComentadoPage({ user }) {
       )}
 
       {/* Navegación por Pestañas */}
-      <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid #d5e5ec", marginBottom: "1.5rem" }}>
+      <div className="ranking-segmented-control" style={{ marginBottom: "20px" }}>
         <button
           type="button"
-          className={activeTab === "conductores" ? "primary-button" : "secondary-button"}
+          className={`ranking-tab-btn ${activeTab === "conductores" ? "active" : ""}`}
           onClick={() => setActiveTab("conductores")}
-          style={{ borderRadius: "8px 8px 0 0", padding: "10px 20px" }}
         >
           Conductores y Vigencias
         </button>
         <button
           type="button"
-          className={activeTab === "cursos" ? "primary-button" : "secondary-button"}
+          className={`ranking-tab-btn ${activeTab === "cursos" ? "active" : ""}`}
           onClick={() => setActiveTab("cursos")}
-          style={{ borderRadius: "8px 8px 0 0", padding: "10px 20px" }}
         >
           Cursos Programados ({cursos.length})
         </button>
@@ -246,87 +244,142 @@ export default function ManejoComentadoPage({ user }) {
 
       {activeTab === "conductores" && (
         <>
-          <div className="search-bar" style={{ display: "flex", gap: "1rem", marginBottom: "1.2rem", flexWrap: "wrap" }}>
-            <input
-              type="search"
-              placeholder="Buscar conductor por nombre o empresa..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-input"
-              style={{ maxWidth: "320px" }}
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
-              style={{ maxWidth: "240px", padding: "10px 14px", borderRadius: "8px", border: "1px solid #c2d8e3" }}
-            >
-              <option value="TODOS">Todos los estatus</option>
-              <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
-              <option value="PROXIMO_A_VENCER">Próximos a vencer (&lt;= 30 días)</option>
-              <option value="VENCIDO">Vencidos</option>
-              <option value="SIN_REGISTRO">Sin registro</option>
-            </select>
-          </div>
+          <section className="module-toolbar" style={{ marginBottom: "20px" }}>
+            <label className="search-field">
+              <span>Buscar</span>
+              <input
+                type="search"
+                placeholder="Nombre, licencia o teléfono"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
 
-          {loading ? (
-            <p className="table-status">Cargando estado de manejo comentado...</p>
-          ) : conductores.length === 0 ? (
-            <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
+            <label className="status-filter">
+              <span>Estado</span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="TODOS">Todos los estatus</option>
+                <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
+                <option value="PROXIMO_A_VENCER">Próximos a vencer (&lt;= 30 días)</option>
+                <option value="VENCIDO">Vencidos</option>
+                <option value="SIN_REGISTRO">Sin registro</option>
+              </select>
+            </label>
+          </section>
+
+          <section className="table-panel">
+            {loading ? (
+              <p className="table-status">Cargando estado de manejo comentado...</p>
+            ) : conductores.length === 0 ? (
+              <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
+            ) : (
+              <div className="table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Conductor</th>
+                      <th>Empresa</th>
+                      <th>Licencia</th>
+                      <th>Última Evaluación</th>
+                      <th>Vencimiento (6 Meses)</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conductores.map((conductor) => (
+                      <tr key={conductor.id_conductores}>
+                        <td>
+                          <strong>{conductor.nombre}</strong>
+                          {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
+                        </td>
+                        <td>{conductor.empresa || "N/A"}</td>
+                        <td>
+                          {conductor.licencia_numero}
+                          <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
+                        </td>
+                        <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
+                        <td>{formatDate(conductor.fecha_vencimiento)}</td>
+                        <td>
+                          <span className={getBadgeClass(conductor.estado_vigencia)}>
+                            {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <a
+                              href="/evaluacion"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="secondary-button"
+                              style={{ padding: "5px 12px", fontSize: "0.82rem", textDecoration: "none" }}
+                              title="Evaluar desde la app móvil"
+                            >
+                              📱 Evaluar Móvil
+                            </a>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              style={{ padding: "5px 12px", fontSize: "0.82rem" }}
+                              onClick={() => handleSelectConductorRenovar(conductor)}
+                            >
+                              Renovar Directo
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {activeTab === "cursos" && (
+        <section className="table-panel">
+          {cursos.length === 0 ? (
+            <p className="table-status">No hay cursos de manejo comentado agendados.</p>
           ) : (
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Conductor</th>
-                    <th>Empresa</th>
-                    <th>Licencia</th>
-                    <th>Última Evaluación</th>
-                    <th>Vencimiento (6 Meses)</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
+                    <th>Curso</th>
+                    <th>Fecha Oral</th>
+                    <th>Ventana Evaluación Práctica</th>
+                    <th>Instructor</th>
+                    <th>Programado por</th>
+                    <th>Estatus Participantes</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {conductores.map((conductor) => (
-                    <tr key={conductor.id_conductores}>
+                  {cursos.map((c) => (
+                    <tr key={c.id_curso}>
                       <td>
-                        <strong>{conductor.nombre}</strong>
-                        {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
+                        <strong>{c.titulo}</strong>
+                        {c.notas && <small style={{ display: "block", color: "#607986" }}>{c.notas}</small>}
                       </td>
-                      <td>{conductor.empresa || "N/A"}</td>
+                      <td>{formatDate(c.fecha_curso_oral)}</td>
                       <td>
-                        {conductor.licencia_numero}
-                        <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
+                        {formatDate(c.fecha_evaluacion_inicio)} al {formatDate(c.fecha_evaluacion_fin)}
                       </td>
-                      <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
-                      <td>{formatDate(conductor.fecha_vencimiento)}</td>
+                      <td>{c.instructor_nombre || "Sin asignar"}</td>
+                      <td>{c.programador_nombre || "Admin"}</td>
                       <td>
-                        <span className={getBadgeClass(conductor.estado_vigencia)}>
-                          {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
+                        <span className="status-badge status-active" style={{ marginRight: "4px" }}>
+                          Total: {c.total_participantes}
                         </span>
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          <a
-                            href="/evaluacion"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="secondary-button"
-                            style={{ padding: "4px 10px", fontSize: "0.8rem", textDecoration: "none" }}
-                            title="Evaluar desde la app móvil"
-                          >
-                            📱 Evaluar Móvil
-                          </a>
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            style={{ padding: "4px 10px", fontSize: "0.8rem" }}
-                            onClick={() => handleSelectConductorRenovar(conductor)}
-                          >
-                            Renovar Directo
-                          </button>
-                        </div>
+                        <span className="status-badge status-active" style={{ marginRight: "4px", backgroundColor: "#e4f7ed", color: "#12643e" }}>
+                          Aprobados: {c.aprobados}
+                        </span>
+                        <span className="status-badge status-inactive">
+                          Pendientes: {c.pendientes}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -334,55 +387,7 @@ export default function ManejoComentadoPage({ user }) {
               </table>
             </div>
           )}
-        </>
-      )}
-
-      {activeTab === "cursos" && (
-        <div className="table-wrapper">
-          {cursos.length === 0 ? (
-            <p className="table-status">No hay cursos de manejo comentado agendados.</p>
-          ) : (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Curso</th>
-                  <th>Fecha Oral</th>
-                  <th>Ventana Evaluación Práctica</th>
-                  <th>Instructor</th>
-                  <th>Programado por</th>
-                  <th>Estatus Participantes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cursos.map((c) => (
-                  <tr key={c.id_curso}>
-                    <td>
-                      <strong>{c.titulo}</strong>
-                      {c.notas && <small style={{ display: "block", color: "#607986" }}>{c.notas}</small>}
-                    </td>
-                    <td>{formatDate(c.fecha_curso_oral)}</td>
-                    <td>
-                      {formatDate(c.fecha_evaluacion_inicio)} al {formatDate(c.fecha_evaluacion_fin)}
-                    </td>
-                    <td>{c.instructor_nombre || "Sin asignar"}</td>
-                    <td>{c.programador_nombre || "Admin"}</td>
-                    <td>
-                      <span className="status-badge status-active" style={{ marginRight: "4px" }}>
-                        Total: {c.total_participantes}
-                      </span>
-                      <span className="status-badge status-active" style={{ marginRight: "4px", backgroundColor: "#e4f7ed", color: "#12643e" }}>
-                        Aprobados: {c.aprobados}
-                      </span>
-                      <span className="status-badge status-inactive">
-                        Pendientes: {c.pendientes}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        </section>
       )}
 
       {/* Modal Renovar Manejo Comentado */}

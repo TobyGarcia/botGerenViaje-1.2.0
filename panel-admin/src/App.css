@@ -1465,6 +1465,11 @@
   background: #fae8e8;
 }
 
+.status-pending {
+  color: #875d0f;
+  background: #fff4d8;
+}
+
 .telegram-linked {
   color: #126b91;
   font-weight: 700;
