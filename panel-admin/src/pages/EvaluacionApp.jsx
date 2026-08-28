@@ -1,8 +1,6 @@
 import { Component, useEffect, useState } from "react";
 import "../App.css";
-
-const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-const API_BASE_URL = configuredApiBaseUrl.replace(/\/api$/, "");
+import { getManejoComentadoConductores, enviarEvaluacionManejoComentado } from "../services/api.js";
 
 const rubrosDef = [
   { id: "inspeccion_previa", title: "1. Inspección Pre-operacional", points: 15 },
@@ -60,17 +58,9 @@ export default function EvaluacionApp(props) {
   );
 }
 
-function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
+function EvaluacionAppContent({ user, onLogout }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSync, setPendingSync] = useState([]);
-  const [user, setUser] = useState(initialUser);
-  const [loadingSession, setLoadingSession] = useState(!initialUser);
-
-  // Formulario Login
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [loginError, setLoginError] = useState("");
-
-  // Datos para Evaluación
   const [conductores, setConductores] = useState([]);
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [comentarios, setComentarios] = useState("");
@@ -83,7 +73,6 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState("info");
 
-  // Manejo de conexión offline/online
   useEffect(() => {
     const handleOnline = () => { setIsOnline(true); syncLocalQueue(); };
     const handleOffline = () => { setIsOnline(false); };
@@ -91,6 +80,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     window.addEventListener("offline", handleOffline);
 
     loadLocalQueue();
+    loadConductoresData();
 
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -128,13 +118,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     const remaining = [];
     for (const item of queue) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/manejo-comentado/evaluar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(item)
-        });
-        if (!res.ok) remaining.push(item);
+        await enviarEvaluacionManejoComentado(item);
       } catch {
         remaining.push(item);
       }
@@ -152,64 +136,14 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     }
   }
 
-  // Verificar Sesión si no viene por props
-  useEffect(() => {
-    if (initialUser) {
-      setUser(initialUser);
-      setLoadingSession(false);
-      loadConductores();
-      return;
-    }
-
-    async function checkSession() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/auth/session`, { credentials: "include" });
-        const data = await res.json();
-        if (res.ok && (data.data?.user || data.user)) {
-          setUser(data.data?.user || data.user);
-          loadConductores();
-        } else {
-          setUser(null);
-        }
-      } catch {
-        setUser(null);
-      } finally {
-        setLoadingSession(false);
-      }
-    }
-    checkSession();
-  }, [initialUser]);
-
-  async function loadConductores() {
+  async function loadConductoresData() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/catalogos/conductores`, { credentials: "include" });
-      const data = await res.json();
-      if (res.ok && data) {
-        const driverList = Array.isArray(data) ? data : (data.data || []);
-        setConductores(driverList);
+      const res = await getManejoComentadoConductores();
+      if (res && res.data) {
+        setConductores(res.data);
       }
     } catch (err) {
       console.warn("No fue posible cargar conductores:", err);
-    }
-  }
-
-  async function handleLoginSubmit(e) {
-    e.preventDefault();
-    setLoginError("");
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(loginForm)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Credenciales incorrectas.");
-      const loggedUser = data.data?.user || data.user;
-      setUser(loggedUser);
-      loadConductores();
-    } catch (err) {
-      setLoginError(err.message);
     }
   }
 
@@ -248,16 +182,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/manejo-comentado/evaluar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(evalPayload)
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Error al enviar la evaluación.");
-
+      await enviarEvaluacionManejoComentado(evalPayload);
       setStatusMessage(`Evaluación registrada con éxito. Resultado: ${estadoEvaluacion} (${calificacionTotal}/100)`);
       setStatusType("success");
       resetForm();
@@ -279,61 +204,12 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     setRubrica(initial);
   }
 
-  if (loadingSession) {
-    return (
-      <div className="container" style={{ textAlign: "center", padding: "3rem 1rem" }}>
-        <p>Cargando aplicativo de evaluación...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="container" style={{ maxWidth: "420px", marginTop: "2rem", padding: "1.5rem" }}>
-        <header style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <h1 style={{ fontSize: "1.5rem", color: "#116e95", margin: "0 0 6px" }}>Manejo Comentado</h1>
-          <p style={{ color: "#64748b", fontSize: "0.9rem", margin: 0 }}>Acceso para Instructores / Evaluadores</p>
-        </header>
-
-        <form onSubmit={handleLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            Usuario Administrativo / Instructor
-            <input
-              type="text"
-              value={loginForm.username}
-              onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-              required
-            />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            Contraseña
-            <input
-              type="password"
-              value={loginForm.password}
-              onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-              required
-            />
-          </label>
-
-          <button type="submit" className="primary-button" style={{ padding: "12px", marginTop: "8px" }}>
-            Iniciar Sesión
-          </button>
-        </form>
-
-        {loginError && <p className="message message-error" style={{ marginTop: "1rem" }}>{loginError}</p>}
-      </div>
-    );
-  }
-
   return (
-    <div className="container" style={{ maxWidth: "560px", padding: "1rem 1rem 3rem" }}>
+    <div className="container" style={{ maxWidth: "560px", padding: "1rem 1rem 3rem", margin: "0 auto" }}>
       {/* Bar Estado Conexión */}
       <div style={{
         display: "flex",
-        justifyContent: "space-between",
+        justify: "space-between",
         alignItems: "center",
         padding: "8px 12px",
         borderRadius: "8px",
@@ -355,7 +231,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <div>
           <h1 style={{ fontSize: "1.4rem", margin: 0, color: "#116e95" }}>Evaluación Práctica Móvil</h1>
-          <small style={{ color: "#64748b" }}>Instructor: {user.nombre} ({user.rol})</small>
+          <small style={{ color: "#64748b" }}>Instructor/Admin: {user?.nombre || "Usuario"} ({user?.rol})</small>
         </div>
 
         {onLogout && (

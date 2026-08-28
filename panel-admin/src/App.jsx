@@ -13,10 +13,14 @@ import LoginPage
 import DashboardPage
   from "./pages/DashboardPage.jsx";
 
+import EvaluacionApp
+  from "./pages/EvaluacionApp.jsx";
+
 import {
   getAdminSession,
   logoutAdmin
 } from "./services/api.js";
+
 
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -119,6 +123,15 @@ function App() {
     );
   }
 
+  if (window.location.pathname.startsWith("/evaluacion")) {
+    return (
+      <EvaluacionApp
+        user={adminUser}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   return (
     <DashboardPage
       user={adminUser}
@@ -126,5 +139,6 @@ function App() {
     />
   );
 }
+
 
 export default App;
