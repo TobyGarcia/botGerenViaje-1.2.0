@@ -61,7 +61,28 @@ function calculateValidityStatus(fechaManejoComentado) {
     };
   }
 
-  const evalDate = new Date(`${fechaManejoComentado}T00:00:00`);
+  let evalDate;
+  if (fechaManejoComentado instanceof Date) {
+    evalDate = new Date(fechaManejoComentado.getTime());
+  } else {
+    const rawStr = String(fechaManejoComentado).trim();
+    const dateMatch = rawStr.match(/^\d{4}-\d{2}-\d{2}/);
+    if (dateMatch) {
+      const [y, m, d] = dateMatch[0].split("-").map(Number);
+      evalDate = new Date(y, m - 1, d);
+    } else {
+      evalDate = new Date(rawStr);
+    }
+  }
+
+  if (isNaN(evalDate.getTime())) {
+    return {
+      estado: "SIN_REGISTRO",
+      fechaVencimiento: null,
+      diasParaVencer: null
+    };
+  }
+
   const expiryDate = new Date(evalDate);
   expiryDate.setMonth(expiryDate.getMonth() + 6);
 
@@ -78,12 +99,17 @@ function calculateValidityStatus(fechaManejoComentado) {
     estado = "PROXIMO_A_VENCER";
   }
 
+  const yyyy = expiryDate.getFullYear();
+  const mm = String(expiryDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(expiryDate.getDate()).padStart(2, "0");
+
   return {
     estado,
-    fechaVencimiento: expiryDate.toISOString().slice(0, 10),
+    fechaVencimiento: `${yyyy}-${mm}-${dd}`,
     diasParaVencer
   };
 }
+
 
 export async function listDriversManejoComentado({ search = "", status = "TODOS" } = {}) {
   const normalizedSearch = String(search).trim();
