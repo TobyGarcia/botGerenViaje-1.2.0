@@ -9,6 +9,7 @@ import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
+import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import {
   IconInicio,
   IconInspecciones,
@@ -518,8 +519,8 @@ function DashboardPage({ user, onLogout }) {
         <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <span className="brand-mark">GV</span>
-              <span className="sidebar-text">Gerenciamiento viajes</span>
+              <img className="sidebar-brand-logo" src={logoAQR} alt="Logo" />
+              <span className="sidebar-text sidebar-brand-title">Gerenciamiento viajes</span>
             </div>
 
             {/* Botón de Menú Hamburguesa para Móviles */}

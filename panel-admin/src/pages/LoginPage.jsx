@@ -78,25 +78,11 @@ function LoginPage({ onAuthenticated }) {
         <div className="login-card single-tenant-card">
           <div className="login-header">
             <img className="login-logo" src={logoAQR} alt="AQR Logistics" />
-            <div className="azure-badge-container">
-              <span className="azure-badge">
-                <svg width="15" height="15" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="0" y="0" width="10" height="10" fill="#f25022"/>
-                  <rect x="11" y="0" width="10" height="10" fill="#7fba00"/>
-                  <rect x="0" y="11" width="10" height="10" fill="#00a4ef"/>
-                  <rect x="11" y="11" width="10" height="10" fill="#ffb900"/>
-                </svg>
-                Microsoft Azure Entra ID
-              </span>
-            </div>
             <h2>Acceso Administrativo</h2>
-            <p className="login-description">
-              Autenticación corporativa obligatoria mediante Microsoft Azure Entra ID y verificación en Lista Blanca.
-            </p>
           </div>
 
           <div className="login-actions-container">
-            {/* ÚNICA VÍA DE INGRESO: BOTÓN OFICIAL DE MICROSOFT AZURE AD SSO */}
+            {/* ÚNICA VÍA DE INGRESO: BOTÓN OFICIAL DE MICROSOFT SSO */}
             <button
               type="button"
               className="login-submit-btn tenant-submit-btn microsoft-sso-btn"
@@ -115,7 +101,7 @@ function LoginPage({ onAuthenticated }) {
                     <rect x="0" y="11" width="10" height="10" fill="#00a4ef"/>
                     <rect x="11" y="11" width="10" height="10" fill="#ffb900"/>
                   </svg>
-                  Iniciar sesión con Microsoft (Azure AD)
+                  Iniciar sesión con Microsoft
                 </>
               )}
             </button>
@@ -130,14 +116,6 @@ function LoginPage({ onAuthenticated }) {
                 {message}
               </p>
             )}
-          </div>
-
-          <div className="login-footer-security">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            Doble Verificación: Autenticación Microsoft + Lista Blanca BD
           </div>
         </div>
       </section>
