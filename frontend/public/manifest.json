@@ -1,0 +1,17 @@
+{
+  "short_name": "Evaluación",
+  "name": "Evaluación de Manejo Comentado",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/evaluacion",
+  "background_color": "#ffffff",
+  "theme_color": "#116e95",
+  "display": "standalone",
+  "orientation": "portrait"
+}

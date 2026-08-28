@@ -412,8 +412,13 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
                 max={r.points}
                 value={rubrica[r.id]}
                 onChange={(e) => handleRubroScoreChange(r.id, e.target.value)}
-                style={{ width: "100%" }}
+                className="evaluation-slider"
+                style={{
+                  width: "100%",
+                  "--value-percent": `${(rubrica[r.id] / r.points) * 100}%`
+                }}
               />
+
             </div>
           ))}
         </fieldset>

@@ -95,8 +95,23 @@ function App() {
 const lastLocationSentAtRef = useRef(0);
 const sendingLocationRef = useRef(false);
 
-const [trackingGps, setTrackingGps] =
-  useState(false);
+  const [trackingGps, setTrackingGps] =
+    useState(false);
+  const [modalAlertMessage, setModalAlertMessage] = useState("");
+
+  function triggerModalError(errMsg) {
+    setMessage(errMsg);
+    setMessageType("error");
+    setModalAlertMessage(errMsg);
+    if (window.Telegram?.WebApp?.showAlert) {
+      try {
+        window.Telegram.WebApp.showAlert(errMsg);
+      } catch {
+        // Ignorar si falla showAlert nativo de Telegram
+      }
+    }
+  }
+
 
 const [gpsStatus, setGpsStatus] =
   useState("GPS detenido.");
@@ -757,12 +772,12 @@ function handleStopGps() {
           : ""
       });
     } catch (error) {
-      setMessage(error.message);
-      setMessageType("error");
+      triggerModalError(error.message);
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
+
   }
 
   async function handleStartTrip() {
