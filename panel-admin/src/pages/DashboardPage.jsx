@@ -5,12 +5,14 @@ import DestinosPage from "./DestinosPage.jsx";
 import UbicacionesPage from "./UbicacionesPage.jsx";
 import ViajesPage from "./ViajesPage.jsx";
 import InspeccionesPage from "./InspeccionesPage.jsx";
+import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
-import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount } from "../services/api.js";
+import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import {
   IconInicio,
   IconInspecciones,
+  IconManejoComentado,
   IconConductores,
   IconUnidades,
   IconDestinos,
@@ -21,6 +23,7 @@ import {
   IconCerrarSesion,
   IconToggleSidebar
 } from "../components/Icons.jsx";
+
 
 function formatActivityDay(value) {
   const datePart = String(value || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
@@ -34,7 +37,40 @@ function formatActivityDay(value) {
   });
 }
 
-function DashboardOverview({ pendingInspections, notificationError, onOpenInspections }) {
+function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    getManejoComentadoResumenExpirados()
+      .then((res) => setData(res.data))
+      .catch(() => setData(null));
+  }, []);
+
+  if (!data) return null;
+
+  return (
+    <article className="kpi-card" style={{ cursor: "pointer", borderLeft: "4px solid #eab308" }} onClick={onOpenManejoComentado}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>Manejos Comentados por Expirar</span>
+        <strong style={{ color: data.total_expiring > 0 ? "#d97706" : "inherit" }}>{data.total_expiring}</strong>
+      </div>
+      <small style={{ display: "block", marginTop: "4px" }}>
+        {data.vencidos_count} vencidos / {data.proximos_count} próximos (30 días)
+      </small>
+      {data.items && data.items.length > 0 && (
+        <ul style={{ margin: "6px 0 0 0", padding: "0 0 0 14px", fontSize: "0.78rem", color: "#475569", textAlign: "left" }}>
+          {data.items.slice(0, 2).map((item) => (
+            <li key={item.id_conductores}>
+              {item.nombre.split(" ")[0]} - <span style={{ color: item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "#dc2626" : "#d97706", fontWeight: "bold" }}>{item.estado_vigencia}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function DashboardOverview({ pendingInspections, notificationError, onOpenInspections, onOpenManejoComentado }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
 
@@ -50,6 +86,7 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
   return (
     <section className="dashboard-overview">
       <section className="kpi-grid">
+        <ExpiringManejoComentadoWidget onOpenManejoComentado={onOpenManejoComentado} />
         <article className="kpi-card"><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></article>
         <article className="kpi-card"><span>Unidades</span><strong>{summary.unidades_total}</strong><small>{summary.unidades_activas} activas</small></article>
         <article className="kpi-card"><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></article>
@@ -59,6 +96,7 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
           <small>{pendingInspections ? "Requieren aprobación administrativa" : "No hay inspecciones por atender"}</small>
         </button>
       </section>
+
 
       {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
 
@@ -413,14 +451,16 @@ function DashboardPage({ user, onLogout }) {
   }, [user.rol]);
 
   const modules = [
+    { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR"] },
-    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"] }
+    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
+    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
+    { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
+    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] }
   ].filter((module) => module.roles.includes(user.rol));
 
-  const canInspect = ["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol);
+  const canInspect = ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"].includes(user.rol);
+
 
   return (
     <div className="admin-layout">
@@ -559,6 +599,7 @@ function DashboardPage({ user, onLogout }) {
                 pendingInspections={pendingInspections}
                 notificationError={notificationError}
                 onOpenInspections={() => setActiveModule("inspecciones")}
+                onOpenManejoComentado={() => setActiveModule("manejo-comentado")}
               />
             )}
             {user.rol === "OPERADOR" && (
@@ -567,6 +608,7 @@ function DashboardPage({ user, onLogout }) {
           </>
         )}
 
+        {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
         {activeModule === "conductores" && <ConductoresPage />}
         {activeModule === "unidades" && <VehiculosPage user={user} />}
         {activeModule === "destinos" && <DestinosPage user={user} />}
@@ -579,6 +621,7 @@ function DashboardPage({ user, onLogout }) {
         {modules
           .filter(
             (module) =>
+              module.id !== "manejo-comentado" &&
               module.id !== "conductores" &&
               module.id !== "unidades" &&
               module.id !== "destinos" &&
@@ -590,6 +633,7 @@ function DashboardPage({ user, onLogout }) {
               <ModulePlaceholder key={module.id} title={module.label} />
             ) : null
           )}
+
       </main>
     </div>
   );

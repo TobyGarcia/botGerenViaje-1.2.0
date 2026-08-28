@@ -9,9 +9,12 @@ export async function getConductores() {
       tipo_licencia,
       licencia_vigente,
       licencia_vencimiento,
+      fecha_manejo_comentado,
+      (fecha_manejo_comentado IS NOT NULL AND fecha_manejo_comentado >= CURRENT_DATE - INTERVAL '6 months') AS manejo_comentado_vigente,
       telefono
     FROM conductores
     WHERE activo = TRUE
+
     ORDER BY nombre ASC
   `);
 

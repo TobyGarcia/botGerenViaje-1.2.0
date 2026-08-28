@@ -506,3 +506,38 @@ export async function descargarAdminInspeccionPdf(idInspeccion) {
   const link = document.createElement("a"); link.href = url; link.download = name; link.click();
   URL.revokeObjectURL(url);
 }
+
+export function getManejoComentadoResumenExpirados() {
+  return request("/manejo-comentado/resumen-expirados");
+}
+
+export function getManejoComentadoConductores(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/manejo-comentado/conductores${query ? `?${query}` : ""}`);
+}
+
+export function programarCursoManejoComentado(data) {
+  return request("/manejo-comentado/cursos", {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
+export function getCursosManejoComentado() {
+  return request("/manejo-comentado/cursos");
+}
+
+export function renovarManejoComentadoDirecto(data) {
+  return request("/manejo-comentado/renovar", {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
+export function enviarEvaluacionManejoComentado(data) {
+  return request("/manejo-comentado/evaluar", {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+

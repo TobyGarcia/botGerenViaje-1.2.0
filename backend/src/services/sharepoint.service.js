@@ -15,7 +15,6 @@ export function parseSharePointTarget() {
       const urlObj = new URL(fullUrl);
       const hostname = urlObj.hostname;
 
-      // El parámetro query 'id' contiene la ruta directa de la carpeta en la UI de SharePoint
       let rawPath = urlObj.searchParams.get("id") || urlObj.pathname;
       let path = decodeURIComponent(rawPath);
 
@@ -25,7 +24,6 @@ export function parseSharePointTarget() {
         const siteIdentifier = `${hostname}:${siteRelativePath}`;
 
         let rest = path.slice(siteRelativePath.length);
-        // Remover el nombre de la biblioteca de documentos estándar
         rest = rest.replace(/^\/(Documentos%20compartidos|Documentos compartidos|Shared Documents)\/?/i, "");
         rest = rest.replace(/^\/+|\/+$/g, "");
 
@@ -49,12 +47,24 @@ export function parseSharePointTarget() {
  * Resuelve el Site ID único de Microsoft Graph API para un sitio de SharePoint.
  */
 async function resolveSharePointSiteId(siteIdentifier, accessToken) {
+  const customSiteId = (process.env.SHAREPOINT_SITE_ID || "").trim();
+  if (customSiteId) {
+    return customSiteId;
+  }
+
   if (!siteIdentifier || siteIdentifier === "root") {
     return "root";
   }
 
+  // 1. Intentar resolver el sitio por ruta codificada
   try {
-    const siteUrl = `https://graph.microsoft.com/v1.0/sites/${siteIdentifier}`;
+    const parts = siteIdentifier.split(":");
+    const hostname = parts[0];
+    const sitePath = parts[1] || "";
+    const encodedSitePath = sitePath.split("/").map(encodeURIComponent).join("/");
+    const siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${encodedSitePath}`;
+
+    console.log(`[SharePoint] Consultando Site ID en Graph API: ${siteUrl}`);
     const res = await fetch(siteUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -62,11 +72,34 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
     if (res.ok) {
       const siteData = await res.json();
       if (siteData?.id) {
+        console.log(`[SharePoint] Site ID obtenido de Microsoft Graph: ${siteData.id}`);
         return siteData.id;
+      }
+    } else {
+      const errText = await res.text();
+      console.warn(`[SharePoint] No se resolvió sitio por ruta (HTTP ${res.status}): ${errText}`);
+    }
+  } catch (err) {
+    console.warn("[SharePoint] Excepción consultando sitio por ruta:", err.message);
+  }
+
+  // 2. Búsqueda de respaldo en Microsoft Graph API
+  try {
+    const searchUrl = `https://graph.microsoft.com/v1.0/sites?search=Tecnolog`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      if (Array.isArray(searchData.value) && searchData.value.length > 0) {
+        const found = searchData.value[0];
+        console.log(`[SharePoint] Sitio encontrado por búsqueda Graph: ${found.id} (${found.webUrl})`);
+        return found.id;
       }
     }
   } catch (err) {
-    console.warn("[SharePoint] No se pudo obtener siteId específico, usando identificador:", err.message);
+    // Ignorar excepción de búsqueda
   }
 
   return siteIdentifier;
@@ -96,22 +129,28 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer }) {
     const accessToken = await getAzureAccessToken();
     const { siteIdentifier, folderPath } = parseSharePointTarget();
 
-    // Resolver el id de sitio único de Microsoft Graph para evitar colisiones sintácticas de colones (:)
+    // Resolver el Site ID único mediante Microsoft Graph API
     const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
 
     const cleanFilename = String(filename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
     const encodedFilename = encodeURIComponent(cleanFilename);
 
-    // Construir la URL exacta del endpoint de Microsoft Graph API para la subida de archivos en la unidad raíz
     let uploadUrl = "";
-    if (folderPath) {
-      const folderSegment = folderPath.split("/").map(encodeURIComponent).join("/");
-      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}/${encodedFilename}:/content`;
+    if (targetSiteId.includes(":")) {
+      // Si se usa sintaxis de identificador compuesto
+      const folderSegment = folderPath ? `${folderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
+      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}:/drive/root:/${folderSegment}${encodedFilename}:/content`;
     } else {
-      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodedFilename}:/content`;
+      // Si se usa el GUID o ID directo de sitio en Graph API
+      if (folderPath) {
+        const folderSegment = folderPath.split("/").map(encodeURIComponent).join("/");
+        uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}/${encodedFilename}:/content`;
+      } else {
+        uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodedFilename}:/content`;
+      }
     }
 
-    console.log(`[SharePoint] Subiendo "${cleanFilename}" a sitio "${siteIdentifier}" en carpeta "${folderPath}"...`);
+    console.log(`[SharePoint] Subiendo "${cleanFilename}" al sitio "${targetSiteId}" en carpeta "${folderPath}"...`);
 
     const response = await fetch(uploadUrl, {
       method: "PUT",

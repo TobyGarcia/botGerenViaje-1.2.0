@@ -32,7 +32,8 @@ export async function createTrip({
         SELECT
           id_conductores,
           nombre,
-          licencia_vigente
+          licencia_vigente,
+          fecha_manejo_comentado
         FROM conductores
         WHERE id_conductores = $1
           AND activo = TRUE
@@ -46,6 +47,24 @@ export async function createTrip({
     if (!conductor) {
       throw new Error("El conductor no existe o está inactivo.");
     }
+
+    if (!conductor.licencia_vigente) {
+      throw new Error("La licencia de conducir del conductor no está vigente.");
+    }
+
+    if (!conductor.fecha_manejo_comentado) {
+      throw new Error("El conductor no cuenta con un Manejo Comentado registrado. Debe aprobar su evaluación de manejo comentado (requerida cada 6 meses) para poder operar una unidad.");
+    }
+
+    const evalDate = new Date(`${conductor.fecha_manejo_comentado}T00:00:00`);
+    const hace6Meses = new Date();
+    hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+    hace6Meses.setHours(0, 0, 0, 0);
+
+    if (evalDate < hace6Meses) {
+      throw new Error("El Manejo Comentado del conductor ha vencido (requiere evaluación cada 6 meses). Debe agendar y aprobar su evaluación para poder operar una unidad.");
+    }
+
 
     const vehicleResult = await client.query(
       `

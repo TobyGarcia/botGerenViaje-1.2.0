@@ -3,12 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import SupervisorApp from './SupervisorApp.jsx'
+import EvaluacionApp from './pages/EvaluacionApp.jsx'
 
-const isSupervisorPath =
-  import.meta.env.VITE_APP_MODE === "supervisor" ||
-  window.location.pathname.startsWith("/supervisor");
+const pathname = window.location.pathname;
 
-const RootApp = isSupervisorPath ? SupervisorApp : App;
+let RootApp = App;
+if (import.meta.env.VITE_APP_MODE === "supervisor" || pathname.startsWith("/supervisor")) {
+  RootApp = SupervisorApp;
+} else if (import.meta.env.VITE_APP_MODE === "evaluacion" || pathname.startsWith("/evaluacion")) {
+  RootApp = EvaluacionApp;
+}
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

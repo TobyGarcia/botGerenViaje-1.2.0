@@ -450,6 +450,67 @@ function ConductoresPage() {
                 <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} placeholder="Ej. Federal B" required />
               </label>
 
+              <label>
+                Última Evaluación de Manejo Comentado (dd/mm/aaaa)
+                <div className="date-picker-row">
+                  <select
+                    value={form.mcDia || ""}
+                    onChange={(e) => {
+                      const mcDia = e.target.value;
+                      setForm((prev) => {
+                        const mcMes = prev.mcMes || "";
+                        const mcAnio = prev.mcAnio || "";
+                        return {
+                          ...prev,
+                          mcDia,
+                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
+                        };
+                      });
+                    }}
+                  >
+                    <option value="">Día</option>
+                    {dias.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select
+                    value={form.mcMes || ""}
+                    onChange={(e) => {
+                      const mcMes = e.target.value;
+                      setForm((prev) => {
+                        const mcDia = prev.mcDia || "";
+                        const mcAnio = prev.mcAnio || "";
+                        return {
+                          ...prev,
+                          mcMes,
+                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
+                        };
+                      });
+                    }}
+                  >
+                    <option value="">Mes</option>
+                    {meses.map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
+                  </select>
+                  <select
+                    value={form.mcAnio || ""}
+                    onChange={(e) => {
+                      const mcAnio = e.target.value;
+                      setForm((prev) => {
+                        const mcDia = prev.mcDia || "";
+                        const mcMes = prev.mcMes || "";
+                        return {
+                          ...prev,
+                          mcAnio,
+                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
+                        };
+                      });
+                    }}
+                  >
+                    <option value="">Año</option>
+                    {Array.from({ length: 10 }, (_, index) => String(new Date().getFullYear() - 5 + index)).map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+              </label>
+
+
               <div className="form-actions">
                 <button
                   type="button"
@@ -493,7 +554,8 @@ function ConductoresPage() {
                   <th>Teléfono</th>
                   <th>Empresa</th>
                   <th>Licencia</th>
-                  <th>Vencimiento</th>
+                  <th>Vencimiento Licencia</th>
+                  <th>Manejo Comentado</th>
                   <th>Telegram</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -546,6 +608,11 @@ function ConductoresPage() {
                           conductor.licencia_vencimiento
                         )}
                       </td>
+
+                      <td>
+                        {formatDate(conductor.fecha_manejo_comentado)}
+                      </td>
+
 
                       <td>
                         {conductor.telegram_user_id

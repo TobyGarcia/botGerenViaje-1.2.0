@@ -28,9 +28,15 @@ function normalizeDriverInput(body) {
     licenciaVencimiento:
       String(
         body?.licenciaVencimiento || ""
+      ).trim(),
+
+    fechaManejoComentado:
+      String(
+        body?.fechaManejoComentado || ""
       ).trim()
   };
 }
+
 
 function validateDriverInput(driver) {
   if (driver.nombre.length < 3) {

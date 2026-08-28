@@ -24,7 +24,11 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     licenciaVencimiento: "",
     vencimientoDia: "",
     vencimientoMes: "",
-    vencimientoAnio: ""
+    vencimientoAnio: "",
+    fechaManejoComentado: "",
+    mcDia: "",
+    mcMes: "",
+    mcAnio: ""
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -41,6 +45,18 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         ...next,
         licenciaVencimiento: next.vencimientoAnio && next.vencimientoMes && next.vencimientoDia
           ? `${next.vencimientoAnio}-${next.vencimientoMes}-${next.vencimientoDia}`
+          : ""
+      };
+    });
+  }
+
+  function updateManejoComentado(part, value) {
+    setForm((current) => {
+      const next = { ...current, [part]: value };
+      return {
+        ...next,
+        fechaManejoComentado: next.mcAnio && next.mcMes && next.mcDia
+          ? `${next.mcAnio}-${next.mcMes}-${next.mcDia}`
           : ""
       };
     });
@@ -66,6 +82,8 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     }
   }
 
+  const anioActual = new Date().getFullYear();
+
   return (
     <main className="container">
       <h1>Registro de conductor</h1>
@@ -84,14 +102,19 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
           <input name="licenciaNumero" value={form.licenciaNumero} onChange={handleChange} maxLength="50" required />
         </label>
         <label>
-          Fecha de vencimiento
-          <span className="date-selects"><select value={form.vencimientoDia} onChange={e=>updateExpiry("vencimientoDia",e.target.value)} required><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.vencimientoMes} onChange={e=>updateExpiry("vencimientoMes",e.target.value)} required><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.vencimientoAnio} onChange={e=>updateExpiry("vencimientoAnio",e.target.value)} required><option value="">yyyy</option>{Array.from({length:16},(_,i)=>String(new Date().getFullYear()+i)).map(year=><option key={year}>{year}</option>)}</select></span>
+          Fecha de vencimiento de licencia
+          <span className="date-selects"><select value={form.vencimientoDia} onChange={e=>updateExpiry("vencimientoDia",e.target.value)} required><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.vencimientoMes} onChange={e=>updateExpiry("vencimientoMes",e.target.value)} required><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.vencimientoAnio} onChange={e=>updateExpiry("vencimientoAnio",e.target.value)} required><option value="">yyyy</option>{Array.from({length:16},(_,i)=>String(anioActual+i)).map(year=><option key={year}>{year}</option>)}</select></span>
         </label>
         <label>
           Tipo de licencia
           <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} maxLength="50" placeholder="Ej. Federal B" required />
         </label>
+        <label>
+          Última Evaluación de Manejo Comentado (dd/mm/aaaa)
+          <span className="date-selects"><select value={form.mcDia} onChange={e=>updateManejoComentado("mcDia",e.target.value)}><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.mcMes} onChange={e=>updateManejoComentado("mcMes",e.target.value)}><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.mcAnio} onChange={e=>updateManejoComentado("mcAnio",e.target.value)}><option value="">yyyy</option>{Array.from({length:10},(_,i)=>String(anioActual - 5 + i)).map(year=><option key={year}>{year}</option>)}</select></span>
+        </label>
         <label>Empresa<select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"].map(empresa=><option key={empresa}>{empresa}</option>)}</select></label>
+
         <button type="submit" disabled={saving}>
           {saving ? "Guardando..." : "Completar registro"}
         </button>

@@ -38,10 +38,12 @@ import supervisorTelegramRoutes from "./routes/supervisor-telegram.routes.js";
 import supervisorInspeccionesRoutes from "./routes/supervisor-inspecciones.routes.js";
 import adminAuthRoutes from "./routes/admin-auth.routes.js";
 import adminUsuariosRoutes from "./routes/admin-usuarios.routes.js";
+import manejoComentadoRoutes from "./routes/manejo-comentado.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
 const app = express();
+
 
 app.disable("x-powered-by");
 
@@ -143,6 +145,8 @@ app.use (
 );
 
 app.use("/api/admin/inspecciones", adminInspeccionesRoutes);
+app.use("/api/manejo-comentado", manejoComentadoRoutes);
+app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
 
 app.use((request, response) => {
   return response.status(404).json({

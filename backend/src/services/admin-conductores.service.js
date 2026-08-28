@@ -59,6 +59,7 @@ export async function listAdminDrivers({
           c.tipo_licencia,
           c.licencia_vencimiento,
           c.licencia_vigente,
+          c.fecha_manejo_comentado,
           c.activo,
 
           ut.telegram_user_id,
@@ -66,6 +67,7 @@ export async function listAdminDrivers({
           ut.estado_registro
 
         FROM conductores c
+
 
         LEFT JOIN usuarios_telegram ut
           ON ut.id_conductores =
@@ -89,7 +91,8 @@ export async function createAdminDriver({
   licenciaNumero,
   tipoLicencia,
   empresa,
-  licenciaVencimiento
+  licenciaVencimiento,
+  fechaManejoComentado
 }) {
   const expirationDate =
     new Date(
@@ -144,6 +147,7 @@ export async function createAdminDriver({
             empresa,
             licencia_vencimiento,
             licencia_vigente,
+            fecha_manejo_comentado,
             activo
           )
           VALUES (
@@ -154,6 +158,7 @@ export async function createAdminDriver({
             $5,
             $6,
             $7,
+            $8,
             TRUE
           )
           RETURNING
@@ -165,6 +170,7 @@ export async function createAdminDriver({
             empresa,
             licencia_vencimiento,
             licencia_vigente,
+            fecha_manejo_comentado,
             activo
         `,
         [
@@ -174,9 +180,11 @@ export async function createAdminDriver({
           tipoLicencia,
           empresa,
           licenciaVencimiento,
-          licenciaVigente
+          licenciaVigente,
+          fechaManejoComentado || null
         ]
       );
+
 
     await client.query("COMMIT");
 
