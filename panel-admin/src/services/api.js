@@ -541,3 +541,13 @@ export function enviarEvaluacionManejoComentado(data) {
   });
 }
 
+export function getAdminAnaliticaCombustible(params = {}) {
+  const query = new URLSearchParams();
+  if (params.idVehiculo) query.append("idVehiculo", params.idVehiculo);
+  if (params.dateFrom) query.append("dateFrom", params.dateFrom);
+  if (params.dateTo) query.append("dateTo", params.dateTo);
+  const queryString = query.toString();
+  return request(`/admin/analitica-combustible${queryString ? `?${queryString}` : ""}`);
+}
+
+

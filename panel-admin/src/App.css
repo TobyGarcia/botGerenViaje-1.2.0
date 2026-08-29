@@ -2852,4 +2852,134 @@
   cursor: pointer;
 }
 
+/* ==========================================================
+   ANALÍTICA DE COMBUSTIBLE Y KILOMETRAJE
+   ========================================================== */
+
+.analytics-filter-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: flex-end;
+  padding: 20px;
+  border: 1px solid #d6e7ee;
+  border-radius: 16px;
+  background: #ffffff;
+  margin-bottom: 24px;
+}
+
+.analytics-filter-card label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.analytics-filter-card select,
+.analytics-filter-card input[type="date"] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  background-color: #f8fafc;
+}
+
+.date-range-group {
+  display: flex;
+  gap: 10px;
+}
+
+.date-range-group > div {
+  flex: 1;
+}
+
+.fuel-level-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.fuel-level-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.analytics-chart-card {
+  margin-bottom: 24px;
+}
+
+.analytics-chart-container {
+  padding: 16px 8px;
+}
+
+.chart-header-legend {
+  display: flex;
+  gap: 24px;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  padding-right: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.svg-responsive-wrapper {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.analytics-svg-chart {
+  width: 100%;
+  height: auto;
+  min-width: 600px;
+  display: block;
+}
+
+.chart-empty-state {
+  padding: 48px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, -110%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.chart-tooltip strong {
+  color: #38bdf8;
+}
+
+
 

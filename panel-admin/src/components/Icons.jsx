@@ -359,3 +359,25 @@ export function IconReactivar({ className = "", size = 16 }) {
     </svg>
   );
 }
+
+export function IconCombustible({ className = "", size = 20 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <line x1="3" y1="22" x2="15" y2="22" />
+      <path d="M4 9h8" />
+      <path d="M14 22V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v18" />
+      <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
+    </svg>
+  );
+}
+

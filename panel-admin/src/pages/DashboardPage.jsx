@@ -6,6 +6,7 @@ import UbicacionesPage from "./UbicacionesPage.jsx";
 import ViajesPage from "./ViajesPage.jsx";
 import InspeccionesPage from "./InspeccionesPage.jsx";
 import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
+import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
 import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
@@ -15,6 +16,7 @@ import {
   IconInicio,
   IconInspecciones,
   IconManejoComentado,
+  IconCombustible,
   IconConductores,
   IconUnidades,
   IconDestinos,
@@ -495,6 +497,7 @@ function DashboardPage({ user, onLogout }) {
   }, [user.rol]);
 
   const modules = [
+    { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR"] },
     { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
@@ -652,6 +655,7 @@ function DashboardPage({ user, onLogout }) {
           </>
         )}
 
+        {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
         {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
         {activeModule === "conductores" && <ConductoresPage />}
         {activeModule === "unidades" && <VehiculosPage user={user} />}
@@ -665,6 +669,7 @@ function DashboardPage({ user, onLogout }) {
         {modules
           .filter(
             (module) =>
+              module.id !== "analitica-combustible" &&
               module.id !== "manejo-comentado" &&
               module.id !== "conductores" &&
               module.id !== "unidades" &&

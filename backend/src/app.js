@@ -39,6 +39,7 @@ import supervisorInspeccionesRoutes from "./routes/supervisor-inspecciones.route
 import adminAuthRoutes from "./routes/admin-auth.routes.js";
 import adminUsuariosRoutes from "./routes/admin-usuarios.routes.js";
 import manejoComentadoRoutes from "./routes/manejo-comentado.routes.js";
+import adminAnaliticaCombustibleRoutes from "./routes/admin-analitica-combustible.routes.js";
 
 import healthRoutes from "./routes/health.routes.js";
 
@@ -145,6 +146,7 @@ app.use (
 );
 
 app.use("/api/admin/inspecciones", adminInspeccionesRoutes);
+app.use("/api/admin/analitica-combustible", adminAnaliticaCombustibleRoutes);
 app.use("/api/manejo-comentado", manejoComentadoRoutes);
 app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
 
