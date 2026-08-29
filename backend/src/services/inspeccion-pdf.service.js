@@ -51,7 +51,7 @@ function paeth(left, up, upperLeft) {
   return upDistance <= upperLeftDistance ? up : upperLeft;
 }
 
-function readPng(buffer) {
+function readPng(buffer, bgRgb = [255, 255, 255]) {
   if (buffer.toString("ascii", 1, 4) !== "PNG") throw new Error("El diagrama no es una imagen PNG válida.");
   let offset = 8;
   let width;
@@ -101,13 +101,14 @@ function readPng(buffer) {
   }
   if (channels === 3) return { width, height, data: deflateSync(pixels) };
 
-  // Los diagramas con transparencia se aplanan sobre blanco
+  // Los diagramas con transparencia se aplanan sobre el color bgRgb especificado
+  const [bgR, bgG, bgB] = bgRgb;
   const rgbPixels = Buffer.alloc(width * height * 3);
   for (let source = 0, target = 0; source < pixels.length; source += 4, target += 3) {
     const alpha = pixels[source + 3] / 255;
-    rgbPixels[target] = Math.round(pixels[source] * alpha + 255 * (1 - alpha));
-    rgbPixels[target + 1] = Math.round(pixels[source + 1] * alpha + 255 * (1 - alpha));
-    rgbPixels[target + 2] = Math.round(pixels[source + 2] * alpha + 255 * (1 - alpha));
+    rgbPixels[target] = Math.round(pixels[source] * alpha + bgR * (1 - alpha));
+    rgbPixels[target + 1] = Math.round(pixels[source + 1] * alpha + bgG * (1 - alpha));
+    rgbPixels[target + 2] = Math.round(pixels[source + 2] * alpha + bgB * (1 - alpha));
   }
   return { width, height, data: deflateSync(rgbPixels) };
 }
@@ -169,7 +170,11 @@ function drawImage(commands, name, image, x, y, width, height, points = []) {
 export function buildInspectionPdf(data) {
   const diagrams = Object.fromEntries(
     Object.entries(diagramFiles).map(([view, url]) => {
-      try { return [view, readPng(readFileSync(fileURLToPath(url)))]; } catch { return [view, null]; }
+      try {
+        // Aplanar el logo AQUARIO sobre fondo azul marino (#1b516f -> RGB 27, 81, 111)
+        const bg = view === "logoAquario" ? [27, 81, 111] : [255, 255, 255];
+        return [view, readPng(readFileSync(fileURLToPath(url)), bg)];
+      } catch { return [view, null]; }
     }).filter(([, img]) => img !== null)
   );
 
@@ -233,7 +238,7 @@ export function buildInspectionPdf(data) {
   rect(commands, MARGIN, 734, 540, 12, { fill: darkNavy, stroke: border });
   drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 736.5, 9.2, { bold: true, fill: textWhite, align: "center" });
 
-  // TABLA DE METADATOS (Y: 670 a 732) - Espacio en blanco eliminado
+  // TABLA DE METADATOS (Y: 676 a 732)
   const polizaVigenciaText = `${data.numero_poliza || "N/A"}${data.seguro_vencimiento ? ` - ${formatShortDate(data.seguro_vencimiento)}` : ""}`;
   const licenciaVigenciaText = `${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`;
 
@@ -244,17 +249,17 @@ export function buildInspectionPdf(data) {
     ["Asignación", data.tipo_asignacion], ["Combustible", data.combustible], ["Aprobación", data.estado], ["Autorizó", data.aprobador || "Pendiente"]
   ];
 
-  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 716 - Math.floor(index / 4) * 15, 135));
+  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 716 - Math.floor(index / 4) * 14.5, 135));
 
-  // BANNER DE INSTRUCCIONES DE DAÑOS (Y: 641 a 652)
-  rect(commands, MARGIN, 641, 540, 11, { fill: darkNavy, stroke: border });
-  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 643.5, 6.6, { bold: true, fill: textWhite, align: "center" });
+  // BANNER DE INSTRUCCIONES DE DAÑOS (Y: 648 a 658)
+  rect(commands, MARGIN, 648, 540, 11, { fill: darkNavy, stroke: border });
+  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 650.5, 6.6, { bold: true, fill: textWhite, align: "center" });
 
-  // DIAGRAMAS DE VEHÍCULO (Y: 442 a 638)
-  rect(commands, MARGIN, 442, 540, 196, { fill: "#ffffff", stroke: border, lineWidth: 0.8 });
+  // DIAGRAMAS DE VEHÍCULO (Y: 454 a 646)
+  rect(commands, MARGIN, 454, 540, 192, { fill: "#ffffff", stroke: border, lineWidth: 0.8 });
   const collage = [
-    ["frontal", 49, 542, 115, 84], ["conductor", 185, 542, 375, 84],
-    ["trasera", 49, 450, 115, 84], ["pasajero", 185, 450, 375, 84]
+    ["frontal", 49, 550, 115, 82], ["conductor", 185, 550, 375, 82],
+    ["trasera", 49, 460, 115, 82], ["pasajero", 185, 460, 375, 82]
   ];
   collage.forEach(([view, x, y, width, height]) => {
     const entry = imageReferences[view];
@@ -264,11 +269,11 @@ export function buildInspectionPdf(data) {
     drawText(commands, view.toUpperCase(), x + width / 2, y + height + 2, 6.2, { bold: true, fill: darkNavy, align: "center" });
   });
 
-  // BANNER INSTRUCTIVO CHECKLIST (Y: 428 a 438)
-  rect(commands, MARGIN, 428, 540, 10, { fill: brandBlue, stroke: border });
-  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 430.5, 6.3, { bold: true, fill: textWhite, align: "center" });
+  // BANNER INSTRUCTIVO CHECKLIST (Y: 440 a 450)
+  rect(commands, MARGIN, 440, 540, 10, { fill: brandBlue, stroke: border });
+  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 442.5, 6.3, { bold: true, fill: textWhite, align: "center" });
 
-  // TABLA DE CHECKLIST (Y: 276 a 416)
+  // TABLA DE CHECKLIST (Y: 283 a 430) - rowHeight de 7pt para espacio perfecto
   const checklistColumns = [
     {
       title: "DOCUMENTACIÓN Y EQUIPO",
@@ -294,50 +299,50 @@ export function buildInspectionPdf(data) {
       ]
     }
   ];
-  const tableTop = 416;
-  const rowHeight = 8;
+  const tableTop = 430;
+  const rowHeight = 7;
   checklistColumns.forEach((column, columnIndex) => {
     const x = MARGIN + columnIndex * 180;
-    rect(commands, x, tableTop, 180, 10, { fill: darkNavy, stroke: border });
-    drawText(commands, column.title, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: textWhite, align: "center" });
+    rect(commands, x, tableTop, 180, 9, { fill: darkNavy, stroke: border });
+    drawText(commands, column.title, x + 90, tableTop + 2.6, 5.3, { bold: true, fill: textWhite, align: "center" });
     let y = tableTop;
     column.sections.forEach((section) => {
       y -= rowHeight;
       rect(commands, x, y, 180, rowHeight, { fill: lightCyan, stroke: border });
-      drawText(commands, section.title, x + 90, y + 2.1, 4.8, { bold: true, fill: darkNavy, align: "center" });
+      drawText(commands, section.title, x + 90, y + 1.8, 4.6, { bold: true, fill: darkNavy, align: "center" });
       section.items.forEach((item) => {
         y -= rowHeight;
         rect(commands, x, y, 180, rowHeight, { stroke: border });
-        line(commands, x + 17, y, x + 17, y + rowHeight, 0.4, border);
-        drawText(commands, truncate(data.checklist?.[item] || "—", 3), x + 4, y + 1.7, 4.9, { bold: true, fill: darkNavy });
-        drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: textDark });
+        line(commands, x + 16, y, x + 16, y + rowHeight, 0.4, border);
+        drawText(commands, truncate(data.checklist?.[item] || "—", 3), x + 3, y + 1.5, 4.7, { bold: true, fill: darkNavy });
+        drawText(commands, truncate(item, 38), x + 19, y + 1.5, 4.7, { fill: textDark });
       });
     });
   });
 
-  // SECCIÓN COMENTARIOS Y FIRMAS (Y: 36 a 262)
-  const commentsTop = 262;
+  // SECCIÓN COMENTARIOS Y FIRMAS (Y: 36 a 268)
+  const commentsTop = 268;
   rect(commands, MARGIN, commentsTop, 540, 10, { fill: brandBlue, stroke: border });
   drawText(commands, "COMENTARIOS DEL CONDUCTOR", PAGE_WIDTH / 2, commentsTop + 3.1, 5.8, { bold: true, fill: textWhite, align: "center" });
 
-  rect(commands, MARGIN, 210, 540, 52, { stroke: border });
-  [223, 236, 249].forEach((y) => line(commands, MARGIN, y, 576, y, 0.4, border));
+  rect(commands, MARGIN, 208, 540, 50, { fill: "#ffffff", stroke: border });
+  [221, 234, 247].forEach((y) => line(commands, MARGIN, y, 576, y, 0.4, border));
   const comment = truncate(data.observaciones_conductor || "Sin observaciones.", 150);
-  drawText(commands, comment, 42, 252, 6.2, { fill: textDark });
+  drawText(commands, comment, 42, 250, 6.2, { fill: textDark });
 
   // FIRMAS Y AUTORIZACIÓN
-  drawText(commands, "Conductor:", 150, 185, 6.3, { bold: true, fill: darkNavy });
-  drawText(commands, "Autorizó (Gerencia / Coordinación):", 430, 185, 6.3, { bold: true, fill: darkNavy, align: "center" });
-  line(commands, 54, 155, 282, 155, 0.7, border);
-  line(commands, 330, 155, 558, 155, 0.7, border);
-  if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 157, 220, 24);
-  if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 157, 220, 24);
+  drawText(commands, "Conductor:", 150, 182, 6.3, { bold: true, fill: darkNavy });
+  drawText(commands, "Autorizó (Gerencia / Coordinación):", 430, 182, 6.3, { bold: true, fill: darkNavy, align: "center" });
+  line(commands, 54, 152, 282, 152, 0.7, border);
+  line(commands, 330, 152, 558, 152, 0.7, border);
+  if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 154, 220, 24);
+  if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 154, 220, 24);
 
-  drawText(commands, truncate(data.conductor, 42), 168, 144, 5.3, { bold: true, fill: darkNavy, align: "center" });
-  drawText(commands, truncate(data.aprobador, 42), 444, 144, 5.3, { bold: true, fill: darkNavy, align: "center" });
+  drawText(commands, truncate(data.conductor, 42), 168, 140, 5.3, { bold: true, fill: darkNavy, align: "center" });
+  drawText(commands, truncate(data.aprobador, 42), 444, 140, 5.3, { bold: true, fill: darkNavy, align: "center" });
 
-  drawText(commands, `Fecha: ${formatShortDate(data.creado_en || Date.now())}`, 146, 128, 5.8, { bold: true, fill: darkNavy });
-  drawText(commands, `Fecha: ${formatShortDate(data.aprobado_en || Date.now())}`, 422, 128, 5.8, { bold: true, fill: darkNavy });
+  drawText(commands, `Fecha: ${formatShortDate(data.creado_en || Date.now())}`, 146, 124, 5.8, { bold: true, fill: darkNavy });
+  drawText(commands, `Fecha: ${formatShortDate(data.aprobado_en || Date.now())}`, 422, 124, 5.8, { bold: true, fill: darkNavy });
 
   const content = Buffer.from(commands.join("\n"), "latin1");
   const contentId = addObject(streamObject("", content));
