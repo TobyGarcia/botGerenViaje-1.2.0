@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { getAdminAnaliticaCombustible, getAdminVehiculos } from "../services/api.js";
 import { IconCombustible } from "../components/Icons.jsx";
 
@@ -26,92 +26,72 @@ function formatDate(isoStr) {
   });
 }
 
-function FuelLineChart({ lecturas = [] }) {
+function FuelOnlyChart({ lecturas = [] }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   if (!lecturas || lecturas.length === 0) {
     return (
       <div className="chart-empty-state">
-        <p>No hay suficientes lecturas de inspección en el período seleccionado para generar la gráfica.</p>
+        <p>No hay suficientes lecturas de inspección en el período seleccionado para generar la gráfica de combustible.</p>
       </div>
     );
   }
 
-  // Dimensiones del SVG
   const width = 800;
-  const height = 260;
-  const padding = { top: 30, right: 40, bottom: 40, left: 60 };
+  const height = 240;
+  const padding = { top: 30, right: 40, bottom: 40, left: 75 };
 
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
 
-  // Rango de KM para el eje secundario
-  const kmValues = lecturas.map((l) => l.kilometraje_inicial);
-  const minKm = Math.min(...kmValues);
-  const maxKm = Math.max(...kmValues);
-  const rangeKm = maxKm - minKm || 1;
-
-  // Generar coordenadas de puntos (Y1 = Combustible %, Y2 = KM)
   const points = lecturas.map((item, index) => {
     const x = padding.left + (index / Math.max(1, lecturas.length - 1)) * innerWidth;
-    // Y para combustible (0% en padding.top + innerHeight, 100% en padding.top)
     const yFuel = padding.top + innerHeight - (item.combustible_porcentaje / 100) * innerHeight;
-    // Y para kilometraje
-    const yKm = padding.top + innerHeight - ((item.kilometraje_inicial - minKm) / rangeKm) * innerHeight;
-
-    return {
-      x,
-      yFuel,
-      yKm,
-      item,
-      index
-    };
+    return { x, yFuel, item, index };
   });
 
   const fuelPath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.yFuel}`).join(" ");
-  const kmPath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.yKm}`).join(" ");
+  const areaPath = `${fuelPath} L ${points[points.length - 1].x} ${padding.top + innerHeight} L ${points[0].x} ${padding.top + innerHeight} Z`;
 
   return (
     <div className="analytics-chart-container">
       <div className="chart-header-legend">
         <div className="legend-item fuel-legend">
           <span className="legend-dot" style={{ backgroundColor: "#2563eb" }} />
-          <strong>Nivel de Combustible (%)</strong>
-        </div>
-        <div className="legend-item km-legend">
-          <span className="legend-dot" style={{ backgroundColor: "#059669" }} />
-          <strong>Kilometraje Acumulado (Km)</strong>
+          <strong>Nivel de Tanque Inicial (%)</strong>
         </div>
       </div>
 
       <div className="svg-responsive-wrapper">
         <svg viewBox={`0 0 ${width} ${height}`} className="analytics-svg-chart">
-          {/* Grillas de fondo */}
-          {[0, 25, 50, 75, 100].map((pct) => {
+          <defs>
+            <linearGradient id="fuelGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+
+          {[
+            { label: "100% (F)", pct: 100 },
+            { label: "75% (3/4)", pct: 75 },
+            { label: "50% (1/2)", pct: 50 },
+            { label: "25% (1/4)", pct: 25 },
+            { label: "0% (E)", pct: 0 }
+          ].map(({ label, pct }) => {
             const y = padding.top + innerHeight - (pct / 100) * innerHeight;
             return (
               <g key={pct} className="grid-group">
                 <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#e2e8f0" strokeDasharray="4 4" />
-                <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#64748b">
-                  {pct}%
+                <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#64748b" fontWeight="500">
+                  {label}
                 </text>
               </g>
             );
           })}
 
-          {/* Eje de Kilometraje en la derecha */}
-          <text x={width - padding.right + 10} y={padding.top - 10} textAnchor="start" fontSize="10" fill="#059669" fontWeight="bold">
-            Max: {maxKm.toLocaleString("es-MX")} km
-          </text>
-          <text x={width - padding.right + 10} y={height - padding.bottom + 12} textAnchor="start" fontSize="10" fill="#059669">
-            Min: {minKm.toLocaleString("es-MX")} km
-          </text>
-
-          {/* Líneas de tendencia */}
+          <path d={areaPath} fill="url(#fuelGradient)" />
           <path d={fuelPath} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={kmPath} fill="none" stroke="#059669" strokeWidth="2.5" strokeDasharray="5 3" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Puntos de combustible */}
           {points.map((p) => (
             <g key={`fuel-${p.index}`}>
               <circle
@@ -127,26 +107,8 @@ function FuelLineChart({ lecturas = [] }) {
               />
             </g>
           ))}
-
-          {/* Puntos de kilometraje */}
-          {points.map((p) => (
-            <g key={`km-${p.index}`}>
-              <circle
-                cx={p.x}
-                cy={p.yKm}
-                r="4"
-                fill="#059669"
-                stroke="#ffffff"
-                strokeWidth="1.5"
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => setHoveredPoint(p)}
-                onMouseLeave={() => setHoveredPoint(null)}
-              />
-            </g>
-          ))}
         </svg>
 
-        {/* Tooltip flotante */}
         {hoveredPoint && (
           <div
             className="chart-tooltip"
@@ -159,12 +121,122 @@ function FuelLineChart({ lecturas = [] }) {
             <div>Folio: {hoveredPoint.item.folio}</div>
             <div>Fecha: {formatDate(hoveredPoint.item.fecha_operativa)}</div>
             <div>Conductor: {hoveredPoint.item.conductor}</div>
-            <div style={{ color: "#2563eb", marginTop: "4px" }}>
-              Combustible: <strong>{hoveredPoint.item.combustible}</strong> ({hoveredPoint.item.combustible_porcentaje}%)
+            <div style={{ color: "#38bdf8", marginTop: "4px", fontWeight: "bold" }}>
+              Nivel Combustible: {hoveredPoint.item.combustible} ({hoveredPoint.item.combustible_porcentaje}%)
             </div>
-            <div style={{ color: "#059669" }}>
-              Lectura Odiómetro: <strong>{hoveredPoint.item.kilometraje_inicial.toLocaleString("es-MX")} km</strong>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KilometrajeOnlyChart({ lecturas = [] }) {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+
+  if (!lecturas || lecturas.length === 0) {
+    return (
+      <div className="chart-empty-state">
+        <p>No hay suficientes lecturas de inspección en el período seleccionado para generar la gráfica de kilometraje.</p>
+      </div>
+    );
+  }
+
+  const width = 800;
+  const height = 240;
+  const padding = { top: 30, right: 40, bottom: 40, left: 85 };
+
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+
+  const kmValues = lecturas.map((l) => l.kilometraje_inicial);
+  const minKm = Math.min(...kmValues);
+  const maxKm = Math.max(...kmValues);
+  const rangeKm = maxKm - minKm || 1;
+
+  const steps = 4;
+  const gridTicks = Array.from({ length: steps + 1 }).map((_, i) => {
+    const val = Math.round(minKm + (rangeKm * (steps - i)) / steps);
+    const y = padding.top + (i / steps) * innerHeight;
+    return { val, y };
+  });
+
+  const points = lecturas.map((item, index) => {
+    const x = padding.left + (index / Math.max(1, lecturas.length - 1)) * innerWidth;
+    const yKm = padding.top + innerHeight - ((item.kilometraje_inicial - minKm) / rangeKm) * innerHeight;
+    return { x, yKm, item, index };
+  });
+
+  const kmPath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.yKm}`).join(" ");
+  const areaPath = `${kmPath} L ${points[points.length - 1].x} ${padding.top + innerHeight} L ${points[0].x} ${padding.top + innerHeight} Z`;
+
+  return (
+    <div className="analytics-chart-container">
+      <div className="chart-header-legend">
+        <div className="legend-item km-legend">
+          <span className="legend-dot" style={{ backgroundColor: "#059669" }} />
+          <strong>Kilometraje Acumulado (Km)</strong>
+        </div>
+      </div>
+
+      <div className="svg-responsive-wrapper">
+        <svg viewBox={`0 0 ${width} ${height}`} className="analytics-svg-chart">
+          <defs>
+            <linearGradient id="kmGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#059669" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#059669" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+
+          {gridTicks.map(({ val, y }, idx) => (
+            <g key={idx} className="grid-group">
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#e2e8f0" strokeDasharray="4 4" />
+              <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#64748b" fontWeight="500">
+                {val.toLocaleString("es-MX")} km
+              </text>
+            </g>
+          ))}
+
+          <path d={areaPath} fill="url(#kmGradient)" />
+          <path d={kmPath} fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+          {points.map((p) => (
+            <g key={`km-${p.index}`}>
+              <circle
+                cx={p.x}
+                cy={p.yKm}
+                r={hoveredPoint?.index === p.index ? "7" : "5"}
+                fill="#059669"
+                stroke="#ffffff"
+                strokeWidth="2"
+                style={{ cursor: "pointer", transition: "all 0.2s ease" }}
+                onMouseEnter={() => setHoveredPoint(p)}
+                onMouseLeave={() => setHoveredPoint(null)}
+              />
+            </g>
+          ))}
+        </svg>
+
+        {hoveredPoint && (
+          <div
+            className="chart-tooltip"
+            style={{
+              left: `${(hoveredPoint.x / width) * 100}%`,
+              top: `${(hoveredPoint.yKm / height) * 100}%`
+            }}
+          >
+            <strong>{hoveredPoint.item.vehiculo}</strong>
+            <div>Folio: {hoveredPoint.item.folio}</div>
+            <div>Fecha: {formatDate(hoveredPoint.item.fecha_operativa)}</div>
+            <div>Conductor: {hoveredPoint.item.conductor}</div>
+            <div style={{ color: "#34d399", marginTop: "4px", fontWeight: "bold" }}>
+              Kilometraje: {hoveredPoint.item.kilometraje_inicial.toLocaleString("es-MX")} km
             </div>
+            {hoveredPoint.item.kilometros_recorridos > 0 && (
+              <div style={{ color: "#e2e8f0" }}>
+                KM Recorridos en viaje: +{hoveredPoint.item.kilometros_recorridos} km
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -183,14 +255,12 @@ export default function AnaliticaCombustiblePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Cargar lista de vehículos para el filtro
   useEffect(() => {
     getAdminVehiculos({ status: "ACTIVO" })
       .then((res) => setVehicles(res.data || []))
       .catch(() => setVehicles([]));
   }, []);
 
-  // Manejo de presets de fecha
   useEffect(() => {
     if (presetFilter === "all") {
       setDateFrom("");
@@ -212,7 +282,6 @@ export default function AnaliticaCombustiblePage() {
     setDateTo(toStr);
   }, [presetFilter]);
 
-  // Cargar datos de analítica al cambiar filtros
   const fetchAnalytics = () => {
     setLoading(true);
     setError("");
@@ -378,19 +447,35 @@ export default function AnaliticaCombustiblePage() {
         </article>
       </section>
 
-      {/* Gráfica de Tendencia */}
+      {/* Gráfica 1: Nivel de Combustible */}
       <section className="ranking-card analytics-chart-card">
         <div className="ranking-header">
           <div>
-            <h2>📈 Gráfica de Desempeño: Combustible vs Kilometraje</h2>
-            <p>Relación cronológica del nivel de combustible reportado al iniciar viajes y la evolución del kilometraje de las unidades.</p>
+            <h2>⛽ Gráfica 1: Nivel de Combustible Inicial (%)</h2>
+            <p>Variación cronológica del nivel de combustible reportado en las inspecciones al iniciar viajes.</p>
           </div>
         </div>
 
         {loading ? (
-          <p className="table-status">Cargando gráfico de desempeño...</p>
+          <p className="table-status">Cargando gráfico de combustible...</p>
         ) : (
-          <FuelLineChart lecturas={data?.lecturas_lineales || []} />
+          <FuelOnlyChart lecturas={data?.lecturas_lineales || []} />
+        )}
+      </section>
+
+      {/* Gráfica 2: Kilometraje Acumulado */}
+      <section className="ranking-card analytics-chart-card">
+        <div className="ranking-header">
+          <div>
+            <h2>🛣️ Gráfica 2: Évolución del Kilometraje (Km)</h2>
+            <p>Comportamiento cronológico de la lectura del odiómetro e incremento del kilometraje acumulado.</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="table-status">Cargando gráfico de kilometraje...</p>
+        ) : (
+          <KilometrajeOnlyChart lecturas={data?.lecturas_lineales || []} />
         )}
       </section>
 
