@@ -2911,8 +2911,21 @@
   transition: width 0.3s ease;
 }
 
-.analytics-chart-card {
+.analytics-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
   margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .analytics-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-chart-card {
+  margin-bottom: 0;
 }
 
 .analytics-chart-container {

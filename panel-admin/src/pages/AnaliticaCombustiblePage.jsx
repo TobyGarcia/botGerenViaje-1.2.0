@@ -447,37 +447,40 @@ export default function AnaliticaCombustiblePage() {
         </article>
       </section>
 
-      {/* Gráfica 1: Nivel de Combustible */}
-      <section className="ranking-card analytics-chart-card">
-        <div className="ranking-header">
-          <div>
-            <h2>⛽ Gráfica 1: Nivel de Combustible Inicial (%)</h2>
-            <p>Variación cronológica del nivel de combustible reportado en las inspecciones al iniciar viajes.</p>
+      {/* Gráficas en 2 Columnas */}
+      <div className="analytics-charts-grid">
+        {/* Gráfica 1: Nivel de Combustible */}
+        <section className="ranking-card analytics-chart-card">
+          <div className="ranking-header">
+            <div>
+              <h2>⛽ Gráfica 1: Combustible (%)</h2>
+              <p>Variación del nivel de combustible en las inspecciones al iniciar viajes.</p>
+            </div>
           </div>
-        </div>
 
-        {loading ? (
-          <p className="table-status">Cargando gráfico de combustible...</p>
-        ) : (
-          <FuelOnlyChart lecturas={data?.lecturas_lineales || []} />
-        )}
-      </section>
+          {loading ? (
+            <p className="table-status">Cargando gráfico de combustible...</p>
+          ) : (
+            <FuelOnlyChart lecturas={data?.lecturas_lineales || []} />
+          )}
+        </section>
 
-      {/* Gráfica 2: Kilometraje Acumulado */}
-      <section className="ranking-card analytics-chart-card">
-        <div className="ranking-header">
-          <div>
-            <h2>🛣️ Gráfica 2: Évolución del Kilometraje (Km)</h2>
-            <p>Comportamiento cronológico de la lectura del odiómetro e incremento del kilometraje acumulado.</p>
+        {/* Gráfica 2: Kilometraje Acumulado */}
+        <section className="ranking-card analytics-chart-card">
+          <div className="ranking-header">
+            <div>
+              <h2>🛣️ Gráfica 2: Kilometraje (Km)</h2>
+              <p>Evolución del odiómetro e incremento del kilometraje acumulado.</p>
+            </div>
           </div>
-        </div>
 
-        {loading ? (
-          <p className="table-status">Cargando gráfico de kilometraje...</p>
-        ) : (
-          <KilometrajeOnlyChart lecturas={data?.lecturas_lineales || []} />
-        )}
-      </section>
+          {loading ? (
+            <p className="table-status">Cargando gráfico de kilometraje...</p>
+          ) : (
+            <KilometrajeOnlyChart lecturas={data?.lecturas_lineales || []} />
+          )}
+        </section>
+      </div>
 
       {/* Resumen por Unidad Vehicular */}
       {data?.vehiculos && data.vehiculos.length > 0 && (
