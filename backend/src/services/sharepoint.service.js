@@ -84,7 +84,7 @@ export function parseSharePointTarget() {
  */
 async function resolveSharePointSiteId(siteIdentifier, accessToken) {
   const customSiteId = (process.env.SHAREPOINT_SITE_ID || "").trim();
-  if (customSiteId) {
+  if (customSiteId && customSiteId !== "root") {
     return customSiteId;
   }
 
