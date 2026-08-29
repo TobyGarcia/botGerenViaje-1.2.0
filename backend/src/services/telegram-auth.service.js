@@ -24,7 +24,23 @@ const conductorColumns = `
 
 async function getConductorById(client, idConductor) {
   const result = await client.query(
-    `SELECT ${conductorColumns} FROM conductores WHERE id_conductores = $1 LIMIT 1`,
+    `SELECT 
+       c.id_conductores,
+       c.nombre,
+       c.licencia_numero,
+       c.tipo_licencia,
+       c.empresa,
+       c.licencia_vigente,
+       c.licencia_vencimiento,
+       c.telefono,
+       c.activo,
+       v.id_vehiculos AS id_vehiculo_asignado,
+       v.nombre AS vehiculo_asignado_nombre,
+       v.numero_economico AS vehiculo_asignado_numero_economico
+     FROM conductores c
+     LEFT JOIN vehiculos v ON v.id_conductor_asignado = c.id_conductores
+     WHERE c.id_conductores = $1 
+     LIMIT 1`,
     [idConductor]
   );
 

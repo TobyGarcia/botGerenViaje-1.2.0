@@ -3,6 +3,7 @@ import {
 } from "express";
 
 import {
+  assignAdminConductorVehicleController,
   createAdminDriverController,
   listAdminDriversController,
   updateAdminDriverStatusController
@@ -35,6 +36,12 @@ router.patch(
   "/:idConductor/estado",
   requireAdminRoles("ADMINISTRADOR"),
   updateAdminDriverStatusController
+);
+
+router.patch(
+  "/:idConductor/asignar-vehiculo",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  assignAdminConductorVehicleController
 );
 
 export default router;

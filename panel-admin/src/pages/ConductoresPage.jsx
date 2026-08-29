@@ -5,8 +5,10 @@ import {
 } from "react";
 
 import {
+  assignAdminConductorVehicle,
   createAdminConductor,
   getAdminConductores,
+  getAdminVehiculos,
   updateAdminConductorStatus
 } from "../services/api.js";
 
@@ -83,8 +85,23 @@ function ConductoresPage() {
   const [updatingId, setUpdatingId] =
     useState(null);
 
+  const [vehiculosOptions, setVehiculosOptions] =
+    useState([]);
+
+  const [assigningId, setAssigningId] =
+    useState(null);
+
   const submitRef =
     useRef(false);
+
+  async function loadVehiculos() {
+    try {
+      const res = await getAdminVehiculos({ status: "ACTIVOS" });
+      setVehiculosOptions(res.data ?? []);
+    } catch (err) {
+      console.error("Error cargando vehículos:", err);
+    }
+  }
 
   async function loadConductores() {
     setLoading(true);
@@ -106,6 +123,26 @@ function ConductoresPage() {
       setLoading(false);
     }
   }
+
+  async function handleAssignVehicle(idConductor, idVehiculoVal) {
+    setAssigningId(idConductor);
+    try {
+      const idVehiculo = idVehiculoVal ? Number(idVehiculoVal) : null;
+      const res = await assignAdminConductorVehicle(idConductor, idVehiculo);
+      setMessage(res.message || "Asignación vehicular actualizada.");
+      setMessageType("success");
+      await Promise.all([loadConductores(), loadVehiculos()]);
+    } catch (err) {
+      setMessage(err.message || "Error al asignar vehículo.");
+      setMessageType("error");
+    } finally {
+      setAssigningId(null);
+    }
+  }
+
+  useEffect(() => {
+    loadVehiculos();
+  }, []);
 
   useEffect(() => {
     const timeoutId =
@@ -553,6 +590,7 @@ function ConductoresPage() {
                   <th>Conductor</th>
                   <th>Teléfono</th>
                   <th>Empresa</th>
+                  <th>Unidad Asignada</th>
                   <th>Licencia</th>
                   <th>Vencimiento Licencia</th>
                   <th>Manejo Comentado</th>
@@ -582,6 +620,22 @@ function ConductoresPage() {
                       </td>
 
                       <td>{conductor.empresa || "No registrada"}</td>
+
+                      <td>
+                        <select
+                          value={conductor.id_vehiculo_asignado || ""}
+                          onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
+                          disabled={assigningId === conductor.id_conductores || !conductor.activo}
+                          style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "0.85rem" }}
+                        >
+                          <option value="">-- Sin asignar --</option>
+                          {vehiculosOptions.map((v) => (
+                            <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                              {v.nombre} — {v.numero_economico}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
                       <td>
                         <span>

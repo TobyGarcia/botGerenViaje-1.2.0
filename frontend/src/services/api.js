@@ -167,4 +167,7 @@ export function ingresarCorreoSupervisor(correo) { return request("/api/telegram
 export function getSupervisorInspecciones() { return request("/api/supervisor/inspecciones"); }
 export function getSupervisorInspeccion(idInspeccion) { return request(`/api/supervisor/inspecciones/${idInspeccion}`); }
 export function decidirSupervisorInspeccion(idInspeccion, data) { return request(`/api/supervisor/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify(data) }); }
+export function getSupervisorAsignaciones() { return request("/api/supervisor/inspecciones/asignaciones"); }
+export function asignarVehiculoSupervisor({ idConductor, idVehiculo }) { return request("/api/supervisor/inspecciones/asignaciones", { method: "POST", body: JSON.stringify({ idConductor, idVehiculo }) }); }
+
 

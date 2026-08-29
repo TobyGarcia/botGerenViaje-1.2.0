@@ -300,6 +300,22 @@ const [cancelledTrip, setCancelledTrip] =
     }
   }, [telegramAuth?.registered, telegramAuth?.conductor?.id_conductores]);
 
+  useEffect(() => {
+    const assignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+    if (assignedId && vehiculos.length > 0) {
+      const assignedVehicle = vehiculos.find(
+        (v) => String(v.id_vehiculos) === String(assignedId)
+      );
+      if (assignedVehicle && (!form.idVehiculo || form.idVehiculo === "")) {
+        setForm((cur) => ({
+          ...cur,
+          idVehiculo: String(assignedVehicle.id_vehiculos),
+          kilometrajeInicial: assignedVehicle.kilometraje_actual ?? cur.kilometrajeInicial
+        }));
+      }
+    }
+  }, [telegramAuth?.conductor?.id_vehiculo_asignado, vehiculos]);
+
 /*  useEffect(() => {
     async function loadCatalogs() {
       try {
@@ -1112,6 +1128,12 @@ function handleStopGps() {
               </p>
             )}
           </section>
+        )}
+
+        {telegramAuth?.conductor?.id_vehiculo_asignado && (
+          <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold" }}>
+            📌 Unidad pre-asignada por tu supervisor
+          </div>
         )}
 
         <label>

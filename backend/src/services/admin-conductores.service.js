@@ -64,13 +64,21 @@ export async function listAdminDrivers({
 
           ut.telegram_user_id,
           ut.telegram_username,
-          ut.estado_registro
+          ut.estado_registro,
+
+          v.id_vehiculos AS id_vehiculo_asignado,
+          v.nombre AS vehiculo_asignado_nombre,
+          v.numero_economico AS vehiculo_asignado_numero_economico,
+          v.placas AS vehiculo_asignado_placas
 
         FROM conductores c
 
-
         LEFT JOIN usuarios_telegram ut
           ON ut.id_conductores =
+             c.id_conductores
+
+        LEFT JOIN vehiculos v
+          ON v.id_conductor_asignado =
              c.id_conductores
 
         ${whereClause}
@@ -227,3 +235,49 @@ export async function updateAdminDriverStatus({
     client.release();
   }
 }
+
+export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Desasignar cualquier vehículo previamente asignado a este conductor
+    await client.query(
+      `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_conductor_asignado = $1`,
+      [idConductor]
+    );
+
+    // 2. Si idVehiculo es un entero válido, asignarlo al conductor
+    let assignedVehicle = null;
+    if (idVehiculo !== null && idVehiculo !== undefined && idVehiculo !== "" && Number.isInteger(Number(idVehiculo)) && Number(idVehiculo) > 0) {
+      const targetVehicleId = Number(idVehiculo);
+      // Si el vehículo estaba asignado a otro conductor, lo desasigna primero
+      await client.query(
+        `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_vehiculos = $1`,
+        [targetVehicleId]
+      );
+
+      const res = await client.query(
+        `UPDATE vehiculos 
+         SET id_conductor_asignado = $1 
+         WHERE id_vehiculos = $2 
+         RETURNING id_vehiculos, nombre, numero_economico, placas`,
+        [idConductor, targetVehicleId]
+      );
+      assignedVehicle = res.rows[0] || null;
+    }
+
+    await client.query("COMMIT");
+    return {
+      success: true,
+      idConductor,
+      vehiculoAsignado: assignedVehicle
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+

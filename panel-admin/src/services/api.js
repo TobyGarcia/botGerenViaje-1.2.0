@@ -175,6 +175,18 @@ export function updateAdminConductorStatus(
   );
 }
 
+export function assignAdminConductorVehicle(idConductor, idVehiculo) {
+  return request(
+    `/admin/conductores/${idConductor}/asignar-vehiculo`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        idVehiculo
+      })
+    }
+  );
+}
+
 export function getAdminVehiculos({
   search = "",
   status = "TODOS"

@@ -332,35 +332,55 @@ export async function updateAdminVehicle({
   color = null, idConductorAsignado = null, idSupervisorAsignado = null, personalAsignadoNombre = null
 }) {
   const nombre = buildVehicleName(marca, modelo);
-  const result = await databasePool.query(
-    `
-      UPDATE vehiculos
-      SET nombre = $1, marca = $2, modelo = $3, numero_economico = $4,
-          placas = $5, numero_poliza = $6, seguro_vencimiento = $7,
-          numero_serie = $8, tipo_vehiculo = $9, tipo_propiedad = $10,
-          color = $11, id_conductor_asignado = $12, id_supervisor_asignado = $13,
-          personal_asignado_nombre = $14,
-          actualizado_en = CURRENT_TIMESTAMP
-      WHERE id_vehiculos = $15
-        AND NOT EXISTS (
-          SELECT 1 FROM vehiculos duplicado
-          WHERE duplicado.id_vehiculos <> $15
-            AND (LOWER(duplicado.numero_economico) = LOWER($4)
-              OR LOWER(duplicado.placas) = LOWER($5)
-              OR LOWER(duplicado.numero_serie) = LOWER($8))
-        )
-      RETURNING id_vehiculos, nombre, marca, modelo, numero_economico, placas,
-        numero_poliza, seguro_vencimiento, numero_serie, tipo_vehiculo, tipo_propiedad,
-        color, id_conductor_asignado, id_supervisor_asignado, personal_asignado_nombre
-    `,
-    [
-      nombre, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento,
-      numeroSerie, tipoVehiculo, tipoPropiedad, color || null,
-      idConductorAsignado || null, idSupervisorAsignado || null,
-      personalAsignadoNombre || null, idVehiculo
-    ]
-  );
-  return result.rows[0] ?? null;
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    if (idConductorAsignado && Number.isInteger(Number(idConductorAsignado))) {
+      const condId = Number(idConductorAsignado);
+      await client.query(
+        `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_conductor_asignado = $1 AND id_vehiculos <> $2`,
+        [condId, idVehiculo]
+      );
+    }
+
+    const result = await client.query(
+      `
+        UPDATE vehiculos
+        SET nombre = $1, marca = $2, modelo = $3, numero_economico = $4,
+            placas = $5, numero_poliza = $6, seguro_vencimiento = $7,
+            numero_serie = $8, tipo_vehiculo = $9, tipo_propiedad = $10,
+            color = $11, id_conductor_asignado = $12, id_supervisor_asignado = $13,
+            personal_asignado_nombre = $14,
+            actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_vehiculos = $15
+          AND NOT EXISTS (
+            SELECT 1 FROM vehiculos duplicado
+            WHERE duplicado.id_vehiculos <> $15
+              AND (LOWER(duplicado.numero_economico) = LOWER($4)
+                OR LOWER(duplicado.placas) = LOWER($5)
+                OR LOWER(duplicado.numero_serie) = LOWER($8))
+          )
+        RETURNING id_vehiculos, nombre, marca, modelo, numero_economico, placas,
+          numero_poliza, seguro_vencimiento, numero_serie, tipo_vehiculo, tipo_propiedad,
+          color, id_conductor_asignado, id_supervisor_asignado, personal_asignado_nombre
+      `,
+      [
+        nombre, marca, modelo, numeroEconomico, placas, numeroPoliza, seguroVencimiento,
+        numeroSerie, tipoVehiculo, tipoPropiedad, color || null,
+        idConductorAsignado || null, idSupervisorAsignado || null,
+        personalAsignadoNombre || null, idVehiculo
+      ]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0] ?? null;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function updateAdminVehicleStatus({

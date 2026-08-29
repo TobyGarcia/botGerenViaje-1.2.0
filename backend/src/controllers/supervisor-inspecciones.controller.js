@@ -6,6 +6,8 @@ import { sendDriverInspectionNotification } from "../bot/bot.js";
 import { getSupervisorAccess } from "../services/supervisor-telegram.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
+import { listAdminDrivers, assignVehicleToDriver } from "../services/admin-conductores.service.js";
+import { getVehiculos } from "../services/catalogos.service.js";
 
 async function requireSupervisor(request) {
   const telegramData = validateTelegramInitData(request.get("X-Telegram-Init-Data") || "", { botToken: process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) });
@@ -56,4 +58,45 @@ export async function decideSupervisorInspectionController(request, response) {
     });
   } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible registrar la decisión." }); }
 }
+
+export async function listSupervisorAssignmentsController(request, response) {
+  try {
+    await requireSupervisor(request);
+    const [conductores, vehiculos] = await Promise.all([
+      listAdminDrivers({ status: "ACTIVOS" }),
+      getVehiculos()
+    ]);
+    return response.json({
+      success: true,
+      data: {
+        conductores,
+        vehiculos
+      }
+    });
+  } catch (error) {
+    return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible consultar las asignaciones." });
+  }
+}
+
+export async function assignSupervisorVehicleController(request, response) {
+  try {
+    await requireSupervisor(request);
+    const idConductor = Number(request.body?.idConductor);
+    const idVehiculo = request.body?.idVehiculo ? Number(request.body.idVehiculo) : null;
+
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({ success: false, message: "El identificador del conductor no es válido." });
+    }
+
+    const result = await assignVehicleToDriver({ idConductor, idVehiculo });
+    return response.json({
+      success: true,
+      data: result,
+      message: idVehiculo ? "Vehículo asignado correctamente." : "Asignación vehicular removida."
+    });
+  } catch (error) {
+    return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible asignar el vehículo." });
+  }
+}
+
 

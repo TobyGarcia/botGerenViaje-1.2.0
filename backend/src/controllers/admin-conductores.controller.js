@@ -1,4 +1,5 @@
 import {
+  assignVehicleToDriver,
   createAdminDriver,
   listAdminDrivers,
   updateAdminDriverStatus
@@ -264,3 +265,31 @@ export async function updateAdminDriverStatusController(
       });
   }
 }
+
+export async function assignAdminConductorVehicleController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    const idVehiculo = request.body?.idVehiculo ? Number(request.body.idVehiculo) : null;
+
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    const result = await assignVehicleToDriver({ idConductor, idVehiculo });
+    return response.status(200).json({
+      success: true,
+      data: result,
+      message: idVehiculo ? "Vehículo asignado correctamente al conductor." : "Asignación vehicular removida."
+    });
+  } catch (error) {
+    console.error("Error en asignación vehicular:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: "No fue posible realizar la asignación vehicular."
+    });
+  }
+}
+
