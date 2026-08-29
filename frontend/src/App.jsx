@@ -301,20 +301,29 @@ const [cancelledTrip, setCancelledTrip] =
   }, [telegramAuth?.registered, telegramAuth?.conductor?.id_conductores]);
 
   useEffect(() => {
-    const assignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
-    if (assignedId && vehiculos.length > 0) {
+    const driverId = telegramAuth?.conductor?.id_conductores;
+    const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+
+    if (vehiculos.length > 0 && (driverId || authAssignedId)) {
       const assignedVehicle = vehiculos.find(
-        (v) => String(v.id_vehiculos) === String(assignedId)
+        (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
+               (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
       );
-      if (assignedVehicle && (!form.idVehiculo || form.idVehiculo === "")) {
-        setForm((cur) => ({
-          ...cur,
-          idVehiculo: String(assignedVehicle.id_vehiculos),
-          kilometrajeInicial: assignedVehicle.kilometraje_actual ?? cur.kilometrajeInicial
-        }));
+
+      if (assignedVehicle) {
+        setForm((cur) => {
+          if (!cur.idVehiculo || cur.idVehiculo === "") {
+            return {
+              ...cur,
+              idVehiculo: String(assignedVehicle.id_vehiculos),
+              kilometrajeInicial: assignedVehicle.kilometraje_actual ?? cur.kilometrajeInicial
+            };
+          }
+          return cur;
+        });
       }
     }
-  }, [telegramAuth?.conductor?.id_vehiculo_asignado, vehiculos]);
+  }, [telegramAuth?.conductor?.id_conductores, telegramAuth?.conductor?.id_vehiculo_asignado, vehiculos]);
 
 /*  useEffect(() => {
     async function loadCatalogs() {
@@ -1130,23 +1139,35 @@ function handleStopGps() {
           </section>
         )}
 
-        {telegramAuth?.conductor?.id_vehiculo_asignado && (
-          <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold" }}>
-            📌 Unidad pre-asignada por tu supervisor
-          </div>
-        )}
+        {(() => {
+          const driverId = telegramAuth?.conductor?.id_conductores;
+          const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+          const assignedVehicle = vehiculos.find(
+            (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
+                   (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
+          );
+          return (
+            <>
+              {assignedVehicle && (
+                <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold" }}>
+                  📌 Unidad pre-asignada por tu supervisor: {assignedVehicle.nombre} ({assignedVehicle.numero_economico})
+                </div>
+              )}
 
-        <label>
-          Unidad
-          <select name="idVehiculo" value={form.idVehiculo} onChange={handleChange} required>
-            <option value="">Seleccione una unidad</option>
-            {vehiculos.map((vehiculo) => (
-              <option key={vehiculo.id_vehiculos} value={vehiculo.id_vehiculos}>
-                {vehiculo.nombre} — {vehiculo.numero_economico}
-              </option>
-            ))}
-          </select>
-        </label>
+              <label>
+                Unidad
+                <select name="idVehiculo" value={form.idVehiculo} onChange={handleChange} required>
+                  <option value="">Seleccione una unidad</option>
+                  {vehiculos.map((vehiculo) => (
+                    <option key={vehiculo.id_vehiculos} value={vehiculo.id_vehiculos}>
+                      {vehiculo.nombre} — {vehiculo.numero_economico} {String(vehiculo.id_vehiculos) === String(assignedVehicle?.id_vehiculos) ? " (Asignada por supervisor)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          );
+        })()}
 
         {selectedVehicle && (
           <section className="information-panel" aria-label="Información del vehículo">

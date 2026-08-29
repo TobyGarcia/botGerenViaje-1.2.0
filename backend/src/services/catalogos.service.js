@@ -34,7 +34,9 @@ export async function getVehiculos() {
       v.placas,
       v.kilometraje_actual,
       v.color,
-      COALESCE(c_asig.nombre, s_asig.nombre, v.personal_asignado_nombre) AS personal_asignado
+      v.id_conductor_asignado,
+      v.id_supervisor_asignado,
+      COALESCE(s_asig.nombre, v.personal_asignado_nombre, c_asig.nombre) AS personal_asignado
     FROM vehiculos v
     LEFT JOIN conductores c_asig ON c_asig.id_conductores = v.id_conductor_asignado
     LEFT JOIN usuarios_admin s_asig ON s_asig.id_usuarios_admin = v.id_supervisor_asignado

@@ -210,15 +210,6 @@ function VehiculosPage({ user }) {
   }
 
   function openForm(vehiculo = null) {
-    let tipoPersonal = "";
-    if (vehiculo?.id_conductor_asignado) {
-      tipoPersonal = "CONDUCTOR";
-    } else if (vehiculo?.id_supervisor_asignado) {
-      tipoPersonal = "SUPERVISOR";
-    } else if (vehiculo?.personal_asignado_nombre || vehiculo?.personal_asignado) {
-      tipoPersonal = "OTRO";
-    }
-
     setForm(vehiculo ? {
       marca: vehiculo.marca || "",
       modelo: vehiculo.modelo || "",
@@ -230,8 +221,6 @@ function VehiculosPage({ user }) {
       tipoVehiculo: vehiculo.tipo_vehiculo || "",
       tipoPropiedad: vehiculo.tipo_propiedad || "EMPRESARIAL",
       color: vehiculo.color || "",
-      tipoPersonalAsignado: tipoPersonal,
-      idConductorAsignado: vehiculo.id_conductor_asignado ? String(vehiculo.id_conductor_asignado) : "",
       idSupervisorAsignado: vehiculo.id_supervisor_asignado ? String(vehiculo.id_supervisor_asignado) : "",
       personalAsignadoNombre: vehiculo.personal_asignado_nombre || vehiculo.personal_asignado || ""
     } : initialForm);
@@ -795,95 +784,29 @@ function VehiculosPage({ user }) {
               </label>
 
               <label>
-                Personal Asignado (Persona a cargo)
+                Personal Asignado (Supervisor a cargo)
                 <select
-                  name="tipoPersonalAsignado"
-                  value={form.tipoPersonalAsignado}
+                  name="idSupervisorAsignado"
+                  value={form.idSupervisorAsignado}
                   onChange={(e) => {
-                    const val = e.target.value;
+                    const id = e.target.value;
+                    const userObj = supervisoresOptions.find((u) => String(u.id_usuarios_admin) === String(id));
                     setForm((cur) => ({
                       ...cur,
-                      tipoPersonalAsignado: val,
-                      idConductorAsignado: "",
-                      idSupervisorAsignado: "",
-                      personalAsignadoNombre: ""
+                      idSupervisorAsignado: id,
+                      personalAsignadoNombre: userObj ? userObj.nombre : ""
                     }));
                   }}
                   disabled={saving}
                 >
-                  <option value="">-- Sin asignar --</option>
-                  <option value="CONDUCTOR">Conductor</option>
-                  <option value="SUPERVISOR">Supervisor / Administrador</option>
-                  <option value="OTRO">Otro / Texto libre</option>
+                  <option value="">-- Sin supervisor asignado --</option>
+                  {supervisoresOptions.map((u) => (
+                    <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
+                      {u.nombre} ({u.rol})
+                    </option>
+                  ))}
                 </select>
               </label>
-
-              {form.tipoPersonalAsignado === "CONDUCTOR" && (
-                <label>
-                  Seleccionar Conductor
-                  <select
-                    name="idConductorAsignado"
-                    value={form.idConductorAsignado}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const cond = conductoresOptions.find((c) => String(c.id_conductores) === String(id));
-                      setForm((cur) => ({
-                        ...cur,
-                        idConductorAsignado: id,
-                        personalAsignadoNombre: cond ? cond.nombre : ""
-                      }));
-                    }}
-                    disabled={saving}
-                  >
-                    <option value="">-- Selecciona un conductor --</option>
-                    {conductoresOptions.map((c) => (
-                      <option key={c.id_conductores} value={c.id_conductores}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              {form.tipoPersonalAsignado === "SUPERVISOR" && (
-                <label>
-                  Seleccionar Supervisor / Admin
-                  <select
-                    name="idSupervisorAsignado"
-                    value={form.idSupervisorAsignado}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const userObj = supervisoresOptions.find((u) => String(u.id_usuarios_admin) === String(id));
-                      setForm((cur) => ({
-                        ...cur,
-                        idSupervisorAsignado: id,
-                        personalAsignadoNombre: userObj ? userObj.nombre : ""
-                      }));
-                    }}
-                    disabled={saving}
-                  >
-                    <option value="">-- Selecciona un supervisor --</option>
-                    {supervisoresOptions.map((u) => (
-                      <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
-                        {u.nombre} ({u.rol})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              {form.tipoPersonalAsignado === "OTRO" && (
-                <label>
-                  Nombre del personal asignado
-                  <input
-                    name="personalAsignadoNombre"
-                    value={form.personalAsignadoNombre}
-                    onChange={handleChange}
-                    placeholder="Ej. ADMINISTRATIVO"
-                    disabled={saving}
-                  />
-                </label>
-              )}
 
               <div className="vehicle-name-preview">
                 <span>
