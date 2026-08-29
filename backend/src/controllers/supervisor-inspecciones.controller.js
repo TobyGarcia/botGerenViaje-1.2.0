@@ -42,7 +42,12 @@ export async function decideSupervisorInspectionController(request, response) {
       await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
       
       // Intentar subir a SharePoint
-      sharepointResult = await uploadInspectionPdfToSharePoint({ filename: pdf.nombre, pdfBuffer: pdf.buffer });
+      sharepointResult = await uploadInspectionPdfToSharePoint({
+        folio: detail.folio,
+        filename: pdf.nombre,
+        pdfBuffer: pdf.buffer,
+        date: detail.creado_en || detail.aprobado_en
+      });
       if (sharepointResult.success && sharepointResult.webUrl) {
         await updateInspectionSharePointDetails({ idInspeccion, webUrl: sharepointResult.webUrl, itemId: sharepointResult.itemId });
       }

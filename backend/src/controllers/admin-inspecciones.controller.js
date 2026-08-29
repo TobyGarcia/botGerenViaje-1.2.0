@@ -1,8 +1,9 @@
-import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf } from "../services/inspecciones.service.js";
+import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
 import { cancelTrip } from "../services/viajes.service.js";
 import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 import { sendDriverInspectionNotification } from "../bot/bot.js";
+import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
 
 export async function listAdminInspectionsController(request, response) {
   try { return response.json({ success: true, data: await listPendingInspections() }); }
@@ -27,10 +28,26 @@ export async function decideAdminInspectionController(request, response) {
     if (approved && !signature.startsWith("data:image/png;base64,")) return response.status(400).json({ success: false, message: "La firma del aprobador es obligatoria." });
     const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: comment, firmaSupervisor: approved ? signature : null });
     let trip = null;
+    let sharepointResult = null;
     if (data && approved) {
       const detail = await getAdminInspection(idInspeccion);
       const pdf = buildInspectionPdf(detail);
       await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
+      
+      try {
+        sharepointResult = await uploadInspectionPdfToSharePoint({
+          folio: detail.folio,
+          filename: pdf.nombre,
+          pdfBuffer: pdf.buffer,
+          date: detail.creado_en || detail.aprobado_en
+        });
+        if (sharepointResult.success && sharepointResult.webUrl) {
+          await updateInspectionSharePointDetails({ idInspeccion, webUrl: sharepointResult.webUrl, itemId: sharepointResult.itemId });
+        }
+      } catch (spError) {
+        console.error("[AdminInspecciones] Error al subir a SharePoint:", spError.message);
+      }
+
       trip = {
         idViaje: detail.id_viajes,
         folio: detail.folio,

@@ -1,7 +1,40 @@
 import { getAzureAccessToken } from "./azure-auth.service.js";
 
 const DEFAULT_SHAREPOINT_URL =
-  "https://itzamnaoilandgas.sharepoint.com/sites/TecnologasdelaInformacin/Documentos%20compartidos/Forms/AllItems.aspx?id=%2Fsites%2FTecnologasdelaInformacin%2FDocumentos%20compartidos%2FDiagramas%20y%20Planos%2Ftest%5F1%5FGV";
+  "https://itzamnaoilandgas.sharepoint.com/sites/GerenciamientoViajes/Documentos%20compartidos/Forms/AllItems.aspx";
+
+/**
+ * Calcula el número de semana ISO para una fecha.
+ */
+export function getIsoWeekNumber(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+/**
+ * Genera la estructura de subcarpetas Año/Mes/Semana a partir de una fecha.
+ * Ej: inspecciones/2026/08-Agosto/Semana-35
+ */
+export function getSharePointFolderPath({ baseFolder = "inspecciones", date = new Date() } = {}) {
+  const targetDate = date ? new Date(date) : new Date();
+  const validDate = isNaN(targetDate.getTime()) ? new Date() : targetDate;
+
+  const year = validDate.getFullYear();
+  const monthNames = [
+    "01-Enero", "02-Febrero", "03-Marzo", "04-Abril",
+    "05-Mayo", "06-Junio", "07-Julio", "08-Agosto",
+    "09-Septiembre", "10-Octubre", "11-Noviembre", "12-Diciembre"
+  ];
+  const monthFolder = monthNames[validDate.getMonth()];
+  const weekNum = getIsoWeekNumber(validDate);
+  const weekFolder = `Semana-${String(weekNum).padStart(2, "0")}`;
+
+  const cleanBase = (baseFolder || "inspecciones").replace(/^\/+|\/+$/g, "");
+  return `${cleanBase}/${year}/${monthFolder}/${weekFolder}`;
+}
 
 /**
  * Parsea el destino de SharePoint a partir de una URL completa (SHAREPOINT_URL)
@@ -20,16 +53,19 @@ export function parseSharePointTarget() {
 
       const siteMatch = path.match(/^(\/sites\/[^/]+)/i);
       if (siteMatch) {
-        const siteRelativePath = siteMatch[1]; // ej. /sites/TecnologasdelaInformacin
+        const siteRelativePath = siteMatch[1]; // ej. /sites/GerenciamientoViajes
         const siteIdentifier = `${hostname}:${siteRelativePath}`;
 
         let rest = path.slice(siteRelativePath.length);
         rest = rest.replace(/^\/(Documentos%20compartidos|Documentos compartidos|Shared Documents)\/?/i, "");
+        rest = rest.replace(/^Forms(\/.*)?$/i, "").replace(/\/Forms(\/.*)?$/i, "");
         rest = rest.replace(/^\/+|\/+$/g, "");
+
+        const configuredFolder = (process.env.SHAREPOINT_FOLDER_PATH || "").replace(/^\/+|\/+$/g, "");
 
         return {
           siteIdentifier,
-          folderPath: rest || "Inspecciones"
+          folderPath: rest || configuredFolder || "inspecciones"
         };
       }
     } catch (error) {
@@ -38,7 +74,7 @@ export function parseSharePointTarget() {
   }
 
   const siteId = (process.env.SHAREPOINT_SITE_ID || "root").trim();
-  const folderPath = (process.env.SHAREPOINT_FOLDER_PATH || "Inspecciones").replace(/^\/+|\/+$/g, "");
+  const folderPath = (process.env.SHAREPOINT_FOLDER_PATH || "inspecciones").replace(/^\/+|\/+$/g, "");
 
   return { siteIdentifier: siteId, folderPath };
 }
@@ -85,7 +121,7 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
 
   // 2. Búsqueda de respaldo en Microsoft Graph API
   try {
-    const searchUrl = `https://graph.microsoft.com/v1.0/sites?search=Tecnolog`;
+    const searchUrl = `https://graph.microsoft.com/v1.0/sites?search=Gerenciamiento`;
     const searchRes = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -106,10 +142,11 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
 }
 
 /**
- * Sube un archivo PDF a la carpeta de SharePoint mediante Microsoft Graph API.
+ * Sube un archivo PDF a la carpeta de SharePoint mediante Microsoft Graph API,
+ * organizándolo en subcarpetas por Año / Mes / Semana.
  * Utiliza autenticación de aplicación (client_credentials) con Azure AD.
  */
-export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer }) {
+export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, folio, date }) {
   const tenantId = process.env.AZURE_TENANT_ID;
   const clientId = process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET;
@@ -127,30 +164,39 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer }) {
 
   try {
     const accessToken = await getAzureAccessToken();
-    const { siteIdentifier, folderPath } = parseSharePointTarget();
+    const { siteIdentifier, folderPath: baseFolderPath } = parseSharePointTarget();
+
+    // Generar ruta de subcarpetas (inspecciones/Año/MM-Mes/Semana-WW)
+    const fullFolderPath = getSharePointFolderPath({ baseFolder: baseFolderPath, date });
 
     // Resolver el Site ID único mediante Microsoft Graph API
     const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
 
-    const cleanFilename = String(filename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
+    // Nombre del archivo: priorizar folio.pdf si se proporciona
+    let rawFilename = filename;
+    if (folio) {
+      const cleanFolio = String(folio).trim();
+      rawFilename = cleanFolio.toLowerCase().endsWith(".pdf") ? cleanFolio : `${cleanFolio}.pdf`;
+    }
+    const cleanFilename = String(rawFilename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
     const encodedFilename = encodeURIComponent(cleanFilename);
 
     let uploadUrl = "";
     if (targetSiteId.includes(":")) {
       // Si se usa sintaxis de identificador compuesto
-      const folderSegment = folderPath ? `${folderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
+      const folderSegment = fullFolderPath ? `${fullFolderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
       uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}:/drive/root:/${folderSegment}${encodedFilename}:/content`;
     } else {
       // Si se usa el GUID o ID directo de sitio en Graph API
-      if (folderPath) {
-        const folderSegment = folderPath.split("/").map(encodeURIComponent).join("/");
+      if (fullFolderPath) {
+        const folderSegment = fullFolderPath.split("/").map(encodeURIComponent).join("/");
         uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}/${encodedFilename}:/content`;
       } else {
         uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodedFilename}:/content`;
       }
     }
 
-    console.log(`[SharePoint] Subiendo "${cleanFilename}" al sitio "${targetSiteId}" en carpeta "${folderPath}"...`);
+    console.log(`[SharePoint] Subiendo "${cleanFilename}" al sitio "${targetSiteId}" en carpeta "${fullFolderPath}"...`);
 
     const response = await fetch(uploadUrl, {
       method: "PUT",
@@ -188,3 +234,4 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer }) {
     };
   }
 }
+
