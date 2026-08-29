@@ -181,20 +181,8 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, fol
     const cleanFilename = String(rawFilename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
     const encodedFilename = encodeURIComponent(cleanFilename);
 
-    let uploadUrl = "";
-    if (targetSiteId.includes(":")) {
-      // Si se usa sintaxis de identificador compuesto
-      const folderSegment = fullFolderPath ? `${fullFolderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
-      uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}:/drive/root:/${folderSegment}${encodedFilename}:/content`;
-    } else {
-      // Si se usa el GUID o ID directo de sitio en Graph API
-      if (fullFolderPath) {
-        const folderSegment = fullFolderPath.split("/").map(encodeURIComponent).join("/");
-        uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}/${encodedFilename}:/content`;
-      } else {
-        uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodedFilename}:/content`;
-      }
-    }
+    const folderSegment = fullFolderPath ? `${fullFolderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
+    const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}${encodedFilename}:/content`;
 
     console.log(`[SharePoint] Subiendo "${cleanFilename}" al sitio "${targetSiteId}" en carpeta "${fullFolderPath}"...`);
 

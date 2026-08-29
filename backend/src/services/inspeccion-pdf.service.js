@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const MARGIN = 36;
+
 const diagramFiles = {
   frontal: new URL("../assets/inspection-diagrams/frontal.png", import.meta.url),
   trasera: new URL("../assets/inspection-diagrams/trasera.png", import.meta.url),
   conductor: new URL("../assets/inspection-diagrams/conductor.png", import.meta.url),
-  pasajero: new URL("../assets/inspection-diagrams/pasajero.png", import.meta.url)
+  pasajero: new URL("../assets/inspection-diagrams/pasajero.png", import.meta.url),
+  logoAquario: new URL("../assets/aquario-logo.png", import.meta.url)
 };
 
 function pdfEscape(value) {
@@ -19,6 +21,20 @@ function pdfEscape(value) {
 function truncate(value, length) {
   const text = String(value ?? "").trim() || "N/A";
   return text.length > length ? `${text.slice(0, Math.max(1, length - 3))}...` : text;
+}
+
+function formatShortDate(val) {
+  if (!val) return "";
+  const d = new Date(val);
+  if (isNaN(d.getTime())) {
+    const match = String(val).match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+    return String(val).split("T")[0];
+  }
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function color(hex) {
@@ -85,8 +101,7 @@ function readPng(buffer) {
   }
   if (channels === 3) return { width, height, data: deflateSync(pixels) };
 
-  // Los diagramas con transparencia se aplanan sobre blanco porque el PDF
-  // incrusta las imágenes como RGB, sin canal alfa.
+  // Los diagramas con transparencia se aplanan sobre blanco
   const rgbPixels = Buffer.alloc(width * height * 3);
   for (let source = 0, target = 0; source < pixels.length; source += 4, target += 3) {
     const alpha = pixels[source + 3] / 255;
@@ -107,33 +122,33 @@ function streamObject(dictionary, data) {
 }
 
 function drawText(commands, text, x, y, size = 7, options = {}) {
-  const { bold = false, fill = "#173f51", align = "left" } = options;
+  const { bold = false, fill = "#1b516f", align = "left" } = options;
   const safeText = pdfEscape(text);
   const approximateWidth = String(text).length * size * (bold ? 0.57 : 0.5);
   const alignedX = align === "right" ? x - approximateWidth : align === "center" ? x - approximateWidth / 2 : x;
   commands.push(`BT /${bold ? "F2" : "F1"} ${size} Tf ${color(fill)} rg 1 0 0 1 ${alignedX.toFixed(2)} ${y.toFixed(2)} Tm (${safeText}) Tj ET`);
 }
 
-function line(commands, x1, y1, x2, y2, width = 0.55, stroke = "#466572") {
+function line(commands, x1, y1, x2, y2, width = 0.55, stroke = "#b6d5e5") {
   commands.push(`${width} w ${color(stroke)} RG ${x1} ${y1} m ${x2} ${y2} l S`);
 }
 
 function rect(commands, x, y, width, height, options = {}) {
-  const { fill, stroke = "#466572", lineWidth = 0.55 } = options;
+  const { fill, stroke = "#b6d5e5", lineWidth = 0.55 } = options;
   const fillCommand = fill ? `${color(fill)} rg ` : "";
   const strokeCommand = stroke ? `${color(stroke)} RG ${lineWidth} w ` : "";
   commands.push(`${fillCommand}${strokeCommand}${x} ${y} ${width} ${height} re ${fill && stroke ? "B" : fill ? "f" : "S"}`);
 }
 
-function circle(commands, x, y, radius, stroke = "#d12d2d") {
+function circle(commands, x, y, radius, stroke = "#d93838") {
   const control = radius * 0.5522847498;
   commands.push(`q ${color(stroke)} RG 1.6 w ${x + radius} ${y} m ${x + radius} ${y + control} ${x + control} ${y + radius} ${x} ${y + radius} c ${x - control} ${y + radius} ${x - radius} ${y + control} ${x - radius} ${y} c ${x - radius} ${y - control} ${x - control} ${y - radius} ${x} ${y - radius} c ${x + control} ${y - radius} ${x + radius} ${y - control} ${x + radius} ${y} c S Q`);
 }
 
 function addLabeledField(commands, label, value, x, y, width) {
-  rect(commands, x, y, width, 14, { stroke: "#6b818a" });
-  drawText(commands, label, x + 3, y + 9, 5.8, { bold: true, fill: "#365862" });
-  drawText(commands, truncate(value, Math.floor(width / 3.7)), x + 3, y + 2.3, 6.2, { fill: "#173f51" });
+  rect(commands, x, y, width, 14, { fill: "#ffffff", stroke: "#b6d5e5" });
+  drawText(commands, label, x + 3, y + 8.8, 5.5, { bold: true, fill: "#1b516f" });
+  drawText(commands, truncate(value, Math.floor(width / 3.7)), x + 3, y + 2.2, 6.2, { fill: "#0d4661" });
 }
 
 function drawImage(commands, name, image, x, y, width, height, points = []) {
@@ -147,12 +162,17 @@ function drawImage(commands, name, image, x, y, width, height, points = []) {
     const markerX = drawnX + (Number(point.x) / 100) * drawnWidth;
     const markerY = drawnY + (1 - Number(point.y) / 100) * drawnHeight;
     circle(commands, markerX, markerY, 5.5);
-    drawText(commands, String(index + 1), markerX - 1.7, markerY - 1.7, 4.2, { bold: true, fill: "#d12d2d" });
+    drawText(commands, String(index + 1), markerX - 1.7, markerY - 1.7, 4.2, { bold: true, fill: "#d93838" });
   });
 }
 
 export function buildInspectionPdf(data) {
-  const diagrams = Object.fromEntries(Object.entries(diagramFiles).map(([view, url]) => [view, readPng(readFileSync(fileURLToPath(url)))]));
+  const diagrams = Object.fromEntries(
+    Object.entries(diagramFiles).map(([view, url]) => {
+      try { return [view, readPng(readFileSync(fileURLToPath(url)))]; } catch { return [view, null]; }
+    }).filter(([, img]) => img !== null)
+  );
+
   const signature = imageFromDataUrl(data.firma_conductor);
   const supervisorSignature = imageFromDataUrl(data.firma_supervisor);
   const objects = [null];
@@ -161,57 +181,94 @@ export function buildInspectionPdf(data) {
   objects[2] = "";
   const regularFont = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
   const boldFont = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
   const imageEntries = Object.entries(diagrams);
   if (signature) imageEntries.push(["firma", signature]);
   if (supervisorSignature) imageEntries.push(["firmaSupervisor", supervisorSignature]);
   const imageReferences = Object.fromEntries(imageEntries.map(([name, image], index) => [name, { name: `Im${index + 1}`, image, id: addObject(streamObject(`/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode`, image.data)) }]));
 
   const commands = [];
-  const dark = "#173f51";
-  const border = "#466572";
-  const teal = "#3b6975";
-  const red = "#d98176";
-  rect(commands, MARGIN, 752, 540, 28, { stroke: border, lineWidth: 0.8 });
-  rect(commands, MARGIN, 752, 112, 28, { fill: "#f7fafb", stroke: border, lineWidth: 0.8 });
-  drawText(commands, "Itzamma", 92, 766, 12.5, { bold: true, fill: teal, align: "center" });
-  drawText(commands, "OIL & GAS", 92, 756, 5.6, { bold: true, fill: teal, align: "center" });
-  drawText(commands, "Servicios Industriales y de", 288, 768, 12.6, { bold: true, fill: teal, align: "center" });
-  drawText(commands, "Ingeniería Itzamma", 288, 755, 12.6, { bold: true, fill: teal, align: "center" });
+
+  // Paleta de colores oficial de AQUARIO (coincide con panel-admin)
+  const darkNavy = "#1b516f";
+  const brandBlue = "#2e81ab";
+  const border = "#b6d5e5";
+  const lightCyan = "#e8f8fe";
+  const textDark = "#0d4661";
+  const textWhite = "#ffffff";
+
+  // CABECERA SUPERIOR (Y: 748 a 780)
+  rect(commands, MARGIN, 748, 540, 32, { stroke: border, lineWidth: 0.8 });
+
+  // Cuadro Izquierdo - Logo AQUARIO
+  rect(commands, MARGIN, 748, 120, 32, { fill: darkNavy, stroke: border, lineWidth: 0.8 });
+  if (imageReferences.logoAquario) {
+    drawImage(commands, imageReferences.logoAquario.name, imageReferences.logoAquario.image, MARGIN + 4, 750, 112, 28);
+  } else {
+    drawText(commands, "AQUARIO", 96, 762, 13.5, { bold: true, fill: textWhite, align: "center" });
+    drawText(commands, "SERVICIOS INDUSTRIALES", 96, 752, 5.2, { bold: true, fill: "#51c8f3", align: "center" });
+  }
+
+  // Cuadro Central - Nombre de Empresa
+  rect(commands, MARGIN + 120, 748, 276, 32, { fill: "#ffffff", stroke: border, lineWidth: 0.8 });
+  drawText(commands, "AQUARIO", 294, 767, 13, { bold: true, fill: darkNavy, align: "center" });
+  drawText(commands, "Servicios Industriales", 294, 754, 9.5, { bold: true, fill: brandBlue, align: "center" });
+
+  // Cuadro Derecho - Datos del Documento
   const documentNumber = `SII-MX-${new Date(data.aprobado_en || Date.now()).getFullYear()}-LOG-${String(data.id_viajes || "").padStart(3, "0")}`;
-  [["Emisión", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Página", "Página 1 de 1"], ["Versión", "2.2"], ["Área Responsable", "Logística"], ["No. Documento", documentNumber]].forEach(([label, value], index) => {
+  const fechaAprobacion = formatShortDate(data.aprobado_en || Date.now());
+
+  [["Emisión", fechaAprobacion], ["Página", "Página 1 de 1"], ["Versión", "2.2"], ["Área Responsable", "Logística"], ["No. Documento", documentNumber]].forEach(([label, value], index) => {
     const row = Math.floor(index / 3);
     const col = index % 3;
     const x = 432 + col * 48;
     const width = 48;
-    const y = 766 - row * 13;
-    rect(commands, x, y, width, 13, { stroke: border });
-    drawText(commands, label, x + 2, y + 8.3, 4.5, { bold: true, fill: dark });
-    drawText(commands, truncate(value, 13), x + 2, y + 2.4, 4.5, { fill: dark });
+    const y = 765 - row * 14;
+    rect(commands, x, y, width, 14, { fill: lightCyan, stroke: border });
+    drawText(commands, label, x + 2, y + 8.5, 4.4, { bold: true, fill: darkNavy });
+    drawText(commands, truncate(value, 13), x + 2, y + 2.4, 4.4, { fill: textDark });
   });
-  rect(commands, MARGIN, 736, 540, 11, { fill: "#edf4f6", stroke: border });
-  drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 738.4, 9.2, { bold: true, fill: dark, align: "center" });
+
+  // SUB-BARRA DE TÍTULO "INSPECCIÓN VEHICULAR" (Y: 734 a 746)
+  rect(commands, MARGIN, 734, 540, 12, { fill: darkNavy, stroke: border });
+  drawText(commands, "INSPECCIÓN VEHICULAR", PAGE_WIDTH / 2, 736.5, 9.2, { bold: true, fill: textWhite, align: "center" });
+
+  // TABLA DE METADATOS (Y: 670 a 732) - Espacio en blanco eliminado
+  const polizaVigenciaText = `${data.numero_poliza || "N/A"}${data.seguro_vencimiento ? ` - ${formatShortDate(data.seguro_vencimiento)}` : ""}`;
+  const licenciaVigenciaText = `${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`;
 
   const fields = [
-    ["Tipo de vehículo", data.tipo_vehiculo], ["Nombre del conductor", data.conductor], ["Póliza y vigencia", `${data.numero_poliza || "N/A"} ${data.seguro_vencimiento || ""}`], ["No. folio", data.folio],
+    ["Tipo de vehículo", data.tipo_vehiculo], ["Nombre del conductor", data.conductor], ["Póliza y vigencia", polizaVigenciaText], ["No. folio", data.folio],
     ["No. de unidad", data.numero_economico], ["No. licencia", data.licencia_numero], ["No. serie", data.numero_serie], ["Kilometraje", `${data.kilometraje_inicial || "N/A"} km`],
-    ["Fecha", new Date(data.aprobado_en || Date.now()).toLocaleDateString("es-MX")], ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })], ["Licencia / vigencia", `${data.tipo_licencia || "N/A"} / ${data.licencia_vigente ? "Vigente" : "No vigente"}`], ["Placas", data.placas],
+    ["Fecha", formatShortDate(data.aprobado_en || data.creado_en || Date.now())], ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })], ["Licencia / vigencia", licenciaVigenciaText], ["Placas", data.placas],
     ["Asignación", data.tipo_asignacion], ["Combustible", data.combustible], ["Aprobación", data.estado], ["Autorizó", data.aprobador || "Pendiente"]
   ];
-  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 668 - Math.floor(index / 4) * 16, 135));
-  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 599, 6.8, { bold: true, fill: "#c46b6d", align: "center" });
-  rect(commands, MARGIN, 397, 540, 195, { stroke: border, lineWidth: 0.8 });
+
+  fields.forEach(([label, value], index) => addLabeledField(commands, label, value, MARGIN + (index % 4) * 135, 716 - Math.floor(index / 4) * 15, 135));
+
+  // BANNER DE INSTRUCCIONES DE DAÑOS (Y: 641 a 652)
+  rect(commands, MARGIN, 641, 540, 11, { fill: darkNavy, stroke: border });
+  drawText(commands, "ENCIERRE CUALQUIER DAÑO OBSERVADO EN UN CÍRCULO, EN LA UBICACIÓN CORRESPONDIENTE DEL DIAGRAMA.", PAGE_WIDTH / 2, 643.5, 6.6, { bold: true, fill: textWhite, align: "center" });
+
+  // DIAGRAMAS DE VEHÍCULO (Y: 442 a 638)
+  rect(commands, MARGIN, 442, 540, 196, { fill: "#ffffff", stroke: border, lineWidth: 0.8 });
   const collage = [
-    ["frontal", 49, 496, 115, 82], ["conductor", 185, 496, 375, 82],
-    ["trasera", 49, 408, 115, 82], ["pasajero", 185, 408, 375, 82]
+    ["frontal", 49, 542, 115, 84], ["conductor", 185, 542, 375, 84],
+    ["trasera", 49, 450, 115, 84], ["pasajero", 185, 450, 375, 84]
   ];
   collage.forEach(([view, x, y, width, height]) => {
     const entry = imageReferences[view];
-    drawImage(commands, entry.name, entry.image, x, y, width, height, data.danos?.[view] || []);
-    drawText(commands, view.toUpperCase(), x + width / 2, y + height + 2, 6.2, { bold: true, fill: dark, align: "center" });
+    if (entry) {
+      drawImage(commands, entry.name, entry.image, x, y, width, height, data.danos?.[view] || []);
+    }
+    drawText(commands, view.toUpperCase(), x + width / 2, y + height + 2, 6.2, { bold: true, fill: darkNavy, align: "center" });
   });
 
-  rect(commands, MARGIN, 382, 540, 10, { fill: red, stroke: border });
-  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 384.5, 6.3, { bold: true, fill: dark, align: "center" });
+  // BANNER INSTRUCTIVO CHECKLIST (Y: 428 a 438)
+  rect(commands, MARGIN, 428, 540, 10, { fill: brandBlue, stroke: border });
+  drawText(commands, "Marque cada casilla sólo con una letra: Bueno (B), Regular (R), Malo (M) y No Aplica (N/A).", PAGE_WIDTH / 2, 430.5, 6.3, { bold: true, fill: textWhite, align: "center" });
+
+  // TABLA DE CHECKLIST (Y: 276 a 416)
   const checklistColumns = [
     {
       title: "DOCUMENTACIÓN Y EQUIPO",
@@ -237,43 +294,50 @@ export function buildInspectionPdf(data) {
       ]
     }
   ];
-  const tableTop = 370;
+  const tableTop = 416;
   const rowHeight = 8;
   checklistColumns.forEach((column, columnIndex) => {
     const x = MARGIN + columnIndex * 180;
-    rect(commands, x, tableTop, 180, 10, { fill: "#edf4f6", stroke: border });
-    drawText(commands, column.title, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: dark, align: "center" });
+    rect(commands, x, tableTop, 180, 10, { fill: darkNavy, stroke: border });
+    drawText(commands, column.title, x + 90, tableTop + 3.2, 5.5, { bold: true, fill: textWhite, align: "center" });
     let y = tableTop;
     column.sections.forEach((section) => {
       y -= rowHeight;
-      rect(commands, x, y, 180, rowHeight, { fill: "#f7fafb", stroke: border });
-      drawText(commands, section.title, x + 90, y + 2.1, 4.8, { bold: true, fill: dark, align: "center" });
+      rect(commands, x, y, 180, rowHeight, { fill: lightCyan, stroke: border });
+      drawText(commands, section.title, x + 90, y + 2.1, 4.8, { bold: true, fill: darkNavy, align: "center" });
       section.items.forEach((item) => {
         y -= rowHeight;
         rect(commands, x, y, 180, rowHeight, { stroke: border });
         line(commands, x + 17, y, x + 17, y + rowHeight, 0.4, border);
-        drawText(commands, truncate(data.checklist?.[item] || "—", 3), x + 4, y + 1.7, 4.9, { bold: true, fill: dark });
-        drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: dark });
+        drawText(commands, truncate(data.checklist?.[item] || "—", 3), x + 4, y + 1.7, 4.9, { bold: true, fill: darkNavy });
+        drawText(commands, truncate(item, 38), x + 20, y + 1.7, 4.9, { fill: textDark });
       });
     });
   });
-  const commentsTop = 184;
-  rect(commands, MARGIN, commentsTop, 540, 10, { fill: red, stroke: border });
-  drawText(commands, "COMENTARIOS DEL CONDUCTOR", PAGE_WIDTH / 2, commentsTop + 3.1, 5.8, { bold: true, fill: dark, align: "center" });
-  rect(commands, MARGIN, 132, 540, 52, { stroke: border });
-  [145, 158, 171].forEach((y) => line(commands, MARGIN, y, 576, y, 0.4, border));
+
+  // SECCIÓN COMENTARIOS Y FIRMAS (Y: 36 a 262)
+  const commentsTop = 262;
+  rect(commands, MARGIN, commentsTop, 540, 10, { fill: brandBlue, stroke: border });
+  drawText(commands, "COMENTARIOS DEL CONDUCTOR", PAGE_WIDTH / 2, commentsTop + 3.1, 5.8, { bold: true, fill: textWhite, align: "center" });
+
+  rect(commands, MARGIN, 210, 540, 52, { stroke: border });
+  [223, 236, 249].forEach((y) => line(commands, MARGIN, y, 576, y, 0.4, border));
   const comment = truncate(data.observaciones_conductor || "Sin observaciones.", 150);
-  drawText(commands, comment, 42, 174, 6.2, { fill: dark });
-  drawText(commands, "Conductor:", 150, 100, 6.3, { bold: true, fill: dark });
-  drawText(commands, "Autorizó (Gerencia / Coordinación):", 430, 100, 6.3, { bold: true, fill: dark, align: "center" });
-  line(commands, 54, 74, 282, 74, 0.7, border);
-  line(commands, 330, 74, 558, 74, 0.7, border);
-  if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 76, 220, 20);
-  if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 76, 220, 20);
-  drawText(commands, truncate(data.conductor, 42), 168, 65, 5.3, { bold: true, fill: dark, align: "center" });
-  drawText(commands, truncate(data.aprobador, 42), 444, 65, 5.3, { bold: true, fill: dark, align: "center" });
-  drawText(commands, "Fecha:", 146, 48, 5.8, { bold: true, fill: dark });
-  drawText(commands, "Fecha:", 422, 48, 5.8, { bold: true, fill: dark });
+  drawText(commands, comment, 42, 252, 6.2, { fill: textDark });
+
+  // FIRMAS Y AUTORIZACIÓN
+  drawText(commands, "Conductor:", 150, 185, 6.3, { bold: true, fill: darkNavy });
+  drawText(commands, "Autorizó (Gerencia / Coordinación):", 430, 185, 6.3, { bold: true, fill: darkNavy, align: "center" });
+  line(commands, 54, 155, 282, 155, 0.7, border);
+  line(commands, 330, 155, 558, 155, 0.7, border);
+  if (signature && imageReferences.firma) drawImage(commands, imageReferences.firma.name, signature, 58, 157, 220, 24);
+  if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commands, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 157, 220, 24);
+
+  drawText(commands, truncate(data.conductor, 42), 168, 144, 5.3, { bold: true, fill: darkNavy, align: "center" });
+  drawText(commands, truncate(data.aprobador, 42), 444, 144, 5.3, { bold: true, fill: darkNavy, align: "center" });
+
+  drawText(commands, `Fecha: ${formatShortDate(data.creado_en || Date.now())}`, 146, 128, 5.8, { bold: true, fill: darkNavy });
+  drawText(commands, `Fecha: ${formatShortDate(data.aprobado_en || Date.now())}`, 422, 128, 5.8, { bold: true, fill: darkNavy });
 
   const content = Buffer.from(commands.join("\n"), "latin1");
   const contentId = addObject(streamObject("", content));
