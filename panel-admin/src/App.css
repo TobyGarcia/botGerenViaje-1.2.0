@@ -2352,20 +2352,19 @@ min-width: 0;
 .profile-photo-large img { width:100%; height:100%; object-fit:cover; }
 .admin-signature { width:100%; max-height:180px; object-fit:contain; border:1px solid #d5e5eb; border-radius:10px; }
 .inspection-detail-modal { width:min(900px,100%); max-height:90vh; overflow:auto; }
-.inspection-decision-panel { display:flex; flex-direction:column; gap:16px; margin-top:22px; padding:20px; border:1px solid #d8e8ee; border-radius:14px; background:#f7fbfc; }
-.inspection-decision-top { display:flex; justify-content:flex-start; margin-bottom:4px; }
-.inspection-decision-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,360px); gap:20px; align-items:start; }
-.inspection-preview-button { white-space:nowrap; }
-.inspection-comment-field { display:grid; gap:7px; color:#244d60; font-weight:700; }
-.inspection-comment-field textarea { width:100%; min-height:140px; padding:12px; resize:vertical; border:1px solid #abcbd7; border-radius:10px; color:#173f51; background:#fff; font:inherit; line-height:1.45; box-sizing:border-box; }
+.inspection-decision-panel { display:flex; flex-direction:column; gap:18px; margin-top:22px; padding:22px; border:1px solid #d8e8ee; border-radius:14px; background:#f7fbfc; box-sizing:border-box; width:100%; }
+.inspection-decision-section { display:flex; flex-direction:column; width:100%; box-sizing:border-box; }
+.inspection-preview-button { align-self:flex-start; white-space:nowrap; }
+.inspection-comment-field { display:flex; flex-direction:column; gap:8px; color:#244d60; font-weight:700; width:100%; box-sizing:border-box; }
+.inspection-comment-field textarea { width:100%; min-height:85px; padding:12px; resize:vertical; border:1px solid #abcbd7; border-radius:10px; color:#173f51; background:#fff; font:inherit; line-height:1.45; box-sizing:border-box; }
 .inspection-comment-field textarea:focus { border-color:#23a9cf; outline:3px solid rgba(35,169,207,.18); }
-.inspection-decision-actions { display:flex; align-items:center; justify-content:flex-end; gap:12px; white-space:nowrap; padding-top:12px; border-top:1px solid #e1eef5; }
-.inspection-decision-actions button { min-height:44px; padding:0 20px; }
-.approval-signature { display:grid; gap:8px; }
-.approval-signature label { display:grid; gap:6px; font-weight:700; color:#173f51; }
-.approval-signature canvas { width:100%; max-width:360px; height:140px; touch-action:none; background:#fff; border:1px dashed #8da9b4; border-radius:10px; cursor:crosshair; box-sizing:border-box; }
-.approval-signature > div { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-.approval-signature small { color:#526e78; font-size:12px; }
+.inspection-decision-actions { display:flex; align-items:center; justify-content:flex-end; gap:14px; white-space:nowrap; padding-top:16px; border-top:1px solid #e1eef5; margin-top:4px; width:100%; box-sizing:border-box; }
+.inspection-decision-actions button { min-height:44px; padding:0 22px; }
+.approval-signature { display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box; }
+.approval-signature label { display:flex; flex-direction:column; gap:6px; font-weight:700; color:#173f51; width:100%; }
+.approval-signature canvas { width:100%; height:160px; touch-action:none; background:#fff; border:1px dashed #8da9b4; border-radius:10px; cursor:crosshair; box-sizing:border-box; }
+.approval-signature > div { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:4px; }
+.approval-signature small { color:#526e78; font-size:12.5px; }
 .damage-viewer { display:grid; gap:10px; margin:22px 0; }
 .damage-viewer h3,.damage-viewer p { margin:0; }
 .damage-viewer > p { color:#526e78; }
@@ -2648,19 +2647,9 @@ min-width: 0;
   }
 
   .inspection-decision-panel {
-    grid-template-columns: 1fr !important;
-  }
-
-  .inspection-preview-button {
-    justify-self: stretch !important;
-  }
-
-  .inspection-decision-actions {
-    justify-content: stretch !important;
-  }
-
-  .inspection-decision-actions button {
-    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
   }
 }
 
