@@ -255,10 +255,53 @@
 .damage-viewer-stage img { display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none; }
 .damage-viewer-point { position:absolute; z-index:2; display:grid; width:24px; height:24px; place-items:center; border:2px solid #dc2626; border-radius:50%; color:#b91c1c; background:rgba(255,255,255,.5); transform:translate(-50%,-50%); box-shadow:0 1px 4px #0005; font-size:11px; line-height:1; }
 .inspection-checklist { display:grid; gap:16px; max-height:60vh; overflow:auto; }
-.inspection-checklist fieldset { border:1px solid #d5e5eb; border-radius:12px; }
-.inspection-checklist legend { color:#173f51; font-weight:800; }
-.check-row { display:grid; grid-template-columns:minmax(160px,1fr) 104px; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid #edf3f5; color:#173f51; font-weight:600; }
-.check-row select { width:104px; padding:8px 9px; border:1px solid #8ebfce; border-radius:8px; color:#173f51; background:#fff; font:inherit; font-weight:800; }
+.inspection-checklist fieldset { border:1px solid #d5e5eb; border-radius:12px; padding:12px; }
+.inspection-checklist legend { color:#173f51; font-weight:800; padding:0 6px; }
+
+/* Leyenda de colores superior */
+.checklist-legend-header { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:10px; border:1px solid #d5e5eb; border-radius:12px; background:#f7fbfc; margin-bottom:4px; }
+.legend-item { display:flex; align-items:center; gap:5px; font-size:.76rem; font-weight:700; color:#173f51; }
+.legend-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.legend-state-0 .legend-color-dot { background:#94a3b8; }
+.legend-state-1 .legend-color-dot { background:#ef4444; }
+.legend-state-2 .legend-color-dot { background:#f59e0b; }
+.legend-state-3 .legend-color-dot { background:#10b981; }
+
+/* Fila de ítem con barra de volumen */
+.check-row-slider { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; border-bottom:1px solid #edf3f5; }
+.check-label { color:#173f51; font-weight:600; font-size:.86rem; flex:1; }
+.slider-control-group { display:flex; align-items:center; gap:8px; width:150px; flex-shrink:0; justify-content:flex-end; }
+
+/* Range Slider de volumen */
+.checklist-volume-slider { -webkit-appearance:none; appearance:none; width:98px; height:10px; border-radius:6px; outline:none; cursor:pointer; transition:background .25s ease; }
+.checklist-volume-slider.slider-state-0 { background:#cbd5e1; }
+.checklist-volume-slider.slider-state-1 { background:#fca5a5; }
+.checklist-volume-slider.slider-state-2 { background:#fde047; }
+.checklist-volume-slider.slider-state-3 { background:#86efac; }
+.checklist-volume-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:22px; height:22px; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,.22); cursor:pointer; transition:background .2s ease; }
+.checklist-volume-slider.slider-state-0::-webkit-slider-thumb { background:#64748b; }
+.checklist-volume-slider.slider-state-1::-webkit-slider-thumb { background:#dc2626; }
+.checklist-volume-slider.slider-state-2::-webkit-slider-thumb { background:#d97706; }
+.checklist-volume-slider.slider-state-3::-webkit-slider-thumb { background:#16a34a; }
+.checklist-volume-slider::-moz-range-thumb { width:22px; height:22px; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,.22); cursor:pointer; }
+.checklist-volume-slider.slider-state-0::-moz-range-thumb { background:#64748b; }
+.checklist-volume-slider.slider-state-1::-moz-range-thumb { background:#dc2626; }
+.checklist-volume-slider.slider-state-2::-moz-range-thumb { background:#d97706; }
+.checklist-volume-slider.slider-state-3::-moz-range-thumb { background:#16a34a; }
+
+/* Badges */
+.checklist-slider-badge { display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:26px; padding:0 5px; border-radius:8px; font-size:.76rem; font-weight:800; text-align:center; box-sizing:border-box; }
+.slider-badge-0 { background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; }
+.slider-badge-1 { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+.slider-badge-2 { background:#fef9c3; color:#a16207; border:1px solid #fde047; }
+.slider-badge-3 { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+
+/* Tarjeta de Presión de las 4 Llantas */
+.tire-pressures-card { margin:6px 0 12px; padding:12px; border:1px solid #b6d5e5; border-radius:12px; background:#e8f8fe; }
+.tire-pressures-header { font-weight:800; color:#1b516f; font-size:.85rem; margin-bottom:8px; }
+.tire-pressures-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.tire-field { display:flex; flex-direction:column; gap:3px; font-size:.76rem; font-weight:700; color:#173f51; }
+.tire-field input { width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #abcbd7; border-radius:8px; background:#fff; color:#173c4d; font:inherit; font-weight:700; }
 .inspection-card button,.signature-dialog button { width:auto; }
 .inspection-primary-button,.inspection-secondary-button { padding:10px 14px; border:0; border-radius:9px; font:inherit; font-weight:800; cursor:pointer; }
 .inspection-primary-button { color:#fff; background:#2e81ab; }
