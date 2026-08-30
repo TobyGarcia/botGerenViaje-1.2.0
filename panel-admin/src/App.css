@@ -2347,9 +2347,181 @@ min-width: 0;
   }
 }
 
-.profile-photo-panel { display:flex; align-items:center; flex-direction:column; justify-content:center; gap:18px; padding:24px; border-radius:14px; background:#f4fafc; }
-.profile-photo-large { display:grid; width:220px; height:220px; place-items:center; overflow:hidden; border:6px solid #ddecf2; border-radius:50%; color:#fff; background:#168db3; font-size:4rem; font-weight:800; }
-.profile-photo-large img { width:100%; height:100%; object-fit:cover; }
+/* ==========================================================================
+   CONFIGURACIÓN Y PERFIL DE USUARIO (PROFILE / SETTINGS PAGE)
+   ========================================================================== */
+
+.profile-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-form-container {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 10px;
+}
+
+.profile-avatar-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 24px;
+  border: 1px solid #d8e8ee;
+  border-radius: 16px;
+  background: #f7fbfc;
+  box-shadow: 0 4px 16px rgba(27, 81, 111, 0.05);
+  text-align: center;
+}
+
+.profile-avatar-wrapper {
+  display: grid;
+  width: 130px;
+  height: 130px;
+  place-items: center;
+  overflow: hidden;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(27, 81, 111, 0.14);
+  background: linear-gradient(135deg, #1b516f 0%, #2e81ab 100%);
+  color: #ffffff;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.profile-avatar-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-avatar-info h3 {
+  margin: 0;
+  color: #173f51;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.profile-role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #e8f8fe;
+  color: #1b516f;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid #b6d5e5;
+}
+
+.profile-avatar-info small {
+  color: #64818e;
+  font-size: 0.85rem;
+}
+
+.profile-photo-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 42px;
+  font-weight: 700;
+}
+
+.profile-photo-note {
+  color: #64818e;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.profile-fields-card {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+  border: 1px solid #d8e8ee;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(27, 81, 111, 0.05);
+}
+
+.profile-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8f2f6;
+}
+
+.profile-card-header h2 {
+  margin: 0;
+  color: #173f51;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.profile-card-header p {
+  margin: 0;
+  color: #64818e;
+  font-size: 0.9rem;
+}
+
+.profile-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #173f51;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.profile-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #cadde6;
+  border-radius: 10px;
+  background: #f9fcfd;
+  color: #173c4d;
+  font: inherit;
+  transition: all 0.2s ease;
+}
+
+.profile-field input:focus {
+  border-color: #23a9cf;
+  background: #ffffff;
+  outline: 3px solid rgba(35, 169, 207, 0.18);
+}
+
+.profile-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 18px;
+  border-top: 1px solid #e8f2f6;
+}
+
+.profile-submit-btn {
+  min-height: 46px;
+  padding: 0 28px;
+  font-size: 0.95rem;
+}
+
 .admin-signature { width:100%; max-height:180px; object-fit:contain; border:1px solid #d5e5eb; border-radius:10px; }
 .inspection-detail-modal { width:min(900px,100%); max-height:90vh; overflow:auto; }
 .inspection-decision-panel { display:flex; flex-direction:column; gap:18px; margin-top:22px; padding:22px; border:1px solid #d8e8ee; border-radius:14px; background:#f7fbfc; box-sizing:border-box; width:100%; }
