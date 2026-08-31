@@ -26,7 +26,8 @@ export async function linkExistingSupervisorController(request, response) {
 export async function linkSupervisorByEmailController(request, response) {
   try {
     const email = String(request.body?.correo || request.body?.email || "");
-    const result = await linkSupervisorByTenantEmail({ telegramUserId: telegramData(request).user.id, email });
+    const tgUser = telegramData(request).user;
+    const result = await linkSupervisorByTenantEmail({ telegramUserId: tgUser.id, email, telegramUser: tgUser });
     return response.json({ success: true, data: { registered: true, confirmed: result.confirmed, user: result.user }, message: "Acceso de supervisor verificado e ingresado correctamente." });
   } catch (error) { const status = error instanceof SupervisorTelegramError ? error.statusCode : 500; if (status === 500) console.error("Ingreso de supervisor por correo:", error); return response.status(status).json({ success: false, message: error.message || "No fue posible verificar el correo de supervisor." }); }
 }

@@ -14,5 +14,7 @@
 \ir ../migrations/012_color_y_personal_asignado_vehiculos.sql
 \ir ../migrations/013_sharepoint_y_tenant_auth.sql
 \ir ../migrations/014_manejo_comentado.sql
+\ir ../migrations/015_supervisor_telegram_group_nullable.sql
+
 
 

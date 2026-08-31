@@ -192,7 +192,7 @@ export async function confirmSupervisorEmail(token) {
   await databasePool.query("UPDATE confirmaciones_correo_supervisor SET confirmado_en=CURRENT_TIMESTAMP WHERE token_hash=$1", [tokenHash]);
 }
 
-export async function linkSupervisorByTenantEmail({ telegramUserId, email }) {
+export async function linkSupervisorByTenantEmail({ telegramUserId, email, telegramUser }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) {
     throw new SupervisorTelegramError("El correo corporativo es obligatorio.");
@@ -215,10 +215,19 @@ export async function linkSupervisorByTenantEmail({ telegramUserId, email }) {
 
     // Asegurar registro de Telegram en accesos_supervisor_telegram
     await client.query(
-      `INSERT INTO accesos_supervisor_telegram (telegram_user_id, habilitado_en)
-       VALUES ($1, CURRENT_TIMESTAMP)
-       ON CONFLICT (telegram_user_id) DO NOTHING`,
-      [String(telegramUserId)]
+      `INSERT INTO accesos_supervisor_telegram (telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, habilitado_en)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (telegram_user_id) DO UPDATE SET
+         telegram_username = COALESCE(EXCLUDED.telegram_username, accesos_supervisor_telegram.telegram_username),
+         telegram_first_name = COALESCE(EXCLUDED.telegram_first_name, accesos_supervisor_telegram.telegram_first_name),
+         telegram_last_name = COALESCE(EXCLUDED.telegram_last_name, accesos_supervisor_telegram.telegram_last_name),
+         habilitado_en = CURRENT_TIMESTAMP`,
+      [
+        String(telegramUserId),
+        telegramUser?.username || null,
+        telegramUser?.first_name || null,
+        telegramUser?.last_name || null
+      ]
     );
 
     // Vincular el usuario administrativo con telegram_user_id y auto-confirmarlo

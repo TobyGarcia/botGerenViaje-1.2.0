@@ -147,6 +147,10 @@ function validateDriverRegistration(body) {
   const tipoLicencia = typeof body?.tipoLicencia === "string" ? body.tipoLicencia.trim() : "";
   const empresa = typeof body?.empresa === "string" ? body.empresa.trim().toUpperCase() : "";
 
+  const fechaManejoComentado = typeof body?.fechaManejoComentado === "string" && body.fechaManejoComentado.trim()
+    ? body.fechaManejoComentado.trim()
+    : null;
+
   if (!nombre || nombre.length > 150) {
     throw new TelegramRegistrationError("El nombre es obligatorio y no puede exceder 150 caracteres.", 400);
   }
@@ -172,7 +176,17 @@ function validateDriverRegistration(body) {
     throw new TelegramRegistrationError("La fecha de vencimiento no es válida.", 400);
   }
 
-  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento };
+  if (fechaManejoComentado) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaManejoComentado)) {
+      throw new TelegramRegistrationError("La fecha de manejo comentado debe tener el formato AAAA-MM-DD.", 400);
+    }
+    const parsedMC = new Date(`${fechaManejoComentado}T00:00:00Z`);
+    if (Number.isNaN(parsedMC.getTime()) || parsedMC.toISOString().slice(0, 10) !== fechaManejoComentado) {
+      throw new TelegramRegistrationError("La fecha de manejo comentado no es válida.", 400);
+    }
+  }
+
+  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado };
 }
 
 export async function registerTelegramDriverController(request, response) {

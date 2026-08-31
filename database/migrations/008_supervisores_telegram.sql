@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS accesos_supervisor_telegram (
   telegram_username VARCHAR(100),
   telegram_first_name VARCHAR(150),
   telegram_last_name VARCHAR(150),
-  telegram_group_id BIGINT NOT NULL,
+  telegram_group_id BIGINT,
   habilitado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

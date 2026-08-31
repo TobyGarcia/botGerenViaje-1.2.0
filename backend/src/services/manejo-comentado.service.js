@@ -132,7 +132,16 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
         c.telefono,
         c.licencia_numero,
         c.tipo_licencia,
-        c.fecha_manejo_comentado,
+        COALESCE(
+          c.fecha_manejo_comentado,
+          (
+            SELECT DATE(e.fecha_evaluacion)
+            FROM evaluaciones_manejo_comentado e
+            WHERE e.id_conductores = c.id_conductores AND e.estado_evaluacion = 'APROBADO'
+            ORDER BY e.fecha_evaluacion DESC
+            LIMIT 1
+          )
+        ) AS fecha_manejo_comentado,
         (
           SELECT json_build_object(
             'calificacion', e.calificacion,
@@ -147,7 +156,7 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
         ) AS ultima_evaluacion
       FROM conductores c
       ${whereClause}
-      ORDER BY c.fecha_manejo_comentado ASC NULLS FIRST, c.nombre ASC
+      ORDER BY fecha_manejo_comentado ASC NULLS FIRST, c.nombre ASC
     `,
     values
   );
