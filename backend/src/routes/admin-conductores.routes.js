@@ -22,7 +22,7 @@ router.use(
 
 router.get(
   "/",
-  requireAdminRoles("ADMINISTRADOR"),
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
   listAdminDriversController
 );
 

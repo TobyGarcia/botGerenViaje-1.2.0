@@ -499,7 +499,7 @@ function DashboardPage({ user, onLogout }) {
   const modules = [
     { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
-    { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR"] },
+    { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
     { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
@@ -657,7 +657,7 @@ function DashboardPage({ user, onLogout }) {
 
         {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
         {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
-        {activeModule === "conductores" && <ConductoresPage />}
+        {activeModule === "conductores" && <ConductoresPage user={user} />}
         {activeModule === "unidades" && <VehiculosPage user={user} />}
         {activeModule === "destinos" && <DestinosPage user={user} />}
         {activeModule === "ubicaciones" && <UbicacionesPage />}

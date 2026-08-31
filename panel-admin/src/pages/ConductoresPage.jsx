@@ -54,7 +54,7 @@ function formatDate(value) {
   );
 }
 
-function ConductoresPage() {
+function ConductoresPage({ user }) {
   const [conductores, setConductores] =
     useState([]);
 
@@ -327,15 +327,17 @@ function ConductoresPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() =>
-            setShowForm(true)
-          }
-        >
-          + Nuevo conductor
-        </button>
+        {(!user || user.rol === "ADMINISTRADOR") && (
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() =>
+              setShowForm(true)
+            }
+          >
+            + Nuevo conductor
+          </button>
+        )}
       </header>
 
       <section className="module-toolbar">
@@ -596,7 +598,7 @@ function ConductoresPage() {
                   <th>Manejo Comentado</th>
                   <th>Telegram</th>
                   <th>Estado</th>
-                  <th>Acciones</th>
+                  {(!user || user.rol === "ADMINISTRADOR") && <th>Acciones</th>}
                 </tr>
               </thead>
 
@@ -696,32 +698,34 @@ function ConductoresPage() {
                         </span>
                       </td>
 
-                      <td>
-                        <button
-                          type="button"
-                          className={
-                            conductor.activo
-                              ? "danger-button"
-                              : "reactivate-button"
-                          }
-                          disabled={
-                            updatingId ===
+                      {(!user || user.rol === "ADMINISTRADOR") && (
+                        <td>
+                          <button
+                            type="button"
+                            className={
+                              conductor.activo
+                                ? "danger-button"
+                                : "reactivate-button"
+                            }
+                            disabled={
+                              updatingId ===
+                              conductor.id_conductores
+                            }
+                            onClick={() =>
+                              handleStatusChange(
+                                conductor
+                              )
+                            }
+                          >
+                            {updatingId ===
                             conductor.id_conductores
-                          }
-                          onClick={() =>
-                            handleStatusChange(
-                              conductor
-                            )
-                          }
-                        >
-                          {updatingId ===
-                          conductor.id_conductores
-                            ? "Actualizando..."
-                            : conductor.activo
-                              ? "Eliminar"
-                              : "Eliminar"}
-                        </button>
-                      </td>
+                              ? "Actualizando..."
+                              : conductor.activo
+                                ? "Eliminar"
+                                : "Eliminar"}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 )}
