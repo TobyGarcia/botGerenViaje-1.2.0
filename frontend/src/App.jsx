@@ -24,6 +24,7 @@ import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import {
   captureAndQueueLocation,
+  captureIntermediatePoint,
   setTrackingStatusListener,
   startTracking,
   stopTracking,
@@ -595,6 +596,27 @@ function handleStopGps() {
   stopTracking({ clearState: false });
   setTrackingGps(false);
   setGpsStatus("GPS detenido.");
+}
+
+const [savingIntermediatePoint, setSavingIntermediatePoint] = useState(false);
+
+async function handleAddIntermediatePoint() {
+  const idViaje = startedTrip?.idViaje ?? startedTrip?.id_viajes;
+  if (!idViaje) return;
+  const note = window.prompt("Ingresa un nombre o motivo del punto intermedio (ej. Parada técnica, Gasolinera, Descanso):", "Parada técnica");
+  if (note === null) return;
+  setSavingIntermediatePoint(true);
+  setMessage("");
+  try {
+    await captureIntermediatePoint(idViaje, note || "Punto Intermedio");
+    setMessage("📍 Punto intermedio registrado con éxito.");
+    setMessageType("success");
+  } catch (err) {
+    setMessage(err.message || "Error al registrar el punto intermedio.");
+    setMessageType("error");
+  } finally {
+    setSavingIntermediatePoint(false);
+  }
 }
 
   async function handleFinishTrip(event) {
@@ -1542,13 +1564,25 @@ function handleStopGps() {
   <p><strong>Longitud:</strong> {Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</p>
   <p><strong>Pendientes:</strong> {trackingInfo.pending ?? 0}</p>
   <p><strong>Conexión:</strong> {trackingInfo.connection}</p>
-  <button
-    type="button"
-    className="gps-button"
-    onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
-  >
-    Reintentar sincronización
-  </button>
+  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "12px 0" }}>
+    <button
+      type="button"
+      className="gps-button"
+      onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
+    >
+      Reintentar sincronización
+    </button>
+
+    <button
+      type="button"
+      className="primary-button"
+      style={{ backgroundColor: "#dc2626", borderColor: "#b91c1c", color: "#ffffff", padding: "8px 14px", fontWeight: "bold" }}
+      onClick={handleAddIntermediatePoint}
+      disabled={savingIntermediatePoint}
+    >
+      {savingIntermediatePoint ? "Guardando punto..." : "📍 Añadir Punto Intermedio"}
+    </button>
+  </div>
   <form className="finish-trip-form" onSubmit={handleFinishTrip}>
       <h3>Finalizar viaje</h3>
 

@@ -15,6 +15,8 @@
 \ir ../migrations/013_sharepoint_y_tenant_auth.sql
 \ir ../migrations/014_manejo_comentado.sql
 \ir ../migrations/015_supervisor_telegram_group_nullable.sql
+\ir ../migrations/016_puntos_intermedios_viaje.sql
+
 
 
 

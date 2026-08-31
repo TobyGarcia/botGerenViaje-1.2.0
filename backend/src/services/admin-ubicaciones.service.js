@@ -166,6 +166,8 @@ export async function getAdminTripLocationDetail(idViaje, idConductor = null) {
         uv.velocidad,
         uv.direccion,
         uv.fecha_gps,
+        uv.es_punto_intermedio,
+        uv.nombre_punto,
         uv.creado_en
       FROM ubicaciones_viaje uv
       WHERE uv.id_viajes = $1

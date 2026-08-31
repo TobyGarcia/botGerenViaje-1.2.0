@@ -41,13 +41,13 @@ export async function syncPendingLocations(idViaje) {
   finally { syncPromise = null; }
 }
 
-export async function captureAndQueueLocation(idViaje) {
+export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
     const location = await getCurrentLocation();
-    const pendingLocation = { ...location, clientLocationId: crypto.randomUUID(), idViaje: Number(idViaje) };
+    const pendingLocation = { ...location, ...extraData, clientLocationId: crypto.randomUUID(), idViaje: Number(idViaje) };
     await savePendingLocation(pendingLocation);
     await notifyPending(idViaje, {
-      status: "Ubicación capturada",
+      status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
       lastCapture: pendingLocation.fechaGps,
       latitude: pendingLocation.latitud,
       longitude: pendingLocation.longitud
@@ -55,6 +55,13 @@ export async function captureAndQueueLocation(idViaje) {
     await syncPendingLocations(idViaje);
     return pendingLocation;
   } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
+}
+
+export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio") {
+  return captureAndQueueLocation(idViaje, {
+    esPuntoIntermedio: true,
+    nombrePunto: nombrePunto || "Punto Intermedio"
+  });
 }
 
 export async function startTracking(idViaje) {

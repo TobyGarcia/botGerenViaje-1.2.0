@@ -96,6 +96,13 @@ export function registrarUbicacionesLote(idViaje, ubicaciones) {
     body: JSON.stringify({ ubicaciones })
   });
 }
+
+export function registrarPuntoIntermedio(idViaje, data) {
+  return request(`/api/viajes/${idViaje}/punto-intermedio`, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
 export function finalizarViaje(
   idViaje,
   kilometrajeFinal

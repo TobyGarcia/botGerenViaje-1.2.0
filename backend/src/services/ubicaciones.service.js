@@ -7,7 +7,9 @@ export async function saveTripLocation({
   accuracy,
   speed,
   heading,
-  gpsTimestamp
+  gpsTimestamp,
+  esPuntoIntermedio = false,
+  nombrePunto = null
 }) {
   const client = await databasePool.connect();
 
@@ -55,7 +57,9 @@ export async function saveTripLocation({
           precision_metros,
           velocidad,
           direccion,
-          fecha_gps
+          fecha_gps,
+          es_punto_intermedio,
+          nombre_punto
         )
         VALUES (
           $1,
@@ -64,7 +68,9 @@ export async function saveTripLocation({
           $4,
           $5,
           $6,
-          $7
+          $7,
+          $8,
+          $9
         )
         RETURNING
           id_ubicaciones_viaje,
@@ -75,6 +81,8 @@ export async function saveTripLocation({
           velocidad,
           direccion,
           fecha_gps,
+          es_punto_intermedio,
+          nombre_punto,
           creado_en
       `,
       [
@@ -84,7 +92,9 @@ export async function saveTripLocation({
         accuracy,
         speed,
         heading,
-        gpsTimestamp
+        gpsTimestamp,
+        Boolean(esPuntoIntermedio),
+        nombrePunto ? String(nombrePunto).trim().slice(0, 150) : null
       ]
     );
 
@@ -100,6 +110,48 @@ export async function saveTripLocation({
   } finally {
     client.release();
   }
+}
+
+export async function saveIntermediatePoint({
+  idViaje,
+  idConductor,
+  latitude,
+  longitude,
+  accuracy = null,
+  speed = null,
+  heading = null,
+  gpsTimestamp = new Date(),
+  nombrePunto = "Punto Intermedio"
+}) {
+  const client = await databasePool.connect();
+  try {
+    const tripRes = await client.query(
+      `SELECT v.id_viajes, v.id_conductores, ev.nombre AS estado FROM viajes v INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje WHERE v.id_viajes = $1 LIMIT 1`,
+      [idViaje]
+    );
+    const trip = tripRes.rows[0];
+    if (!trip) throw new Error("El viaje no existe.");
+    if (idConductor && Number(trip.id_conductores) !== Number(idConductor)) {
+      throw new Error("El viaje no pertenece al conductor autenticado.");
+    }
+    if (trip.estado !== "EN_CURSO") {
+      throw new Error("Solo se pueden registrar puntos intermedios en viajes en curso.");
+    }
+  } finally {
+    client.release();
+  }
+
+  return saveTripLocation({
+    idViaje,
+    latitude,
+    longitude,
+    accuracy,
+    speed,
+    heading,
+    gpsTimestamp,
+    esPuntoIntermedio: true,
+    nombrePunto: nombrePunto || "Punto Intermedio"
+  });
 }
 
 export async function saveTripLocationBatch({
@@ -172,9 +224,11 @@ export async function saveTripLocationBatch({
             precision_metros,
             velocidad,
             direccion,
-            fecha_gps
+            fecha_gps,
+            es_punto_intermedio,
+            nombre_punto
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (id_viajes, client_location_id)
             WHERE client_location_id IS NOT NULL
             DO NOTHING
@@ -188,7 +242,9 @@ export async function saveTripLocationBatch({
           location.precisionMetros,
           location.velocidad,
           location.direccion,
-          location.fechaGps
+          location.fechaGps,
+          Boolean(location.esPuntoIntermedio || location.es_punto_intermedio),
+          location.nombrePunto || location.nombre_punto || null
         ]
       );
 

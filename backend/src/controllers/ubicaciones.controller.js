@@ -216,14 +216,83 @@ export async function registerTripLocationController(
   }
 }
 
+export async function registerIntermediatePointController(request, response) {
+  try {
+    const idViaje = parsePositiveInteger(request.params.idViaje);
+    if (!idViaje) {
+      return response.status(400).json({ success: false, message: "El identificador del viaje no es válido." });
+    }
+
+    const latitude = Number(request.body.latitude || request.body.latitud);
+    const longitude = Number(request.body.longitude || request.body.longitud);
+    const accuracy = parseNullableNumber(request.body.accuracy || request.body.precision_metros);
+    const speed = parseNullableNumber(request.body.speed || request.body.velocidad);
+    const heading = parseNullableNumber(request.body.heading || request.body.direccion);
+    const nombrePunto = request.body.nombrePunto || request.body.nombre_punto || "Punto Intermedio";
+    const gpsTimestamp = request.body.gpsTimestamp ? new Date(request.body.gpsTimestamp) : new Date();
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      return response.status(400).json({ success: false, message: "La latitud no es válida." });
+    }
+
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return response.status(400).json({ success: false, message: "La longitud no es válida." });
+    }
+
+    if (latitude === 0 && longitude === 0) {
+      return response.status(400).json({ success: false, message: "La ubicación GPS no contiene coordenadas válidas." });
+    }
+
+    const location = await saveTripLocation({
+      idViaje,
+      latitude,
+      longitude,
+      accuracy,
+      speed,
+      heading,
+      gpsTimestamp,
+      esPuntoIntermedio: true,
+      nombrePunto
+    });
+
+    return response.status(201).json({
+      success: true,
+      message: "Punto intermedio registrado exitosamente.",
+      data: {
+        idUbicacion: location.id_ubicaciones_viaje,
+        idViaje: location.id_viajes,
+        folio: location.folio,
+        latitude: location.latitud,
+        longitude: location.longitud,
+        accuracy: location.precision_metros,
+        speed: location.velocidad,
+        heading: location.direccion,
+        gpsTimestamp: location.fecha_gps,
+        esPuntoIntermedio: true,
+        nombrePunto: location.nombre_punto,
+        serverTimestamp: location.creado_en
+      }
+    });
+  } catch (error) {
+    console.error("Error registrando punto intermedio:", error);
+    const statusCode = error.message === "El viaje no existe." ? 404 : error.message.includes("No se pueden registrar") ? 409 : 500;
+    return response.status(statusCode).json({
+      success: false,
+      message: error.message || "No fue posible registrar el punto intermedio."
+    });
+  }
+}
+
 function normalizeBatchLocation(location) {
   const latitud = Number(location?.latitud);
   const longitud = Number(location?.longitud);
-  const precisionMetros = parseNullableNumber(location?.precisionMetros);
+  const precisionMetros = parseNullableNumber(location?.precisionMetros ?? location?.precision_metros);
   const velocidad = parseNullableNumber(location?.velocidad);
   const direccion = parseNullableNumber(location?.direccion);
-  const fechaGps = new Date(location?.fechaGps);
+  const fechaGps = new Date(location?.fechaGps ?? location?.fecha_gps);
   const clientLocationId = String(location?.clientLocationId || "");
+  const esPuntoIntermedio = Boolean(location?.esPuntoIntermedio || location?.es_punto_intermedio);
+  const nombrePunto = location?.nombrePunto || location?.nombre_punto || null;
 
   if (!UUID_PATTERN.test(clientLocationId)) {
     return { valid: false, reason: "clientLocationId no es válido." };
@@ -266,7 +335,9 @@ function normalizeBatchLocation(location) {
       precisionMetros,
       velocidad,
       direccion,
-      fechaGps
+      fechaGps,
+      esPuntoIntermedio,
+      nombrePunto
     }
   };
 }

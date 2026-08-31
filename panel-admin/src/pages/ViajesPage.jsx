@@ -989,17 +989,21 @@ function ViajesPage({ user }) {
                       longitud: location.longitud,
                       fechaGps: location.fecha_gps,
                       precisionMetros: location.precision_metros,
-                      velocidad: location.velocidad
+                      velocidad: location.velocidad,
+                      esPuntoIntermedio: location.es_punto_intermedio,
+                      nombrePunto: location.nombre_punto
                     }))} />
                   </div>
                 </section>
 
                 <footer className="trip-detail-footer">
                   <span>
-                    {
-                      selectedLocations.length
-                    }{" "}
-                    ubicaciones GPS relacionadas
+                    {selectedLocations.length} ubicaciones GPS relacionadas
+                    {selectedLocations.filter(l => l.es_punto_intermedio).length > 0 && (
+                      <strong style={{ color: "#dc2626", marginLeft: "8px" }}>
+                        (🔴 {selectedLocations.filter(l => l.es_punto_intermedio).length} punto(s) intermedio(s))
+                      </strong>
+                    )}
                   </span>
 
                   <button

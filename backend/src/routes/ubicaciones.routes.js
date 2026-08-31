@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  registerIntermediatePointController,
   registerTripLocationBatchController,
   registerTripLocationController
 } from "../controllers/ubicaciones.controller.js";
@@ -12,6 +13,11 @@ const router = Router({
 router.post(
   "/",
   registerTripLocationController
+);
+
+router.post(
+  "/punto-intermedio",
+  registerIntermediatePointController
 );
 
 router.post(

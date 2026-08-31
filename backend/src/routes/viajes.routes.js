@@ -7,6 +7,7 @@ import {
   getTripByIdController,
   startTripController
 } from "../controllers/viajes.controller.js";
+import { registerIntermediatePointController } from "../controllers/ubicaciones.controller.js";
 
 const router = Router();
 
@@ -28,6 +29,11 @@ router.post(
 router.post(
   "/:idViaje/cancelar",
   cancelTripController
+);
+
+router.post(
+  "/:idViaje/punto-intermedio",
+  registerIntermediatePointController
 );
 
 router.get(

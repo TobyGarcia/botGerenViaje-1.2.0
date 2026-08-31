@@ -145,6 +145,11 @@ function TripMap({
             index ===
             validLocations.length - 1;
 
+          const isIntermediate = Boolean(
+            location.esPuntoIntermedio ||
+            location.es_punto_intermedio
+          );
+
           return (
             <CircleMarker
               key={
@@ -162,24 +167,37 @@ function TripMap({
               radius={
                 isFirst || isLast
                   ? 9
-                  : 5
+                  : isIntermediate
+                    ? 8
+                    : 5
               }
-              pathOptions={{
-                weight: 3,
-                fillOpacity:
-                  isFirst || isLast
-                    ? 1
-                    : 0.65
-              }}
+              pathOptions={
+                isIntermediate
+                  ? {
+                      color: "#dc2626",
+                      fillColor: "#dc2626",
+                      weight: 3,
+                      fillOpacity: 0.95
+                    }
+                  : {
+                      weight: 3,
+                      fillOpacity:
+                        isFirst || isLast
+                          ? 1
+                          : 0.65
+                    }
+              }
             >
               <Popup>
                 <div className="map-popup">
-                  <strong>
-                    {isFirst
-                      ? "Inicio del recorrido"
-                      : isLast
-                        ? "Última ubicación"
-                        : `Punto ${index + 1}`}
+                  <strong style={{ color: isIntermediate ? "#dc2626" : "inherit" }}>
+                    {isIntermediate
+                      ? `🔴 Punto Intermedio${location.nombrePunto || location.nombre_punto ? `: ${location.nombrePunto || location.nombre_punto}` : ""}`
+                      : isFirst
+                        ? "Inicio del recorrido"
+                        : isLast
+                          ? "Última ubicación"
+                          : `Punto ${index + 1}`}
                   </strong>
 
                   <span>

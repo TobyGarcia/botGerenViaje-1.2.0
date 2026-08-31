@@ -387,8 +387,12 @@ function UbicacionesPage() {
 
               <footer className="map-footer">
                 <span>
-                  {locations.length} puntos
-                  GPS registrados
+                  {locations.length} puntos GPS registrados
+                  {locations.filter(l => l.es_punto_intermedio).length > 0 && (
+                    <strong style={{ color: "#dc2626", marginLeft: "8px" }}>
+                      (🔴 {locations.filter(l => l.es_punto_intermedio).length} intermedio(s))
+                    </strong>
+                  )}
                 </span>
 
                 {locations.length > 0 && (
