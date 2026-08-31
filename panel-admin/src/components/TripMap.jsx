@@ -8,6 +8,7 @@ import {
   Polyline,
   Popup,
   TileLayer,
+  Tooltip,
   useMap
 } from "react-leaflet";
 
@@ -188,6 +189,13 @@ function TripMap({
                     }
               }
             >
+              {isIntermediate && (
+                <Tooltip permanent direction="top" offset={[0, -8]}>
+                  <span style={{ fontWeight: "bold", color: "#991b1b", fontSize: "0.78rem" }}>
+                    🔴 {location.nombrePunto || location.nombre_punto || "Punto Intermedio"}
+                  </span>
+                </Tooltip>
+              )}
               <Popup>
                 <div className="map-popup">
                   <strong style={{ color: isIntermediate ? "#dc2626" : "inherit" }}>

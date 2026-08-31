@@ -1014,6 +1014,37 @@ function ViajesPage({ user }) {
                     Cerrar
                   </button>
                 </footer>
+
+                {selectedLocations.filter(l => l.es_punto_intermedio).length > 0 && (
+                  <div className="intermediate-points-container" style={{ marginTop: "16px", padding: "16px", background: "#fff5f5", borderRadius: "8px", border: "1px solid #fecaca" }}>
+                    <h4 style={{ margin: "0 0 12px 0", color: "#991b1b", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                      🔴 Puntos Intermedios Registrados ({selectedLocations.filter(l => l.es_punto_intermedio).length})
+                    </h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {selectedLocations.filter(l => l.es_punto_intermedio).map((pt, idx) => (
+                        <div key={pt.id_ubicaciones_viaje || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
+                          <div>
+                            <strong style={{ color: "#dc2626", fontSize: "0.9rem" }}>
+                              🔴 {pt.nombre_punto || `Punto Intermedio ${idx + 1}`}
+                            </strong>
+                            <small style={{ display: "block", color: "#64748b", marginTop: "2px" }}>
+                              {formatDate(pt.fecha_gps)} · Lat: {Number(pt.latitud).toFixed(6)}, Lng: {Number(pt.longitud).toFixed(6)}
+                            </small>
+                          </div>
+                          <a
+                            href={`https://www.google.com/maps?q=${pt.latitud},${pt.longitud}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="secondary-button"
+                            style={{ fontSize: "0.82rem", padding: "6px 12px", textDecoration: "none", whiteSpace: "nowrap" }}
+                          >
+                            🗺️ Abrir en Google Maps
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="table-status">
