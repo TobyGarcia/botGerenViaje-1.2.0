@@ -420,7 +420,7 @@ function UbicacionesPage() {
                             🔴 {pt.nombre_punto || pt.nombrePunto || `Punto Intermedio ${idx + 1}`}
                           </strong>
                           <small style={{ display: "block", color: "#64748b", marginTop: "2px" }}>
-                            {formatDate(pt.fecha_gps || pt.fechaGps)} · Lat: {Number(pt.latitud).toFixed(6)}, Lng: {Number(pt.longitud).toFixed(6)}
+                            {formatDateTime(pt.fecha_gps || pt.fechaGps)} · Lat: {Number(pt.latitud).toFixed(6)}, Lng: {Number(pt.longitud).toFixed(6)}
                           </small>
                         </div>
                         <a
