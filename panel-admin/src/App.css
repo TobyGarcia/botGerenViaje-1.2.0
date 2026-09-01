@@ -3553,5 +3553,38 @@ min-width: 0;
   color: #38bdf8;
 }
 
+/* Tooltip estético para Puntos Intermedios en Leaflet */
+.leaflet-tooltip.custom-intermediate-tooltip {
+  background: #ffffff !important;
+  border: 1px solid #fecaca !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(153, 27, 27, 0.16) !important;
+  padding: 6px 12px !important;
+  font-family: inherit !important;
+}
+
+.leaflet-tooltip.custom-intermediate-tooltip::before {
+  border-top-color: #fecaca !important;
+}
+
+.intermediate-tooltip-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: #991b1b;
+}
+
+.intermediate-tooltip-content strong {
+  font-size: 0.84rem !important;
+  color: #991b1b !important;
+  font-weight: 700 !important;
+}
+
+.dot-red-icon {
+  font-size: 0.8rem;
+}
+
+
 
 

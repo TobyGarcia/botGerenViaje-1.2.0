@@ -65,6 +65,17 @@ function serializeLocation(location) {
         location.direccion
       ),
 
+    esPuntoIntermedio:
+      Boolean(
+        location.es_punto_intermedio ||
+        location.esPuntoIntermedio
+      ),
+
+    nombrePunto:
+      location.nombre_punto ||
+      location.nombrePunto ||
+      null,
+
     fechaGps:
       location.fecha_gps,
 

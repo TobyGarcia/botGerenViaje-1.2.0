@@ -190,9 +190,10 @@ function TripMap({
               }
             >
               {isIntermediate && (
-                <Tooltip permanent direction="top" offset={[0, -8]}>
-                  <span style={{ fontWeight: "bold", color: "#991b1b", fontSize: "0.78rem" }}>
-                    🔴 {location.nombrePunto || location.nombre_punto || "Punto Intermedio"}
+                <Tooltip permanent direction="top" offset={[0, -8]} className="custom-intermediate-tooltip">
+                  <span className="intermediate-tooltip-content">
+                    <span className="dot-red-icon">🔴</span>
+                    <strong>{location.nombrePunto || location.nombre_punto || "Punto Intermedio"}</strong>
                   </span>
                 </Tooltip>
               )}
