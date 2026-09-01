@@ -38,6 +38,7 @@ export async function getAdminDashboardSummary() {
   let ranking_unidades = [];
   let ranking_destinos = [];
   let ranking_conductores = [];
+  let viajes_activos = [];
 
   try {
     const unidadesRes = await databasePool.query(
@@ -110,12 +111,48 @@ export async function getAdminDashboardSummary() {
     console.error("Error consultando ranking de conductores:", err);
   }
 
+  try {
+    const viajesActivosRes = await databasePool.query(
+      `
+        SELECT
+          v.id_viajes,
+          v.folio,
+          v.fecha,
+          v.hora_salida,
+          v.motivo,
+          COALESCE(c.nombre, v.conductor_nombre_historico, 'Conductor no asignado') AS conductor,
+          COALESCE(c.telefono, '') AS conductor_telefono,
+          COALESCE(vh.nombre, v.vehiculo_nombre_historico, 'Unidad sin asignación') AS vehiculo,
+          COALESCE(vh.numero_economico, v.vehiculo_numero_economico_historico, 'N/A') AS numero_economico,
+          COALESCE(vh.placas, v.vehiculo_placas_historico, 'N/A') AS placas,
+          origen.nombre AS origen,
+          destino.nombre AS destino,
+          UPPER(ev.nombre) AS estado
+        FROM viajes v
+        LEFT JOIN conductores c ON c.id_conductores = v.id_conductores
+        LEFT JOIN vehiculos vh ON vh.id_vehiculos = v.id_vehiculos
+        INNER JOIN lugares origen ON origen.id_lugares = v.id_origen
+        INNER JOIN lugares destino ON destino.id_lugares = v.id_destino
+        INNER JOIN estados_viaje ev ON ev.id_estado_viaje = v.id_estado_viaje
+        WHERE UPPER(ev.nombre) IN ('EN_CURSO', 'PENDIENTE')
+        ORDER BY
+          CASE WHEN UPPER(ev.nombre) = 'EN_CURSO' THEN 1 ELSE 2 END,
+          v.fecha DESC,
+          v.creado_en DESC
+      `
+    );
+    viajes_activos = viajesActivosRes.rows;
+  } catch (err) {
+    console.error("Error consultando viajes activos para resumen:", err);
+  }
+
   return {
     ...summaryResult.rows[0],
     actividad: activityResult.rows,
     ranking_unidades,
     ranking_destinos,
-    ranking_conductores
+    ranking_conductores,
+    viajes_activos
   };
 }
 

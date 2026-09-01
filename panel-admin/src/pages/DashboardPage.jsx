@@ -109,6 +109,7 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
         rankingUnidades={summary.ranking_unidades}
         rankingDestinos={summary.ranking_destinos}
         rankingConductores={summary.ranking_conductores}
+        viajesActivos={summary.viajes_activos}
       />
 
       <ActivityHeatmapCard actividad={summary.actividad} />
@@ -319,9 +320,10 @@ function ActivityHeatmapCard({ actividad = [] }) {
   );
 }
 
-function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingConductores = [] }) {
-  const [rankingTab, setRankingTab] = useState("unidades");
+function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingConductores = [], viajesActivos = [] }) {
+  const [rankingTab, setRankingTab] = useState("activos");
 
+  const isActivos = rankingTab === "activos";
   const isUnidades = rankingTab === "unidades";
   const isDestinos = rankingTab === "destinos";
   const isConductores = rankingTab === "conductores";
@@ -335,15 +337,31 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
     ...list.map((item) => Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas))
   );
 
+  const totalEnCurso = viajesActivos.filter((v) => v.estado === "EN_CURSO").length;
+  const totalPendientes = viajesActivos.filter((v) => v.estado === "PENDIENTE").length;
+
   return (
     <section className="ranking-card">
       <div className="ranking-header">
         <div>
-          <h2>🏆 Ranking de Viajes</h2>
-          <p>Métricas acumuladas por vehículos más utilizados, destinos con mayor frecuencia y top conductores (viajes finalizados).</p>
+          <h2>
+            {isActivos ? "🚦 Estatus y Analítica de Viajes Activos" : "🏆 Ranking de Viajes"}
+          </h2>
+          <p>
+            {isActivos
+              ? "Monitoreo en tiempo real de viajes en curso y pendientes. Al ser cancelados o finalizados se retiran automáticamente de la lista."
+              : "Métricas acumuladas por vehículos más utilizados, destinos con mayor frecuencia y top conductores (viajes finalizados)."}
+          </p>
         </div>
 
         <div className="ranking-segmented-control">
+          <button
+            type="button"
+            className={`ranking-tab-btn ${isActivos ? "active" : ""}`}
+            onClick={() => setRankingTab("activos")}
+          >
+            🟢 Viajes Activos ({viajesActivos.length})
+          </button>
           <button
             type="button"
             className={`ranking-tab-btn ${isUnidades ? "active" : ""}`}
@@ -368,7 +386,78 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
         </div>
       </div>
 
-      {list.length === 0 ? (
+      {isActivos ? (
+        viajesActivos.length === 0 ? (
+          <div className="ranking-empty">
+            <p>🟢 No hay viajes en curso ni pendientes en este momento.</p>
+            <small style={{ color: "#607986", display: "block", marginTop: "4px" }}>
+              Los viajes finalizados o cancelados se retiran automáticamente de esta lista.
+            </small>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "flex", gap: "16px", marginBottom: "14px", fontSize: "0.88rem", fontWeight: "600" }}>
+              <span style={{ color: "#15803d", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span className="status-dot dot-green-blinking" /> {totalEnCurso} {totalEnCurso === 1 ? "viaje en curso" : "viajes en curso"}
+              </span>
+              <span style={{ color: "#a16207", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span className="status-dot dot-yellow-fixed" /> {totalPendientes} {totalPendientes === 1 ? "viaje pendiente" : "viajes pendientes"}
+              </span>
+            </div>
+
+            <div className="ranking-list">
+              {viajesActivos.map((item, index) => {
+                const isEnCurso = item.estado === "EN_CURSO";
+                return (
+                  <div key={item.id_viajes || index} className="ranking-row active-trip-row">
+                    <div className="status-indicator-badge">
+                      {isEnCurso ? (
+                        <span className="status-pill status-en-curso">
+                          <span className="status-dot dot-green-blinking" />
+                          En curso
+                        </span>
+                      ) : (
+                        <span className="status-pill status-pendiente">
+                          <span className="status-dot dot-yellow-fixed" />
+                          Pendiente
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="ranking-info">
+                      <div className="ranking-title-area">
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <strong className="ranking-item-name">{item.conductor}</strong>
+                          {item.folio && <span className="folio-chip">{item.folio}</span>}
+                        </div>
+                        <span className="ranking-sub-info">
+                          Unidad: <strong>{item.vehiculo}</strong> ({item.numero_economico !== "N/A" ? `Eco: ${item.numero_economico}` : ""}) • Placas: <strong>{item.placas}</strong>
+                        </span>
+                      </div>
+
+                      <div className="active-trip-details">
+                        <span className="active-trip-route">
+                          📍 <strong>{item.origen}</strong> ➔ 🏁 <strong>{item.destino}</strong>
+                        </span>
+                        {item.hora_salida && (
+                          <span className="active-trip-time">
+                            🕒 Salida: <strong>{item.hora_salida}</strong> {item.fecha ? `(${String(item.fecha).split("T")[0]})` : ""}
+                          </span>
+                        )}
+                        {item.motivo && (
+                          <span className="active-trip-motivo">
+                            📝 <em>{item.motivo}</em>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
+      ) : list.length === 0 ? (
         <div className="ranking-empty">
           <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
