@@ -946,6 +946,116 @@
   background-color: #eab308;
 }
 
+/* Tarjeta KPI 6: Viajes Activos mini lista */
+.active-trips-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: hidden;
+  max-height: 220px;
+  border-left: 4px solid #22c55e !important;
+}
+
+.active-trips-card-header span {
+  font-size: 0.88rem;
+  color: #607986;
+  font-weight: 600;
+  display: block;
+}
+
+.active-trips-empty-text {
+  padding: 12px 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.active-trips-mini-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 125px;
+  padding-right: 4px;
+}
+
+.active-trips-mini-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.active-trips-mini-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.active-trips-mini-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  display: grid;
+  gap: 4px;
+  transition: background 0.2s ease;
+}
+
+.active-trips-mini-item:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.active-trips-mini-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-trips-mini-driver {
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.active-trips-mini-status-text {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.active-trips-mini-status-text.en-curso {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.active-trips-mini-status-text.pendiente {
+  color: #a16207;
+  background: rgba(234, 179, 8, 0.18);
+}
+
+.active-trips-mini-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #475569;
+  font-size: 0.76rem;
+  gap: 6px;
+}
+
+.active-trips-mini-unit {
+  color: #64748b;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
 .folio-chip {
   background: #e2e8f0;
   color: #334155;
