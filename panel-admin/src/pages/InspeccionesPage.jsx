@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { decidirAdminInspeccion, descargarAdminInspeccionPdf, getAdminInspeccionDetalle, getAdminInspeccionPdfPreviewUrl, getAdminInspecciones } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
+import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 
 function formatDate(value) { return value ? new Date(value).toLocaleString("es-MX") : "—"; }
 
@@ -16,7 +17,8 @@ function ApprovalSignature({ onChange }) {
   return <section className="approval-signature"><label><span>Firma de aprobación</span><canvas ref={canvasRef} width="640" height="220" aria-label="Firma de aprobación" onPointerDown={start} onPointerMove={draw} onPointerUp={stop} onPointerLeave={stop}/></label><div><button type="button" className="secondary-button" disabled={!hasSignature} onClick={clear}>Limpiar firma</button><small>{hasSignature ? "Firma capturada." : "La firma es obligatoria para aprobar."}</small></div></section>;
 }
 
-export default function InspeccionesPage({ onPendingChange }) {
+export default function InspeccionesPage({ user, onPendingChange }) {
+  const [activeTab, setActiveTab] = useState("inspecciones"); // "inspecciones" | "gerenciamiento"
   const [rows, setRows] = useState([]); const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
   const [comment, setComment] = useState(""); const [signature, setSignature] = useState(""); const [message, setMessage] = useState("");
@@ -35,9 +37,57 @@ export default function InspeccionesPage({ onPendingChange }) {
     try { const response=await decidirAdminInspeccion(detail.id_inspeccion,aprobada,comment,signature); setMessage(response.message); setDetail({...detail,...response.data}); await load(); }
     catch(error){setMessage(error.message);} finally{setSaving(false);}
   }
-  return <section className="module-page"><header className="module-header"><div><span className="module-label">Logística</span><h1>Inspecciones vehiculares</h1><p>Revisa y aprueba el chequeo diario antes del primer viaje.</p></div></header>
-    {message&&<p className="module-message">{message}</p>}
-    <section className="table-panel">{loading?<p className="table-status">Cargando inspecciones...</p>:<div className="table-wrapper"><table className="admin-table"><thead><tr><th>Folio</th><th>Unidad</th><th>Conductor</th><th>Enviado</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{rows.map(row=><tr key={row.id_inspeccion}><td>{row.folio}{row.es_dia_siguiente && <small style={{ display: "block", color: "#2563eb", fontWeight: "600" }}>🌙 Día Siguiente ({row.fecha_operativa})</small>}</td><td>{row.vehiculo}<small>{row.numero_economico}</small></td><td>{row.conductor}</td><td>{formatDate(row.creado_en)}</td><td><span className={`inspection-status inspection-status-${row.estado.toLowerCase()}`}>{row.estado.replaceAll("_"," ")}</span></td><td><button className="secondary-button" onClick={()=>open(row)}>Ver revisión</button>{row.estado==="APROBADA"&&<button className="secondary-button" onClick={()=>descargarAdminInspeccionPdf(row.id_inspeccion)}>PDF</button>}</td></tr>)}</tbody></table></div>}</section>
-    {detail&&<div className="modal-overlay" onMouseDown={closeDetail}><section className="modal-card inspection-detail-modal" onMouseDown={e=>e.stopPropagation()}><div className="form-panel-header"><div><h2>Inspección {detail.folio}</h2><p>{detail.vehiculo} · {detail.numero_economico}</p></div><button className="close-button" onClick={closeDetail}>×</button></div><div className="inspection-detail-grid"><p><strong>Programación:</strong> {detail.es_dia_siguiente ? `🌙 Día Siguiente (${detail.fecha_operativa})` : `Día Actual (${detail.fecha_operativa})`}</p><p><strong>Conductor:</strong> {detail.conductor}</p><p><strong>Combustible:</strong> {detail.combustible}</p><p><strong>Asignación:</strong> {detail.tipo_asignacion}</p><p><strong>Fuera de horario:</strong> {detail.requiere_autorizacion_fuera_horario?"Sí":"No"}</p><p><strong>Póliza:</strong> {detail.numero_poliza||"Sin registro"}</p><p><strong>Serie:</strong> {detail.numero_serie||"Sin registro"}</p></div><DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/><h3>Checklist</h3><div className="table-wrapper checklist-table-wrapper"><table className="admin-table checklist-table"><thead><tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr></thead><tbody>{Object.entries(detail.checklist||{}).map(([item,state])=><tr key={item}><td>{item}</td><td style={{ textAlign: "center" }}><span className={`checklist-badge checklist-badge-${state==="B"?"good":state==="R"?"regular":state==="M"?"bad":"na"}`}>{state}</span></td></tr>)}</tbody></table></div><h3>Observaciones</h3><p>{detail.observaciones_conductor||"Sin observaciones."}</p>{detail.firma_conductor&&<img className="admin-signature" src={detail.firma_conductor} alt="Firma del conductor"/>}{detail.estado==="PENDIENTE_APROBACION"?<div className="inspection-decision-panel"><div className="inspection-decision-section"><button type="button" className="secondary-button inspection-preview-button" onClick={openPreview}>🔍 Abrir vista previa PDF en nueva pestaña</button></div><div className="inspection-decision-section"><label className="inspection-comment-field"><span>Comentario de aprobación</span><textarea rows="3" value={comment} onChange={e=>setComment(e.target.value)} placeholder="Escribe una observación para el conductor (opcional)"/></label></div><div className="inspection-decision-section"><ApprovalSignature onChange={setSignature}/></div><div className="inspection-decision-section form-actions inspection-decision-actions"><button type="button" className="danger-button" disabled={saving} onClick={()=>decide(false)}>Rechazar</button><button type="button" className="primary-button" disabled={saving||!signature} onClick={()=>decide(true)}>Aprobar y generar PDF</button></div></div>:detail.estado==="APROBADA"&&<button type="button" className="primary-button" onClick={()=>descargarAdminInspeccionPdf(detail.id_inspeccion)}>Descargar reporte PDF</button>}</section></div>}
+  return <section className="module-page">
+    <header className="module-header">
+      <div>
+        <span className="module-label">Logística</span>
+        <h1>Inspecciones y Gerenciamientos</h1>
+        <p>Revisa las inspecciones vehiculares diarias y los gerenciamientos de viajes fuera de la ciudad.</p>
+      </div>
+    </header>
+
+    {/* Sub-pestañas */}
+    <div style={{ display: "flex", gap: "10px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px" }}>
+      <button
+        type="button"
+        onClick={() => setActiveTab("inspecciones")}
+        style={{
+          padding: "10px 20px",
+          borderRadius: "8px",
+          border: 0,
+          fontWeight: "bold",
+          cursor: "pointer",
+          background: activeTab === "inspecciones" ? "#0f172a" : "#f1f5f9",
+          color: activeTab === "inspecciones" ? "#ffffff" : "#475569"
+        }}
+      >
+        🔍 Inspecciones Vehiculares
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab("gerenciamiento")}
+        style={{
+          padding: "10px 20px",
+          borderRadius: "8px",
+          border: 0,
+          fontWeight: "bold",
+          cursor: "pointer",
+          background: activeTab === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "#f1f5f9",
+          color: activeTab === "gerenciamiento" ? "#ffffff" : "#475569"
+        }}
+      >
+        🗺️ Gerenciamiento de Viajes
+      </button>
+    </div>
+
+    {activeTab === "gerenciamiento" ? (
+      <GerenciamientoAdminPage user={user} />
+    ) : (
+      <>
+        {message&&<p className="module-message">{message}</p>}
+        <section className="table-panel">{loading?<p className="table-status">Cargando inspecciones...</p>:<div className="table-wrapper"><table className="admin-table"><thead><tr><th>Folio</th><th>Unidad</th><th>Conductor</th><th>Enviado</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{rows.map(row=><tr key={row.id_inspeccion}><td>{row.folio}{row.es_dia_siguiente && <small style={{ display: "block", color: "#2563eb", fontWeight: "600" }}>🌙 Día Siguiente ({row.fecha_operativa})</small>}</td><td>{row.vehiculo}<small>{row.numero_economico}</small></td><td>{row.conductor}</td><td>{formatDate(row.creado_en)}</td><td><span className={`inspection-status inspection-status-${row.estado.toLowerCase()}`}>{row.estado.replaceAll("_"," ")}</span></td><td><button className="secondary-button" onClick={()=>open(row)}>Ver revisión</button>{row.estado==="APROBADA"&&<button className="secondary-button" onClick={()=>descargarAdminInspeccionPdf(row.id_inspeccion)}>PDF</button>}</td></tr>)}</tbody></table></div>}</section>
+        {detail&&<div className="modal-overlay" onMouseDown={closeDetail}><section className="modal-card inspection-detail-modal" onMouseDown={e=>e.stopPropagation()}><div className="form-panel-header"><div><h2>Inspección {detail.folio}</h2><p>{detail.vehiculo} · {detail.numero_economico}</p></div><button className="close-button" onClick={closeDetail}>×</button></div><div className="inspection-detail-grid"><p><strong>Programación:</strong> {detail.es_dia_siguiente ? `🌙 Día Siguiente (${detail.fecha_operativa})` : `Día Actual (${detail.fecha_operativa})`}</p><p><strong>Conductor:</strong> {detail.conductor}</p><p><strong>Combustible:</strong> {detail.combustible}</p><p><strong>Asignación:</strong> {detail.tipo_asignacion}</p><p><strong>Fuera de horario:</strong> {detail.requiere_autorizacion_fuera_horario?"Sí":"No"}</p><p><strong>Póliza:</strong> {detail.numero_poliza||"Sin registro"}</p><p><strong>Serie:</strong> {detail.numero_serie||"Sin registro"}</p></div><DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/><h3>Checklist</h3><div className="table-wrapper checklist-table-wrapper"><table className="admin-table checklist-table"><thead><tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr></thead><tbody>{Object.entries(detail.checklist||{}).map(([item,state])=><tr key={item}><td>{item}</td><td style={{ textAlign: "center" }}><span className={`checklist-badge checklist-badge-${state==="B"?"good":state==="R"?"regular":state==="M"?"bad":"na"}`}>{state}</span></td></tr>)}</tbody></table></div><h3>Observaciones</h3><p>{detail.observaciones_conductor||"Sin observaciones."}</p>{detail.firma_conductor&&<img className="admin-signature" src={detail.firma_conductor} alt="Firma del conductor"/>}{detail.estado==="PENDIENTE_APROBACION"?<div className="inspection-decision-panel"><div className="inspection-decision-section"><button type="button" className="secondary-button inspection-preview-button" onClick={openPreview}>🔍 Abrir vista previa PDF en nueva pestaña</button></div><div className="inspection-decision-section"><label className="inspection-comment-field"><span>Comentario de aprobación</span><textarea rows="3" value={comment} onChange={e=>setComment(e.target.value)} placeholder="Escribe una observación para el conductor (opcional)"/></label></div><div className="inspection-decision-section"><ApprovalSignature onChange={setSignature}/></div><div className="inspection-decision-section form-actions inspection-decision-actions"><button type="button" className="danger-button" disabled={saving} onClick={()=>decide(false)}>Rechazar</button><button type="button" className="primary-button" disabled={saving||!signature} onClick={()=>decide(true)}>Aprobar y generar PDF</button></div></div>:detail.estado==="APROBADA"&&<button type="button" className="primary-button" onClick={()=>descargarAdminInspeccionPdf(detail.id_inspeccion)}>Descargar reporte PDF</button>}</section></div>}
+      </>
+    )}
   </section>;
 }

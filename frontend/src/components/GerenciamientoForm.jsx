@@ -321,11 +321,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       <header className="official-doc-header" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "2px solid #0f172a", marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0f172a", paddingBottom: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <img src={logoAQR} alt="Logo Itzamná / AQUARIO" style={{ height: "46px", objectFit: "contain" }} />
-            <div>
-              <h2 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: "900" }}>Itzamná Oil & Gas</h2>
-              <small style={{ color: "#475569", fontWeight: "bold" }}>Servicios Industriales y de Ingeniería Itzamná</small>
-            </div>
+            <img src={logoAQR} alt="Logo AQUARIO" style={{ height: "52px", objectFit: "contain" }} />
           </div>
           <div style={{ textAlign: "right", fontSize: "0.78rem", color: "#334155", lineHeight: "1.4" }}>
             <div><strong>Emisión:</strong> Noviembre 2023</div>

@@ -179,7 +179,7 @@ export default function GerenciamientoAdminPage({ user }) {
           <div style={{ background: "#ffffff", borderRadius: "12px", maxWidth: "800px", width: "100%", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0f172a", paddingBottom: "10px", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <img src={logoAQR} alt="Logo Itzamná / AQUARIO" style={{ height: "40px", objectFit: "contain" }} />
+                <img src={logoAQR} alt="Logo AQUARIO" style={{ height: "44px", objectFit: "contain" }} />
                 <h2 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a" }}>Documento de Gerenciamiento Vehicular {selectedDoc.folio_documento}</h2>
               </div>
               <button onClick={() => setSelectedDoc(null)} style={{ background: "transparent", border: 0, fontSize: "1.4rem", cursor: "pointer" }}>✕</button>

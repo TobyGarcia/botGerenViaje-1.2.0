@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { asignarVehiculoSupervisor, decidirSupervisorInspeccion, getSupervisorAsignaciones, getSupervisorInspeccion, getSupervisorInspecciones, ingresarCorreoSupervisor } from "../services/api.js";
+import {
+  asignarVehiculoSupervisor,
+  decidirSupervisorInspeccion,
+  getSupervisorAsignaciones,
+  getSupervisorInspeccion,
+  getSupervisorInspecciones,
+  ingresarCorreoSupervisor,
+  listGerenciamientosViaje,
+  aprobarGerenciamientoViaje
+} from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
+import logoAQR from "../assets/logoAQR.webp";
 
 function Signature({ onSave }) {
   const ref = useRef(null); const drawing = useRef(false); const [ink, setInk] = useState(false); const [open, setOpen] = useState(false);
@@ -15,7 +25,7 @@ function Signature({ onSave }) {
 export default function SupervisorPortal({ access, onAccessChanged }) {
   const [tenantEmail, setTenantEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("inspecciones"); // "inspecciones" | "asignaciones"
+  const [activeTab, setActiveTab] = useState("inspecciones"); // "inspecciones" | "gerenciamiento" | "asignaciones"
 
   // Inspecciones state
   const [items, setItems] = useState([]);
@@ -24,6 +34,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [signature, setSignature] = useState("");
   const [comment, setComment] = useState("");
+
+  // Gerenciamiento state
+  const [gerenciamientos, setGerenciamientos] = useState([]);
+  const [gerenciamientoDetail, setGerenciamientoDetail] = useState(null);
+  const [autorizadorNombre, setAutorizadorNombre] = useState(access.supervisorNombre || "Supervisor");
 
   // Asignaciones state
   const [conductores, setConductores] = useState([]);
@@ -35,6 +50,16 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     try {
       setErrorMessage("");
       setItems((await getSupervisorInspecciones()).data);
+    } catch(error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function loadGerenciamientos() {
+    try {
+      setErrorMessage("");
+      const res = await listGerenciamientosViaje();
+      setGerenciamientos(res.data || []);
     } catch(error) {
       setErrorMessage(error.message);
     }
@@ -54,6 +79,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   useEffect(() => {
     if (access.confirmed) {
       if (activeTab === "inspecciones") loadInspecciones();
+      else if (activeTab === "gerenciamiento") loadGerenciamientos();
       else if (activeTab === "asignaciones") loadAsignaciones();
     }
   }, [access.confirmed, activeTab]);
@@ -91,6 +117,30 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       setMessage(result.message);
       setDetail(null);
       loadInspecciones();
+    } catch(error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function decideGerenciamiento(estadoNuevo) {
+    if (!signature) {
+      setErrorMessage("Por favor guarda tu firma digital antes de procesar el gerenciamiento.");
+      return;
+    }
+    try {
+      setErrorMessage("");
+      const res = await aprobarGerenciamientoViaje(gerenciamientoDetail.id_gerenciamiento, {
+        idUsuarioAdmin: access.idSupervisor || null,
+        nombreAutorizador: autorizadorNombre,
+        firmaAutorizador: signature,
+        estado: estadoNuevo,
+        observaciones: comment
+      });
+      setMessage(res.message);
+      setGerenciamientoDetail(null);
+      setSignature("");
+      setComment("");
+      loadGerenciamientos();
     } catch(error) {
       setErrorMessage(error.message);
     }
@@ -145,15 +195,16 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   return (
     <main className="container">
       {/* Navegación por pestañas */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px" }}>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", overflowX: "auto" }}>
         <button
           type="button"
-          onClick={() => { setActiveTab("inspecciones"); setDetail(null); setMessage(""); setErrorMessage(""); }}
+          onClick={() => { setActiveTab("inspecciones"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
           style={{
-            padding: "8px 16px",
+            padding: "8px 12px",
             border: "none",
             borderRadius: "6px",
             fontWeight: "bold",
+            fontSize: "0.85rem",
             cursor: "pointer",
             background: activeTab === "inspecciones" ? "#1e293b" : "#f1f5f9",
             color: activeTab === "inspecciones" ? "#ffffff" : "#475569"
@@ -163,18 +214,35 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab("asignaciones"); setMessage(""); setErrorMessage(""); }}
+          onClick={() => { setActiveTab("gerenciamiento"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
           style={{
-            padding: "8px 16px",
+            padding: "8px 12px",
             border: "none",
             borderRadius: "6px",
             fontWeight: "bold",
+            fontSize: "0.85rem",
+            cursor: "pointer",
+            background: activeTab === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "#f1f5f9",
+            color: activeTab === "gerenciamiento" ? "#ffffff" : "#475569"
+          }}
+        >
+          🗺️ Gerenciamiento
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab("asignaciones"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
+          style={{
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            fontSize: "0.85rem",
             cursor: "pointer",
             background: activeTab === "asignaciones" ? "#1e293b" : "#f1f5f9",
             color: activeTab === "asignaciones" ? "#ffffff" : "#475569"
           }}
         >
-          🚗 Asignación Vehicular
+          🚗 Asignaciones
         </button>
       </div>
 
@@ -240,6 +308,88 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </>
       )}
 
+      {/* Pestaña: Gerenciamiento de Viajes */}
+      {activeTab === "gerenciamiento" && (
+        <>
+          <h1>Gerenciamiento de Viajes</h1>
+          {!gerenciamientoDetail ? (
+            <section>
+              {gerenciamientos.length ? gerenciamientos.map(g => {
+                let badgeBg = "#16a34a";
+                if (g.nivel_riesgo === "ALTO") badgeBg = "#dc2626";
+                else if (g.nivel_riesgo === "MEDIO") badgeBg = "#ca8a04";
+
+                return (
+                  <button type="button" key={g.id_gerenciamiento} className="result-card" onClick={() => setGerenciamientoDetail(g)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                      <strong>{g.folio_documento} #{g.id_gerenciamiento}</strong>
+                      <span style={{ background: badgeBg, color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold" }}>
+                        RIESGO {g.nivel_riesgo} ({g.puntaje_total} pts)
+                      </span>
+                    </div>
+                    <div style={{ textAlign: "left", fontSize: "0.88rem" }}>
+                      <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre}</div>
+                      <div><strong>Ruta:</strong> {g.origen_nombre} ➔ {g.destino_nombre}</div>
+                      <div><strong>Estado:</strong> <span style={{ fontWeight: "bold" }}>{g.estado}</span></div>
+                    </div>
+                  </button>
+                );
+              }) : <p>No hay registros de gerenciamiento de viaje.</p>}
+            </section>
+          ) : (
+            <section className="result-card" style={{ textAlign: "left" }}>
+              <button type="button" onClick={() => setGerenciamientoDetail(null)}>← Volver</button>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "10px 0" }}>
+                <img src={logoAQR} alt="AQUARIO" style={{ height: "36px" }} />
+                <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Doc: {gerenciamientoDetail.folio_documento}</h2>
+              </div>
+
+              <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", fontSize: "0.85rem", display: "grid", gap: "4px", marginBottom: "12px" }}>
+                <div><strong>Conductor:</strong> {gerenciamientoDetail.nombre_conductor}</div>
+                <div><strong>Fecha:</strong> {String(gerenciamientoDetail.fecha_emision).split("T")[0]}</div>
+                <div><strong>Ruta:</strong> {gerenciamientoDetail.origen_nombre} ➔ {gerenciamientoDetail.destino_nombre}</div>
+                <div><strong>Presión / Glucosa:</strong> {gerenciamientoDetail.presion_arterial} / {gerenciamientoDetail.glucosa}</div>
+                <div><strong>Alcoholímetro:</strong> {gerenciamientoDetail.alcoholimetro ? "POSITIVO (+)" : "NEGATIVO"}</div>
+              </div>
+
+              <div style={{ background: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#fef2f2' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#fefce8' : '#f0fdf4', padding: "10px", borderRadius: "8px", marginBottom: "12px" }}>
+                <strong>Puntaje Riesgo Total: {gerenciamientoDetail.puntaje_total} pts ({gerenciamientoDetail.nivel_riesgo})</strong>
+                <div style={{ fontSize: "0.8rem", marginTop: "2px" }}>Autorización requerida: {gerenciamientoDetail.autorizacion_requerida}</div>
+              </div>
+
+              {gerenciamientoDetail.firma_conductor && (
+                <div style={{ marginBottom: "12px" }}>
+                  <small>Firma del Conductor:</small>
+                  <img src={gerenciamientoDetail.firma_conductor} alt="Firma Conductor" style={{ maxHeight: "80px", display: "block", background: "#fff", border: "1px solid #cbd5e1", padding: "4px", borderRadius: "4px" }} />
+                </div>
+              )}
+
+              <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+                Nombre del Autorizador:
+                <input type="text" value={autorizadorNombre} onChange={e => setAutorizadorNombre(e.target.value)} style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }} />
+              </label>
+
+              <label style={{ fontSize: "0.85rem", fontWeight: "bold", marginTop: "8px" }}>
+                Observaciones / Comentario:
+                <textarea rows="2" value={comment} onChange={e => setComment(e.target.value)} placeholder="Comentarios u observaciones de control"/>
+              </label>
+
+              {signature ? <p style={{ color: "#166534", fontWeight: "bold" }}>✅ Firma guardada</p> : <Signature onSave={setSignature}/>}
+
+              <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                <button type="button" style={{ background: "#ef4444", color: "#fff" }} disabled={!signature} onClick={() => decideGerenciamiento("RECHAZADO")}>
+                  Rechazar
+                </button>
+                <button type="button" style={{ background: "#16a34a", color: "#fff" }} disabled={!signature} onClick={() => decideGerenciamiento("APROBADO")}>
+                  Aprobar Gerenciamiento
+                </button>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
       {/* Pestaña: Asignación Vehicular */}
       {activeTab === "asignaciones" && (
         <>
@@ -294,4 +444,3 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     </main>
   );
 }
-
