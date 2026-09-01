@@ -59,8 +59,10 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     telefonoConductor: selectedDriver.telefono || "",
     tiempoViajeHoras: 1,
 
-    // 3. Lista de Verificación (SI / NO)
+    // 3. Lista de Verificación (Preguntas de Control 1-6)
     conocimientoRiesgosLocales: true,
+    medicamentosSomnolencia: false,
+    dormidoAdecuadamente: true,
     prohibidoPersonalAjeno: true,
     inspeccionVehiculoRealizada: false,
     reunionPreCaravanaRealizada: false,
@@ -70,14 +72,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     tipoAsignacion: "Base",
     observacionesVehiculo: "",
 
-    // 4. Tabuladores A-G
-    ptsDistancia: 1,
-    ptsClima: 2,
-    ptsVehiculosPersonas: 1,
-    ptsCondicionesVia: 1,
-    ptsComunicaciones: 0,
-    ptsHorasTrabajadas: 1,
-    ptsHoraTraslado: 1,
+    // 4. Tabuladores de Riesgo (A a G)
+    ptsDistancia: 1,         // A. Distancia
+    ptsClima: 2,             // B. Clima
+    ptsVehiculosPersonas: 1, // C. Vehículos y Personas
+    ptsCondicionesVia: 1,    // D. Condiciones de la Vía
+    ptsComunicaciones: 0,   // E. Comunicaciones
+    ptsHorasTrabajadas: 1,   // F. Horas trabajadas + Viaje
+    ptsHoraTraslado: 1,      // G. Hora del traslado
   });
 
   const [checklist, setChecklist] = useState(defaultChecklistItems);
@@ -129,7 +131,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }, [form.idVehiculo, vehiculos]);
 
-  // Recalcular puntos de tabuladores automáticamente
+  // Recalcular sugerencia de tabuladores A, C, G automáticamente
   useEffect(() => {
     let ptsDist = 1;
     const origenObj = lugares.find((l) => String(l.id_lugares) === String(form.idOrigen));
@@ -174,7 +176,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }));
   }, [form.idOrigen, form.idDestino, form.horaSalida, viajaAcompanado, listaAcompanantes, lugares]);
 
-  const puntajeTotal = form.ptsDistancia + form.ptsClima + form.ptsVehiculosPersonas + form.ptsCondicionesVia + form.ptsComunicaciones + form.ptsHorasTrabajadas + form.ptsHoraTraslado;
+  const puntajeTotal = Number(form.ptsDistancia) + Number(form.ptsClima) + Number(form.ptsVehiculosPersonas) + Number(form.ptsCondicionesVia) + Number(form.ptsComunicaciones) + Number(form.ptsHorasTrabajadas) + Number(form.ptsHoraTraslado);
   let nivelRiesgo = "BAJO";
   let autorizacionRequerida = "SUPERVISOR DIRECTO O QHSE";
 
@@ -186,13 +188,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     autorizacionRequerida = "COORDINACIÓN DE ÁREA";
   }
 
-  const esBloqueante = form.ptsHorasTrabajadas >= 16;
+  const esBloqueante = Number(form.ptsHorasTrabajadas) >= 16;
 
   function handleInputChange(event) {
     const { name, value, type, checked } = event.target;
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === "checkbox" ? checked : (type === "number" || name.startsWith("pts") ? Number(value) : value)
     }));
   }
 
@@ -651,7 +653,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 3. Lista de Verificación e INSPECCIÓN VEHICULAR INTEGRADA CON MODAL */}
         <section className="geren-card">
-          <h4 className="geren-card-title">🔍 3. Inspección Vehicular y Lista de Verificación Previaje</h4>
+          <h4 className="geren-card-title">🔍 3. Lista de Verificación Previaje (Preguntas de Control 1-6)</h4>
           
           {/* BANNER / BOTÓN PARA ACTIVAR LA VENTANA INTERACTIVA DE INSPECCIÓN VEHICULAR */}
           <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px 16px", borderRadius: "10px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
@@ -694,7 +696,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
           <div style={{ display: "grid", gap: "10px" }}>
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones)?</span>
+              <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones, animales)?</span>
               <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
@@ -702,7 +704,23 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             </label>
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>2. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
+              <span>2. ¿El conductor ha consumido medicamentos que producen somnolencia?</span>
+              <select name="medicamentosSomnolencia" value={form.medicamentosSomnolencia ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, medicamentosSomnolencia: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+                <option value="false">NO (Normal)</option>
+                <option value="true">SÍ (Somnolencia)</option>
+              </select>
+            </label>
+
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <span>3. ¿El conductor ha dormido adecuadamente?</span>
+              <select name="dormidoAdecuadamente" value={form.dormidoAdecuadamente ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, dormidoAdecuadamente: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+                <option value="true">SÍ</option>
+                <option value="false">NO</option>
+              </select>
+            </label>
+
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <span>4. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
               <select name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
@@ -710,20 +728,38 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             </label>
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>3. ¿Se realizó la inspección del vehículo con la lista de chequeo?</span>
+              <span>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</span>
               <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
             </label>
+
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <span>6. ¿Se realizó la reunión pre caravana? (Solo si viajan &gt;1 vehículo)</span>
+              <select name="reunionPreCaravanaRealizada" value={form.reunionPreCaravanaRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+                <option value="false">NO</option>
+                <option value="true">SÍ</option>
+              </select>
+            </label>
           </div>
         </section>
 
-        {/* 4. Tabuladores de Riesgo (A-G) */}
+        {/* 4. Tabuladores de Riesgo (COMPLETOS A, B, C, D, E, F, G) */}
         <section className="geren-card">
-          <h4 className="geren-card-title">⚠️ 4. Análisis de Riesgos de la Ruta</h4>
+          <h4 className="geren-card-title">⚠️ 4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h4>
 
           <div className="geren-grid-2">
+            <div className="geren-field">
+              <label className="geren-field-label">A. Distancia a Recorrer</label>
+              <select name="ptsDistancia" value={form.ptsDistancia} onChange={handleInputChange} className="geren-field-select">
+                <option value={1}>Menos de 50 Km (1 pto)</option>
+                <option value={2}>Menos de 100 Km (2 ptos)</option>
+                <option value={5}>Menos de 200 Km (5 ptos)</option>
+                <option value={8}>Más de 200 Km (8 ptos)</option>
+              </select>
+            </div>
+
             <div className="geren-field">
               <label className="geren-field-label">B. Clima Esperado</label>
               <select name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="geren-field-select">
@@ -731,6 +767,16 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 <option value={4}>Lluvia suave (4 ptos)</option>
                 <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
                 <option value={10}>Nieve / Tormenta extrema (10 ptos)</option>
+              </select>
+            </div>
+
+            <div className="geren-field">
+              <label className="geren-field-label">C. Vehículos y Personas</label>
+              <select name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleInputChange} className="geren-field-select">
+                <option value={1}>2+ Vehículos y 2+ Personas (1 pto)</option>
+                <option value={2}>2+ Vehículos y 1+ Persona (2 ptos)</option>
+                <option value={3}>1 Vehículo y 2+ Personas (3 ptos)</option>
+                <option value={6}>1 Vehículo y 1 Persona (Solitario) (6 ptos)</option>
               </select>
             </div>
 
@@ -759,6 +805,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
                 <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
                 <option value={16}>≥ 16 horas (BLOQUEANTE - NO CONDUCIR)</option>
+              </select>
+            </div>
+
+            <div className="geren-field">
+              <label className="geren-field-label">G. Hora del Traslado</label>
+              <select name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleInputChange} className="geren-field-select">
+                <option value={1}>Día (06:00 a 18:00 hrs) (1 pto)</option>
+                <option value={8}>Noche (18:00 a 06:00 hrs) (8 ptos)</option>
               </select>
             </div>
           </div>
