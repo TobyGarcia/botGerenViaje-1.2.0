@@ -358,6 +358,15 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                 <div style={{ fontSize: "0.8rem", marginTop: "2px" }}>Autorización requerida: {gerenciamientoDetail.autorizacion_requerida}</div>
               </div>
 
+              <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "0.85rem", color: "#0369a1" }}>
+                <strong>🚗 Inspección Vehicular Integrada con este Gerenciamiento:</strong>
+                <div>Combustible: <strong>{gerenciamientoDetail.inspeccion_combustible || "3/4"}</strong></div>
+                <div>Estado: <strong style={{ color: gerenciamientoDetail.inspeccion_estado === 'APROBADA' || gerenciamientoDetail.estado === 'APROBADO' ? '#166534' : '#d97706' }}>{gerenciamientoDetail.inspeccion_estado || (gerenciamientoDetail.estado === 'APROBADO' ? 'APROBADA' : 'PENDIENTE CON GERENCIAMIENTO')}</strong></div>
+                {gerenciamientoDetail.inspeccion_observaciones && (
+                  <div>Obs. Vehículo: {gerenciamientoDetail.inspeccion_observaciones}</div>
+                )}
+              </div>
+
               {gerenciamientoDetail.firma_conductor && (
                 <div style={{ marginBottom: "12px" }}>
                   <small>Firma del Conductor:</small>
@@ -382,7 +391,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                   Rechazar
                 </button>
                 <button type="button" style={{ background: "#16a34a", color: "#fff" }} disabled={!signature} onClick={() => decideGerenciamiento("APROBADO")}>
-                  Aprobar Gerenciamiento
+                  Aprobar Gerenciamiento e Inspección
                 </button>
               </div>
             </section>

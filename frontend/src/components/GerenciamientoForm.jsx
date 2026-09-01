@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
 import logoAQR from "../assets/logoAQR.webp";
+import InspeccionVehicular from "./InspeccionVehicular.jsx";
 
 const defaultChecklistItems = {
   "Luces": "B",
@@ -61,7 +62,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     // 3. Lista de Verificación (SI / NO)
     conocimientoRiesgosLocales: true,
     prohibidoPersonalAjeno: true,
-    inspeccionVehiculoRealizada: true,
+    inspeccionVehiculoRealizada: false,
     reunionPreCaravanaRealizada: false,
 
     // Inspección Vehicular Integrada
@@ -70,19 +71,24 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     observacionesVehiculo: "",
 
     // 4. Tabuladores A-G
-    ptsDistancia: 1, // <50km: 1, <100km: 2, <200km: 5, >200km: 8
-    ptsClima: 2, // Seco: 2, Lluvia suave: 4, Lluvia fuerte/niebla: 8, Nieve: 10
-    ptsVehiculosPersonas: 1, // 2+ veh 2+ pers: 1, 2+ veh 1+ pers: 2, 1 veh 2+ pers: 3, 1 veh 1 pers: 8
-    ptsCondicionesVia: 1, // Pavimentada: 1, Mixta: 2, No pavimentada: 4
-    ptsComunicaciones: 0, // Celular: 0, Sin com caravana: 2, Sin com sin caravana: 4
-    ptsHorasTrabajadas: 1, // <12h: 1, <14h: 3, <16h: 6, >=16h: 16 (Bloqueante)
-    ptsHoraTraslado: 1, // Día: 1, Noche: 8
+    ptsDistancia: 1,
+    ptsClima: 2,
+    ptsVehiculosPersonas: 1,
+    ptsCondicionesVia: 1,
+    ptsComunicaciones: 0,
+    ptsHorasTrabajadas: 1,
+    ptsHoraTraslado: 1,
   });
 
   const [checklist, setChecklist] = useState(defaultChecklistItems);
   const [rutaPuntos, setRutaPuntos] = useState(["", ""]);
   const [viajaAcompanado, setViajaAcompanado] = useState(false);
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
+
+  // Modal de Inspección Vehicular
+  const [showInspectionModal, setShowInspectionModal] = useState(false);
+  const [inspeccionCompleted, setInspeccionCompleted] = useState(false);
+  const [inspeccionData, setInspeccionData] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -123,7 +129,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }, [form.idVehiculo, vehiculos]);
 
-  // Recalcular puntos de tabuladores automáticamente según datos seleccionados
+  // Recalcular puntos de tabuladores automáticamente
   useEffect(() => {
     let ptsDist = 1;
     const origenObj = lugares.find((l) => String(l.id_lugares) === String(form.idOrigen));
@@ -190,11 +196,6 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }));
   }
 
-  function handleChecklistItemChange(key, value) {
-    setChecklist((prev) => ({ ...prev, [key]: value }));
-  }
-
-  // Métodos para Puntos de Ruta
   function handleRoutePointChange(index, value) {
     const updated = [...rutaPuntos];
     updated[index] = value;
@@ -214,7 +215,6 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }
 
-  // Métodos para Acompañantes
   function handleCompanionChange(index, value) {
     const updated = [...listaAcompanantes];
     updated[index] = value;
@@ -231,6 +231,22 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     if (listaAcompanantes.length > 1) {
       const updated = listaAcompanantes.filter((_, i) => i !== index);
       setListaAcompanantes(updated);
+    }
+  }
+
+  // Manejador del resultado de la Inspección Vehicular Interactiva
+  function handleInspectionCompleted(inspData) {
+    setInspeccionData(inspData);
+    setInspeccionCompleted(true);
+    setShowInspectionModal(false);
+    setForm((prev) => ({
+      ...prev,
+      combustible: inspData.combustible || prev.combustible,
+      inspeccionVehiculoRealizada: true,
+      observacionesVehiculo: inspData.observaciones || prev.observacionesVehiculo
+    }));
+    if (inspData.firma) {
+      setHasSignature(true);
     }
   }
 
@@ -300,13 +316,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       setErrorMessage("⛔ Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
       return;
     }
-    if (!hasSignature) {
+    if (!hasSignature && !inspeccionData?.firma) {
       setErrorMessage("Por favor realiza la firma digital del conductor antes de enviar.");
       return;
     }
 
     const canvas = canvasRef.current;
-    const firmaDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+    const firmaDataUrl = (canvas && hasSignature) ? canvas.toDataURL("image/png") : (inspeccionData?.firma || "");
 
     const acompanantesFiltrados = viajaAcompanado ? listaAcompanantes.filter((a) => a.trim()) : [];
     const rutaFiltrada = rutaPuntos.filter((r) => r.trim());
@@ -314,21 +330,23 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     setSubmitting(true);
 
     try {
+      const finalInspData = inspeccionData || {
+        combustible: form.combustible,
+        tipoAsignacion: form.tipoAsignacion,
+        checklist: checklist,
+        danos: {},
+        observaciones: form.observacionesVehiculo || null,
+        firma: firmaDataUrl,
+        esDiaSiguiente: false
+      };
+
       const payload = {
         ...form,
         rutaPuntos: rutaFiltrada,
         acompanantes: acompanantesFiltrados,
         firmaConductor: firmaDataUrl,
         nombreConductorFirma: selectedDriver.nombre,
-        inspeccionData: {
-          combustible: form.combustible,
-          tipoAsignacion: form.tipoAsignacion,
-          checklist: checklist,
-          danos: {},
-          observaciones: form.observacionesVehiculo || null,
-          firma: firmaDataUrl,
-          esDiaSiguiente: false
-        }
+        inspeccionData: finalInspData
       };
 
       const res = await crearGerenciamientoViaje(payload);
@@ -346,6 +364,24 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       setSubmitting(false);
     }
   }
+
+  // Objeto contexto para el componente InspeccionVehicular
+  const selectedVehicleObj = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo)) || assignedVehicle || {};
+  const inspectionContextObj = {
+    folio: "GEREN-PREVIAJE",
+    numero_economico: selectedVehicleObj.numero_economico || form.numeroUnidad || "N/A",
+    marca: selectedVehicleObj.marca || form.modelo || "",
+    modelo: selectedVehicleObj.modelo || "",
+    tipo_vehiculo: selectedVehicleObj.tipo_vehiculo || form.tipoVehiculo || "PickUp",
+    conductor: selectedDriver.nombre || form.nombreConductor || "Conductor",
+    licencia_numero: selectedDriver.licencia_numero || "N/A",
+    tipo_licencia: selectedDriver.licencia_tipo || "Chofer",
+    numero_serie: selectedVehicleObj.numero_serie || "N/A",
+    numero_poliza: selectedVehicleObj.numero_poliza || "N/A",
+    seguro_vencimiento: selectedVehicleObj.seguro_vencimiento || "N/A",
+    placas: selectedVehicleObj.placas || form.placa || "N/A",
+    kilometraje_actual: form.kilometraje || selectedVehicleObj.kilometraje_actual || 0
+  };
 
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #cbd5e1" }}>
@@ -614,11 +650,50 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
           </div>
         </section>
 
-        {/* 3. Lista de Verificación de Previaje e INSPECCIÓN VEHICULAR INTEGRADA */}
+        {/* 3. Lista de Verificación e INSPECCIÓN VEHICULAR INTEGRADA CON MODAL */}
         <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🔍 3. Lista de Verificación e Inspección Vehicular Integrada</h4>
+          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🔍 3. Inspección Vehicular y Lista de Verificación Previaje</h4>
           
-          <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
+          {/* BANNER / BOTÓN PARA ACTIVAR LA VENTANA INTERACTIVA DE INSPECCIÓN VEHICULAR */}
+          <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px", borderRadius: "8px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+              <div>
+                <strong style={{ color: inspeccionCompleted ? "#166534" : "#c2410c", fontSize: "0.95rem" }}>
+                  {inspeccionCompleted ? "✅ Inspección Vehicular Diaria Realizada" : "⚠️ Inspección Vehicular Obligatoria Integrada"}
+                </strong>
+                <p style={{ margin: "2px 0 0", fontSize: "0.82rem", color: "#475569" }}>
+                  {inspeccionCompleted
+                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK | Firma de Conductor Capturada`
+                    : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!form.idVehiculo) {
+                    alert("Por favor selecciona primero la Unidad/Vehículo en la primera sección.");
+                    return;
+                  }
+                  setShowInspectionModal(true);
+                }}
+                style={{
+                  background: inspeccionCompleted ? "#15803d" : "#ea580c",
+                  color: "#ffffff",
+                  border: 0,
+                  padding: "10px 18px",
+                  borderRadius: "6px",
+                  fontWeight: "bold",
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
+                }}
+              >
+                {inspeccionCompleted ? "🔄 Ver / Editar Inspección" : "🚗 Abrir Inspección Vehicular Interactiva"}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: "10px" }}>
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
               <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones)?</span>
               <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
@@ -634,63 +709,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 <option value="false">NO</option>
               </select>
             </label>
-          </div>
 
-          {/* INSPECCIÓN VEHICULAR CHECKLIST COMPACTO */}
-          <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-              <strong style={{ fontSize: "0.9rem", color: "#0f172a" }}>🚗 Chequeo Vehicular Previaje (Bueno / Regular / Malo / NA)</strong>
-              <label style={{ fontSize: "0.82rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                Combustible:
-                <select name="combustible" value={form.combustible} onChange={handleInputChange} style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #cbd5e1", background: "#ffffff", fontWeight: "bold" }}>
-                  <option value="E">E (Vacío)</option>
-                  <option value="1/4">1/4</option>
-                  <option value="1/2">1/2</option>
-                  <option value="3/4">3/4</option>
-                  <option value="F">F (Lleno)</option>
-                </select>
-              </label>
-            </div>
-
-            <div style={{ display: "grid", gap: "6px", maxHeight: "240px", overflowY: "auto", paddingRight: "4px" }}>
-              {Object.entries(checklist).map(([item, stateVal]) => (
-                <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "6px 10px", borderRadius: "4px", border: "1px solid #e2e8f0", fontSize: "0.82rem" }}>
-                  <span>{item}</span>
-                  <div style={{ display: "flex", gap: "4px" }}>
-                    {["B", "R", "M", "N/A"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => handleChecklistItemChange(item, opt)}
-                        style={{
-                          padding: "2px 8px",
-                          borderRadius: "3px",
-                          border: 0,
-                          fontSize: "0.72rem",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          background: stateVal === opt ? (opt === "B" ? "#16a34a" : opt === "R" ? "#ca8a04" : opt === "M" ? "#dc2626" : "#64748b") : "#e2e8f0",
-                          color: stateVal === opt ? "#ffffff" : "#334155"
-                        }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <label style={{ fontSize: "0.82rem", fontWeight: "bold", display: "block", marginTop: "10px" }}>
-              Observaciones de la Unidad:
-              <input
-                type="text"
-                name="observacionesVehiculo"
-                value={form.observacionesVehiculo}
-                onChange={handleInputChange}
-                placeholder="Indica detalles si algún componente está en Regular o Malo"
-                style={{ width: "100%", padding: "6px 10px", marginTop: "2px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "0.82rem" }}
-              />
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+              <span>3. ¿Se realizó la inspección del vehículo con la lista de chequeo?</span>
+              <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
+                <option value="true">SÍ</option>
+                <option value="false">NO</option>
+              </select>
             </label>
           </div>
         </section>
@@ -828,6 +853,20 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </div>
 
       </form>
+
+      {/* VENTANA OVERLAY DE INSPECCIÓN VEHICULAR INTERACTIVA */}
+      {showInspectionModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.85)", zIndex: 99999, display: "grid", placeItems: "center", padding: "12px", overflowY: "auto" }}>
+          <div style={{ width: "100%", maxWidth: "720px", maxHeight: "94vh", overflowY: "auto" }}>
+            <InspeccionVehicular
+              context={inspectionContextObj}
+              estado="NUEVA"
+              onSubmit={handleInspectionCompleted}
+              onClose={() => setShowInspectionModal(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
