@@ -964,6 +964,13 @@
   display: block;
 }
 
+.active-trips-card-count {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #2e81ab;
+  line-height: 1;
+}
+
 .active-trips-empty-text {
   padding: 12px 0;
   color: #64748b;
@@ -1013,8 +1020,8 @@
 }
 
 .active-trips-mini-driver {
-  color: #0f172a;
-  font-size: 0.84rem;
+  color: #123d50;
+  font-size: 0.86rem;
   font-weight: 700;
   flex: 1;
   white-space: nowrap;

@@ -82,10 +82,10 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
     <article className="kpi-card active-trips-card">
       <div className="active-trips-card-header">
         <span>Viajes activos ({viajesActivos.length})</span>
-        <div style={{ marginTop: "2px" }}>
-          <strong style={{ fontSize: "1.4rem", color: "#123d50", marginRight: "8px" }}>
+        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px" }}>
+          <span className="active-trips-card-count">
             {viajesActivos.length}
-          </strong>
+          </span>
           <small style={{ color: "#607986" }}>
             {totalEnCurso} en curso • {totalPendientes} pendientes
           </small>
@@ -104,7 +104,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
               <li key={item.id_viajes || index} className="active-trips-mini-item">
                 <div className="active-trips-mini-top">
                   <span className={`status-dot ${isEnCurso ? "dot-green-blinking" : "dot-yellow-fixed"}`} />
-                  <strong className="active-trips-mini-driver">{item.conductor}</strong>
+                  <span className="active-trips-mini-driver">{item.conductor}</span>
                   <span className={`active-trips-mini-status-text ${isEnCurso ? "en-curso" : "pendiente"}`}>
                     {isEnCurso ? "En curso" : "Pendiente"}
                   </span>
