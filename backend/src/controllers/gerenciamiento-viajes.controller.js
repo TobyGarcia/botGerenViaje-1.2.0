@@ -5,7 +5,8 @@ import {
   getGerenciamientoById,
   getGerenciamientoByViaje,
   listGerenciamientos,
-  aprovarGerenciamiento
+  aprovarGerenciamiento,
+  registrarReporteHoraPoint
 } from "../services/gerenciamiento-viajes.service.js";
 
 async function authenticateDriver(request) {
@@ -119,6 +120,28 @@ export async function aprovarGerenciamientoController(request, response) {
     return response.json({
       success: true,
       message: `Gerenciamiento ${estado || 'APROBADO'} exitosamente.`,
+      data: updated
+    });
+  } catch (error) {
+    return response.status(400).json({ success: false, message: error.message });
+  }
+}
+
+export async function registrarReporteHoraController(request, response) {
+  try {
+    const idGerenciamiento = Number(request.params.id);
+    const { puntoIndex, horaReportada } = request.body || {};
+    if (puntoIndex === undefined || puntoIndex === null) {
+      throw new Error("Se requiere el índice del punto de reporte.");
+    }
+    const updated = await registrarReporteHoraPoint({
+      idGerenciamiento,
+      puntoIndex: Number(puntoIndex),
+      horaReportada
+    });
+    return response.json({
+      success: true,
+      message: "Hora de sitio de reporte registrada correctamente.",
       data: updated
     });
   } catch (error) {

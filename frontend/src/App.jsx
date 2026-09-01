@@ -19,6 +19,8 @@ import {
   enviarInspeccionVehicular,
   iniciarViaje,
   registrarUbicacion,
+  getGerenciamientoViajePorViaje,
+  registrarReporteHoraGerenciamiento
 } from "./services/api.js";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
@@ -194,6 +196,18 @@ const [cancelledTrip, setCancelledTrip] =
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [inspectionStatus, setInspectionStatus] = useState("idle");
   const [inspectionError, setInspectionError] = useState("");
+  const [gerenciamientoDoc, setGerenciamientoDoc] = useState(null);
+
+  useEffect(() => {
+    const idViaje = startedTrip?.idViaje ?? startedTrip?.id_viajes ?? createdTrip?.idViaje ?? createdTrip?.id_viajes;
+    if (idViaje) {
+      getGerenciamientoViajePorViaje(idViaje)
+        .then((res) => setGerenciamientoDoc(res.data))
+        .catch(() => setGerenciamientoDoc(null));
+    } else {
+      setGerenciamientoDoc(null);
+    }
+  }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
 
   const [telegramAuth, setTelegramAuth] =
     useState(null);
@@ -1643,6 +1657,48 @@ async function handleAddIntermediatePoint() {
       {savingIntermediatePoint ? "Guardando punto..." : "📍 Añadir Punto Intermedio"}
     </button>
   </div>
+
+  {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
+  {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
+    <div style={{ background: "#ffffff", padding: "14px", borderRadius: "8px", border: "1px solid #cbd5e1", margin: "14px 0" }}>
+      <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "0.95rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px" }}>
+        📌 Sitios de Reporte de la Ruta
+      </h4>
+      <div style={{ display: "grid", gap: "8px" }}>
+        {gerenciamientoDoc.sitios_reporte.map((sitio, index) => (
+          <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+            <div>
+              <strong style={{ color: "#0f172a" }}>Punto {index + 1}:</strong> {sitio.punto}
+            </div>
+            {sitio.horaReportada ? (
+              <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "12px", fontSize: "0.82rem", fontWeight: "bold" }}>
+                ✅ Reportado: {sitio.horaReportada}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  const nowStr = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+                  try {
+                    const updated = await registrarReporteHoraGerenciamiento(gerenciamientoDoc.id_gerenciamiento, { puntoIndex: index, horaReportada: nowStr });
+                    setGerenciamientoDoc(updated.data);
+                    setMessage(`Punto ${sitio.punto} reportado exitosamente a las ${nowStr}.`);
+                    setMessageType("success");
+                  } catch (err) {
+                    setMessage(err.message || "Error al registrar reporte.");
+                    setMessageType("error");
+                  }
+                }}
+                style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer" }}
+              >
+                ⏱️ Marcar Hora ({new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })})
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
   <form className="finish-trip-form" onSubmit={handleFinishTrip}>
       <h3>Finalizar viaje</h3>
 

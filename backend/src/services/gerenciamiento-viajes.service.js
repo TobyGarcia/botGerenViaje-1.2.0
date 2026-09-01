@@ -1,4 +1,5 @@
 import { databasePool } from "../database/pool.js";
+import { createTrip } from "./viajes.service.js";
 
 /**
  * Calcula de manera centralizada el Análisis de Riesgo (Tabuladores A al G)
@@ -51,6 +52,36 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     throw new Error("Horas de trabajo + Horas de Viaje >= 16 Horas: NO CONDUCIR (Riesgo Bloqueante).");
   }
 
+  // 1. Si no existe un id_viaje previo, crear el viaje base en estado PENDIENTE
+  let idViaje = data.idViaje || null;
+  if (!idViaje && data.idVehiculo && data.idOrigen && data.idDestino) {
+    try {
+      const acompanantesFormateados = Array.isArray(data.acompanantes)
+        ? data.acompanantes.map((nombre) => (typeof nombre === 'string' ? { nombre } : nombre))
+        : [];
+
+      const newTrip = await createTrip({
+        idConductor,
+        idVehiculo: Number(data.idVehiculo),
+        idOrigen: Number(data.idOrigen),
+        idDestino: Number(data.idDestino),
+        acompanantes: acompanantesFormateados,
+        kilometrajeInicial: Number(data.kilometraje || 0),
+        motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`
+      });
+      idViaje = newTrip.id_viajes || newTrip.idViaje || null;
+    } catch (tripErr) {
+      console.warn("No se pudo crear automáticamente el registro de viaje base:", tripErr.message);
+    }
+  }
+
+  // Inicializar los sitios de reporte con la lista de puntos de ruta (sin hora inicial)
+  const rutaPuntos = Array.isArray(data.rutaPuntos) ? data.rutaPuntos.filter(Boolean) : [];
+  const sitiosReporte = rutaPuntos.map((punto) => ({
+    punto,
+    horaReportada: null
+  }));
+
   const query = `
     INSERT INTO gerenciamiento_viajes (
       id_viaje, folio_documento, version_documento, area_responsable, departamento,
@@ -83,7 +114,7 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
   `;
 
   const values = [
-    data.idViaje || null,
+    idViaje,
     data.folioDocumento || 'SII-MX-23-LOG-003',
     data.versionDocumento || '3.0',
     data.areaResponsable || 'Logística',
@@ -114,10 +145,10 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     data.licenciaTipo || null,
     data.licenciaVencimiento || null,
     data.telefonoConductor || null,
-    JSON.stringify(data.rutaPuntos || []),
+    JSON.stringify(rutaPuntos),
     Number(data.tiempoViajeHoras || 0),
     JSON.stringify(data.acompanantes || []),
-    JSON.stringify(data.sitiosReporte || []),
+    JSON.stringify(sitiosReporte),
     data.conocimientoRiesgosLocales !== undefined ? Boolean(data.conocimientoRiesgosLocales) : true,
     data.prohibidoPersonalAjeno !== undefined ? Boolean(data.prohibidoPersonalAjeno) : true,
     data.inspeccionVehiculoRealizada !== undefined ? Boolean(data.inspeccionVehiculoRealizada) : true,
@@ -214,18 +245,66 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
 }
 
 export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, estado = 'APROBADO', observaciones = null }) {
-  const result = await databasePool.query(`
-    UPDATE gerenciamiento_viajes
-    SET estado = $1,
-        id_usuario_autorizador = $2,
-        nombre_autorizador_firma = $3,
-        firma_autorizador = $4,
-        fecha_firma_autorizador = CURRENT_TIMESTAMP,
-        observaciones = COALESCE($5, observaciones),
-        actualizado_en = CURRENT_TIMESTAMP
-    WHERE id_gerenciamiento = $6
-    RETURNING *
-  `, [estado, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, observaciones, idGerenciamiento]);
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
 
-  return result.rows[0] ?? null;
+    const updateRes = await client.query(`
+      UPDATE gerenciamiento_viajes
+      SET estado = $1,
+          id_usuario_autorizador = $2,
+          nombre_autorizador_firma = $3,
+          firma_autorizador = $4,
+          fecha_firma_autorizador = CURRENT_TIMESTAMP,
+          observaciones = COALESCE($5, observaciones),
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id_gerenciamiento = $6
+      RETURNING *
+    `, [estado, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, observaciones, idGerenciamiento]);
+
+    const record = updateRes.rows[0];
+
+    // Si fue APROBADO y tiene viaje vinculado, asegurar que el viaje quede listo en PENDIENTE para la inspección vehicular
+    if (record && estado === 'APROBADO' && record.id_viaje) {
+      await client.query(`
+        UPDATE viajes
+        SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
+            actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_viajes = $1
+      `, [record.id_viaje]);
+    }
+
+    await client.query("COMMIT");
+    return record ?? null;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, horaReportada }) {
+  const currentRes = await databasePool.query(`
+    SELECT sitios_reporte FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1
+  `, [idGerenciamiento]);
+
+  if (currentRes.rows.length === 0) {
+    throw new Error("No se encontró el gerenciamiento de viaje.");
+  }
+
+  let sitios = currentRes.rows[0].sitios_reporte || [];
+  if (sitios[puntoIndex]) {
+    sitios[puntoIndex].horaReportada = horaReportada || new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  const updateRes = await databasePool.query(`
+    UPDATE gerenciamiento_viajes
+    SET sitios_reporte = $1::jsonb,
+        actualizado_en = CURRENT_TIMESTAMP
+    WHERE id_gerenciamiento = $2
+    RETURNING *
+  `, [JSON.stringify(sitios), idGerenciamiento]);
+
+  return updateRes.rows[0];
 }

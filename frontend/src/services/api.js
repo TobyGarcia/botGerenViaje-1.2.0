@@ -204,5 +204,12 @@ export function aprobarGerenciamientoViaje(idGerenciamiento, payload) {
   });
 }
 
+export function registrarReporteHoraGerenciamiento(idGerenciamiento, { puntoIndex, horaReportada }) {
+  return request(`/api/gerenciamiento-viajes/${idGerenciamiento}/reporte-hora`, {
+    method: "PATCH",
+    body: JSON.stringify({ puntoIndex, horaReportada })
+  });
+}
+
 
 

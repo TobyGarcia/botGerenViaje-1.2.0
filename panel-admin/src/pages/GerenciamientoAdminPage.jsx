@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 
 export default function GerenciamientoAdminPage({ user }) {
   const [list, setList] = useState([]);
@@ -177,7 +178,10 @@ export default function GerenciamientoAdminPage({ user }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "grid", placeItems: "center", padding: "16px", overflowY: "auto" }}>
           <div style={{ background: "#ffffff", borderRadius: "12px", maxWidth: "800px", width: "100%", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0f172a", paddingBottom: "10px", marginBottom: "16px" }}>
-              <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#0f172a" }}>📄 Documento de Gerenciamiento Vehicular {selectedDoc.folio_documento}</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <img src={logoAQR} alt="Logo Itzamná / AQUARIO" style={{ height: "40px", objectFit: "contain" }} />
+                <h2 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a" }}>Documento de Gerenciamiento Vehicular {selectedDoc.folio_documento}</h2>
+              </div>
               <button onClick={() => setSelectedDoc(null)} style={{ background: "transparent", border: 0, fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
             </div>
 

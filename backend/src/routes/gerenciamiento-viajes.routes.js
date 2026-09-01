@@ -4,7 +4,8 @@ import {
   getGerenciamientoByIdController,
   getGerenciamientoByViajeController,
   listGerenciamientosController,
-  aprovarGerenciamientoController
+  aprovarGerenciamientoController,
+  registrarReporteHoraController
 } from "../controllers/gerenciamiento-viajes.controller.js";
 
 const router = Router();
@@ -14,5 +15,6 @@ router.get("/", listGerenciamientosController);
 router.get("/:id", getGerenciamientoByIdController);
 router.get("/viaje/:idViaje", getGerenciamientoByViajeController);
 router.patch("/:id/aprobar", aprovarGerenciamientoController);
+router.patch("/:id/reporte-hora", registrarReporteHoraController);
 
 export default router;
