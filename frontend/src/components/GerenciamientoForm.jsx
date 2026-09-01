@@ -384,91 +384,89 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
   };
 
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #cbd5e1" }}>
+    <div className="geren-container">
       {/* Header con Logo de AQUARIO */}
-      <header style={{ display: "flex", alignItems: "center", justifyBetween: "space-between", background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <img src={logoAQR} alt="AQUARIO" style={{ height: "42px", objectFit: "contain" }} />
-          <div>
-            <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h3>
-            <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
-              CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
-            </p>
-          </div>
+      <header className="geren-header">
+        <img src={logoAQR} alt="AQUARIO" style={{ height: "42px", objectFit: "contain" }} />
+        <div>
+          <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 800 }}>GERENCIAMIENTO DE VIAJE</h3>
+          <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
+            CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
+          </p>
         </div>
       </header>
 
       {errorMessage && (
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "8px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
+        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
           ⚠️ {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "8px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
+        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px 16px", borderRadius: "10px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
           {successMessage}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+      <form onSubmit={handleSubmit} style={{ padding: 0, background: "transparent", border: 0, boxShadow: "none", display: "grid", gap: "16px" }}>
         
         {/* Datos Básicos de Viaje */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>📍 Origen y Destino del Traslado</h4>
+        <section className="geren-card">
+          <h4 className="geren-card-title">📍 Origen y Destino del Traslado</h4>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Origen *:
+          <div className="geren-grid-2" style={{ marginBottom: "14px" }}>
+            <div className="geren-field">
+              <label className="geren-field-label">Origen *</label>
               <select
                 name="idOrigen"
                 value={form.idOrigen}
                 onChange={handleInputChange}
-                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                className="geren-field-select"
               >
                 <option value="">-- Selecciona Origen --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Destino *:
+            <div className="geren-field">
+              <label className="geren-field-label">Destino *</label>
               <select
                 name="idDestino"
                 value={form.idDestino}
                 onChange={handleInputChange}
-                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                className="geren-field-select"
               >
                 <option value="">-- Selecciona Destino --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
               </select>
-            </label>
+            </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Hora Salida *:
+          <div className="geren-grid-3">
+            <div className="geren-field">
+              <label className="geren-field-label">Hora Salida *</label>
               <input
                 type="time"
                 name="horaSalida"
                 value={form.horaSalida}
                 onChange={handleInputChange}
                 required
-                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                className="geren-field-input"
               />
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Seleccionar Vehículo *:
+            <div className="geren-field">
+              <label className="geren-field-label">Seleccionar Vehículo *</label>
               <select
                 name="idVehiculo"
                 value={form.idVehiculo}
                 onChange={handleInputChange}
                 required
-                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                className="geren-field-select"
               >
                 <option value="">-- Selecciona Vehículo --</option>
                 {vehiculos.map((v) => (
@@ -477,55 +475,56 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Kilometraje Inicial *:
+            <div className="geren-field">
+              <label className="geren-field-label">Kilometraje Inicial *</label>
               <input
                 type="number"
                 name="kilometraje"
                 value={form.kilometraje}
                 onChange={handleInputChange}
                 required
-                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                className="geren-field-input"
               />
-            </label>
+            </div>
           </div>
         </section>
 
         {/* 1. Valoración Médica Pre-viaje */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🩺 1. Valoración Médica Pre-viaje</h4>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Presión Arterial:
-              <input type="text" name="presionArterial" value={form.presionArterial} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
-            </label>
+        <section className="geren-card">
+          <h4 className="geren-card-title">🩺 1. Valoración Médica Pre-viaje</h4>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Examen Visual:
-              <input type="text" name="examenVisual" value={form.examenVisual} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
-            </label>
+          <div className="geren-grid-3" style={{ marginBottom: "14px" }}>
+            <div className="geren-field">
+              <label className="geren-field-label">Presión Arterial</label>
+              <input type="text" name="presionArterial" value={form.presionArterial} onChange={handleInputChange} className="geren-field-input" />
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Glucosa:
-              <input type="text" name="glucosa" value={form.glucosa} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
-            </label>
+            <div className="geren-field">
+              <label className="geren-field-label">Examen Visual</label>
+              <input type="text" name="examenVisual" value={form.examenVisual} onChange={handleInputChange} className="geren-field-input" />
+            </div>
+
+            <div className="geren-field">
+              <label className="geren-field-label">Glucosa</label>
+              <input type="text" name="glucosa" value={form.glucosa} onChange={handleInputChange} className="geren-field-input" />
+            </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginTop: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Frecuencia Cardíaca:
-              <input type="text" name="frecuenciaCardiaca" value={form.frecuenciaCardiaca} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
-            </label>
+          <div className="geren-grid-3">
+            <div className="geren-field">
+              <label className="geren-field-label">Frecuencia Cardíaca</label>
+              <input type="text" name="frecuenciaCardiaca" value={form.frecuenciaCardiaca} onChange={handleInputChange} className="geren-field-input" />
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              Frecuencia Respiratoria:
-              <input type="text" name="frecuenciaRespiratoria" value={form.frecuenciaRespiratoria} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
-            </label>
+            <div className="geren-field">
+              <label className="geren-field-label">Frecuencia Respiratoria</label>
+              <input type="text" name="frecuenciaRespiratoria" value={form.frecuenciaRespiratoria} onChange={handleInputChange} className="geren-field-input" />
+            </div>
 
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-              <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+            <div className="geren-field" style={{ justifyContent: "flex-end" }}>
+              <label className="alcoholimetro-card">
                 <input type="checkbox" name="alcoholimetro" checked={form.alcoholimetro} onChange={handleInputChange} style={{ width: "18px", height: "18px" }} />
                 <span>Alcoholímetro Positivo</span>
               </label>
@@ -534,19 +533,19 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 2. Información General del Vehículo y Ruta */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>📋 2. Información General del Traslado</h4>
+        <section className="geren-card">
+          <h4 className="geren-card-title">📋 2. Información General del Traslado</h4>
           
-          <div style={{ display: "grid", gap: "12px" }}>
+          <div style={{ display: "grid", gap: "14px" }}>
             {/* Puntos de Ruta */}
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>Ruta a seguir (Puntos de Parada / Intermedios):</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <label className="geren-field-label">Ruta a seguir (Puntos de Parada / Intermedios):</label>
                 {rutaPuntos.length < 4 && (
                   <button
                     type="button"
                     onClick={addRoutePoint}
-                    style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
+                    style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", fontWeight: "bold" }}
                   >
                     + Agregar Punto
                   </button>
@@ -560,13 +559,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                       value={punto}
                       onChange={(e) => handleRoutePointChange(index, e.target.value)}
                       placeholder={`Punto ${index + 1} de la ruta (Ej: Escárcega, Caseta Champotón...)`}
-                      style={{ flex: 1, padding: "8px 12px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                      className="geren-field-input"
                     />
                     {rutaPuntos.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeRoutePoint(index)}
-                        style={{ width: "38px", height: "38px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "6px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
+                        style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
                         title="Eliminar punto"
                       >
                         ✕
@@ -578,16 +577,16 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             </div>
 
             {/* Acompañantes */}
-            <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>¿Viaja Acompañado?</label>
+                <label className="geren-field-label">¿Viaja Acompañado?</label>
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                   {viajaAcompanado && listaAcompanantes.length < maxAcompanantes && (
                     <button
                       type="button"
                       onClick={addCompanionField}
                       disabled={listaAcompanantes.length >= maxAcompanantes}
-                      style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
+                      style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", fontWeight: "bold" }}
                     >
                       + Agregar
                     </button>
@@ -605,9 +604,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                       background: viajaAcompanado ? "#1e3a8a" : "#cbd5e1",
                       color: "#ffffff",
                       border: 0,
-                      padding: "4px 12px",
+                      padding: "6px 14px",
                       borderRadius: "14px",
-                      fontSize: "0.8rem",
+                      fontSize: "0.85rem",
                       fontWeight: "bold",
                       cursor: "pointer"
                     }}
@@ -618,8 +617,8 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               </div>
 
               {viajaAcompanado && (
-                <div style={{ display: "grid", gap: "8px", marginTop: "8px" }}>
-                  <small style={{ color: "#64748b", fontSize: "0.78rem" }}>
+                <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                  <small style={{ color: "#64748b", fontSize: "0.8rem" }}>
                     {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
                   </small>
                   {listaAcompanantes.map((nombre, index) => (
@@ -630,13 +629,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                         onChange={(e) => handleCompanionChange(index, e.target.value)}
                         placeholder={`Nombre del acompañante ${index + 1}`}
                         required={index === 0}
-                        style={{ flex: 1, padding: "8px 12px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+                        className="geren-field-input"
                       />
                       {listaAcompanantes.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeCompanionField(index)}
-                          style={{ width: "36px", height: "36px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "6px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
+                          style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
                           title="Quitar acompañante"
                         >
                           ✕
@@ -651,17 +650,17 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 3. Lista de Verificación e INSPECCIÓN VEHICULAR INTEGRADA CON MODAL */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🔍 3. Inspección Vehicular y Lista de Verificación Previaje</h4>
+        <section className="geren-card">
+          <h4 className="geren-card-title">🔍 3. Inspección Vehicular y Lista de Verificación Previaje</h4>
           
           {/* BANNER / BOTÓN PARA ACTIVAR LA VENTANA INTERACTIVA DE INSPECCIÓN VEHICULAR */}
-          <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px", borderRadius: "8px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px 16px", borderRadius: "10px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
               <div>
                 <strong style={{ color: inspeccionCompleted ? "#166534" : "#c2410c", fontSize: "0.95rem" }}>
                   {inspeccionCompleted ? "✅ Inspección Vehicular Diaria Realizada" : "⚠️ Inspección Vehicular Obligatoria Integrada"}
                 </strong>
-                <p style={{ margin: "2px 0 0", fontSize: "0.82rem", color: "#475569" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
                   {inspeccionCompleted
                     ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK | Firma de Conductor Capturada`
                     : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
@@ -681,11 +680,11 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   color: "#ffffff",
                   border: 0,
                   padding: "10px 18px",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   fontWeight: "bold",
                   fontSize: "0.88rem",
                   cursor: "pointer",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.12)"
                 }}
               >
                 {inspeccionCompleted ? "🔄 Ver / Editar Inspección" : "🚗 Abrir Inspección Vehicular Interactiva"}
@@ -694,25 +693,25 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones)?</span>
-              <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
+              <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
             </label>
 
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>2. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
-              <select name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
+              <select name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
             </label>
 
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>3. ¿Se realizó la inspección del vehículo con la lista de chequeo?</span>
-              <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
+              <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
@@ -721,61 +720,61 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 4. Tabuladores de Riesgo (A-G) */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>⚠️ 4. Análisis de Riesgos de la Ruta</h4>
+        <section className="geren-card">
+          <h4 className="geren-card-title">⚠️ 4. Análisis de Riesgos de la Ruta</h4>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              B. Clima Esperado:
-              <select name="ptsClima" value={form.ptsClima} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+          <div className="geren-grid-2">
+            <div className="geren-field">
+              <label className="geren-field-label">B. Clima Esperado</label>
+              <select name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="geren-field-select">
                 <option value={2}>Seco / Condiciones Normales (2 ptos)</option>
                 <option value={4}>Lluvia suave (4 ptos)</option>
                 <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
                 <option value={10}>Nieve / Tormenta extrema (10 ptos)</option>
               </select>
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              D. Condiciones de la Vía:
-              <select name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+            <div className="geren-field">
+              <label className="geren-field-label">D. Condiciones de la Vía</label>
+              <select name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Pavimentada (1 pto)</option>
                 <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
                 <option value={4}>No Pavimentada / Terregal (4 ptos)</option>
               </select>
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              E. Cobertura Comunicaciones:
-              <select name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+            <div className="geren-field">
+              <label className="geren-field-label">E. Cobertura Comunicaciones</label>
+              <select name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} className="geren-field-select">
                 <option value={0}>Teléfono Celular con Señal (0 ptos)</option>
                 <option value={2}>Sin comunicación y Viaje en Caravana (2 ptos)</option>
                 <option value={4}>Sin comunicación y Viaje en Solitario (4 ptos)</option>
               </select>
-            </label>
+            </div>
 
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
-              F. Horas Trabajadas + Viaje:
-              <select name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+            <div className="geren-field">
+              <label className="geren-field-label">F. Horas Trabajadas + Viaje</label>
+              <select name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Menos de 12 horas acumuladas (1 pto)</option>
                 <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
                 <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
                 <option value={16}>≥ 16 horas (BLOQUEANTE - NO CONDUCIR)</option>
               </select>
-            </label>
+            </div>
           </div>
 
           {/* Badge Resultado de Riesgo */}
-          <div style={{ marginTop: "14px", padding: "12px", borderRadius: "8px", background: nivelRiesgo === "ALTO" ? "#fee2e2" : nivelRiesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: `1px solid ${nivelRiesgo === "ALTO" ? "#fca5a5" : nivelRiesgo === "MEDIO" ? "#fde047" : "#86efac"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ marginTop: "16px", padding: "14px 16px", borderRadius: "10px", background: nivelRiesgo === "ALTO" ? "#fee2e2" : nivelRiesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: `1px solid ${nivelRiesgo === "ALTO" ? "#fca5a5" : nivelRiesgo === "MEDIO" ? "#fde047" : "#86efac"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <strong style={{ fontSize: "1rem", color: nivelRiesgo === "ALTO" ? "#991b1b" : nivelRiesgo === "MEDIO" ? "#854d0e" : "#166534" }}>
                 EVALUACIÓN DE RIESGO: {nivelRiesgo} ({puntajeTotal} ptos)
               </strong>
-              <div style={{ fontSize: "0.8rem", marginTop: "2px", color: "#334155" }}>
+              <div style={{ fontSize: "0.82rem", marginTop: "2px", color: "#334155" }}>
                 Autorización Requerida: <strong>{autorizacionRequerida}</strong>
               </div>
             </div>
             {esBloqueante && (
-              <span style={{ background: "#dc2626", color: "#fff", padding: "4px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
+              <span style={{ background: "#dc2626", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
                 ⛔ BLOQUEANTE
               </span>
             )}
@@ -783,13 +782,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 5. Firma Digital Conductor */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "1rem" }}>✍️ 5. Firma Digital del Conductor *</h4>
-          <p style={{ margin: "0 0 8px", fontSize: "0.8rem", color: "#64748b" }}>
+        <section className="geren-card">
+          <h4 className="geren-card-title">✍️ 5. Firma Digital del Conductor *</h4>
+          <p style={{ margin: "0 0 10px", fontSize: "0.82rem", color: "#64748b" }}>
             Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás apto para conducir.
           </p>
 
-          <div style={{ border: "2px dashed #94a3b8", borderRadius: "8px", background: "#ffffff", padding: "4px", textAlign: "center" }}>
+          <div style={{ border: "2px dashed #cbd5e1", borderRadius: "10px", background: "#ffffff", padding: "4px", textAlign: "center" }}>
             <canvas
               ref={canvasRef}
               width={640}
@@ -805,7 +804,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
             <small style={{ color: hasSignature ? "#166534" : "#64748b", fontWeight: "bold" }}>
               {hasSignature ? "✓ Firma digital capturada" : "Dibuja tu firma con tu dedo o ratón"}
             </small>
@@ -813,7 +812,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               type="button"
               onClick={clearSignature}
               disabled={!hasSignature}
-              style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "4px", cursor: "pointer", fontSize: "0.78rem" }}
+              style={{ background: "#e2e8f0", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
             >
               Limpiar Firma
             </button>
@@ -827,7 +826,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               type="button"
               onClick={onCancel}
               disabled={submitting}
-              style={{ background: "#e2e8f0", color: "#334155", border: 0, padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
+              style={{ background: "#e2e8f0", color: "#334155", border: 0, padding: "12px 22px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}
             >
               Cancelar
             </button>
@@ -840,12 +839,12 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               background: esBloqueante ? "#94a3b8" : "#16a34a",
               color: "#ffffff",
               border: 0,
-              padding: "12px 28px",
-              borderRadius: "8px",
+              padding: "14px 32px",
+              borderRadius: "10px",
               fontWeight: "bold",
-              fontSize: "0.95rem",
+              fontSize: "0.98rem",
               cursor: esBloqueante ? "not-allowed" : "pointer",
-              boxShadow: esBloqueante ? "none" : "0 4px 12px rgba(22, 163, 74, 0.3)"
+              boxShadow: esBloqueante ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)"
             }}
           >
             {submitting ? "Enviando Solicitud..." : "🚀 Registrar Gerenciamiento e Inspección"}

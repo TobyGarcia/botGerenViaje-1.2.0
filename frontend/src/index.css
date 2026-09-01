@@ -383,3 +383,97 @@ small {
 .location-details p {
   margin: 5px 0;
 }
+
+/* Gerenciamiento Form & Responsive Layouts */
+.geren-container {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 16px;
+  background: var(--bg-page);
+  border-radius: 14px;
+}
+
+.geren-card {
+  background: #ffffff;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 16px;
+}
+
+.geren-card-title {
+  margin: 0 0 14px 0;
+  color: #1e3a8a;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Grids adaptativos que se ajustan solas según el ancho de pantalla */
+.geren-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.geren-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 600px) {
+  .geren-grid-2,
+  .geren-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.geren-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.geren-field-input,
+.geren-field-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.geren-field-input:focus,
+.geren-field-select:focus {
+  border-color: #0284c7;
+  outline: 2px solid #bae6fd;
+}
+
+.alcoholimetro-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  min-height: 42px;
+  box-sizing: border-box;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
