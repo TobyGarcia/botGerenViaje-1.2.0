@@ -562,4 +562,8 @@ export function getAdminAnaliticaCombustible(params = {}) {
   return request(`/admin/analitica-combustible${queryString ? `?${queryString}` : ""}`);
 }
 
+export function getAdminUsuarios() {
+  return request("/admin/usuarios");
+}
+
 
