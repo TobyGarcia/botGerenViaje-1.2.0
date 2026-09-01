@@ -189,8 +189,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             <section>
               {items.length ? items.map(item => (
                 <button type="button" key={item.id_inspeccion} className="result-card" onClick={() => openInspeccion(item.id_inspeccion)}>
-                  <strong>{item.folio}</strong><br/>
-                  {item.conductor} · {item.vehiculo} ({item.numero_economico})
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                    <strong>{item.folio}</strong>
+                    {item.es_dia_siguiente && <span style={{ background: "#2563eb", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "600" }}>🌙 Día Siguiente ({item.fecha_operativa})</span>}
+                  </div>
+                  <div>{item.conductor} · {item.vehiculo} ({item.numero_economico})</div>
                 </button>
               )) : <p>No hay inspecciones pendientes.</p>}
             </section>
@@ -198,6 +201,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             <section className="result-card">
               <button type="button" onClick={() => setDetail(null)}>← Volver</button>
               <h2>{detail.folio}</h2>
+              {detail.es_dia_siguiente && (
+                <div style={{ background: "#eff6ff", border: "1px solid #93c5fd", color: "#1d4ed8", padding: "8px 12px", borderRadius: "8px", margin: "10px 0", fontSize: "0.85rem" }}>
+                  🌙 <strong>Inspección para el Día Siguiente:</strong> Salida de madrugada programada para la fecha <strong>{detail.fecha_operativa}</strong>.
+                </div>
+              )}
               <p><strong>Conductor:</strong> {detail.conductor}</p>
               <p><strong>Unidad:</strong> {detail.vehiculo} · {detail.numero_economico}</p>
               <p><strong>Combustible:</strong> {detail.combustible}</p>

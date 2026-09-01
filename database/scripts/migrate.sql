@@ -16,6 +16,8 @@
 \ir ../migrations/014_manejo_comentado.sql
 \ir ../migrations/015_supervisor_telegram_group_nullable.sql
 \ir ../migrations/016_puntos_intermedios_viaje.sql
+\ir ../migrations/017_inspeccion_dia_siguiente.sql
+
 
 
 

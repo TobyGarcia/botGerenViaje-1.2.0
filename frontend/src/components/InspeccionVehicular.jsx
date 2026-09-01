@@ -143,7 +143,7 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [lastMarked, setLastMarked] = useState("");
   const [tirePressures, setTirePressures] = useState({ di: "32", dd: "32", ti: "35", td: "35" });
-  const [form, setForm] = useState({ combustible: "", tipoAsignacion: "PERMANENTE", asignacionInicio: "", asignacionFin: "", danos: {}, checklist: {}, observaciones: "", firma: "" });
+  const [form, setForm] = useState({ combustible: "", tipoAsignacion: "PERMANENTE", asignacionInicio: "", asignacionFin: "", danos: {}, checklist: {}, observaciones: "", firma: "", esDiaSiguiente: false });
   const totalSteps = 8;
   const currentView = step >= 1 && step <= 4 ? views[step - 1] : null;
 
@@ -195,9 +195,26 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
 
   return <section className="inspection-card">
     <header className="inspection-header"><div><span>Inspección vehicular diaria</span><h2>Paso {step + 1} de {totalSteps}</h2></div><button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar inspección">×</button><progress value={step + 1} max={totalSteps} /></header>
-    {step === 0 && <div className="inspection-cover"><h3>Datos de la unidad</h3><div className="inspection-data-grid">
-      <p><strong>Folio:</strong> {context.folio}</p><p><strong>Unidad:</strong> {context.numero_economico}</p><p><strong>Vehículo:</strong> {context.marca} {context.modelo}</p><p><strong>Tipo:</strong> {context.tipo_vehiculo || "Sin registro"}</p><p><strong>Conductor:</strong> {context.conductor}</p><p><strong>Licencia:</strong> {context.licencia_numero || "Sin registro"}</p><p><strong>Tipo licencia:</strong> {context.tipo_licencia || "Sin registro"}</p><p><strong>Serie:</strong> {context.numero_serie || "Sin registro"}</p><p><strong>Póliza:</strong> {context.numero_poliza || "Sin registro"}</p><p><strong>Vencimiento:</strong> {context.seguro_vencimiento || "Sin registro"}</p><p><strong>Placas:</strong> {context.placas}</p><p><strong>Kilometraje:</strong> {context.kilometraje_actual} km</p>
-    </div><div className="inspection-field-grid"><label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Asignación<select value={form.tipoAsignacion} onChange={(event) => updateForm({ tipoAsignacion: event.target.value, asignacionInicio: "", asignacionFin: "" })}><option value="PERMANENTE">Permanente</option><option value="TEMPORAL">Temporal</option></select></label></div>{form.tipoAsignacion === "TEMPORAL" && <div className="date-range"><label>Inicio<input type="date" value={form.asignacionInicio} onChange={(event) => updateForm({ asignacionInicio: event.target.value })} /></label><label>Fin<input type="date" value={form.asignacionFin} onChange={(event) => updateForm({ asignacionFin: event.target.value })} /></label></div>}</div>}
+    {step === 0 && <div className="inspection-cover"><h3>Datos de la unidad asignada</h3><div className="inspection-data-grid">
+      <p><strong>Folio:</strong> {context.folio}</p><p><strong>Unidad asignada:</strong> {context.numero_economico}</p><p><strong>Vehículo:</strong> {context.marca} {context.modelo}</p><p><strong>Tipo:</strong> {context.tipo_vehiculo || "Sin registro"}</p><p><strong>Conductor:</strong> {context.conductor}</p><p><strong>Licencia:</strong> {context.licencia_numero || "Sin registro"}</p><p><strong>Tipo licencia:</strong> {context.tipo_licencia || "Sin registro"}</p><p><strong>Serie:</strong> {context.numero_serie || "Sin registro"}</p><p><strong>Póliza:</strong> {context.numero_poliza || "Sin registro"}</p><p><strong>Vencimiento:</strong> {context.seguro_vencimiento || "Sin registro"}</p><p><strong>Placas:</strong> {context.placas}</p><p><strong>Kilometraje:</strong> {context.kilometraje_actual} km</p>
+    </div><div className="inspection-field-grid">
+      <label className="checkbox-label" style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "10px", padding: "12px", background: form.esDiaSiguiente ? "#eff6ff" : "#f8fafc", borderRadius: "8px", border: form.esDiaSiguiente ? "1px solid #3b82f6" : "1px solid #cbd5e1", cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={form.esDiaSiguiente}
+          onChange={(event) => updateForm({ esDiaSiguiente: event.target.checked })}
+          style={{ width: "20px", height: "20px", cursor: "pointer" }}
+        />
+        <div>
+          <strong style={{ color: form.esDiaSiguiente ? "#1d4ed8" : "#1e293b", fontSize: "0.95rem" }}>
+            🌙 Inspección para el Día Siguiente (Salida 4:00 AM - 7:00 AM)
+          </strong>
+          <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+            Marca esta casilla si realizas la inspección con anticipación para poder salir temprano en tu unidad asignada.
+          </p>
+        </div>
+      </label>
+      <label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Asignación<select value={form.tipoAsignacion} onChange={(event) => updateForm({ tipoAsignacion: event.target.value, asignacionInicio: "", asignacionFin: "" })}><option value="PERMANENTE">Permanente</option><option value="TEMPORAL">Temporal</option></select></label></div>{form.tipoAsignacion === "TEMPORAL" && <div className="date-range"><label>Inicio<input type="date" value={form.asignacionInicio} onChange={(event) => updateForm({ asignacionInicio: event.target.value })} /></label><label>Fin<input type="date" value={form.asignacionFin} onChange={(event) => updateForm({ asignacionFin: event.target.value })} /></label></div>}</div>}
     {currentView && (() => { const [key, label, image] = currentView; const points = form.danos[key] || []; const removePoint = (index, event) => { event.preventDefault(); event.stopPropagation(); setForm((current) => ({ ...current, danos: { ...current.danos, [key]: current.danos[key].filter((_, pointIndex) => pointIndex !== index) } })); setLastMarked("Marca eliminada."); }; return <div className="inspection-visual"><div className="inspection-section-heading"><div><h3>{label}</h3><p>Toca el diagrama para encerrar un daño. El círculo rojo confirma el punto marcado.</p></div><button type="button" className="inspection-secondary-button" onClick={() => clearView(key)} disabled={!points.length}>Limpiar vista</button></div><div className={`damage-map damage-map-${key}`}><div className="damage-stage" onPointerDown={(event) => markDamage(key, event)} role="application" aria-label={`${label}. Toca para marcar daños`}><img src={image} alt={`Diagrama de ${label}`} />{points.map((point, index) => <button key={`${point.x}-${point.y}-${index}`} type="button" className="damage-point" style={{ left: `${point.x}%`, top: `${point.y}%` }} onPointerDown={(event) => removePoint(index, event)} aria-label={`Eliminar marca ${index + 1}`} />)}</div></div><p className="damage-feedback" role="status" aria-live="polite">{lastMarked || "Aún no has marcado daños en esta vista."}</p></div>; })()}
     {step === 5 && <div className="inspection-checklist">
       <div>

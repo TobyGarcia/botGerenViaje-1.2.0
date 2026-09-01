@@ -178,7 +178,9 @@ export async function notifyNewInspectionRequest({
   folio,
   conductor,
   vehiculo,
-  danos
+  danos,
+  esDiaSiguiente,
+  fechaOperativa
 } = {}) {
   const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
 
@@ -200,6 +202,7 @@ export async function notifyNewInspectionRequest({
 
   const message = [
     "🛎️ Nueva inspección pendiente de aprobación",
+    esDiaSiguiente ? `🌙 Programación: Inspección para el Día Siguiente (${fechaOperativa || "Mañana"})` : null,
     `Folio: ${folio ?? "No disponible"}`,
     `Conductor: ${conductor ?? "No disponible"}`,
     `Unidad: ${vehiculo ?? "No disponible"}`,

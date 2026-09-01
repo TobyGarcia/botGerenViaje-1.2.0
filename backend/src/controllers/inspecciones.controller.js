@@ -47,7 +47,9 @@ export async function saveInspectionController(request, response) {
         folio: detail?.folio,
         conductor: detail?.conductor,
         vehiculo: detail?.vehiculo,
-        danos: detail?.danos
+        danos: detail?.danos,
+        esDiaSiguiente: detail?.es_dia_siguiente,
+        fechaOperativa: detail?.fecha_operativa
       });
     } catch (notifyError) {
       console.error("No fue posible notificar la nueva inspección al grupo de supervisores:", notifyError);
