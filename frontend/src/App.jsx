@@ -22,6 +22,7 @@ import {
 } from "./services/api.js";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
+import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
 import {
   captureAndQueueLocation,
   captureIntermediatePoint,
@@ -100,6 +101,7 @@ const sendingLocationRef = useRef(false);
   const [trackingGps, setTrackingGps] =
     useState(false);
   const [modalAlertMessage, setModalAlertMessage] = useState("");
+  const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
 
   // Estado para modal/formulario de nuevo destino
   const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
@@ -1097,8 +1099,52 @@ async function handleAddIntermediatePoint() {
       <h1>
         {createdTrip
         ? "GERENCIAMIENTO DE VIAJE"
-        : "Nuevo viaje"}
+        : activeTabMode === "gerenciamiento"
+          ? "GERENCIAMIENTO DE VIAJES"
+          : "Nuevo viaje"}
       </h1>
+
+      {/* Tabs Selector de Modo de Viaje */}
+      {!createdTrip && (
+        <div style={{ display: "flex", gap: "8px", marginBottom: "14px", background: "#e2e8f0", padding: "4px", borderRadius: "10px" }}>
+          <button
+            type="button"
+            onClick={() => setActiveTabMode("urban")}
+            style={{
+              flex: 1,
+              padding: "10px 8px",
+              borderRadius: "8px",
+              border: 0,
+              fontWeight: "bold",
+              fontSize: "0.88rem",
+              background: activeTabMode === "urban" ? "#ffffff" : "transparent",
+              color: activeTabMode === "urban" ? "#0f172a" : "#64748b",
+              boxShadow: activeTabMode === "urban" ? "0 2px 6px rgba(0,0,0,0.1)" : "none",
+              cursor: "pointer"
+            }}
+          >
+            🚗 Viaje Urbano / Local
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTabMode("gerenciamiento")}
+            style={{
+              flex: 1,
+              padding: "10px 8px",
+              borderRadius: "8px",
+              border: 0,
+              fontWeight: "bold",
+              fontSize: "0.88rem",
+              background: activeTabMode === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "transparent",
+              color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
+              boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
+              cursor: "pointer"
+            }}
+          >
+            🗺️ Gerenciamiento Fuera de Ciudad
+          </button>
+        </div>
+      )}
 
       <section className="summary-card" aria-label="Fecha actual">
         <span>Fecha actual</span>
@@ -1126,7 +1172,21 @@ async function handleAddIntermediatePoint() {
           )}
       </section>
 
-      {!createdTrip && (
+      {!createdTrip && activeTabMode === "gerenciamiento" && (
+        <GerenciamientoForm
+          telegramAuth={telegramAuth}
+          conductores={conductores}
+          vehiculos={vehiculos}
+          lugares={lugares}
+          onCancel={() => setActiveTabMode("urban")}
+          onComplete={() => {
+            setMessage("✅ Gerenciamiento de Viaje registrado exitosamente.");
+            setMessageType("success");
+          }}
+        />
+      )}
+
+      {!createdTrip && activeTabMode === "urban" && (
         <form onSubmit={handleSubmit}>
           <section className="information-panel" aria-label="Conductor autenticado">
             <p><strong>Conductor:</strong> {telegramAuth.conductor.nombre}</p>

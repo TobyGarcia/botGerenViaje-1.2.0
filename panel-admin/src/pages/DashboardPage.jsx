@@ -9,6 +9,7 @@ import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
 import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
+import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import logoAquarioBlanco from "../assets/page_assets/AQUARIO_BLANCO.png";
@@ -553,7 +554,8 @@ function DashboardPage({ user, onLogout }) {
     { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] }
+    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
+    { id: "gerenciamiento", label: "Gerenciamiento Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA", "COORDINADOR_AREA", "GERENTE_GENERAL", "COORDINADOR_QHSE"] }
   ].filter((module) => module.roles.includes(user.rol));
 
   const canInspect = ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"].includes(user.rol);
@@ -712,6 +714,7 @@ function DashboardPage({ user, onLogout }) {
         {activeModule === "destinos" && <DestinosPage user={user} />}
         {activeModule === "ubicaciones" && <UbicacionesPage />}
         {activeModule === "viajes" && <ViajesPage user={user} />}
+        {activeModule === "gerenciamiento" && <GerenciamientoAdminPage user={user} />}
         {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
         {activeModule === "usuarios" && user.rol === "ADMINISTRADOR" && <UsuariosAdminPage currentUser={user} />}
         {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
@@ -725,7 +728,8 @@ function DashboardPage({ user, onLogout }) {
               module.id !== "unidades" &&
               module.id !== "destinos" &&
               module.id !== "ubicaciones" &&
-              module.id !== "viajes"
+              module.id !== "viajes" &&
+              module.id !== "gerenciamiento"
           )
           .map((module) =>
             activeModule === module.id ? (

@@ -174,6 +174,38 @@ export function registerBotHandlers(bot) {
     }
   });
 
+  bot.command("gerenciamiento", async (context) => {
+    logCommand(context, "gerenciamiento");
+
+    try {
+      if (isPrivateChat(context)) {
+        const telegramUser = await findTelegramUserById(context.from.id);
+        if (!isRegisteredDriver(telegramUser)) {
+          await context.reply(
+            "🔐 Debes completar tu registro antes de realizar un gerenciamiento de viaje.",
+            getMiniAppKeyboard()
+          );
+          return;
+        }
+
+        await context.reply(
+          "🗺️ Abre el formato de Gerenciamiento de Viajes (Fuera de la Ciudad/Estado):",
+          getMiniAppKeyboard()
+        );
+        return;
+      }
+
+      if (!isAuthorizedGroup(context)) return;
+
+      await context.reply(
+        "Abre el bot en privado para registrar el gerenciamiento de viaje.",
+        getPrivateTripKeyboard()
+      );
+    } catch (error) {
+      console.error("Error en comando gerenciamiento:", error);
+    }
+  });
+
   bot.command("ayuda", async (context) => {
     logCommand(context, "ayuda");
 
@@ -190,6 +222,7 @@ export function registerBotHandlers(bot) {
         "Comandos disponibles:",
         "",
         "/viaje - Abrir el sistema de viajes",
+        "/gerenciamiento - Formato de viajes fuera de la ciudad o estado",
         "/registro - Completar registro",
         "/ayuda - Mostrar ayuda"
         ].join("\n")

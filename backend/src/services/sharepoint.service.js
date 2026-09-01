@@ -121,7 +121,9 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
 
   // 2. Búsqueda de respaldo en Microsoft Graph API
   try {
-    const searchUrl = `https://graph.microsoft.com/v1.0/sites?search=Gerenciamiento`;
+    const sitePath = siteIdentifier.includes(":") ? siteIdentifier.split(":")[1] : siteIdentifier;
+    const siteName = sitePath.split("/").filter(Boolean).pop() || "GerenciamientoViajes";
+    const searchUrl = `https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(siteName)}`;
     const searchRes = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -129,13 +131,18 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
     if (searchRes.ok) {
       const searchData = await searchRes.json();
       if (Array.isArray(searchData.value) && searchData.value.length > 0) {
-        const found = searchData.value[0];
+        const found = searchData.value.find(s => s.webUrl?.toLowerCase().includes(siteName.toLowerCase())) || searchData.value[0];
         console.log(`[SharePoint] Sitio encontrado por búsqueda Graph: ${found.id} (${found.webUrl})`);
         return found.id;
       }
     }
   } catch (err) {
     // Ignorar excepción de búsqueda
+  }
+
+  // Si no se pudo resolver a un GUID site ID, asegurar formato hostname:/sites/path: con dos puntos al final
+  if (siteIdentifier.includes(":") && !siteIdentifier.endsWith(":")) {
+    return `${siteIdentifier}:`;
   }
 
   return siteIdentifier;

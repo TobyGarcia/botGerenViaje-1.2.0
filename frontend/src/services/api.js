@@ -177,4 +177,32 @@ export function decidirSupervisorInspeccion(idInspeccion, data) { return request
 export function getSupervisorAsignaciones() { return request("/api/supervisor/inspecciones/asignaciones"); }
 export function asignarVehiculoSupervisor({ idConductor, idVehiculo }) { return request("/api/supervisor/inspecciones/asignaciones", { method: "POST", body: JSON.stringify({ idConductor, idVehiculo }) }); }
 
+export function crearGerenciamientoViaje(payload) {
+  return request("/api/gerenciamiento-viajes", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getGerenciamientoViaje(idGerenciamiento) {
+  return request(`/api/gerenciamiento-viajes/${idGerenciamiento}`);
+}
+
+export function getGerenciamientoViajePorViaje(idViaje) {
+  return request(`/api/gerenciamiento-viajes/viaje/${idViaje}`);
+}
+
+export function listGerenciamientosViaje(params = {}) {
+  const search = new URLSearchParams(params).toString();
+  return request(`/api/gerenciamiento-viajes${search ? `?${search}` : ''}`);
+}
+
+export function aprobarGerenciamientoViaje(idGerenciamiento, payload) {
+  return request(`/api/gerenciamiento-viajes/${idGerenciamiento}/aprobar`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+
 
