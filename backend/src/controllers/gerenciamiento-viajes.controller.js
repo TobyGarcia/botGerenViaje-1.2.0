@@ -1,3 +1,4 @@
+import { notifyNewGerenciamientoRequest } from "../bot/supervisor-bot.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import {
@@ -42,6 +43,19 @@ export async function createGerenciamientoController(request, response) {
         nombreConductor: payload.nombreConductor || telegramUser.conductor_nombre
       }
     });
+
+    // Notificar al grupo de supervisores en Telegram
+    notifyNewGerenciamientoRequest({
+      idGerenciamiento: result.id_gerenciamiento,
+      folio: result.folio_documento,
+      conductor: result.nombre_conductor,
+      vehiculo: `${result.tipo_vehiculo || 'Unidad'} (${result.numero_unidad || 'N/A'})`,
+      origen: result.origen_nombre || result.origen_texto,
+      destino: result.destino_nombre || result.destino_texto,
+      puntajeTotal: result.puntaje_total,
+      nivelRiesgo: result.nivel_riesgo,
+      autorizacionRequerida: result.autorizacion_requerida
+    }).catch((err) => console.error("Error al notificar gerenciamiento a Telegram:", err.message));
 
     return response.status(201).json({
       success: true,

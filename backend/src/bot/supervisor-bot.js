@@ -217,3 +217,49 @@ export async function notifyNewInspectionRequest({
     console.error("No fue posible enviar la alerta de inspección al grupo de supervisores:", error);
   }
 }
+
+// Envía una alerta al grupo de supervisores cuando un conductor sube un
+// gerenciamiento de viaje nuevo (fuera de la ciudad) que queda pendiente de aprobación.
+export async function notifyNewGerenciamientoRequest({
+  idGerenciamiento,
+  folio,
+  conductor,
+  vehiculo,
+  origen,
+  destino,
+  puntajeTotal,
+  nivelRiesgo,
+  autorizacionRequerida
+} = {}) {
+  const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+
+  if (!groupId) {
+    console.warn("No se envió la alerta de gerenciamiento: TELEGRAM_GROUP_SUPRVISOR_ID no está configurado.");
+    return;
+  }
+
+  if (!supervisorBotInstance) {
+    console.warn("No se envió la alerta de gerenciamiento: el bot de supervisión no está inicializado.");
+    return;
+  }
+
+  const badgeSymbol = nivelRiesgo === "ALTO" ? "🔴" : nivelRiesgo === "MEDIO" ? "🟡" : "🟢";
+
+  const message = [
+    "🚨 NUEVO GERENCIAMIENTO DE VIAJE PENDIENTE",
+    `Documento: ${folio || "SII-MX-23-LOG-003"} #${idGerenciamiento || ""}`,
+    `Conductor: ${conductor || "No especificado"}`,
+    `Unidad: ${vehiculo || "No especificada"}`,
+    `Ruta: ${origen || "Origen"} ➔ ${destino || "Destino"}`,
+    `Evaluación: ${badgeSymbol} RIESGO ${nivelRiesgo || "BAJO"} (${puntajeTotal || 0} pts)`,
+    `Autorización Requerida: ${autorizacionRequerida || "SUPERVISOR DIRECTO O QHSE"}`,
+    "",
+    "Abre la Mini App de supervisión o ingresa al Panel Web para revisar y aprobar."
+  ].filter(Boolean).join("\n");
+
+  try {
+    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta de gerenciamiento al grupo de supervisores:", error);
+  }
+}

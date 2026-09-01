@@ -125,7 +125,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
   );
 }
 
-function DashboardOverview({ pendingInspections, notificationError, onOpenInspections, onOpenManejoComentado }) {
+function DashboardOverview({ pendingInspections, pendingGerenciamientos, notificationError, onOpenInspections, onOpenGerenciamiento, onOpenManejoComentado }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
 
@@ -149,6 +149,11 @@ function DashboardOverview({ pendingInspections, notificationError, onOpenInspec
           <span>Inspecciones pendientes</span>
           <strong>{pendingInspections}</strong>
           <small>{pendingInspections ? "Requieren aprobación administrativa" : "No hay inspecciones por atender"}</small>
+        </button>
+        <button type="button" className="kpi-card inspection-notification-card" style={{ borderLeft: "4px solid #0284c7" }} onClick={onOpenGerenciamiento}>
+          <span>Gerenciamientos pendientes</span>
+          <strong style={{ color: "#0284c7" }}>{pendingGerenciamientos}</strong>
+          <small>{pendingGerenciamientos ? "Viajes fuera de ciudad requieren aprobación" : "No hay gerenciamientos pendientes"}</small>
         </button>
         <ActiveTripsCardWidget viajesActivos={summary.viajes_activos || []} />
       </section>
@@ -515,6 +520,7 @@ function ModulePlaceholder({ title }) {
 function DashboardPage({ user, onLogout }) {
   const [activeModule, setActiveModule] = useState("inicio");
   const [pendingInspections, setPendingInspections] = useState(0);
+  const [pendingGerenciamientos, setPendingGerenciamientos] = useState(0);
   const [notificationError, setNotificationError] = useState("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -523,6 +529,26 @@ function DashboardPage({ user, onLogout }) {
     setActiveModule(moduleId);
     setIsMobileMenuOpen(false);
   };
+
+  useEffect(() => {
+    let active = true;
+    const fetchPendingGerenciamientos = () => {
+      fetch(`${import.meta.env.VITE_API_BASE_URL || ""}/api/gerenciamiento-viajes?estado=PENDIENTE`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (active && Array.isArray(data.data)) {
+            setPendingGerenciamientos(data.data.length);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchPendingGerenciamientos();
+    const interval = setInterval(fetchPendingGerenciamientos, 15000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
@@ -587,8 +613,8 @@ function DashboardPage({ user, onLogout }) {
               aria-label="Abrir menú de navegación"
             >
               {isMobileMenuOpen ? "✕" : "☰"}
-              {pendingInspections > 0 && !isMobileMenuOpen && (
-                <span className="mobile-badge-dot">{pendingInspections}</span>
+              {(pendingInspections > 0 || pendingGerenciamientos > 0) && !isMobileMenuOpen && (
+                <span className="mobile-badge-dot">{pendingInspections + pendingGerenciamientos}</span>
               )}
             </button>
           </div>
@@ -619,16 +645,18 @@ function DashboardPage({ user, onLogout }) {
 
             {modules.map((module) => {
               const IconComponent = module.icon;
+              const isGerenciamiento = module.id === "gerenciamiento";
               return (
                 <button
                   key={module.id}
                   type="button"
                   title={module.label}
-                  className={activeModule === module.id ? "sidebar-active" : ""}
+                  className={`${isGerenciamiento ? "notification-button" : ""} ${activeModule === module.id ? "sidebar-active" : ""}`}
                   onClick={() => handleSelectModule(module.id)}
                 >
                   <span className="nav-icon"><IconComponent size={20} /></span>
                   <span className="sidebar-text">{module.label}</span>
+                  {isGerenciamiento && pendingGerenciamientos > 0 && <strong style={{ background: "#0284c7" }}>{pendingGerenciamientos}</strong>}
                 </button>
               );
             })}
@@ -696,8 +724,10 @@ function DashboardPage({ user, onLogout }) {
             {user.rol !== "OPERADOR" && (
               <DashboardOverview
                 pendingInspections={pendingInspections}
+                pendingGerenciamientos={pendingGerenciamientos}
                 notificationError={notificationError}
                 onOpenInspections={() => setActiveModule("inspecciones")}
+                onOpenGerenciamiento={() => setActiveModule("gerenciamiento")}
                 onOpenManejoComentado={() => setActiveModule("manejo-comentado")}
               />
             )}
