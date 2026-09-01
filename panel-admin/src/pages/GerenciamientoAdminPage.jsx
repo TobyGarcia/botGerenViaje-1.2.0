@@ -1031,7 +1031,18 @@ export default function GerenciamientoAdminPage({ user }) {
 
             {/* PANEL DE INTERACCIÓN / APROBACIÓN CON CANVAS DE FIRMA Y SELECCIÓN DE USUARIO */}
             <div style={{ borderTop: "2px solid #000", paddingTop: "10px", marginTop: "10px", background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-              <h4 style={{ margin: "0 0 6px", color: "#0f172a", fontSize: "0.9rem" }}>✍️ Procesar Aprobación / Firma Digital del Autorizador</h4>
+              <h4 style={{ margin: "0 0 6px", color: "#0f172a", fontSize: "0.9rem" }}>✍️ Procesar Aprobación Unificada (Gerenciamiento + Inspección Vehicular)</h4>
+
+              <div style={{ background: "#e0f2fe", border: "1px solid #7dd3fc", padding: "8px 12px", borderRadius: "6px", marginBottom: "10px", fontSize: "0.82rem", color: "#0369a1" }}>
+                <strong>🚗 Inspección Vehicular Integrada con este Gerenciamiento:</strong>
+                <div style={{ marginTop: "4px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
+                  <span>Nivel Combustible: <strong>{selectedDoc.inspeccion_combustible || "3/4"}</strong></span>
+                  <span>Estado Inspección: <strong style={{ color: selectedDoc.inspeccion_estado === 'APROBADA' || selectedDoc.estado === 'APROBADO' ? '#166534' : '#d97706' }}>{selectedDoc.inspeccion_estado || (selectedDoc.estado === 'APROBADO' ? 'APROBADA' : 'PENDIENTE CON GERENCIAMIENTO')}</strong></span>
+                </div>
+                {selectedDoc.inspeccion_observaciones && (
+                  <div style={{ marginTop: "2px" }}>Obs. Vehículo: {selectedDoc.inspeccion_observaciones}</div>
+                )}
+              </div>
 
               <div style={{ display: "grid", gap: "8px", marginBottom: "8px" }}>
                 <label style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
@@ -1074,7 +1085,7 @@ export default function GerenciamientoAdminPage({ user }) {
 
                 {selectedDoc.estado === "APROBADO" && selectedDoc.firma_autorizador ? (
                   <div style={{ background: "#dcfce7", padding: "8px", borderRadius: "4px", border: "1px solid #16a34a" }}>
-                    <strong style={{ fontSize: "0.8rem", color: "#166534" }}>✅ Documento Aprobado por: {selectedDoc.nombre_autorizador_firma}</strong>
+                    <strong style={{ fontSize: "0.8rem", color: "#166534" }}>✅ Documento e Inspección Aprobados por: {selectedDoc.nombre_autorizador_firma}</strong>
                     <div style={{ marginTop: "4px" }}>
                       <img src={selectedDoc.firma_autorizador} alt="Firma Autorizador" style={{ maxHeight: "55px", background: "#ffffff", padding: "2px", borderRadius: "4px", border: "1px solid #cbd5e1" }} />
                     </div>
@@ -1099,7 +1110,7 @@ export default function GerenciamientoAdminPage({ user }) {
                   disabled={approving}
                   style={{ background: "#16a34a", color: "#ffffff", border: 0, padding: "8px 20px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)" }}
                 >
-                  ✅ Aprobar y Autorizar Viaje
+                  ✅ Aprobar Gerenciamiento e Inspección Vehicular
                 </button>
               </div>
             </div>

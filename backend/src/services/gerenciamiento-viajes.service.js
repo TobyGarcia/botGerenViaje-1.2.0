@@ -1,5 +1,6 @@
 import { databasePool } from "../database/pool.js";
 import { createTrip } from "./viajes.service.js";
+import { saveInspection } from "./inspecciones.service.js";
 
 /**
  * Calcula de manera centralizada el Análisis de Riesgo (Tabuladores A al G)
@@ -75,7 +76,25 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     }
   }
 
-  // Inicializar los sitios de reporte con la lista de puntos de ruta (sin hora inicial)
+  // 2. Si se incluyeron datos de Inspección Vehicular en el formato de Gerenciamiento, registrarlos automáticamente
+  if (idViaje && (data.inspeccionData || data.checklist)) {
+    try {
+      const inspPayload = data.inspeccionData || {
+        combustible: data.combustible || "3/4",
+        tipoAsignacion: data.tipoAsignacion || "Base",
+        checklist: data.checklist || {},
+        danos: data.danos || {},
+        observaciones: data.observacionesVehiculo || data.observaciones || null,
+        firma: data.firmaConductor || null,
+        esDiaSiguiente: Boolean(data.esDiaSiguiente)
+      };
+      await saveInspection({ idViaje, idConductor, data: inspPayload });
+    } catch (inspErr) {
+      console.warn("No se pudo vincular la inspección vehicular implícita:", inspErr.message);
+    }
+  }
+
+  // Inicializar los sitios de reporte con la lista de puntos de ruta
   const rutaPuntos = Array.isArray(data.rutaPuntos) ? data.rutaPuntos.filter(Boolean) : [];
   const sitiosReporte = rutaPuntos.map((punto) => ({
     punto,
@@ -177,10 +196,17 @@ export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
     SELECT g.*,
       o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre
+      d.nombre AS destino_nombre,
+      i.id_inspeccion,
+      i.combustible AS inspeccion_combustible,
+      i.checklist AS inspeccion_checklist,
+      i.danos AS inspeccion_danos,
+      i.observaciones_conductor AS inspeccion_observaciones,
+      i.estado AS inspeccion_estado
     FROM gerenciamiento_viajes g
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
+    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
     WHERE g.id_gerenciamiento = $1
   `, [idGerenciamiento]);
   return result.rows[0] ?? null;
@@ -190,10 +216,17 @@ export async function getGerenciamientoByViaje(idViaje) {
   const result = await databasePool.query(`
     SELECT g.*,
       o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre
+      d.nombre AS destino_nombre,
+      i.id_inspeccion,
+      i.combustible AS inspeccion_combustible,
+      i.checklist AS inspeccion_checklist,
+      i.danos AS inspeccion_danos,
+      i.observaciones_conductor AS inspeccion_observaciones,
+      i.estado AS inspeccion_estado
     FROM gerenciamiento_viajes g
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
+    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
     WHERE g.id_viaje = $1
     ORDER BY g.id_gerenciamiento DESC
     LIMIT 1
@@ -230,11 +263,18 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
     SELECT g.*,
       c.nombre AS conductor_nombre,
       o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre
+      d.nombre AS destino_nombre,
+      i.id_inspeccion,
+      i.combustible AS inspeccion_combustible,
+      i.checklist AS inspeccion_checklist,
+      i.danos AS inspeccion_danos,
+      i.observaciones_conductor AS inspeccion_observaciones,
+      i.estado AS inspeccion_estado
     FROM gerenciamiento_viajes g
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
+    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
     ${whereSql}
     ORDER BY g.creado_en DESC
     LIMIT ${limitParam} OFFSET ${offsetParam}
@@ -264,14 +304,36 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
 
     const record = updateRes.rows[0];
 
-    // Si fue APROBADO y tiene viaje vinculado, asegurar que el viaje quede listo en PENDIENTE para la inspección vehicular
-    if (record && estado === 'APROBADO' && record.id_viaje) {
-      await client.query(`
-        UPDATE viajes
-        SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
-            actualizado_en = CURRENT_TIMESTAMP
-        WHERE id_viajes = $1
-      `, [record.id_viaje]);
+    // Al APROBAR el Gerenciamiento, aprobar automáticamente la Inspección Vehicular vinculada y habilitar el viaje en estado PENDIENTE listo para iniciar
+    if (record && record.id_viaje) {
+      if (estado === 'APROBADO') {
+        await client.query(`
+          UPDATE inspecciones_vehiculares
+          SET estado = 'APROBADA',
+              id_usuario_autorizador = $1,
+              firma_supervisor = $2,
+              observaciones_supervisor = $3,
+              aprobado_en = CURRENT_TIMESTAMP,
+              actualizado_en = CURRENT_TIMESTAMP
+          WHERE id_viajes = $4
+        `, [idUsuarioAdmin, firmaAutorizador, observaciones, record.id_viaje]);
+
+        await client.query(`
+          UPDATE viajes
+          SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
+              actualizado_en = CURRENT_TIMESTAMP
+          WHERE id_viajes = $1
+        `, [record.id_viaje]);
+      } else if (estado === 'RECHAZADO') {
+        await client.query(`
+          UPDATE inspecciones_vehiculares
+          SET estado = 'RECHAZADA',
+              id_usuario_autorizador = $1,
+              observaciones_supervisor = $2,
+              actualizado_en = CURRENT_TIMESTAMP
+          WHERE id_viajes = $3
+        `, [idUsuarioAdmin, observaciones, record.id_viaje]);
+      }
     }
 
     await client.query("COMMIT");

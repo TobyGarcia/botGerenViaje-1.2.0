@@ -2,6 +2,22 @@ import { useState, useRef, useEffect } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
 import logoAQR from "../assets/logoAQR.webp";
 
+const defaultChecklistItems = {
+  "Luces": "B",
+  "Direccionales y Intermitentes": "B",
+  "Freno y Reversa": "B",
+  "Neumáticos y Llanta de Refacción": "B",
+  "Frenos y Freno de Mano": "B",
+  "Aceite de Motor y Niveles": "B",
+  "Líquido Refrigerante / Anticongelante": "B",
+  "Líquido de Frenos y Dirección": "B",
+  "Cinturones de Seguridad": "B",
+  "Espejos y Parabrisas": "B",
+  "Extintor Carga Vigente": "B",
+  "Triángulos / Botiquín / Gato": "B",
+  "Limpieza Interior y Exterior": "B"
+};
+
 export default function GerenciamientoForm({ telegramAuth, conductores = [], vehiculos = [], lugares = [], onComplete, onCancel }) {
   const selectedDriver = telegramAuth?.conductor || {};
 
@@ -48,6 +64,11 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     inspeccionVehiculoRealizada: true,
     reunionPreCaravanaRealizada: false,
 
+    // Inspección Vehicular Integrada
+    combustible: "3/4",
+    tipoAsignacion: "Base",
+    observacionesVehiculo: "",
+
     // 4. Tabuladores A-G
     ptsDistancia: 1, // <50km: 1, <100km: 2, <200km: 5, >200km: 8
     ptsClima: 2, // Seco: 2, Lluvia suave: 4, Lluvia fuerte/niebla: 8, Nieve: 10
@@ -58,6 +79,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     ptsHoraTraslado: 1, // Día: 1, Noche: 8
   });
 
+  const [checklist, setChecklist] = useState(defaultChecklistItems);
   const [rutaPuntos, setRutaPuntos] = useState(["", ""]);
   const [viajaAcompanado, setViajaAcompanado] = useState(false);
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
@@ -101,40 +123,147 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }, [form.idVehiculo, vehiculos]);
 
-  // Canvas Initialization
+  // Recalcular puntos de tabuladores automáticamente según datos seleccionados
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = canvas.offsetWidth || 340;
-      canvas.height = 130;
-      const ctx = canvas.getContext("2d");
-      ctx.strokeStyle = "#1e293b";
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
+    let ptsDist = 1;
+    const origenObj = lugares.find((l) => String(l.id_lugares) === String(form.idOrigen));
+    const destinoObj = lugares.find((l) => String(l.id_lugares) === String(form.idDestino));
+
+    if (origenObj && destinoObj && origenObj.latitud && destinoObj.latitud) {
+      const lat1 = Number(origenObj.latitud);
+      const lon1 = Number(origenObj.longitud);
+      const lat2 = Number(destinoObj.latitud);
+      const lon2 = Number(destinoObj.longitud);
+
+      const R = 6371;
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = R * c;
+
+      if (distKm > 200) ptsDist = 8;
+      else if (distKm > 100) ptsDist = 5;
+      else if (distKm > 50) ptsDist = 2;
+      else ptsDist = 1;
     }
-  }, []);
+
+    let ptsPers = 1;
+    const numAcompanantes = viajaAcompanado ? listaAcompanantes.filter((a) => a.trim()).length : 0;
+    if (numAcompanantes === 0) ptsPers = 6;
+    else if (numAcompanantes === 1) ptsPers = 3;
+    else ptsPers = 1;
+
+    let ptsHora = 1;
+    if (form.horaSalida) {
+      const hh = Number(form.horaSalida.split(":")[0]);
+      if (hh < 6 || hh >= 18) ptsHora = 8;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      ptsDistancia: ptsDist,
+      ptsVehiculosPersonas: ptsPers,
+      ptsHoraTraslado: ptsHora
+    }));
+  }, [form.idOrigen, form.idDestino, form.horaSalida, viajaAcompanado, listaAcompanantes, lugares]);
+
+  const puntajeTotal = form.ptsDistancia + form.ptsClima + form.ptsVehiculosPersonas + form.ptsCondicionesVia + form.ptsComunicaciones + form.ptsHorasTrabajadas + form.ptsHoraTraslado;
+  let nivelRiesgo = "BAJO";
+  let autorizacionRequerida = "SUPERVISOR DIRECTO O QHSE";
+
+  if (puntajeTotal > 23) {
+    nivelRiesgo = "ALTO";
+    autorizacionRequerida = "GERENCIA GENERAL Y QHSE";
+  } else if (puntajeTotal >= 16) {
+    nivelRiesgo = "MEDIO";
+    autorizacionRequerida = "COORDINACIÓN DE ÁREA";
+  }
+
+  const esBloqueante = form.ptsHorasTrabajadas >= 16;
+
+  function handleInputChange(event) {
+    const { name, value, type, checked } = event.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
+    }));
+  }
+
+  function handleChecklistItemChange(key, value) {
+    setChecklist((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Métodos para Puntos de Ruta
+  function handleRoutePointChange(index, value) {
+    const updated = [...rutaPuntos];
+    updated[index] = value;
+    setRutaPuntos(updated);
+  }
+
+  function addRoutePoint() {
+    if (rutaPuntos.length < 4) {
+      setRutaPuntos([...rutaPuntos, ""]);
+    }
+  }
+
+  function removeRoutePoint(index) {
+    if (rutaPuntos.length > 1) {
+      const updated = rutaPuntos.filter((_, i) => i !== index);
+      setRutaPuntos(updated);
+    }
+  }
+
+  // Métodos para Acompañantes
+  function handleCompanionChange(index, value) {
+    const updated = [...listaAcompanantes];
+    updated[index] = value;
+    setListaAcompanantes(updated);
+  }
+
+  function addCompanionField() {
+    if (listaAcompanantes.length < maxAcompanantes) {
+      setListaAcompanantes([...listaAcompanantes, ""]);
+    }
+  }
+
+  function removeCompanionField(index) {
+    if (listaAcompanantes.length > 1) {
+      const updated = listaAcompanantes.filter((_, i) => i !== index);
+      setListaAcompanantes(updated);
+    }
+  }
+
+  // Canvas Handlers
+  function getCanvasPoint(e) {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
 
   function startDrawing(e) {
-    setIsDrawing(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const pt = getCanvasPoint(e);
     ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+    ctx.moveTo(pt.x, pt.y);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000000";
+    setIsDrawing(true);
+    setHasSignature(true);
   }
 
   function draw(e) {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    const pt = getCanvasPoint(e);
+    ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
-    setHasSignature(true);
   }
 
   function stopDrawing() {
@@ -146,247 +275,184 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     if (canvas) {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      setHasSignature(false);
     }
+    setHasSignature(false);
   }
 
-  // Risk Score Calculations
-  const scoreA = Number(form.ptsDistancia);
-  const scoreB = Number(form.ptsClima);
-  const scoreC = Number(form.ptsVehiculosPersonas);
-  const scoreD = Number(form.ptsCondicionesVia);
-  const scoreE = Number(form.ptsComunicaciones);
-  const scoreF = Number(form.ptsHorasTrabajadas);
-  const scoreG = Number(form.ptsHoraTraslado);
-
-  const totalScore = scoreA + scoreB + scoreC + scoreD + scoreE + scoreF + scoreG;
-
-  const isHoursBlocked = scoreF >= 16;
-  const isNightDriving = scoreG >= 8;
-
-  let riskLevel = "BAJO";
-  let riskColor = "#16a34a"; // Green
-  let requiredApproval = "Supervisor Directo o QHSE";
-
-  if (totalScore > 23) {
-    riskLevel = "ALTO";
-    riskColor = "#dc2626"; // Red
-    requiredApproval = "Gerencia General y QHSE";
-  } else if (totalScore >= 16) {
-    riskLevel = "MEDIO";
-    riskColor = "#ca8a04"; // Yellow
-    requiredApproval = "Coordinador de Área";
-  }
-
-  function handleChange(e) {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value
-    }));
-    setErrorMessage("");
-  }
-
-  function handleRutaChange(index, value) {
-    const newRuta = [...rutaPuntos];
-    newRuta[index] = value;
-    setRutaPuntos(newRuta);
-  }
-
-  function addRutaPoint() {
-    if (rutaPuntos.length < 4) {
-      setRutaPuntos([...rutaPuntos, ""]);
-    }
-  }
-
-  function removeRutaPoint(index) {
-    if (rutaPuntos.length > 1) {
-      setRutaPuntos(rutaPuntos.filter((_, i) => i !== index));
-    }
-  }
-
-  function handleCompanionChange(index, value) {
-    const newList = [...listaAcompanantes];
-    newList[index] = value;
-    setListaAcompanantes(newList);
-  }
-
-  function addCompanionField() {
-    if (listaAcompanantes.length < maxAcompanantes) {
-      setListaAcompanantes([...listaAcompanantes, ""]);
-    }
-  }
-
-  function removeCompanionField(index) {
-    const newList = listaAcompanantes.filter((_, i) => i !== index);
-    setListaAcompanantes(newList.length === 0 ? [""] : newList);
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (isHoursBlocked) {
-      setErrorMessage("⚠️ HORAS TRABAJADAS + TIEMPO DE VIAJE >= 16 HRS: NO CONDUCIR. El viaje no puede registrarse por riesgo de fatiga.");
+    if (!form.idOrigen && !form.origenTexto) {
+      setErrorMessage("Por favor selecciona o especifica el Origen.");
       return;
     }
-
+    if (!form.idDestino && !form.destinoTexto) {
+      setErrorMessage("Por favor selecciona o especifica el Destino.");
+      return;
+    }
+    if (!form.idVehiculo) {
+      setErrorMessage("Por favor selecciona el Vehículo que utilizarás.");
+      return;
+    }
+    if (esBloqueante) {
+      setErrorMessage("⛔ Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
+      return;
+    }
     if (!hasSignature) {
-      setErrorMessage("Por favor firma el documento en el recuadro digital.");
+      setErrorMessage("Por favor realiza la firma digital del conductor antes de enviar.");
       return;
     }
 
     const canvas = canvasRef.current;
-    const signatureDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+    const firmaDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+
+    const acompanantesFiltrados = viajaAcompanado ? listaAcompanantes.filter((a) => a.trim()) : [];
+    const rutaFiltrada = rutaPuntos.filter((r) => r.trim());
 
     setSubmitting(true);
 
     try {
-      const acompanantesFinal = viajaAcompanado
-        ? listaAcompanantes.map((s) => s.trim()).filter(Boolean)
-        : [];
-
       const payload = {
-        folioDocumento: "SII-MX-23-LOG-003",
-        versionDocumento: "3.0",
-        areaResponsable: "Logística",
-        departamento: form.departamento,
-        fechaEmision: new Date().toISOString().split("T")[0],
-        horaSalida: form.horaSalida,
-        idOrigen: form.idOrigen ? Number(form.idOrigen) : null,
-        idDestino: form.idDestino ? Number(form.idDestino) : null,
-        idVehiculo: form.idVehiculo ? Number(form.idVehiculo) : null,
-        kilometraje: Number(form.kilometraje || 0),
-
-        // Medical
-        presionArterial: form.presionArterial,
-        examenVisual: form.examenVisual,
-        glucosa: form.glucosa,
-        alcoholimetro: form.alcoholimetro,
-        frecuenciaCardiaca: form.frecuenciaCardiaca,
-        frecuenciaRespiratoria: form.frecuenciaRespiratoria,
-
-        // General
-        tipoVehiculo: form.tipoVehiculo,
-        placa: form.placa,
-        modelo: form.modelo,
-        color: form.color,
-        vehiculoEmpresa: form.vehiculoEmpresa,
-        nombreContratista: form.nombreContratista,
-        numeroUnidad: form.numeroUnidad,
-        nombreConductor: selectedDriver.nombre,
-        licenciaNumero: selectedDriver.licencia_numero || "",
-        licenciaTipo: selectedDriver.tipo_licencia || "Chofer",
-        licenciaVencimiento: selectedDriver.licencia_vencimiento || null,
-        telefonoConductor: form.telefonoConductor,
-        rutaPuntos: rutaPuntos.filter(Boolean),
-        tiempoViajeHoras: Number(form.tiempoViajeHoras || 0),
-        acompanantes: acompanantesFinal,
-
-        // Checklist
-        conocimientoRiesgosLocales: form.conocimientoRiesgosLocales,
-        prohibidoPersonalAjeno: form.prohibidoPersonalAjeno,
-        inspeccionVehiculoRealizada: form.inspeccionVehiculoRealizada,
-        reunionPreCaravanaRealizada: form.reunionPreCaravanaRealizada,
-
-        // Risk tabulators
-        ptsDistancia: scoreA,
-        ptsClima: scoreB,
-        ptsVehiculosPersonas: scoreC,
-        ptsCondicionesVia: scoreD,
-        ptsComunicaciones: scoreE,
-        ptsHorasTrabajadas: scoreF,
-        ptsHoraTraslado: scoreG,
-
-        firmaConductor: signatureDataUrl,
-        nombreConductorFirma: selectedDriver.nombre
+        ...form,
+        rutaPuntos: rutaFiltrada,
+        acompanantes: acompanantesFiltrados,
+        firmaConductor: firmaDataUrl,
+        nombreConductorFirma: selectedDriver.nombre,
+        inspeccionData: {
+          combustible: form.combustible,
+          tipoAsignacion: form.tipoAsignacion,
+          checklist: checklist,
+          danos: {},
+          observaciones: form.observacionesVehiculo || null,
+          firma: firmaDataUrl,
+          esDiaSiguiente: false
+        }
       };
 
       const res = await crearGerenciamientoViaje(payload);
-      setSuccessMessage("✅ Gerenciamiento de viaje (SII-MX-23-LOG-003) registrado correctamente.");
-      if (onComplete) {
-        onComplete(res.data);
+      if (res.success) {
+        setSuccessMessage("✅ Gerenciamiento e Inspección Vehicular registrados exitosamente en un solo paso. Notificando a supervisión...");
+        setTimeout(() => {
+          if (onComplete) onComplete(res.data);
+        }, 1500);
+      } else {
+        setErrorMessage(res.message || "Error registrando Gerenciamiento de Viaje.");
       }
     } catch (err) {
-      setErrorMessage(err.message || "Error al guardar el gerenciamiento de viaje.");
+      setErrorMessage(err.message || "Error al conectar con el servidor.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="gerenciamiento-form-wrapper" style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #cbd5e1" }}>
-      {/* Encabezado Oficial con Logo AQR */}
-      <header className="official-doc-header" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "2px solid #0f172a", marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0f172a", paddingBottom: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <img src={logoAQR} alt="Logo AQUARIO" style={{ height: "52px", objectFit: "contain" }} />
-          </div>
-          <div style={{ textAlign: "right", fontSize: "0.78rem", color: "#334155", lineHeight: "1.4" }}>
-            <div><strong>Emisión:</strong> Noviembre 2023</div>
-            <div><strong>Versión:</strong> 3.0</div>
-            <div><strong>Área:</strong> Logística</div>
-            <div><strong>No. Doc:</strong> SII-MX-23-LOG-003</div>
+    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #cbd5e1" }}>
+      {/* Header con Logo de AQUARIO */}
+      <header style={{ display: "flex", alignItems: "center", justifyBetween: "space-between", background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <img src={logoAQR} alt="AQUARIO" style={{ height: "42px", objectFit: "contain" }} />
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h3>
+            <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
+              CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
+            </p>
           </div>
         </div>
-        <h3 style={{ margin: "12px 0 0", textAlign: "center", fontSize: "1.05rem", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "800" }}>
-          Gerenciamiento Vehicular (Viajes Fuera de la Ciudad / Estado)
-        </h3>
       </header>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "20px" }}>
-        {/* Encabezado de Campos Básicos */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#0f172a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>📋 Datos Generales de Salida</h4>
-          
-          {assignedVehicle && (
-            <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "14px", fontSize: "0.88rem", fontWeight: "bold" }}>
-              📌 Unidad pre-asignada por tu supervisor: {assignedVehicle.nombre} ({assignedVehicle.numero_economico})
-            </div>
-          )}
+      {errorMessage && (
+        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "8px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
+          ⚠️ {errorMessage}
+        </div>
+      )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "14px" }}>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Departamento
-              <input type="text" name="departamento" value={form.departamento} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
-            </label>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Hora de Salida
-              <input type="time" name="horaSalida" value={form.horaSalida} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
-            </label>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Origen
-              <select name="idOrigen" value={form.idOrigen} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value="">Seleccione Origen</option>
+      {successMessage && (
+        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "8px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
+          {successMessage}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+        
+        {/* Datos Básicos de Viaje */}
+        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
+          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>📍 Origen y Destino del Traslado</h4>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Origen *:
+              <select
+                name="idOrigen"
+                value={form.idOrigen}
+                onChange={handleInputChange}
+                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+              >
+                <option value="">-- Selecciona Origen --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
               </select>
             </label>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Destino Final
-              <select name="idDestino" value={form.idDestino} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value="">Seleccione Destino</option>
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Destino *:
+              <select
+                name="idDestino"
+                value={form.idDestino}
+                onChange={handleInputChange}
+                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+              >
+                <option value="">-- Selecciona Destino --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
               </select>
             </label>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Unidad / Vehículo
-              <select name="idVehiculo" value={form.idVehiculo} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value="">Seleccione Unidad</option>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Hora Salida *:
+              <input
+                type="time"
+                name="horaSalida"
+                value={form.horaSalida}
+                onChange={handleInputChange}
+                required
+                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+              />
+            </label>
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Seleccionar Vehículo *:
+              <select
+                name="idVehiculo"
+                value={form.idVehiculo}
+                onChange={handleInputChange}
+                required
+                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+              >
+                <option value="">-- Selecciona Vehículo --</option>
                 {vehiculos.map((v) => (
                   <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                    {v.nombre} — {v.numero_economico} {String(v.id_vehiculos) === String(assignedVehicle?.id_vehiculos) ? " (Asignada)" : ""}
+                    {v.nombre} ({v.numero_economico}) - Placa: {v.placas}
                   </option>
                 ))}
               </select>
             </label>
-            <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Kilometraje Actual
-              <input type="number" name="kilometraje" value={form.kilometraje} onChange={handleChange} required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Kilometraje Inicial *:
+              <input
+                type="number"
+                name="kilometraje"
+                value={form.kilometraje}
+                onChange={handleInputChange}
+                required
+                style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
+              />
             </label>
           </div>
         </section>
@@ -394,77 +460,77 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         {/* 1. Valoración Médica Pre-viaje */}
         <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
           <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🩺 1. Valoración Médica Pre-viaje</h4>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Presión Arterial
-              <input type="text" name="presionArterial" value={form.presionArterial} onChange={handleChange} placeholder="Ej. 120/80" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Presión Arterial:
+              <input type="text" name="presionArterial" value={form.presionArterial} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
             </label>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Examen Visual
-              <input type="text" name="examenVisual" value={form.examenVisual} onChange={handleChange} placeholder="Ej. Normal" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Examen Visual:
+              <input type="text" name="examenVisual" value={form.examenVisual} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
             </label>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Glucosa
-              <input type="text" name="glucosa" value={form.glucosa} onChange={handleChange} placeholder="Ej. 90 mg/dL" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Glucosa:
+              <input type="text" name="glucosa" value={form.glucosa} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
             </label>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Frec. Cardíaca
-              <input type="text" name="frecuenciaCardiaca" value={form.frecuenciaCardiaca} onChange={handleChange} placeholder="Ej. 72 bpm" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginTop: "12px" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Frecuencia Cardíaca:
+              <input type="text" name="frecuenciaCardiaca" value={form.frecuenciaCardiaca} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
             </label>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Frec. Respiratoria
-              <input type="text" name="frecuenciaRespiratoria" value={form.frecuenciaRespiratoria} onChange={handleChange} placeholder="Ej. 16 rpm" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              Frecuencia Respiratoria:
+              <input type="text" name="frecuenciaRespiratoria" value={form.frecuenciaRespiratoria} onChange={handleInputChange} style={{ width: "100%", padding: "8px 12px", marginTop: "4px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
             </label>
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              Alcoholímetro
-              <select name="alcoholimetro" value={form.alcoholimetro ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, alcoholimetro: e.target.value === "true" }))} style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value="false">Negativo (0.00)</option>
-                <option value="true">Positivo (+)</option>
-              </select>
-            </label>
+
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <input type="checkbox" name="alcoholimetro" checked={form.alcoholimetro} onChange={handleInputChange} style={{ width: "18px", height: "18px" }} />
+                <span>Alcoholímetro Positivo</span>
+              </label>
+            </div>
           </div>
         </section>
 
-        {/* 2. Información General */}
+        {/* 2. Información General del Vehículo y Ruta */}
         <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🚙 2. Información General del Traslado</h4>
+          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>📋 2. Información General del Traslado</h4>
           
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "16px", fontSize: "0.88rem" }}>
-            <div><strong>Conductor:</strong> {selectedDriver.nombre || "No seleccionado"}</div>
-            <div><strong>Licencia:</strong> {selectedDriver.licencia_numero || "N/A"}</div>
-            <div><strong>Teléfono:</strong> {form.telefonoConductor}</div>
-            <div><strong>Unidad No:</strong> {form.numeroUnidad || "N/A"}</div>
-            <div><strong>Placa:</strong> {form.placa || "N/A"}</div>
-            <div><strong>Modelo:</strong> {form.modelo || "N/A"}</div>
-          </div>
-
-          <div style={{ display: "grid", gap: "16px" }}>
-            {/* Ruta a Seguir */}
-            <div style={{ display: "grid", gap: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.9rem", fontWeight: "bold", color: "#0f172a" }}>Ruta a Seguir (Hasta 4 Puntos Intermedios)</span>
+          <div style={{ display: "grid", gap: "12px" }}>
+            {/* Puntos de Ruta */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>Ruta a seguir (Puntos de Parada / Intermedios):</label>
                 {rutaPuntos.length < 4 && (
-                  <button type="button" onClick={addRutaPoint} style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
-                    + Añadir Punto
+                  <button
+                    type="button"
+                    onClick={addRoutePoint}
+                    style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
+                  >
+                    + Agregar Punto
                   </button>
                 )}
               </div>
-
-              <div style={{ display: "grid", gap: "10px" }}>
-                {rutaPuntos.map((pt, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div style={{ display: "grid", gap: "8px" }}>
+                {rutaPuntos.map((punto, index) => (
+                  <div key={index} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <input
                       type="text"
-                      placeholder={`Punto ${idx + 1} (Ej. Pocyaxum, Nahakal, Hool, Sihochac)`}
-                      value={pt}
-                      onChange={(e) => handleRutaChange(idx, e.target.value)}
-                      style={{ flex: 1, padding: "10px 14px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.9rem", width: "100%" }}
+                      value={punto}
+                      onChange={(e) => handleRoutePointChange(index, e.target.value)}
+                      placeholder={`Punto ${index + 1} de la ruta (Ej: Escárcega, Caseta Champotón...)`}
+                      style={{ flex: 1, padding: "8px 12px", background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.88rem" }}
                     />
                     {rutaPuntos.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeRutaPoint(idx)}
-                        style={{ width: "38px", height: "38px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", display: "grid", placeItems: "center" }}
+                        onClick={() => removeRoutePoint(index)}
+                        style={{ width: "38px", height: "38px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "6px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
                         title="Eliminar punto"
                       >
                         ✕
@@ -475,26 +541,12 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
-              <label style={{ fontSize: "0.88rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-                Tiempo de Viaje Estimado (Horas)
-                <input type="number" name="tiempoViajeHoras" value={form.tiempoViajeHoras} onChange={handleChange} min="0.5" step="0.5" required style={{ width: "100%", padding: "8px 10px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
-              </label>
-            </div>
-
-            {/* Acompañantes Dinámicos con botón (+) */}
-            <div className="companions-container" style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "0.9rem", fontWeight: "bold", color: "#0f172a" }}>Acompañantes</span>
-                  {viajaAcompanado && (
-                    <span style={{ background: "#e2e8f0", color: "#475569", padding: "2px 8px", borderRadius: "12px", fontSize: "0.78rem", fontWeight: "bold" }}>
-                      {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  {viajaAcompanado && (
+            {/* Acompañantes */}
+            <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>¿Viaja Acompañado?</label>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {viajaAcompanado && listaAcompanantes.length < maxAcompanantes && (
                     <button
                       type="button"
                       onClick={addCompanionField}
@@ -559,169 +611,164 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 </div>
               )}
             </div>
-
-            {/* Aviso sobre Sitios de Reporte */}
-            <div style={{ background: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", fontSize: "0.85rem" }}>
-              📌 <strong>Sitios de Reporte (Para viajes &gt; 1 hora):</strong> Los horarios de reporte por cada punto de la ruta se registrarán en tiempo real cuando el viaje esté <strong>EN CURSO</strong>.
-            </div>
           </div>
         </section>
 
-        {/* 3. Lista de Verificación de Previaje */}
+        {/* 3. Lista de Verificación de Previaje e INSPECCIÓN VEHICULAR INTEGRADA */}
         <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>✅ 3. Lista de Verificación de Previaje (Control SÍ / NO)</h4>
-          <div style={{ display: "grid", gap: "10px" }}>
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-              <span>¿El conductor tiene conocimiento de los riesgos locales (vía, clima, peatones, animales, ciclistas)?</span>
+          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>🔍 3. Lista de Verificación e Inspección Vehicular Integrada</h4>
+          
+          <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+              <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones)?</span>
               <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
             </label>
 
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-              <span>¿El conductor está informado que es prohibido transportar personal ajeno a la empresa?</span>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+              <span>2. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
               <select name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
             </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-              <span>¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</span>
-              <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
-                <option value="true">SÍ</option>
-                <option value="false">NO</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-              <span>¿Se realizó la reunión pre caravana? (Sólo para viajes de más de 1 vehículo incluyendo pesado)</span>
-              <select name="reunionPreCaravanaRealizada" value={form.reunionPreCaravanaRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "4px 8px", background: "#ffffff", borderRadius: "4px" }}>
-                <option value="false">NO</option>
-                <option value="true">SÍ</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        {/* 4. Matriz de Análisis de Riesgos Interactiva */}
-        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>⚠️ 4. Matriz de Análisis de Riesgos (Tabuladores A al G)</h4>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-            {/* A. Distancia */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              A. Distancia a recorrer
-              <select name="ptsDistancia" value={form.ptsDistancia} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={1}>Menos de 50 Km (1 pto)</option>
-                <option value={2}>Menos de 100 Km (2 ptos)</option>
-                <option value={5}>Menos de 200 Km (5 ptos)</option>
-                <option value={8}>Más de 200 Km (8 ptos)</option>
-              </select>
-            </label>
-
-            {/* B. Clima */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              B. Clima
-              <select name="ptsClima" value={form.ptsClima} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={2}>Seco / Condiciones normales (2 ptos)</option>
-                <option value={4}>Lluvia suave (4 ptos)</option>
-                <option value={8}>Lluvia fuerte y/o niebla (8 ptos)</option>
-                <option value={10}>Nieve (10 ptos)</option>
-              </select>
-            </label>
-
-            {/* C. Vehículos y personas */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              C. Vehículos y Personas
-              <select name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={1}>2+ Vehí. con 2+ personas/vehí (1 pto)</option>
-                <option value={2}>2+ Vehí. con 1+ personas/vehí (2 ptos)</option>
-                <option value={3}>1 Vehí. con 2+ personas (3 ptos)</option>
-                <option value={8}>1 Vehí. con 1 persona (8 ptos)</option>
-              </select>
-            </label>
-
-            {/* D. Condiciones de la vía */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              D. Condiciones de la Vía
-              <select name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={1}>Pavimentada (1 pto)</option>
-                <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
-                <option value={4}>No Pavimentada (4 ptos)</option>
-              </select>
-            </label>
-
-            {/* E. Comunicaciones */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              E. Comunicaciones Disponibles
-              <select name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={0}>Teléfono celular (0 ptos)</option>
-                <option value={2}>Sin comunicación y en caravana (2 ptos)</option>
-                <option value={4}>Sin comunicación y sin caravana (4 ptos)</option>
-              </select>
-            </label>
-
-            {/* F. Horas trabajadas + viaje */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              F. Horas Trabajadas + Tiempo de Viaje
-              <select name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={1}>Hrs trabajadas + Viaje &lt; 12 (1 pto)</option>
-                <option value={3}>Hrs trabajadas + Viaje &lt; 14 (3 ptos)</option>
-                <option value={6}>Hrs trabajadas + Viaje &lt; 16 (6 ptos)</option>
-                <option value={16}>Hrs trabajadas + Viaje &gt;= 16 (NO CONDUCIR)</option>
-              </select>
-            </label>
-
-            {/* G. Hora de traslado */}
-            <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "grid", gap: "4px" }}>
-              G. Hora de Traslado
-              <select name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleChange} style={{ width: "100%", padding: "8px", background: "#ffffff", color: "#0f172a", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                <option value={1}>Día (06:00 - 18:00) (1 pto)</option>
-                <option value={8}>Noche (18:00 - 06:00) (8 ptos)</option>
-              </select>
-            </label>
           </div>
 
-          {/* Tarjeta con cálculo de puntaje en vivo y semáforo */}
-          <div style={{ marginTop: "16px", background: "#f1f5f9", padding: "14px", borderRadius: "10px", borderLeft: `6px solid ${riskColor}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <span style={{ fontSize: "0.85rem", color: "#475569" }}>PUNTAJE ACUMULADO TOTAL:</span>
-                <strong style={{ fontSize: "1.4rem", marginLeft: "8px", color: "#0f172a" }}>{totalScore} ptos</strong>
-              </div>
-              <div style={{ background: riskColor, color: "#ffffff", padding: "4px 14px", borderRadius: "20px", fontWeight: "bold", fontSize: "0.9rem" }}>
-                RIESGO {riskLevel}
-              </div>
+          {/* INSPECCIÓN VEHICULAR CHECKLIST COMPACTO */}
+          <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <strong style={{ fontSize: "0.9rem", color: "#0f172a" }}>🚗 Chequeo Vehicular Previaje (Bueno / Regular / Malo / NA)</strong>
+              <label style={{ fontSize: "0.82rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                Combustible:
+                <select name="combustible" value={form.combustible} onChange={handleInputChange} style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #cbd5e1", background: "#ffffff", fontWeight: "bold" }}>
+                  <option value="E">E (Vacío)</option>
+                  <option value="1/4">1/4</option>
+                  <option value="1/2">1/2</option>
+                  <option value="3/4">3/4</option>
+                  <option value="F">F (Lleno)</option>
+                </select>
+              </label>
             </div>
 
-            <p style={{ margin: "8px 0 0", fontSize: "0.85rem", color: "#334155" }}>
-              <strong>Nivel de Aprobación Requerido:</strong> {requiredApproval}
-            </p>
+            <div style={{ display: "grid", gap: "6px", maxHeight: "240px", overflowY: "auto", paddingRight: "4px" }}>
+              {Object.entries(checklist).map(([item, stateVal]) => (
+                <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "6px 10px", borderRadius: "4px", border: "1px solid #e2e8f0", fontSize: "0.82rem" }}>
+                  <span>{item}</span>
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    {["B", "R", "M", "N/A"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => handleChecklistItemChange(item, opt)}
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: "3px",
+                          border: 0,
+                          fontSize: "0.72rem",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          background: stateVal === opt ? (opt === "B" ? "#16a34a" : opt === "R" ? "#ca8a04" : opt === "M" ? "#dc2626" : "#64748b") : "#e2e8f0",
+                          color: stateVal === opt ? "#ffffff" : "#334155"
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-            {isHoursBlocked && (
-              <div style={{ background: "#fef2f2", color: "#991b1b", padding: "10px 14px", borderRadius: "6px", marginTop: "10px", border: "1px solid #fecaca", fontWeight: "bold", fontSize: "0.85rem" }}>
-                ⛔ Horas de trabajo + Horas de viaje &gt;= 16 Horas: NO CONDUCIR (Riesgo Bloqueante)
-              </div>
-            )}
+            <label style={{ fontSize: "0.82rem", fontWeight: "bold", display: "block", marginTop: "10px" }}>
+              Observaciones de la Unidad:
+              <input
+                type="text"
+                name="observacionesVehiculo"
+                value={form.observacionesVehiculo}
+                onChange={handleInputChange}
+                placeholder="Indica detalles si algún componente está en Regular o Malo"
+                style={{ width: "100%", padding: "6px 10px", marginTop: "2px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "0.82rem" }}
+              />
+            </label>
+          </div>
+        </section>
 
-            {isNightDriving && (
-              <div style={{ background: "#fefce8", color: "#854d0e", padding: "10px 14px", borderRadius: "6px", marginTop: "10px", border: "1px solid #fef08a", fontSize: "0.85rem" }}>
-                🌙 Manejo Nocturno Requiere Aprobación de Gerencia General y de QHSE.
+        {/* 4. Tabuladores de Riesgo (A-G) */}
+        <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
+          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>⚠️ 4. Análisis de Riesgos de la Ruta</h4>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              B. Clima Esperado:
+              <select name="ptsClima" value={form.ptsClima} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <option value={2}>Seco / Condiciones Normales (2 ptos)</option>
+                <option value={4}>Lluvia suave (4 ptos)</option>
+                <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
+                <option value={10}>Nieve / Tormenta extrema (10 ptos)</option>
+              </select>
+            </label>
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              D. Condiciones de la Vía:
+              <select name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <option value={1}>Pavimentada (1 pto)</option>
+                <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
+                <option value={4}>No Pavimentada / Terregal (4 ptos)</option>
+              </select>
+            </label>
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              E. Cobertura Comunicaciones:
+              <select name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <option value={0}>Teléfono Celular con Señal (0 ptos)</option>
+                <option value={2}>Sin comunicación y Viaje en Caravana (2 ptos)</option>
+                <option value={4}>Sin comunicación y Viaje en Solitario (4 ptos)</option>
+              </select>
+            </label>
+
+            <label style={{ fontSize: "0.85rem", fontWeight: "bold" }}>
+              F. Horas Trabajadas + Viaje:
+              <select name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} style={{ width: "100%", padding: "8px", marginTop: "4px", background: "#ffffff", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <option value={1}>Menos de 12 horas acumuladas (1 pto)</option>
+                <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
+                <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
+                <option value={16}>≥ 16 horas (BLOQUEANTE - NO CONDUCIR)</option>
+              </select>
+            </label>
+          </div>
+
+          {/* Badge Resultado de Riesgo */}
+          <div style={{ marginTop: "14px", padding: "12px", borderRadius: "8px", background: nivelRiesgo === "ALTO" ? "#fee2e2" : nivelRiesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: `1px solid ${nivelRiesgo === "ALTO" ? "#fca5a5" : nivelRiesgo === "MEDIO" ? "#fde047" : "#86efac"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong style={{ fontSize: "1rem", color: nivelRiesgo === "ALTO" ? "#991b1b" : nivelRiesgo === "MEDIO" ? "#854d0e" : "#166534" }}>
+                EVALUACIÓN DE RIESGO: {nivelRiesgo} ({puntajeTotal} ptos)
+              </strong>
+              <div style={{ fontSize: "0.8rem", marginTop: "2px", color: "#334155" }}>
+                Autorización Requerida: <strong>{autorizacionRequerida}</strong>
               </div>
+            </div>
+            {esBloqueante && (
+              <span style={{ background: "#dc2626", color: "#fff", padding: "4px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
+                ⛔ BLOQUEANTE
+              </span>
             )}
           </div>
         </section>
 
-        {/* 5. Firma Digital del Conductor */}
+        {/* 5. Firma Digital Conductor */}
         <section className="form-section-card" style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #cbd5e1" }}>
-          <h4 style={{ margin: "0 0 14px", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", fontSize: "1rem" }}>✍️ 5. Firma Digital del Conductor</h4>
-          <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 10px" }}>Dibuja tu firma en el recuadro a continuación con el dedo o puntero:</p>
+          <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "1rem" }}>✍️ 5. Firma Digital del Conductor *</h4>
+          <p style={{ margin: "0 0 8px", fontSize: "0.8rem", color: "#64748b" }}>
+            Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás apto para conducir.
+          </p>
 
-          <div style={{ border: "2px dashed #94a3b8", borderRadius: "8px", background: "#ffffff", display: "inline-block", width: "100%", touchAction: "none" }}>
+          <div style={{ border: "2px dashed #94a3b8", borderRadius: "8px", background: "#ffffff", padding: "4px", textAlign: "center" }}>
             <canvas
               ref={canvasRef}
+              width={640}
+              height={150}
               onMouseDown={startDrawing}
               onMouseMove={draw}
               onMouseUp={stopDrawing}
@@ -729,54 +776,57 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               onTouchStart={startDrawing}
               onTouchMove={draw}
               onTouchEnd={stopDrawing}
-              style={{ width: "100%", height: "130px", cursor: "crosshair", borderRadius: "6px" }}
+              style={{ width: "100%", height: "130px", touchAction: "none", cursor: "crosshair" }}
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-            <small style={{ color: "#475569" }}><strong>Firmante:</strong> {selectedDriver.nombre}</small>
-            <button type="button" onClick={clearSignature} style={{ background: "#e2e8f0", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", color: "#334155", fontWeight: "bold" }}>
-              Borrar Firma
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+            <small style={{ color: hasSignature ? "#166534" : "#64748b", fontWeight: "bold" }}>
+              {hasSignature ? "✓ Firma digital capturada" : "Dibuja tu firma con tu dedo o ratón"}
+            </small>
+            <button
+              type="button"
+              onClick={clearSignature}
+              disabled={!hasSignature}
+              style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "4px", cursor: "pointer", fontSize: "0.78rem" }}
+            >
+              Limpiar Firma
             </button>
           </div>
         </section>
 
-        {errorMessage && (
-          <div style={{ background: "#fef2f2", color: "#991b1b", padding: "12px 16px", borderRadius: "8px", border: "1px solid #fecaca", fontSize: "0.9rem" }} role="alert">
-            {errorMessage}
-          </div>
-        )}
-
-        {successMessage && (
-          <div style={{ background: "#f0fdf4", color: "#166534", padding: "12px 16px", borderRadius: "8px", border: "1px solid #bbf7d0", fontSize: "0.9rem" }} role="status">
-            {successMessage}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "10px" }}>
+        {/* Botones de Envío */}
+        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
           {onCancel && (
-            <button type="button" onClick={onCancel} disabled={submitting} style={{ padding: "12px 20px", borderRadius: "8px", background: "#e2e8f0", color: "#334155", border: 0, fontWeight: "bold", cursor: "pointer" }}>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              style={{ background: "#e2e8f0", color: "#334155", border: 0, padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
+            >
               Cancelar
             </button>
           )}
+
           <button
             type="submit"
-            disabled={submitting || isHoursBlocked}
+            disabled={submitting || esBloqueante}
             style={{
-              padding: "12px 24px",
-              borderRadius: "8px",
-              background: isHoursBlocked ? "#94a3b8" : "linear-gradient(135deg, #1e3a8a, #0284c7)",
+              background: esBloqueante ? "#94a3b8" : "#16a34a",
               color: "#ffffff",
               border: 0,
+              padding: "12px 28px",
+              borderRadius: "8px",
               fontWeight: "bold",
-              fontSize: "1rem",
-              cursor: isHoursBlocked ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 12px rgba(2, 132, 199, 0.3)"
+              fontSize: "0.95rem",
+              cursor: esBloqueante ? "not-allowed" : "pointer",
+              boxShadow: esBloqueante ? "none" : "0 4px 12px rgba(22, 163, 74, 0.3)"
             }}
           >
-            {submitting ? "Guardando Documento..." : "📄 Registrar Gerenciamiento de Viaje"}
+            {submitting ? "Enviando Solicitud..." : "🚀 Registrar Gerenciamiento e Inspección"}
           </button>
         </div>
+
       </form>
     </div>
   );
