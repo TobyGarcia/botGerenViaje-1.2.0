@@ -98,6 +98,10 @@ async function initializeDependencies() {
 
     try {
       await databasePool.query("SELECT 1");
+      await databasePool.query(`
+        ALTER TABLE inspecciones_vehiculares
+          ADD COLUMN IF NOT EXISTS id_usuario_autorizador BIGINT REFERENCES usuarios_admin(id_usuarios_admin);
+      `).catch(() => {});
       console.log("Conexión inicial con PostgreSQL verificada.");
       await startBots();
       return;

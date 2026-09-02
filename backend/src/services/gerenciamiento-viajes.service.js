@@ -310,9 +310,9 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
         await client.query(`
           UPDATE inspecciones_vehiculares
           SET estado = 'APROBADA',
-              id_usuario_autorizador = $1,
+              id_usuario_admin_aprobador = $1,
               firma_supervisor = $2,
-              observaciones_supervisor = $3,
+              comentario_aprobacion = $3,
               aprobado_en = CURRENT_TIMESTAMP,
               actualizado_en = CURRENT_TIMESTAMP
           WHERE id_viajes = $4
@@ -328,8 +328,8 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
         await client.query(`
           UPDATE inspecciones_vehiculares
           SET estado = 'RECHAZADA',
-              id_usuario_autorizador = $1,
-              observaciones_supervisor = $2,
+              id_usuario_admin_aprobador = $1,
+              comentario_aprobacion = $2,
               actualizado_en = CURRENT_TIMESTAMP
           WHERE id_viajes = $3
         `, [idUsuarioAdmin, observaciones, record.id_viaje]);
