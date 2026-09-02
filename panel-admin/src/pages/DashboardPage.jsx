@@ -580,11 +580,10 @@ function DashboardPage({ user, onLogout }) {
     { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
     { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
-    { id: "gerenciamiento", label: "Gerenciamiento Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA", "COORDINADOR_AREA", "GERENTE_GENERAL", "COORDINADOR_QHSE"] }
+    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] }
   ].filter((module) => module.roles.includes(user.rol));
 
-  const canInspect = ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"].includes(user.rol);
+  const canInspect = ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "COORDINADOR", "COORDINADOR_AREA", "GERENTE", "GERENTE_GENERAL", "QHSE", "COORDINADOR_QHSE"].includes(user.rol);
 
 
   return (
@@ -633,13 +632,13 @@ function DashboardPage({ user, onLogout }) {
             {canInspect && (
               <button
                 type="button"
-                title="Inspecciones"
+                title="Inspecciones y Gerenciamiento"
                 className={`notification-button ${activeModule === "inspecciones" ? "sidebar-active" : ""}`}
                 onClick={() => handleSelectModule("inspecciones")}
               >
                 <span className="nav-icon"><IconInspecciones size={20} /></span>
-                <span className="sidebar-text">Inspecciones</span>
-                {pendingInspections > 0 && <strong>{pendingInspections}</strong>}
+                <span className="sidebar-text">Inspecciones y Gerenciamiento</span>
+                {(pendingInspections + pendingGerenciamientos) > 0 && <strong>{pendingInspections + pendingGerenciamientos}</strong>}
               </button>
             )}
 

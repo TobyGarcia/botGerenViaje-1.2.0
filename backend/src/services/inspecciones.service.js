@@ -118,12 +118,14 @@ export async function getAdminInspection(idInspeccion) {
       c.licencia_numero, c.tipo_licencia, c.licencia_vigente, c.licencia_vencimiento,
       vh.nombre AS vehiculo, vh.marca, vh.modelo, vh.tipo_vehiculo,
       vh.numero_economico, vh.placas, vh.numero_serie, vh.numero_poliza,
-      vh.seguro_vencimiento, ua.nombre AS aprobador
+      vh.seguro_vencimiento,
+      COALESCE(NULLIF(gv.nombre_autorizador_firma, ''), ua.nombre, 'N/A') AS aprobador
     FROM inspecciones_vehiculares i
     INNER JOIN viajes v ON v.id_viajes=i.id_viajes
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin=i.id_usuario_admin_aprobador
+    LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
   return result.rows[0] ?? null;
 }
