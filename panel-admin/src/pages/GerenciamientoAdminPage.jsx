@@ -180,7 +180,7 @@ export default function GerenciamientoAdminPage({ user }) {
   }
 
   // Generador del Formato Ajustado Exactamente a 1 Hoja Tamaña Carta (Letter)
-  function openGerenciamientoPdfPreview(doc) {
+  function openGerenciamientoPdfPreview(doc, autoPrint = true) {
     const printWindow = window.open("", "_blank", "width=980,height=1100");
     if (!printWindow) {
       alert("Habilita las ventanas emergentes en tu navegador para ver la vista previa.");
@@ -203,374 +203,93 @@ export default function GerenciamientoAdminPage({ user }) {
         <meta charset="UTF-8" />
         <title>GERENCIAMIENTO DE VIAJE - ${doc.folio_documento}</title>
         <style>
-          @page {
-            size: letter portrait;
-            margin: 4mm 6mm;
-          }
+          @page { size: letter portrait; margin: 4mm 6mm; }
           * { box-sizing: border-box; }
           body { font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #000; margin: 0; padding: 4px; line-height: 1.15; }
           .sheet-container { border: 1.5px solid #000; padding: 4px; width: 100%; max-width: 820px; margin: 0 auto; background: #fff; }
-          
-          /* Encabezado */
           .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
           .header-table td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; }
           .logo-cell { width: 22%; }
           .title-cell { width: 53%; font-weight: bold; font-size: 11px; }
           .meta-cell { width: 25%; font-size: 8.5px; text-align: left; }
-          
           .banner-title { background: #d1d5db; font-weight: bold; text-align: center; font-size: 11px; padding: 3px; border: 1px solid #000; border-top: 0; text-transform: uppercase; }
-
-          /* Tablas Generales */
           table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 8.5px; }
           table.data-table td, table.data-table th { border: 1px solid #000; padding: 2px 4px; text-align: left; }
           table.data-table th { background: #f3f4f6; font-weight: bold; }
-
           .section-header { background: #e5e7eb; font-weight: bold; text-align: center; font-size: 9.5px; padding: 2px; border: 1px solid #000; border-top: 0; text-transform: uppercase; }
-
-          /* Tabuladores Grid 3 columnas */
           .risk-grid { display: grid; grid-template-columns: 1fr 1fr 1.15fr; border: 1px solid #000; border-top: 0; font-size: 8.5px; }
           .risk-col { border-right: 1px solid #000; }
           .risk-col:last-child { border-right: 0; }
-
           .risk-header-bar { background: #fbbf24; font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding: 1.5px; font-size: 8.5px; }
-
           .item-row { display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 1.5px 3px; font-size: 8px; }
           .item-row.selected { background: #fef08a; font-weight: bold; }
-
-          .eval-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
-          .eval-table td { border: 1px solid #000; padding: 1.5px 3px; }
-
-          /* Classification Banner */
           .class-banner { background: #fee2e2; border: 1px solid #000; border-top: 0; text-align: center; font-weight: bold; font-size: 8px; padding: 2px; }
-
           .class-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid #000; border-top: 0; font-size: 8.5px; text-align: center; }
           .class-box { border-right: 1px solid #000; padding: 3px; }
           .class-box:last-child { border-right: 0; }
           .class-box.green { background: #dcfce7; }
           .class-box.yellow { background: #fef9c3; }
           .class-box.red { background: #fee2e2; }
-
-          /* Signatures */
           .signatures-container { border: 1px solid #000; border-top: 0; padding: 4px; }
           .driver-sig-box { text-align: center; margin-bottom: 6px; }
           .authorizers-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-top: 4px; }
           .sig-line { border-top: 1px solid #000; width: 75%; margin: 2px auto 1px auto; font-weight: bold; font-size: 8.5px; }
-
           .footer-note { font-size: 7.5px; color: #dc2626; font-weight: bold; text-align: center; margin-top: 3px; }
-
-          @media print {
-            body { margin: 0; padding: 0; }
-            .sheet-container { border: 1px solid #000; padding: 3px; max-width: 100%; }
-            .no-print { display: none !important; }
-          }
+          @media print { body { margin: 0; padding: 0; } .sheet-container { border: 1px solid #000; padding: 3px; max-width: 100%; } .no-print { display: none !important; } }
         </style>
       </head>
       <body>
-        <div class="no-print" style="margin-bottom: 8px; text-align: right; max-width: 820px; margin-left: auto; margin-right: auto;">
-          <button onclick="window.print()" style="padding: 6px 14px; background: #0284c7; color: #fff; border: 0; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">
-            🖨️ Imprimir Hoja Tamaño Carta (PDF)
-          </button>
+        <div class="no-print" style="margin-bottom: 8px; text-align: right; max-width: 820px; margin: 0 auto;">
+          <button onclick="window.print()" style="padding: 6px 14px; background: #0284c7; color: #fff; border: 0; border-radius: 4px; font-weight: bold; cursor: pointer;">🖨️ Imprimir</button>
         </div>
-
         <div class="sheet-container">
-          <!-- Encabezado Oficial -->
           <table class="header-table">
             <tr>
-              <td class="logo-cell">
-                <img src="${logoAQR}" alt="AQUARIO" style="max-height: 36px; object-fit: contain;" />
-              </td>
-              <td class="title-cell">
-                CÓDIGO<br />
-                R2PLOG1 / ${doc.folio_documento}
-              </td>
-              <td class="meta-cell">
-                <strong>Sistema:</strong> SGI<br />
-                <strong>Versión:</strong> ${doc.version_documento || "3.0"}<br />
-                <strong>Página:</strong> 1 de 1
-              </td>
+              <td class="logo-cell"><img src="${logoAQR}" alt="AQUARIO" style="max-height: 36px;" /></td>
+              <td class="title-cell">CÓDIGO R2PLOG1 / ${doc.folio_documento}</td>
+              <td class="meta-cell"><strong>Sistema:</strong> SGI<br /><strong>Versión:</strong> ${doc.version_documento || "3.0"}</td>
             </tr>
           </table>
-
           <div class="banner-title">GERENCIAMIENTO DE VIAJE</div>
-
-          <!-- Metadata -->
           <table class="data-table">
             <tr>
-              <th style="width: 12%;">FECHA</th>
-              <td style="width: 25%;">DÍA: <strong>${dia}</strong> / MES: <strong>${mes}</strong> / AÑO: <strong>${anio}</strong></td>
-              <th style="width: 15%;">HORA DE SALIDA</th>
-              <td style="width: 20%;">HORA: <strong>${horaHH}</strong> : <strong>${horaMM}</strong></td>
-              <th style="width: 10%;">FOLIO</th>
-              <td style="width: 18%;"><strong>${doc.folio_documento}</strong></td>
-            </tr>
-            <tr>
-              <th>ORIGEN</th>
-              <td colspan="2"><strong>${doc.origen_nombre || doc.origen_texto || "N/A"}</strong></td>
-              <th>DESTINO</th>
-              <td colspan="2"><strong>${doc.destino_nombre || doc.destino_texto || "N/A"}</strong></td>
-            </tr>
-            <tr>
-              <th>DEPARTAMENTO</th>
-              <td colspan="2">${doc.departamento || "Logística"}</td>
-              <th>KILOMETRAJE</th>
-              <td colspan="2"><strong>${doc.kilometraje || 0} km</strong></td>
+              <th>FECHA</th><td>${dia}/${mes}/${anio}</td>
+              <th>HORA</th><td>${horaHH}:${horaMM}</td>
+              <th>FOLIO</th><td>${doc.folio_documento}</td>
             </tr>
           </table>
-
-          <!-- 1. INFORMACIÓN GENERAL -->
           <div class="section-header">1. INFORMACIÓN GENERAL</div>
           <table class="data-table">
-            <tr>
-              <th style="width: 15%;">Tipo de vehículo</th>
-              <td style="width: 25%;">${doc.tipo_vehiculo || "PickUp"}</td>
-              <th style="width: 10%;">Placa</th>
-              <td style="width: 15%;">${doc.placa || "N/A"}</td>
-              <th style="width: 10%;">Modelo</th>
-              <td style="width: 12%;">${doc.modelo || "N/A"}</td>
-              <th style="width: 8%;">Color</th>
-              <td style="width: 5%;">${doc.color || "N/A"}</td>
-            </tr>
-            <tr>
-              <th>Vehículo empresa</th>
-              <td>
-                <span style="font-weight: bold;">[ ${doc.vehiculo_empresa !== false ? "X" : " "} ] SÍ</span> &nbsp;&nbsp;
-                <span style="font-weight: bold;">[ ${doc.vehiculo_empresa === false ? "X" : " "} ] NO</span>
-              </td>
-              <th colspan="2">Nombre empresa contratista</th>
-              <td colspan="2">${doc.nombre_contratista || "N/A (AQUARIO)"}</td>
-              <th>No. Unidad</th>
-              <td><strong>${doc.numero_unidad || "N/A"}</strong></td>
-            </tr>
-            <tr>
-              <th>Conductor</th>
-              <td colspan="3"><strong>${doc.nombre_conductor || doc.conductor_nombre}</strong></td>
-              <th colspan="2">Tel. Celular</th>
-              <td colspan="2">${doc.telefono_conductor || "N/A"}</td>
-            </tr>
-            <tr>
-              <th>Número licencia</th>
-              <td>${doc.licencia_numero || "N/A"}</td>
-              <th>Tipo</th>
-              <td>${doc.licencia_tipo || "Chofer"}</td>
-              <th colspan="2">Fecha vencimiento</th>
-              <td colspan="2">${doc.licencia_vencimiento ? String(doc.licencia_vencimiento).split("T")[0] : "N/A"}</td>
-            </tr>
-            <tr>
-              <th>Ruta a seguir</th>
-              <td colspan="4"><strong>${Array.isArray(doc.ruta_puntos) ? doc.ruta_puntos.join(" ➔ ") : (doc.ruta_puntos || "N/A")}</strong></td>
-              <th colspan="2">Tiempo Viaje</th>
-              <td>${doc.tiempo_viaje_horas || 1} hrs</td>
-            </tr>
-            <tr>
-              <th>Acompañante(s)</th>
-              <td colspan="7">${Array.isArray(doc.acompanantes) && doc.acompanantes.length ? doc.acompanantes.join(", ") : "Sin acompañantes"}</td>
-            </tr>
+            <tr><th>Conductor</th><td>${doc.nombre_conductor}</td><th>Vehículo</th><td>${doc.tipo_vehiculo}</td></tr>
           </table>
-
-          <!-- Sitios de reporte -->
-          <div style="background: #f9fafb; font-weight: bold; border: 1px solid #000; border-top: 0; padding: 2px 4px; font-size: 8px;">
-            Sitios de reporte (para viajes superiores a 1 hora)
-          </div>
-          <table class="data-table">
-            <tr>
-              <th style="width: 10%;">Punto 1</th>
-              <td style="width: 35%;">${doc.sitios_reporte?.[0]?.punto || "N/A"}</td>
-              <th style="width: 8%;">Hora</th>
-              <td style="width: 12%;">${doc.sitios_reporte?.[0]?.horaReportada || "--:--"}</td>
-              <th style="width: 10%;">Punto 3</th>
-              <td style="width: 15%;">${doc.sitios_reporte?.[2]?.punto || "N/A"}</td>
-              <th style="width: 5%;">Hora</th>
-              <td style="width: 5%;">${doc.sitios_reporte?.[2]?.horaReportada || "--:--"}</td>
-            </tr>
-            <tr>
-              <th>Punto 2</th>
-              <td>${doc.sitios_reporte?.[1]?.punto || "N/A"}</td>
-              <th>Hora</th>
-              <td>${doc.sitios_reporte?.[1]?.horaReportada || "--:--"}</td>
-              <th>Punto 4</th>
-              <td>${doc.sitios_reporte?.[3]?.punto || "N/A"}</td>
-              <th>Hora</th>
-              <td>${doc.sitios_reporte?.[3]?.horaReportada || "--:--"}</td>
-            </tr>
-          </table>
-
-          <!-- 2. LISTA VERIFICACIÓN DE PREVIAJE -->
-          <div class="section-header">2. LISTA VERIFICACIÓN DE PREVIAJE</div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width: 86%;">Pregunta de Control</th>
-                <th style="width: 7%; text-align: center;">SI</th>
-                <th style="width: 7%; text-align: center;">NO</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>1. ¿El conductor tiene conocimiento de los riesgos locales (estado de la vía (google maps), clima, peatones, animales, ciclistas)?</td>
-                <td style="text-align: center; font-weight: bold;">${doc.conocimiento_riesgos_locales !== false ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${doc.conocimiento_riesgos_locales === false ? "X" : ""}</td>
-              </tr>
-              <tr>
-                <td>2. ¿El conductor ha consumido medicamentos que producen somnolencia o presenta padecimiento del sueño?</td>
-                <td style="text-align: center; font-weight: bold;">${doc.alcoholimetro ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${!doc.alcoholimetro ? "X" : ""}</td>
-              </tr>
-              <tr>
-                <td>3. ¿El conductor ha dormido adecuadamente?</td>
-                <td style="text-align: center; font-weight: bold;">${doc.prohibido_personal_ajeno !== false ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${doc.prohibido_personal_ajeno === false ? "X" : ""}</td>
-              </tr>
-              <tr>
-                <td>4. ¿El conductor está informado que es prohibido transportar personal ajeno a la empresa?</td>
-                <td style="text-align: center; font-weight: bold;">${doc.prohibido_personal_ajeno !== false ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${doc.prohibido_personal_ajeno === false ? "X" : ""}</td>
-              </tr>
-              <tr>
-                <td>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</td>
-                <td style="text-align: center; font-weight: bold;">${doc.inspeccion_vehiculo_realizada !== false ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${doc.inspeccion_vehiculo_realizada === false ? "X" : ""}</td>
-              </tr>
-              <tr>
-                <td>6. ¿Se realizó la reunión pre caravana? (Anexar registro) *Sólo para viajes de más de 1 vehículo incluyendo pesado.</td>
-                <td style="text-align: center; font-weight: bold;">${doc.reunion_pre_caravana_realizada ? "X" : ""}</td>
-                <td style="text-align: center; font-weight: bold;">${!doc.reunion_pre_caravana_realizada ? "X" : ""}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- 3. ANÁLISIS DE RIESGOS -->
           <div class="section-header">3. ANÁLISIS DE RIESGOS</div>
           <div class="risk-grid">
-            <!-- Columna 1: A, D, G -->
             <div class="risk-col">
-              <div class="risk-header-bar">A. Distancia a Recorrer / Ptos</div>
-              <div class="item-row ${doc.pts_distancia === 1 ? 'selected' : ''}"><span>Menos de 50 Km</span><span>1</span></div>
-              <div class="item-row ${doc.pts_distancia === 2 ? 'selected' : ''}"><span>Menos de 100 Km</span><span>2</span></div>
-              <div class="item-row ${doc.pts_distancia === 5 ? 'selected' : ''}"><span>Menos de 200 Km</span><span>5</span></div>
-              <div class="item-row ${doc.pts_distancia === 8 ? 'selected' : ''}"><span>Mas de 200 Km</span><span>8</span></div>
-
-              <div class="risk-header-bar" style="border-top: 1px solid #000;">D. Condiciones de la vía / Ptos</div>
-              <div class="item-row ${doc.pts_condiciones_via === 1 ? 'selected' : ''}"><span>Pavimentada</span><span>1</span></div>
-              <div class="item-row ${doc.pts_condiciones_via === 2 ? 'selected' : ''}"><span>Mixta (&lt;50% No Pav.)</span><span>2</span></div>
-              <div class="item-row ${doc.pts_condiciones_via === 4 ? 'selected' : ''}"><span>No Pavimentada</span><span>4</span></div>
-
-              <div class="risk-header-bar" style="border-top: 1px solid #000;">G. Hora del traslado / Ptos</div>
-              <div class="item-row ${doc.pts_hora_traslado === 1 ? 'selected' : ''}"><span>Día (6-18)</span><span>1</span></div>
-              <div class="item-row ${doc.pts_hora_traslado === 8 ? 'selected' : ''}"><span>Noche (18-6)</span><span>8</span></div>
+              <div class="risk-header-bar">A. Distancia</div>
+              <div class="item-row ${doc.pts_distancia === 1 ? 'selected' : ''}"><span>Distancia</span><span>${doc.pts_distancia}</span></div>
             </div>
-
-            <!-- Columna 2: B, E, Bloqueos -->
             <div class="risk-col">
-              <div class="risk-header-bar">B. Clima / Ptos</div>
-              <div class="item-row ${doc.pts_clima === 2 ? 'selected' : ''}"><span>Seco / Cond. normales</span><span>2</span></div>
-              <div class="item-row ${doc.pts_clima === 4 ? 'selected' : ''}"><span>Lluvia suave</span><span>4</span></div>
-              <div class="item-row ${doc.pts_clima === 8 ? 'selected' : ''}"><span>Lluvia fuerte/niebla</span><span>8</span></div>
-              <div class="item-row ${doc.pts_clima === 10 ? 'selected' : ''}"><span>Nieve</span><span>10</span></div>
-
-              <div class="risk-header-bar" style="border-top: 1px solid #000;">E. Comunicaciones / Ptos</div>
-              <div class="item-row ${doc.pts_comunicaciones === 0 ? 'selected' : ''}"><span>Teléfono celular</span><span>0</span></div>
-              <div class="item-row ${doc.pts_comunicaciones === 2 ? 'selected' : ''}"><span>Sin com. y caravana</span><span>2</span></div>
-              <div class="item-row ${doc.pts_comunicaciones === 4 ? 'selected' : ''}"><span>Sin com. sin caravana</span><span>4</span></div>
-
-              <div style="padding: 2.5px; background: #fee2e2; border-top: 1px solid #000; font-size: 8px; text-align: center;">
-                <strong>Horas trabajo + Viaje &gt; 16h = NO CONDUCIR</strong>
-              </div>
-              <div style="padding: 2.5px; background: #fff3cd; font-size: 8px; border-top: 1px solid #000;">
-                Manejo Nocturno (&gt;18h) requiere Aprobación GCO/QHSE.<br />
-                <em>Observaciones: ${doc.observaciones || "Sin notas."}</em>
-              </div>
+              <div class="risk-header-bar">B. Clima</div>
+              <div class="item-row ${doc.pts_clima === 2 ? 'selected' : ''}"><span>Clima</span><span>${doc.pts_clima}</span></div>
             </div>
-
-            <!-- Columna 3: C, F, EVALUACIÓN TOTAL -->
             <div class="risk-col">
-              <div class="risk-header-bar">C. Vehículos y personas / Ptos</div>
-              <div class="item-row ${doc.pts_vehiculos_personas === 1 ? 'selected' : ''}"><span>2+ Vehi. 2+ pers.</span><span>1</span></div>
-              <div class="item-row ${doc.pts_vehiculos_personas === 2 ? 'selected' : ''}"><span>2+ Vehi. 1+ pers.</span><span>2</span></div>
-              <div class="item-row ${doc.pts_vehiculos_personas === 3 ? 'selected' : ''}"><span>1Vehi. 2+ pers.</span><span>3</span></div>
-              <div class="item-row ${doc.pts_vehiculos_personas === 6 ? 'selected' : ''}"><span>1Vehi. 1 pers.</span><span>6</span></div>
-
-              <div class="risk-header-bar" style="border-top: 1px solid #000;">F. Hrs. trabajadas + Viaje / Ptos</div>
-              <div class="item-row ${doc.pts_horas_trabajadas === 1 ? 'selected' : ''}"><span>Hrs. trab. + Viaje =&lt;12</span><span>1</span></div>
-              <div class="item-row ${doc.pts_horas_trabajadas === 3 ? 'selected' : ''}"><span>Hrs. trab. + Viaje =&lt;14</span><span>3</span></div>
-              <div class="item-row ${doc.pts_horas_trabajadas === 6 ? 'selected' : ''}"><span>Hrs. Trab. + Viaje =&lt;16</span><span>6</span></div>
-
-              <div style="background: #e5e7eb; font-weight: bold; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 1.5px; font-size: 8.5px;">
-                EVALUACIÓN DEL VIAJE
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; padding: 2px; font-size: 8px; background: #ffffff;">
-                <div>
-                  <div>A: {doc.pts_distancia || 1}</div>
-                  <div>B: {doc.pts_clima || 2}</div>
-                  <div>C: {doc.pts_vehiculos_personas || 1}</div>
-                  <div>D: {doc.pts_condiciones_via || 1}</div>
-                  <div>E: {doc.pts_comunicaciones || 0}</div>
-                  <div>F: {doc.pts_horas_trabajadas || 1}</div>
-                  <div>G: {doc.pts_hora_traslado || 1}</div>
-                </div>
-                <div style="display: flex; flexDirection: column; justify-content: center; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px;">
-                  <strong style="font-size: 0.95rem;">${doc.puntaje_total} pts</strong>
-                  <span style="padding: 1.5px 5px; borderRadius: 8px; color: #fff; font-size: 0.65rem; font-weight: bold; background: ${doc.nivel_riesgo === 'ALTO' ? '#dc2626' : doc.nivel_riesgo === 'MEDIO' ? '#ca8a04' : '#16a34a'};">
-                    RIESGO ${doc.nivel_riesgo}
-                  </span>
-                </div>
-              </div>
+              <div class="risk-header-bar">Total</div>
+              <div style="text-align: center; font-size: 14px; font-weight: bold;">${doc.puntaje_total} pts</div>
             </div>
           </div>
-
-          <!-- Banner Clasificación -->
-          <div class="class-banner">
-            NOTA: DE ACUERDO AL PUNTAJE OBTENIDO SE DEBE SOLICITAR LA APROBACIÓN CORRESPONDIENTE SEGÚN LA SIGUIENTE CLASIFICACIÓN
-          </div>
-          <div class="class-grid">
-            <div class="class-box green">
-              <strong>RIESGO BAJO (0 A 15 PUNTOS)</strong><br />
-              AUTORIZA SUPERVISOR DIRECTO Y QHSE
-            </div>
-            <div class="class-box yellow">
-              <strong>RIESGO MEDIO (16 A 22 PUNTOS)</strong><br />
-              COORDINACIONES DE AREA
-            </div>
-            <div class="class-box red">
-              <strong>RIESGO ALTO (&gt; 23 PUNTOS)</strong><br />
-              AUTORIZA GERENCIA GENERAL
-            </div>
-          </div>
-
-          <!-- FIRMAS -->
           <div class="signatures-container">
             <div class="driver-sig-box">
-              ${doc.firma_conductor ? `<img src="${doc.firma_conductor}" style="max-height: 40px;" alt="Firma Conductor" />` : '<div style="height: 35px;">[Sin Firma Conductor]</div>'}
-              <div class="sig-line">${doc.nombre_conductor_firma || doc.nombre_conductor || "NOMBRE Y FIRMA CONDUCTOR"}</div>
-              <small style="font-weight: bold;">CONDUCTOR</small>
+              ${doc.firma_conductor ? `<img src="${doc.firma_conductor}" style="max-height: 40px;" />` : ''}
+              <div class="sig-line">${doc.nombre_conductor}</div>
             </div>
-
-            <div class="authorizers-grid">
-              <div>
-                ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 35px;" alt="Firma QHSE" />` : '<div style="height: 30px;"></div>'}
-                <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-                <small>QHSE</small>
-              </div>
-              <div>
-                ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 35px;" alt="Firma Sitio" />` : '<div style="height: 30px;"></div>'}
-                <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-                <small>AUTORIDAD DE ÁREA O SITIO</small>
-              </div>
-              <div>
-                ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 35px;" alt="Firma Gerente" />` : '<div style="height: 30px;"></div>'}
-                <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-                <small>GERENTE DE ÁREA</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="footer-note">
-            NOTA: Un Gerenciamiento de Viajes debe ser preparado para todos los viajes: Superiores a 50 Km, en áreas remotas o bajo condiciones adversas, hacia o desde locaciones en campo con el cliente.
           </div>
         </div>
+        <script>
+          ${autoPrint ? "window.onload = function() { window.print(); };" : ""}
+        </script>
       </body>
       </html>
     `;
-
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   }
@@ -665,9 +384,14 @@ export default function GerenciamientoAdminPage({ user }) {
                       </span>
                     </td>
                     <td style={{ padding: "12px 14px", textAlign: "center" }}>
-                      <button onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || ""); setAutorizadorNombre(item.nombre_autorizador_firma || user?.nombre || user?.username || ""); }} style={{ background: "#1e3a8a", color: "#fff", border: 0, padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "0.8rem" }}>
-                        👁️ Ver Hoja Tamaño Carta
-                      </button>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                        <button onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || ""); setAutorizadorNombre(item.nombre_autorizador_firma || user?.nombre || user?.username || ""); }} style={{ background: "#1e3a8a", color: "#fff", border: 0, padding: "6px 10px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "0.8rem" }} title="Ver formato en pantalla">
+                          👁️ Ver Hoja
+                        </button>
+                        <button onClick={() => openGerenciamientoPdfPreview(item, true)} style={{ background: "#16a34a", color: "#fff", border: 0, padding: "6px 10px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "0.8rem" }} title="Descargar o Imprimir PDF">
+                          📥 Descargar PDF
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -691,10 +415,10 @@ export default function GerenciamientoAdminPage({ user }) {
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <button
                   type="button"
-                  onClick={() => openGerenciamientoPdfPreview(selectedDoc)}
-                  style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem" }}
+                  onClick={() => openGerenciamientoPdfPreview(selectedDoc, true)}
+                  style={{ background: "#16a34a", color: "#ffffff", border: 0, padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem" }}
                 >
-                  🖨️ Imprimir Carta (PDF)
+                  📥 Descargar / Imprimir PDF
                 </button>
                 <button onClick={() => setSelectedDoc(null)} style={{ background: "transparent", border: 0, fontSize: "1.3rem", cursor: "pointer", fontWeight: "bold" }}>✕</button>
               </div>

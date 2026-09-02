@@ -1,4 +1,7 @@
-import { notifyNewGerenciamientoRequest } from "../bot/supervisor-bot.js";
+import {
+  notifyNewGerenciamientoRequest,
+  notifyGerenciamientoCheckpoint
+} from "../bot/supervisor-bot.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import {
@@ -153,6 +156,19 @@ export async function registrarReporteHoraController(request, response) {
       puntoIndex: Number(puntoIndex),
       horaReportada
     });
+
+    // Enviar alerta automática al grupo de Telegram de Supervisores
+    const pIdx = Number(puntoIndex);
+    const puntoObj = updated?.sitios_reporte?.[pIdx] || {};
+    notifyGerenciamientoCheckpoint({
+      folio: updated?.folio_documento,
+      idGerenciamiento: updated?.id_gerenciamiento,
+      conductor: updated?.nombre_conductor,
+      puntoNombre: puntoObj.punto || `Punto ${pIdx + 1}`,
+      puntoNumero: pIdx + 1,
+      horaReportada: puntoObj.horaReportada || horaReportada
+    }).catch((err) => console.error("Error enviando notificación de fichaje a Telegram:", err));
+
     return response.json({
       success: true,
       message: "Hora de sitio de reporte registrada correctamente.",

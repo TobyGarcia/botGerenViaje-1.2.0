@@ -104,6 +104,7 @@ const sendingLocationRef = useRef(false);
     useState(false);
   const [modalAlertMessage, setModalAlertMessage] = useState("");
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
+  const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(null);
 
   // Estado para modal/formulario de nuevo destino
   const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
@@ -1186,15 +1187,29 @@ async function handleAddIntermediatePoint() {
           )}
       </section>
 
-      {!createdTrip && activeTabMode === "gerenciamiento" && (
+      {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
         <GerenciamientoForm
           telegramAuth={telegramAuth}
           conductores={conductores}
           vehiculos={vehiculos}
           lugares={lugares}
           onCancel={() => setActiveTabMode("urban")}
-          onComplete={() => {
-            setMessage("✅ Gerenciamiento de Viaje registrado exitosamente.");
+          onComplete={(gerenData) => {
+            setActiveTabMode("urban");
+            setGerenciamientoPendiente(gerenData);
+            if (gerenData?.id_viaje) {
+              setCreatedTrip({
+                id_viajes: gerenData.id_viaje,
+                idViaje: gerenData.id_viaje,
+                folio: gerenData.folio_documento || `GEREN-${gerenData.id_gerenciamiento}`,
+                conductor: telegramAuth?.conductor?.nombre || "Conductor",
+                vehiculo: gerenData.tipo_vehiculo || "Vehículo",
+                numeroEconomico: gerenData.numero_unidad || "N/A",
+                kilometrajeInicial: gerenData.kilometraje || 0,
+                estado: "PENDIENTE_APROBACION"
+              });
+            }
+            setMessage("✅ Gerenciamiento de Viaje registrado exitosamente. En espera de aprobación por supervisión.");
             setMessageType("success");
           }}
         />
@@ -1478,6 +1493,33 @@ async function handleAddIntermediatePoint() {
           {message}
         </p>
       )}
+
+{gerenciamientoPendiente && (
+  <section className="result-card" style={{ background: "#fff7ed", border: "1.5px solid #fdba74", marginBottom: "16px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+      <span style={{ fontSize: "2rem" }}>⏳</span>
+      <div>
+        <h2 style={{ margin: 0, color: "#c2410c", fontSize: "1.15rem" }}>
+          GERENCIAMIENTO PENDIENTE DE APROBACIÓN
+        </h2>
+        <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "#475569" }}>
+          Folio Documento: <strong>{gerenciamientoPendiente.folio_documento || "SII-MX-23-LOG-003"}</strong>
+        </p>
+      </div>
+    </div>
+
+    <div style={{ background: "#ffffff", padding: "14px", borderRadius: "8px", border: "1px solid #fed7aa", fontSize: "0.88rem", display: "grid", gap: "6px", marginBottom: "12px" }}>
+      <div><strong>Conductor:</strong> {telegramAuth?.conductor?.nombre || "Conductor"}</div>
+      <div><strong>Evaluación de Riesgo:</strong> <span style={{ padding: "3px 10px", borderRadius: "10px", background: gerenciamientoPendiente.nivel_riesgo === "ALTO" ? "#fee2e2" : gerenciamientoPendiente.nivel_riesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", color: gerenciamientoPendiente.nivel_riesgo === "ALTO" ? "#991b1b" : gerenciamientoPendiente.nivel_riesgo === "MEDIO" ? "#854d0e" : "#166534", fontWeight: "bold" }}>RIESGO {gerenciamientoPendiente.nivel_riesgo || "EVALUADO"}</span></div>
+      <div><strong>Autorización Requerida:</strong> <strong>{gerenciamientoPendiente.autorizacion_requerida || "SUPERVISIÓN / QHSE"}</strong></div>
+      <div><strong>Estado Actual:</strong> <span style={{ padding: "3px 10px", borderRadius: "10px", background: "#ea580c", color: "#ffffff", fontWeight: "bold" }}>PENDIENTE DE APROBACIÓN POR SUPERVISOR</span></div>
+    </div>
+
+    <div style={{ background: "#eff6ff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bfdbfe", fontSize: "0.83rem", color: "#1e40af" }}>
+      📲 <strong>Notificación Enviada:</strong> Se envió la alerta automática al grupo de supervisores en Telegram. Tan pronto como autoricen tu Gerenciamiento e Inspección Vehicular, podrás iniciar el recorrido.
+    </div>
+  </section>
+)}
 
 {createdTrip && (
   <section className="result-card">

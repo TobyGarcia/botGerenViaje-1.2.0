@@ -263,3 +263,41 @@ export async function notifyNewGerenciamientoRequest({
     console.error("No fue posible enviar la alerta de gerenciamiento al grupo de supervisores:", error);
   }
 }
+
+// Envía un mensaje al grupo de supervisores cuando el conductor o sistema registra el fichaje de un punto de reporte
+export async function notifyGerenciamientoCheckpoint({
+  folio,
+  idGerenciamiento,
+  conductor,
+  puntoNombre,
+  puntoNumero,
+  horaReportada
+} = {}) {
+  const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+
+  if (!groupId) {
+    console.warn("No se envió el reporte de hora: TELEGRAM_GROUP_SUPRVISOR_ID no está configurado.");
+    return;
+  }
+
+  if (!supervisorBotInstance) {
+    console.warn("No se envió el reporte de hora: el bot de supervisión no está inicializado.");
+    return;
+  }
+
+  const message = [
+    "📍 REPORTE DE PUNTO DE CONTROL (GERENCIAMIENTO DE VIAJE)",
+    `Documento: ${folio || "SII-MX-23-LOG-003"} #${idGerenciamiento || ""}`,
+    `Conductor: ${conductor || "Conductor"}`,
+    `Punto ${puntoNumero}: ${puntoNombre || "Sitio Intermedio"}`,
+    `Hora Fichada: 🕒 ${horaReportada || "Registrada"}`,
+    "",
+    "✅ Control de hora fichado correctamente en el Gerenciamiento de Viaje."
+  ].filter(Boolean).join("\n");
+
+  try {
+    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta de fichaje de hora al grupo de supervisores:", error);
+  }
+}

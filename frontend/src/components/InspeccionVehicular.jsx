@@ -6,10 +6,10 @@ import pasajeroImage from "../assets/pasajero.png";
 import traseraImage from "../assets/trasera.png";
 
 const views = [
-  ["frontal", "Vista frontal", frontalImage],
-  ["trasera", "Vista trasera", traseraImage],
-  ["conductor", "Lateral conductor", conductorImage],
-  ["pasajero", "Lateral pasajero", pasajeroImage]
+  ["frontal", "🚘 Vista frontal", frontalImage],
+  ["trasera", "🚗 Vista trasera", traseraImage],
+  ["conductor", "🚙 Lateral conductor", conductorImage],
+  ["pasajero", "🚙 Lateral pasajero", pasajeroImage]
 ];
 
 const checklistGroups = {
