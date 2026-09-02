@@ -112,7 +112,18 @@ export default function UsuariosAdminPage({ currentUser }) {
                     <small>@{user.username}</small>
                   </td>
                   <td>{user.correo || "—"}</td>
-                  <td>{user.rol}</td>
+                  <td>
+                    <span style={{
+                      padding: "4px 10px",
+                      borderRadius: "12px",
+                      fontWeight: "bold",
+                      fontSize: "0.78rem",
+                      background: user.rol === "GERENTE" ? "#fee2e2" : user.rol === "COORDINADOR" ? "#fef9c3" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#dcfce7" : "#f1f5f9",
+                      color: user.rol === "GERENTE" ? "#991b1b" : user.rol === "COORDINADOR" ? "#854d0e" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#166534" : "#334155"
+                    }}>
+                      {user.rol === "GERENTE" ? "🔴 GERENTE" : user.rol === "COORDINADOR" ? "🟡 COORDINADOR" : user.rol === "SUPERVISOR" ? "🟢 SUPERVISOR" : user.rol === "QHSE" ? "🛡️ QHSE" : user.rol}
+                    </span>
+                  </td>
                   <td>{user.conductor || "—"}</td>
                   <td>
                     <span className={`status-badge ${user.activo ? "status-active" : "status-inactive"}`}>
@@ -206,11 +217,15 @@ export default function UsuariosAdminPage({ currentUser }) {
                 </label>
               )}
               <label>
-                Rol
+                Rol Administrativo (Jerarquía de Aprobación de Gerenciamientos)
                 <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
-                  {["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"].map((role) => (
-                    <option key={role}>{role}</option>
-                  ))}
+                  <option value="ADMINISTRADOR">👑 ADMINISTRADOR (Acceso Total)</option>
+                  <option value="GERENTE">🔴 GERENTE (Aprueba Riesgo ALTO &gt; 23 pts)</option>
+                  <option value="COORDINADOR">🟡 COORDINADOR DE ÁREA (Aprueba Riesgo MEDIO 16-22 pts)</option>
+                  <option value="SUPERVISOR">🟢 SUPERVISOR DIRECTO (Aprueba Riesgo BAJO 0-15 pts)</option>
+                  <option value="QHSE">🛡️ QHSE (Aprueba Riesgo BAJO 0-15 pts)</option>
+                  <option value="OPERADOR">🚛 OPERADOR (Operaciones)</option>
+                  <option value="CONSULTA">👁️ CONSULTA (Solo Lectura)</option>
                 </select>
               </label>
               <label>

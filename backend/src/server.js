@@ -97,10 +97,18 @@ async function initializeDependencies() {
     attempt += 1;
 
     try {
-      await databasePool.query("SELECT 1");
       await databasePool.query(`
         ALTER TABLE inspecciones_vehiculares
           ADD COLUMN IF NOT EXISTS id_usuario_autorizador BIGINT REFERENCES usuarios_admin(id_usuarios_admin);
+        
+        ALTER TABLE usuarios_admin DROP CONSTRAINT IF EXISTS chk_usuarios_admin_rol;
+        ALTER TABLE usuarios_admin ADD CONSTRAINT chk_usuarios_admin_rol CHECK (
+          rol IN (
+            'ADMINISTRADOR', 'SUPERVISOR', 'COORDINADOR', 'GERENTE', 'QHSE',
+            'OPERADOR', 'CONSULTA', 'INSTRUCTOR', 'COORDINADOR_AREA',
+            'GERENTE_GENERAL', 'COORDINADOR_QHSE'
+          )
+        );
       `).catch(() => {});
       console.log("Conexión inicial con PostgreSQL verificada.");
       await startBots();
