@@ -539,6 +539,30 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
           <h4 className="geren-card-title">📋 2. Información General del Traslado</h4>
           
           <div style={{ display: "grid", gap: "14px" }}>
+            {/* Tiempo Estimado de Viaje */}
+            <div className="geren-field">
+              <label className="geren-field-label">Tiempo Estimado de Viaje (Horas) *</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  max="48"
+                  name="tiempoViajeHoras"
+                  value={form.tiempoViajeHoras}
+                  onChange={handleInputChange}
+                  required
+                  className="geren-field-input"
+                  placeholder="Ej: 2.5"
+                  style={{ maxWidth: "160px" }}
+                />
+                <span style={{ fontWeight: "bold", color: "#475569", fontSize: "0.9rem" }}>hrs</span>
+              </div>
+              <small style={{ color: "#64748b", marginTop: "2px" }}>
+                Indica la duración estimada del traslado en horas (Ej: 1.5, 3, 5 hrs).
+              </small>
+            </div>
+
             {/* Puntos de Ruta */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
