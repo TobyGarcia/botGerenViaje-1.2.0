@@ -192,6 +192,10 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     (c.empresa || "").toLowerCase().includes(searchConductor.toLowerCase())
   );
 
+  const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
+  const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
+  const [subTabGerencia, setSubTabGerencia] = useState("PENDIENTE");
+
   return (
     <main className="container">
       {/* Navegación por pestañas */}
@@ -210,7 +214,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             color: activeTab === "inspecciones" ? "#ffffff" : "#475569"
           }}
         >
-          📋 Inspecciones
+          📋 Inspecciones {items.length > 0 ? `(${items.length})` : ''}
         </button>
         <button
           type="button"
@@ -226,7 +230,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             color: activeTab === "gerenciamiento" ? "#ffffff" : "#475569"
           }}
         >
-          🗺️ Gerenciamiento
+          🗺️ Gerenciamiento {pendingGerenciamientos.length > 0 ? `(${pendingGerenciamientos.length})` : ''}
         </button>
         <button
           type="button"
@@ -314,27 +318,93 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
           <h1>Gerenciamiento de Viajes</h1>
           {!gerenciamientoDetail ? (
             <section>
-              {gerenciamientos.length ? gerenciamientos.map(g => {
-                let badgeBg = "#16a34a";
-                if (g.nivel_riesgo === "ALTO") badgeBg = "#dc2626";
-                else if (g.nivel_riesgo === "MEDIO") badgeBg = "#ca8a04";
+              {/* Sub-filtro de Gerenciamientos */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setSubTabGerencia("PENDIENTE")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    border: "1px solid #cbd5e1",
+                    fontWeight: "bold",
+                    fontSize: "0.8rem",
+                    cursor: "pointer",
+                    background: subTabGerencia === "PENDIENTE" ? "#1e40af" : "#ffffff",
+                    color: subTabGerencia === "PENDIENTE" ? "#ffffff" : "#475569"
+                  }}
+                >
+                  ⏳ Pendientes ({pendingGerenciamientos.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSubTabGerencia("HISTORIAL")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    border: "1px solid #cbd5e1",
+                    fontWeight: "bold",
+                    fontSize: "0.8rem",
+                    cursor: "pointer",
+                    background: subTabGerencia === "HISTORIAL" ? "#1e40af" : "#ffffff",
+                    color: subTabGerencia === "HISTORIAL" ? "#ffffff" : "#475569"
+                  }}
+                >
+                  📜 Historial Procesado ({processedGerenciamientos.length})
+                </button>
+              </div>
 
-                return (
-                  <button type="button" key={g.id_gerenciamiento} className="result-card" onClick={() => setGerenciamientoDetail(g)}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
-                      <strong>{g.folio_documento} #{g.id_gerenciamiento}</strong>
-                      <span style={{ background: badgeBg, color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                        RIESGO {g.nivel_riesgo} ({g.puntaje_total} pts)
-                      </span>
-                    </div>
-                    <div style={{ textAlign: "left", fontSize: "0.88rem" }}>
-                      <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre}</div>
-                      <div><strong>Ruta:</strong> {g.origen_nombre} ➔ {g.destino_nombre}</div>
-                      <div><strong>Estado:</strong> <span style={{ fontWeight: "bold" }}>{g.estado}</span></div>
-                    </div>
-                  </button>
-                );
-              }) : <p>No hay registros de gerenciamiento de viaje.</p>}
+              {subTabGerencia === "PENDIENTE" ? (
+                pendingGerenciamientos.length ? pendingGerenciamientos.map(g => {
+                  let badgeBg = "#16a34a";
+                  if (g.nivel_riesgo === "ALTO") badgeBg = "#dc2626";
+                  else if (g.nivel_riesgo === "MEDIO") badgeBg = "#ca8a04";
+
+                  return (
+                    <button type="button" key={g.id_gerenciamiento} className="result-card" onClick={() => setGerenciamientoDetail(g)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                        <strong>{g.folio_documento} #{g.id_gerenciamiento}</strong>
+                        <span style={{ background: badgeBg, color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold" }}>
+                          RIESGO {g.nivel_riesgo} ({g.puntaje_total} pts)
+                        </span>
+                      </div>
+                      <div style={{ textAlign: "left", fontSize: "0.88rem" }}>
+                        <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre}</div>
+                        <div><strong>Ruta:</strong> {g.origen_nombre} ➔ {g.destino_nombre}</div>
+                        <div><strong>Estado:</strong> <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#fef9c3", color: "#854d0e", fontWeight: "bold" }}>PENDIENTE</span></div>
+                      </div>
+                    </button>
+                  );
+                }) : (
+                  <div style={{ padding: "20px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1px solid #cbd5e1", margin: "12px 0" }}>
+                    <span style={{ fontSize: "2rem" }}>✅</span>
+                    <h3 style={{ margin: "8px 0 4px", color: "#166534" }}>No hay gerenciamientos pendientes</h3>
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Todos los gerenciamientos de viaje registrados han sido procesados. Consulta la pestaña Historial para ver los aprobados o rechazados.</p>
+                  </div>
+                )
+              ) : (
+                processedGerenciamientos.length ? processedGerenciamientos.map(g => {
+                  const isAprobado = g.estado === "APROBADO";
+
+                  return (
+                    <button type="button" key={g.id_gerenciamiento} className="result-card" onClick={() => setGerenciamientoDetail(g)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                        <strong>{g.folio_documento} #{g.id_gerenciamiento}</strong>
+                        <span style={{ padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold", background: isAprobado ? "#dcfce7" : "#fee2e2", color: isAprobado ? "#166534" : "#991b1b" }}>
+                          {g.estado}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: "left", fontSize: "0.88rem" }}>
+                        <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre}</div>
+                        <div><strong>Ruta:</strong> {g.origen_nombre} ➔ {g.destino_nombre}</div>
+                        <div><strong>Evaluado por:</strong> {g.nombre_autorizador_firma || "Autorizador"}</div>
+                      </div>
+                    </button>
+                  );
+                }) : (
+                  <p>No hay gerenciamientos en el historial.</p>
+                )
+              )}
             </section>
           ) : (
             <section className="result-card" style={{ textAlign: "left" }}>
