@@ -171,79 +171,110 @@ export default function UsuariosAdminPage({ currentUser }) {
       </section>
 
       {open && (
-        <div className="modal-overlay" role="presentation">
-          <section className="modal-card user-form-modal" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+        <div className="modal-overlay" role="presentation" onMouseDown={() => setOpen(false)}>
+          <section
+            className="modal-card user-form-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-form-title"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ maxWidth: "700px", width: "100%", overflowX: "hidden", padding: "28px" }}
+          >
             <div className="form-panel-header">
               <div>
                 <h2 id="user-form-title">{form.idUsuariosAdmin ? "Editar usuario" : "Nuevo usuario"}</h2>
-                <p>Define el acceso y los datos de la cuenta administrativa.</p>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.88rem" }}>
+                  Define el nivel de acceso y los datos de la cuenta administrativa.
+                </p>
               </div>
               <button type="button" className="close-button" onClick={() => setOpen(false)} aria-label="Cerrar">
                 ×
               </button>
             </div>
-            <form className="driver-form" onSubmit={submit}>
+
+            <form className="driver-form" onSubmit={submit} style={{ gap: "20px" }}>
               <label>
-                Nombre
-                <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+                Nombre Completo *
+                <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Itzayana Ocaña Estrella" />
               </label>
+
               <label>
-                Usuario
+                Nombre de Usuario *
                 <input
                   required
                   disabled={Boolean(form.idUsuariosAdmin)}
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  placeholder="itzayana.ocana"
                 />
               </label>
-              <label>
-                Correo
+
+              <label style={{ gridColumn: form.idUsuariosAdmin ? "1 / -1" : "auto" }}>
+                Correo Electrónico
                 <input
                   type="email"
                   value={form.correo || ""}
                   onChange={(e) => setForm({ ...form, correo: e.target.value })}
+                  placeholder="usuario@itzamna.mx"
                 />
               </label>
+
               {!form.idUsuariosAdmin && (
                 <label>
-                  Contraseña
+                  Contraseña de Acceso *
                   <input
                     type="password"
                     required
                     minLength="8"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Mínimo 8 caracteres"
                   />
                 </label>
               )}
-              <label>
-                Rol Administrativo (Jerarquía de Aprobación de Gerenciamientos)
-                <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
-                  <option value="ADMINISTRADOR">👑 ADMINISTRADOR (Acceso Total)</option>
-                  <option value="GERENTE">🔴 GERENTE (Aprueba Riesgo ALTO &gt; 23 pts)</option>
-                  <option value="COORDINADOR">🟡 COORDINADOR DE ÁREA (Aprueba Riesgo MEDIO 16-22 pts)</option>
-                  <option value="SUPERVISOR">🟢 SUPERVISOR DIRECTO (Aprueba Riesgo BAJO 0-15 pts)</option>
-                  <option value="QHSE">🛡️ QHSE (Aprueba Riesgo BAJO 0-15 pts)</option>
-                  <option value="OPERADOR">🚛 OPERADOR (Operaciones)</option>
-                  <option value="CONSULTA">👁️ CONSULTA (Solo Lectura)</option>
+
+              <label style={{ gridColumn: "1 / -1" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontWeight: "bold" }}>
+                  Rol Administrativo (Jerarquía de Aprobación de Gerenciamientos) *
+                </span>
+                <select
+                  value={form.rol}
+                  onChange={(e) => setForm({ ...form, rol: e.target.value })}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: "9px", border: "1px solid #cadde6", background: "#ffffff", fontSize: "0.9rem" }}
+                >
+                  <option value="ADMINISTRADOR">👑 ADMINISTRADOR — Acceso Total a Todos los Módulos</option>
+                  <option value="GERENTE">🔴 GERENTE — Aprueba Viajes de Riesgo ALTO (&gt; 23 pts)</option>
+                  <option value="COORDINADOR">🟡 COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)</option>
+                  <option value="SUPERVISOR">🟢 SUPERVISOR DIRECTO — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
+                  <option value="QHSE">🛡️ QHSE — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
+                  <option value="OPERADOR">🚛 OPERADOR — Módulo de Operaciones Diarias</option>
+                  <option value="CONSULTA">👁️ CONSULTA — Solo Lectura</option>
                 </select>
               </label>
-              <label>
-                Conductor vinculado
-                <select value={form.idConductor || ""} onChange={(e) => setForm({ ...form, idConductor: e.target.value })}>
-                  <option value="">No vinculado</option>
+
+              <label style={{ gridColumn: "1 / -1" }}>
+                Conductor Vinculado (Opcional)
+                <select
+                  value={form.idConductor || ""}
+                  onChange={(e) => setForm({ ...form, idConductor: e.target.value })}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: "9px", border: "1px solid #cadde6", background: "#ffffff", fontSize: "0.9rem" }}
+                >
+                  <option value="">No vinculado a ningún conductor</option>
                   {drivers.map((driver) => (
                     <option value={driver.id_conductores} key={driver.id_conductores}>
-                      {driver.nombre}
+                      {driver.nombre} {driver.empresa ? `(${driver.empresa})` : ""}
                     </option>
                   ))}
                 </select>
               </label>
-              <div className="form-actions">
-                <button type="button" className="secondary-button" onClick={() => setOpen(false)}>
+
+              <div className="form-actions" style={{ gridColumn: "1 / -1", marginTop: "12px", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <button type="button" className="secondary-button" onClick={() => setOpen(false)} style={{ padding: "10px 20px" }}>
                   Cancelar
                 </button>
-                <button className="primary-button">Guardar usuario</button>
+                <button type="submit" className="primary-button" style={{ padding: "10px 24px" }}>
+                  Guardar usuario
+                </button>
               </div>
             </form>
           </section>

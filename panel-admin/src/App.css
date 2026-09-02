@@ -2702,6 +2702,28 @@ min-width: 0;
   font-size: 0.88rem;
 }
 
+.module-toolbar input,
+.module-toolbar select,
+.driver-form input,
+.driver-form select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #cadde6;
+  border-radius: 9px;
+  background: #f9fcfd;
+  color: #173c4d;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.module-toolbar input:focus,
+.module-toolbar select:focus,
+.driver-form input:focus,
+.driver-form select:focus {
+  border-color: #1ba8ce;
+  outline: 3px solid rgba(27, 168, 206, 0.15);
+}
+
 .profile-field input {
   width: 100%;
   box-sizing: border-box;
