@@ -289,6 +289,25 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
   try {
     await client.query("BEGIN");
 
+    // Consultar registro para validar nivel de riesgo
+    const checkRes = await client.query("SELECT id_gerenciamiento, nivel_riesgo FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1", [idGerenciamiento]);
+    const recordCheck = checkRes.rows[0];
+
+    if (estado === 'APROBADO' && recordCheck && idUsuarioAdmin) {
+      const userRes = await client.query("SELECT rol FROM usuarios_admin WHERE id_usuarios_admin = $1", [idUsuarioAdmin]);
+      const userRol = String(userRes.rows[0]?.rol || "").toUpperCase();
+
+      if (recordCheck.nivel_riesgo === 'BAJO' && !['SUPERVISOR', 'QHSE', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
+        throw new Error("El nivel de Riesgo BAJO (0-15 pts) requiere la aprobación de Supervisor o QHSE.");
+      }
+      if (recordCheck.nivel_riesgo === 'MEDIO' && !['COORDINADOR', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
+        throw new Error("El nivel de Riesgo MEDIO (16-22 pts) requiere la aprobación de Coordinador de Área.");
+      }
+      if (recordCheck.nivel_riesgo === 'ALTO' && !['GERENTE', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
+        throw new Error("El nivel de Riesgo ALTO (>23 pts) requiere la aprobación de Gerente o Administrador.");
+      }
+    }
+
     const updateRes = await client.query(`
       UPDATE gerenciamiento_viajes
       SET estado = $1,

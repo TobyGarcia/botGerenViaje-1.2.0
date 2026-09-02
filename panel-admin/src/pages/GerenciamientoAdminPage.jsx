@@ -191,6 +191,10 @@ export default function GerenciamientoAdminPage({ user }) {
     const horaHH = horaPartes[0] || "08";
     const horaMM = horaPartes[1] || "00";
 
+    const showSigQHSE = doc.firma_autorizador && (doc.nivel_riesgo === "BAJO" || !doc.nivel_riesgo);
+    const showSigCoordinador = doc.firma_autorizador && doc.nivel_riesgo === "MEDIO";
+    const showSigGerente = doc.firma_autorizador && doc.nivel_riesgo === "ALTO";
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
@@ -597,7 +601,7 @@ export default function GerenciamientoAdminPage({ user }) {
       </div>
     </div>
 
-    <!-- FIRMAS -->
+    <!-- FIRMAS Y AUTORIZACIONES (SOLO 1 FIRMA SEGÚN RIESGO) -->
     <div class="signatures-container">
       <div class="driver-sig-box">
         ${doc.firma_conductor ? `<img src="${doc.firma_conductor}" style="max-height: 36px; display: block; margin: 0 auto;" alt="Firma Conductor" />` : '<div style="height: 30px;">[Sin Firma Conductor]</div>'}
@@ -607,19 +611,16 @@ export default function GerenciamientoAdminPage({ user }) {
 
       <div class="authorizers-grid">
         <div>
-          ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma QHSE" />` : '<div style="height: 25px;"></div>'}
-          <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-          <small>QHSE</small>
+          ${showSigQHSE ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma QHSE" /><div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>` : '<div style="height: 30px;"></div><div class="sig-line">NOMBRE Y FIRMA</div>'}
+          <small style="font-weight: bold;">SUPERVISOR DIRECTO / QHSE</small>
         </div>
         <div>
-          ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma Sitio" />` : '<div style="height: 25px;"></div>'}
-          <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-          <small>AUTORIDAD DE ÁREA O SITIO</small>
+          ${showSigCoordinador ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma Coordinador" /><div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>` : '<div style="height: 30px;"></div><div class="sig-line">NOMBRE Y FIRMA</div>'}
+          <small style="font-weight: bold;">AUTORIDAD DE ÁREA / COORDINACIÓN</small>
         </div>
         <div>
-          ${doc.firma_autorizador ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma Gerente" />` : '<div style="height: 25px;"></div>'}
-          <div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>
-          <small>GERENTE DE ÁREA</small>
+          ${showSigGerente ? `<img src="${doc.firma_autorizador}" style="max-height: 32px; display: block; margin: 0 auto;" alt="Firma Gerente" /><div class="sig-line">${doc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}</div>` : '<div style="height: 30px;"></div><div class="sig-line">NOMBRE Y FIRMA</div>'}
+          <small style="font-weight: bold;">GERENTE DE ÁREA</small>
         </div>
       </div>
     </div>
@@ -1024,7 +1025,7 @@ export default function GerenciamientoAdminPage({ user }) {
                 </div>
               </div>
 
-              {/* FIRMAS Y AUTORIZACIONES */}
+              {/* FIRMAS Y AUTORIZACIONES (SOLO 1 FIRMA DE AUTORIZANTE SEGÚN NIVEL DE RIESGO) */}
               <div style={{ border: "1px solid #000", borderTop: 0, padding: "4px" }}>
                 <div style={{ textAlign: "center", marginBottom: "6px" }}>
                   {selectedDoc.firma_conductor ? (
@@ -1039,40 +1040,43 @@ export default function GerenciamientoAdminPage({ user }) {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", textAlign: "center" }}>
+                  {/* Columna 1: QHSE / Supervisor (Riesgo Bajo) */}
                   <div>
-                    {selectedDoc.firma_autorizador ? (
+                    {selectedDoc.firma_autorizador && (selectedDoc.nivel_riesgo === "BAJO" || !selectedDoc.nivel_riesgo) ? (
                       <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma QHSE" />
                     ) : (
                       <div style={{ height: "25px" }}></div>
                     )}
                     <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                      {selectedDoc.firma_autorizador && (selectedDoc.nivel_riesgo === "BAJO" || !selectedDoc.nivel_riesgo) ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
                     </div>
-                    <small style={{ fontSize: "0.65rem" }}>QHSE</small>
+                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>SUPERVISOR DIRECTO / QHSE</small>
                   </div>
 
+                  {/* Columna 2: Coordinación / Autoridad de Sitio (Riesgo Medio) */}
                   <div>
-                    {selectedDoc.firma_autorizador ? (
-                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Sitio" />
+                    {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "MEDIO" ? (
+                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Coordinador" />
                     ) : (
                       <div style={{ height: "25px" }}></div>
                     )}
                     <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                      {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "MEDIO" ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
                     </div>
-                    <small style={{ fontSize: "0.65rem" }}>AUTORIDAD DE ÁREA O SITIO</small>
+                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>AUTORIDAD DE ÁREA / COORDINACIÓN</small>
                   </div>
 
+                  {/* Columna 3: Gerente de Área (Riesgo Alto) */}
                   <div>
-                    {selectedDoc.firma_autorizador ? (
+                    {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "ALTO" ? (
                       <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Gerente" />
                     ) : (
                       <div style={{ height: "25px" }}></div>
                     )}
                     <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                      {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "ALTO" ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
                     </div>
-                    <small style={{ fontSize: "0.65rem" }}>GERENTE DE ÁREA</small>
+                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>GERENTE DE ÁREA</small>
                   </div>
                 </div>
               </div>
@@ -1099,6 +1103,16 @@ export default function GerenciamientoAdminPage({ user }) {
             {/* Sección de Aprobación Unificada si está pendiente */}
             {selectedDoc.estado === "PENDIENTE" ? (
               <div className="inspection-decision-panel">
+                <div style={{ padding: "8px 12px", borderRadius: "6px", marginBottom: "12px", background: selectedDoc.nivel_riesgo === "ALTO" ? "#fee2e2" : selectedDoc.nivel_riesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: "1px solid #cbd5e1", fontSize: "0.85rem", color: "#000" }}>
+                  {selectedDoc.nivel_riesgo === "ALTO" ? (
+                    <span>🔴 <strong>RIESGO ALTO ({selectedDoc.puntaje_total} pts):</strong> Requiere aprobación obligatoria de <strong>GERENCIA GENERAL (GERENTE)</strong>.</span>
+                  ) : selectedDoc.nivel_riesgo === "MEDIO" ? (
+                    <span>🟡 <strong>RIESGO MEDIO ({selectedDoc.puntaje_total} pts):</strong> Requiere aprobación de <strong>COORDINACIÓN DE ÁREA (COORDINADOR)</strong>.</span>
+                  ) : (
+                    <span>🟢 <strong>RIESGO BAJO ({selectedDoc.puntaje_total} pts):</strong> Autoriza <strong>SUPERVISOR DIRECTO O QHSE</strong>.</span>
+                  )}
+                </div>
+
                 <div className="inspection-decision-section">
                   <label className="inspection-comment-field">
                     <span>Seleccionar Persona Autorizadora:</span>

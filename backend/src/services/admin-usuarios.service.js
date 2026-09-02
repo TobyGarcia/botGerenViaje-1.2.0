@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { databasePool } from "../database/pool.js";
 
-const roles = new Set(["ADMINISTRADOR", "SUPERVISOR", "OPERADOR", "CONSULTA"]);
+const roles = new Set(["ADMINISTRADOR", "SUPERVISOR", "COORDINADOR", "GERENTE", "QHSE", "OPERADOR", "CONSULTA"]);
 export function validAdminRole(rol) { return roles.has(String(rol || "").toUpperCase()); }
 
 export async function listAdminUsers() {
