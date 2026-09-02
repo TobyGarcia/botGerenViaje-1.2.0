@@ -625,7 +625,7 @@ export default function GerenciamientoAdminPage({ user }) {
     </div>
 
     <div class="footer-note">
-      NOTA: Un Gerenciamiento de Viajes debe ser prepared para todos los viajes: Superiores a 50 Km, en áreas remotas o bajo condiciones adversas, hacia o desde locaciones en campo con el cliente.
+      NOTA: Un Gerenciamiento de Viajes debe ser preparado para todos los viajes: Superiores a 50 Km, en áreas remotas o bajo condiciones adversas, hacia o desde locaciones en campo con el cliente.
     </div>
   </div>
 
@@ -740,10 +740,10 @@ export default function GerenciamientoAdminPage({ user }) {
         )}
       </section>
 
-      {/* Modal con Hoja Ajustada a Tamaño Carta */}
+      {/* Modal con Hoja Completa Oficial SII-MX-23-LOG-003 */}
       {selectedDoc && (
         <div className="modal-overlay" onMouseDown={() => setSelectedDoc(null)}>
-          <section className="modal-card inspection-detail-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: "880px", width: "100%" }}>
+          <section className="modal-card inspection-detail-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: "860px", width: "100%", maxHeight: "94vh", overflowY: "auto" }}>
             <div className="form-panel-header">
               <div>
                 <h2>Gerenciamiento {selectedDoc.folio_documento}</h2>
@@ -752,7 +752,7 @@ export default function GerenciamientoAdminPage({ user }) {
               <button className="close-button" onClick={() => setSelectedDoc(null)}>×</button>
             </div>
 
-            {/* HOJA EN FORMATO TAMAÑO CARTA COMPACTA EN EL MODAL */}
+            {/* HOJA COMPLETA SII-MX-23-LOG-003 v3.0 EN EL MODAL */}
             <div style={{ border: "1.5px solid #000", padding: "6px", background: "#ffffff", fontSize: "0.78rem", marginBottom: "16px" }}>
               
               {/* Encabezado */}
@@ -774,37 +774,312 @@ export default function GerenciamientoAdminPage({ user }) {
                 </tbody>
               </table>
 
-              <div style={{ background: "#d1d5db", fontWeight: "bold", textAlign: "center", fontSize: "0.88rem", padding: "3px", border: "1px solid #000", borderTop: 0, textTransform: "uppercase" }}>
-                GERENCIAMIENTO DE VIAJE
+              <div style={{ background: "#d1d5db", fontWeight: "bold", textAlign: "center", fontSize: "0.85rem", padding: "3px", border: "1px solid #000", borderTop: 0, textTransform: "uppercase" }}>
+                GERENCIAMIENTO DE VIAJE (FECHA DE EMISIÓN: {String(selectedDoc.fecha_emision || "").split("T")[0]})
               </div>
 
               {/* Metadata */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem" }}>
                 <tbody>
                   <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Origen / Destino</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={3}><strong>{selectedDoc.origen_nombre || selectedDoc.origen_texto} ➔ {selectedDoc.destino_nombre || selectedDoc.destino_texto}</strong></td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Origen</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.origen_nombre || selectedDoc.origen_texto}</strong></td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Destino</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.destino_nombre || selectedDoc.destino_texto}</strong></td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Departamento</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.departamento || "Logística"}</td>
                     <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Kilometraje</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}><strong>{selectedDoc.kilometraje || 0} km</strong></td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Conductor</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={3}><strong>{selectedDoc.nombre_conductor}</strong></td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Vehículo</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.tipo_vehiculo} ({selectedDoc.numero_unidad || selectedDoc.placa})</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Evaluación Riesgo</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={5}>
-                      <strong>{selectedDoc.puntaje_total} pts — RIESGO {selectedDoc.nivel_riesgo}</strong> (Requiere: {selectedDoc.autorizacion_requerida})
-                    </td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.kilometraje || 0} km</strong></td>
                   </tr>
                 </tbody>
               </table>
 
+              {/* 1. INFORMACIÓN GENERAL */}
+              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", fontSize: "0.78rem", padding: "2px", border: "1px solid #000", borderTop: 0 }}>
+                1. INFORMACIÓN GENERAL
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem" }}>
+                <tbody>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Tipo de vehículo</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.tipo_vehiculo || "PickUp"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Placa</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.placa || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Modelo</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.modelo || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Color</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.color || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Vehículo empresa</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>
+                      <strong>[{selectedDoc.vehiculo_empresa !== false ? "X" : " "}] SÍ</strong> &nbsp;
+                      <strong>[{selectedDoc.vehiculo_empresa === false ? "X" : " "}] NO</strong>
+                    </td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Nombre empresa contratista</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.nombre_contratista || "N/A (AQUARIO)"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>No. Unidad</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}><strong>{selectedDoc.numero_unidad || "N/A"}</strong></td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Conductor</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={3}><strong>{selectedDoc.nombre_conductor || selectedDoc.conductor_nombre}</strong></td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Tel. Celular</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.telefono_conductor || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Número licencia</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.licencia_numero || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Tipo</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.licencia_tipo || "Chofer"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Fecha vencimiento</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.licencia_vencimiento ? String(selectedDoc.licencia_vencimiento).split("T")[0] : "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Ruta a seguir</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={4}><strong>{Array.isArray(selectedDoc.ruta_puntos) ? selectedDoc.ruta_puntos.join(" ➔ ") : (selectedDoc.ruta_puntos || "N/A")}</strong></td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Tiempo Viaje</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.tiempo_viaje_horas || 1} hrs</td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Acompañante(s)</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={7}>{Array.isArray(selectedDoc.acompanantes) && selectedDoc.acompanantes.length ? selectedDoc.acompanantes.join(", ") : "Sin acompañantes"}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Sitios de reporte */}
+              <div style={{ background: "#f9fafb", fontWeight: "bold", border: "1px solid #000", borderTop: 0, padding: "2px 4px", fontSize: "0.7rem" }}>
+                Sitios de reporte (para viajes superiores a 1 hora)
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.7rem" }}>
+                <tbody>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 1</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[0]?.punto || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[0]?.horaReportada || "--:--"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 3</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[2]?.punto || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[2]?.horaReportada || "--:--"}</td>
+                  </tr>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 2</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[1]?.punto || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[1]?.horaReportada || "--:--"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 4</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[3]?.punto || "N/A"}</td>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[3]?.horaReportada || "--:--"}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* 2. LISTA VERIFICACIÓN DE PREVIAJE */}
+              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", padding: "2px", border: "1px solid #000", borderTop: 0, fontSize: "0.78rem" }}>
+                2. LISTA VERIFICACIÓN DE PREVIAJE
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.7rem" }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", textAlign: "left" }}>Pregunta de Control</th>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", width: "8%", textAlign: "center" }}>SI</th>
+                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", width: "8%", textAlign: "center" }}>NO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>1. ¿El conductor tiene conocimiento de los riesgos locales (vía, clima, peatones, animales)?</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.conocimiento_riesgos_locales !== false ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.conocimiento_riesgos_locales === false ? "X" : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>2. ¿El conductor ha consumido medicamentos que producen somnolencia o presenta padecimiento del sueño?</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.medicamentos_somnolencia ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{!selectedDoc.medicamentos_somnolencia ? "X" : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>3. ¿El conductor ha dormido adecuadamente?</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.dormido_adecuadamente !== false ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.dormido_adecuadamente === false ? "X" : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>4. ¿El conductor está informado que es prohibido transportar personal ajeno a la empresa?</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.prohibido_personal_ajeno !== false ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.prohibido_personal_ajeno === false ? "X" : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.inspeccion_vehiculo_realizada !== false ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.inspeccion_vehiculo_realizada === false ? "X" : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>6. ¿Se realizó la reunión pre caravana? (Anexar registro) *Sólo para viajes de más de 1 vehículo</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.reunion_pre_caravana_realizada ? "X" : ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{!selectedDoc.reunion_pre_caravana_realizada ? "X" : ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* 3. EVALUACIÓN DE RIESGO DE LA RUTA */}
+              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", padding: "2px", border: "1px solid #000", borderTop: 0, fontSize: "0.78rem" }}>
+                3. EVALUACIÓN DE RIESGO DE LA RUTA
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.15fr", border: "1px solid #000", borderTop: 0, fontSize: "0.7rem" }}>
+                {/* Columna A, D, G */}
+                <div style={{ borderRight: "1px solid #000" }}>
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>A. Distancia a Recorrer / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 1 ? "#fef08a" : "transparent" }}><span>Menos de 50 Km</span><span>1</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 2 ? "#fef08a" : "transparent" }}><span>Menos de 100 Km</span><span>2</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 5 ? "#fef08a" : "transparent" }}><span>Menos de 200 Km</span><span>5</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 8 ? "#fef08a" : "transparent" }}><span>Más de 200 Km</span><span>8</span></div>
+
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>D. Condiciones de la Vía / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 1 ? "#fef08a" : "transparent" }}><span>Pavimentada</span><span>1</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 2 ? "#fef08a" : "transparent" }}><span>Mixta (&lt;50% No Pav.)</span><span>2</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 4 ? "#fef08a" : "transparent" }}><span>No Pavimentada</span><span>4</span></div>
+
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>G. Hora del Traslado / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_hora_traslado === 1 ? "#fef08a" : "transparent" }}><span>Día (06:00 a 18:00 h)</span><span>1</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_hora_traslado === 8 ? "#fef08a" : "transparent" }}><span>Noche (18:00 a 06:00 h)</span><span>8</span></div>
+                </div>
+
+                {/* Columna B, E */}
+                <div style={{ borderRight: "1px solid #000" }}>
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>B. Clima / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 2 ? "#fef08a" : "transparent" }}><span>Seco / Cond. normales</span><span>2</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 4 ? "#fef08a" : "transparent" }}><span>Lluvia suave</span><span>4</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 8 ? "#fef08a" : "transparent" }}><span>Lluvia fuerte/niebla</span><span>8</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 10 ? "#fef08a" : "transparent" }}><span>Nieve</span><span>10</span></div>
+
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>E. Comunicaciones / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 0 ? "#fef08a" : "transparent" }}><span>Teléfono celular</span><span>0</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 2 ? "#fef08a" : "transparent" }}><span>Sin com. y caravana</span><span>2</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 4 ? "#fef08a" : "transparent" }}><span>Sin com. sin caravana</span><span>4</span></div>
+
+                  <div style={{ background: "#fee2e2", padding: "2.5px", fontSize: "0.68rem", borderTop: "1px solid #000", textAlign: "center" }}>
+                    <strong>Horas trabajo + Viaje &gt; 16h = NO CONDUCIR</strong>
+                  </div>
+                  <div style={{ background: "#fff3cd", padding: "2.5px", fontSize: "0.68rem", borderTop: "1px solid #000" }}>
+                    Manejo Nocturno (&gt;18h) requiere Aprobación GCO/QHSE.
+                  </div>
+                </div>
+
+                {/* Columna C, F, EVALUACIÓN TOTAL */}
+                <div>
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>C. Vehículos y personas / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 1 ? "#fef08a" : "transparent" }}><span>2+ Vehi. 2+ pers.</span><span>1</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 2 ? "#fef08a" : "transparent" }}><span>2+ Vehi. 1+ pers.</span><span>2</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 3 ? "#fef08a" : "transparent" }}><span>1Vehi. 2+ pers.</span><span>3</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 6 ? "#fef08a" : "transparent" }}><span>1Vehi. 1 pers.</span><span>6</span></div>
+
+                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>F. Hrs. trabajadas + Viaje / Ptos</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 1 ? "#fef08a" : "transparent" }}><span>Hrs. trab. + Viaje =&lt;12</span><span>1</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 3 ? "#fef08a" : "transparent" }}><span>Hrs. trab. + Viaje =&lt;14</span><span>3</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 6 ? "#fef08a" : "transparent" }}><span>Hrs. Trab. + Viaje =&lt;16</span><span>6</span></div>
+
+                  <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", borderTop: "1px solid #000", borderBottom: "1px solid #000", padding: "1.5px", fontSize: "0.78rem" }}>
+                    EVALUACIÓN DEL VIAJE
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "2px", fontSize: "0.7rem", background: "#ffffff" }}>
+                    <div>
+                      <div>A: {selectedDoc.pts_distancia || 1}</div>
+                      <div>B: {selectedDoc.pts_clima || 2}</div>
+                      <div>C: {selectedDoc.pts_vehiculos_personas || 1}</div>
+                      <div>D: {selectedDoc.pts_condiciones_via || 1}</div>
+                      <div>E: {selectedDoc.pts_comunicaciones || 0}</div>
+                      <div>F: {selectedDoc.pts_horas_trabajadas || 1}</div>
+                      <div>G: {selectedDoc.pts_hora_traslado || 1}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "3px", padding: "2px" }}>
+                      <strong style={{ fontSize: "0.9rem" }}>{selectedDoc.puntaje_total} pts</strong>
+                      <span style={{ padding: "1px 4px", borderRadius: "8px", color: "#fff", fontSize: "0.62rem", fontWeight: "bold", marginTop: "1px", background: selectedDoc.nivel_riesgo === 'ALTO' ? '#dc2626' : selectedDoc.nivel_riesgo === 'MEDIO' ? '#ca8a04' : '#16a34a' }}>
+                        RIESGO {selectedDoc.nivel_riesgo}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Banner Clasificación */}
+              <div style={{ background: "#fee2e2", border: "1px solid #000", borderTop: 0, textAlign: "center", fontWeight: "bold", fontSize: "0.68rem", padding: "2px" }}>
+                NOTA: DE ACUERDO AL PUNTAJE OBTENIDO SE DEBE SOLICITAR LA APROBACIÓN CORRESPONDIENTE SEGÚN LA SIGUIENTE CLASIFICACIÓN
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", border: "1px solid #000", borderTop: 0, fontSize: "0.7rem", textAlign: "center" }}>
+                <div style={{ background: "#dcfce7", padding: "4px", borderRight: "1px solid #000", border: selectedDoc.nivel_riesgo === "BAJO" ? "2px solid #000" : "none" }}>
+                  <strong>RIESGO BAJO (0 A 15 PUNTOS)</strong><br />
+                  AUTORIZA SUPERVISOR DIRECTO Y QHSE
+                </div>
+                <div style={{ background: "#fef9c3", padding: "4px", borderRight: "1px solid #000", border: selectedDoc.nivel_riesgo === "MEDIO" ? "2px solid #000" : "none" }}>
+                  <strong>RIESGO MEDIO (16 A 22 PUNTOS)</strong><br />
+                  COORDINACIONES DE AREA
+                </div>
+                <div style={{ background: "#fee2e2", padding: "4px", border: selectedDoc.nivel_riesgo === "ALTO" ? "2px solid #000" : "none" }}>
+                  <strong>RIESGO ALTO (&gt; 23 PUNTOS)</strong><br />
+                  AUTORIZA GERENCIA GENERAL
+                </div>
+              </div>
+
+              {/* FIRMAS Y AUTORIZACIONES */}
+              <div style={{ border: "1px solid #000", borderTop: 0, padding: "4px" }}>
+                <div style={{ textAlign: "center", marginBottom: "6px" }}>
+                  {selectedDoc.firma_conductor ? (
+                    <img src={selectedDoc.firma_conductor} style={{ maxHeight: "36px", margin: "0 auto", display: "block" }} alt="Firma Conductor" />
+                  ) : (
+                    <div style={{ height: "30px", color: "#64748b" }}>[Sin Firma Conductor]</div>
+                  )}
+                  <div style={{ borderTop: "1px solid #000", width: "50%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.72rem" }}>
+                    {selectedDoc.nombre_conductor_firma || selectedDoc.nombre_conductor}
+                  </div>
+                  <small style={{ fontWeight: "bold", fontSize: "0.68rem" }}>CONDUCTOR</small>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", textAlign: "center" }}>
+                  <div>
+                    {selectedDoc.firma_autorizador ? (
+                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma QHSE" />
+                    ) : (
+                      <div style={{ height: "25px" }}></div>
+                    )}
+                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
+                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                    </div>
+                    <small style={{ fontSize: "0.65rem" }}>QHSE</small>
+                  </div>
+
+                  <div>
+                    {selectedDoc.firma_autorizador ? (
+                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Sitio" />
+                    ) : (
+                      <div style={{ height: "25px" }}></div>
+                    )}
+                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
+                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                    </div>
+                    <small style={{ fontSize: "0.65rem" }}>AUTORIDAD DE ÁREA O SITIO</small>
+                  </div>
+
+                  <div>
+                    {selectedDoc.firma_autorizador ? (
+                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Gerente" />
+                    ) : (
+                      <div style={{ height: "25px" }}></div>
+                    )}
+                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
+                      {selectedDoc.nombre_autorizador_firma || "NOMBRE Y FIRMA"}
+                    </div>
+                    <small style={{ fontSize: "0.65rem" }}>GERENTE DE ÁREA</small>
+                  </div>
+                </div>
+              </div>
+
               {/* Inspección Integrada */}
               {selectedDoc.inspeccion_id && (
-                <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "6px 8px", marginTop: "4px", fontSize: "0.75rem", color: "#0369a1" }}>
+                <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "6px 8px", marginTop: "4px", fontSize: "0.72rem", color: "#0369a1" }}>
                   <strong>🚗 Inspección Vehicular Integrada:</strong> Combustible: <strong>{selectedDoc.inspeccion_combustible || "3/4"}</strong> | Estado Inspección: <strong>{selectedDoc.inspeccion_estado || selectedDoc.estado}</strong>
                 </div>
               )}
