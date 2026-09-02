@@ -40,8 +40,10 @@ import adminAuthRoutes from "./routes/admin-auth.routes.js";
 import adminUsuariosRoutes from "./routes/admin-usuarios.routes.js";
 import manejoComentadoRoutes from "./routes/manejo-comentado.routes.js";
 import adminAnaliticaCombustibleRoutes from "./routes/admin-analitica-combustible.routes.js";
+import gerenciamientoViajesRoutes from "./routes/gerenciamiento-viajes.routes.js";
 import driverAuthRoutes from "./routes/driver-auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+
 
 
 const app = express();
