@@ -6,7 +6,9 @@ import {
   assignAdminConductorVehicleController,
   createAdminDriverController,
   listAdminDriversController,
-  updateAdminDriverStatusController
+  updateAdminDriverStatusController,
+  approveAdminDriverController,
+  setDriverPinAdminController
 } from "../controllers/admin-conductores.controller.js";
 
 import {
@@ -44,4 +46,17 @@ router.patch(
   assignAdminConductorVehicleController
 );
 
+router.patch(
+  "/:idConductor/aprobar",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  approveAdminDriverController
+);
+
+router.patch(
+  "/:idConductor/pin",
+  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  setDriverPinAdminController
+);
+
 export default router;
+

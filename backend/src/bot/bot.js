@@ -213,3 +213,44 @@ export async function sendDriverInspectionNotification({
     console.error("No fue posible notificar la decisión de inspección al conductor:", error);
   }
 }
+
+export async function sendDriverRegistrationSupervisorAlert({ conductor }) {
+  const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_ID;
+
+  if (!supervisorGroupId) {
+    console.warn("No se envió la alerta de nuevo conductor: TELEGRAM_GROUP_SUPRVISOR_ID no está configurado.");
+    return;
+  }
+
+  const message = [
+    "👤 NUEVO REGISTRO DE CONDUCTOR PENDIENTE",
+    `Nombre: ${conductor.nombre}`,
+    `Teléfono: ${conductor.telefono || "No registrado"}`,
+    `Empresa: ${conductor.empresa || "No registrada"}`,
+    `Licencia: ${conductor.licencia_numero} (${conductor.tipo_licencia || "General"})`,
+    `Vencimiento Licencia: ${conductor.licencia_vencimiento || "No especificado"}`,
+    "---------------------------------",
+    "⚠️ Se requiere aprobación manual desde el Panel Administrativo para habilitar la operación del conductor."
+  ].join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(supervisorGroupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta de registro de conductor al grupo de supervisores:", error);
+  }
+}
+
+export async function sendDriverApprovalNotification({ telegramUserId, approved }) {
+  if (!telegramUserId) return;
+
+  const message = approved
+    ? "🎉 ¡Tu registro de conductor ha sido APROBADO por la administración! Ya puedes abrir la Mini App e iniciar viajes."
+    : "❌ Tu registro de conductor ha sido rechazado o inhabilitado por la administración. Contacta a tu supervisor.";
+
+  try {
+    await getTelegramBot().telegram.sendMessage(String(telegramUserId), message);
+  } catch (error) {
+    console.error("No fue posible enviar la notificación de aprobación al conductor:", error);
+  }
+}
+

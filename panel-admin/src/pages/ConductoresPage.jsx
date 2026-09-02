@@ -9,8 +9,11 @@ import {
   createAdminConductor,
   getAdminConductores,
   getAdminVehiculos,
-  updateAdminConductorStatus
+  updateAdminConductorStatus,
+  approveAdminConductor,
+  setAdminConductorPin
 } from "../services/api.js";
+
 
 const initialForm = {
   nombre: "",
@@ -139,6 +142,46 @@ function ConductoresPage({ user }) {
       setAssigningId(null);
     }
   }
+
+  async function handleApproveDriver(idConductor, aprobado) {
+    try {
+      setUpdatingId(idConductor);
+      const res = await approveAdminConductor(idConductor, aprobado);
+      setMessage(res.message || "Estado de aprobación actualizado.");
+      setMessageType("success");
+      await loadConductores();
+    } catch (err) {
+      setMessage(err.message || "Error al actualizar estado de aprobación.");
+      setMessageType("error");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleSetPin(conductor) {
+    const inputPin = window.prompt(`Ingresa el nuevo PIN de 4 dígitos para ${conductor.nombre}:`);
+    if (!inputPin) return;
+
+    const cleanPin = inputPin.trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      alert("El PIN debe constar de exactamente 4 dígitos numéricos.");
+      return;
+    }
+
+    try {
+      setUpdatingId(conductor.id_conductores);
+      const res = await setAdminConductorPin(conductor.id_conductores, cleanPin);
+      setMessage(res.message || `PIN asignado correctamente a ${conductor.nombre}.`);
+      setMessageType("success");
+      await loadConductores();
+    } catch (err) {
+      setMessage(err.message || "Error al asignar el PIN.");
+      setMessageType("error");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
 
   useEffect(() => {
     loadVehiculos();
@@ -589,6 +632,7 @@ function ConductoresPage({ user }) {
             <table className="admin-table">
               <thead>
                 <tr>
+
                   <th>Conductor</th>
                   <th>Teléfono</th>
                   <th>Empresa</th>
@@ -597,8 +641,10 @@ function ConductoresPage({ user }) {
                   <th>Vencimiento Licencia</th>
                   <th>Manejo Comentado</th>
                   <th>Telegram</th>
+                  <th>Aprobación Admin</th>
+                  <th>PIN Web</th>
                   <th>Estado</th>
-                  {(!user || user.rol === "ADMINISTRADOR") && <th>Acciones</th>}
+                  {(!user || user.rol === "ADMINISTRADOR" || user.rol === "SUPERVISOR") && <th>Acciones</th>}
                 </tr>
               </thead>
 
@@ -669,7 +715,6 @@ function ConductoresPage({ user }) {
                         {formatDate(conductor.fecha_manejo_comentado)}
                       </td>
 
-
                       <td>
                         {conductor.telegram_user_id
                           ? (
@@ -687,6 +732,30 @@ function ConductoresPage({ user }) {
                       <td>
                         <span
                           className={
+                            conductor.aprobado_por_admin
+                              ? "status-badge status-active"
+                              : "status-badge status-inactive"
+                          }
+                          style={{
+                            backgroundColor: conductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
+                            color: conductor.aprobado_por_admin ? "#166534" : "#92400e"
+                          }}
+                        >
+                          {conductor.aprobado_por_admin
+                            ? "Aprobado"
+                            : "Pendiente"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span style={{ fontSize: "0.85rem", color: conductor.tiene_pin ? "#15803d" : "#94a3b8" }}>
+                          {conductor.tiene_pin ? "Configurado" : "Sin PIN"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={
                             conductor.activo
                               ? "status-badge status-active"
                               : "status-badge status-inactive"
@@ -698,32 +767,51 @@ function ConductoresPage({ user }) {
                         </span>
                       </td>
 
-                      {(!user || user.rol === "ADMINISTRADOR") && (
+                      {(!user || user.rol === "ADMINISTRADOR" || user.rol === "SUPERVISOR") && (
                         <td>
-                          <button
-                            type="button"
-                            className={
-                              conductor.activo
-                                ? "danger-button"
-                                : "reactivate-button"
-                            }
-                            disabled={
-                              updatingId ===
-                              conductor.id_conductores
-                            }
-                            onClick={() =>
-                              handleStatusChange(
-                                conductor
-                              )
-                            }
-                          >
-                            {updatingId ===
-                            conductor.id_conductores
-                              ? "Actualizando..."
-                              : conductor.activo
-                                ? "Eliminar"
-                                : "Eliminar"}
-                          </button>
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {!conductor.aprobado_por_admin && (
+                              <button
+                                type="button"
+                                className="primary-button"
+                                style={{ padding: "4px 8px", fontSize: "0.8rem", backgroundColor: "#16a34a" }}
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                              >
+                                Aprobar
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleSetPin(conductor)}
+                            >
+                              {conductor.tiene_pin ? "Cambiar PIN" : "Asignar PIN"}
+                            </button>
+
+                            {(!user || user.rol === "ADMINISTRADOR") && (
+                              <button
+                                type="button"
+                                className={
+                                  conductor.activo
+                                    ? "danger-button"
+                                    : "reactivate-button"
+                                }
+                                style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                                disabled={
+                                  updatingId === conductor.id_conductores
+                                }
+                                onClick={() =>
+                                  handleStatusChange(conductor)
+                                }
+                              >
+                                Eliminar
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -731,6 +819,7 @@ function ConductoresPage({ user }) {
                 )}
               </tbody>
             </table>
+
           </div>
         )}
       </section>

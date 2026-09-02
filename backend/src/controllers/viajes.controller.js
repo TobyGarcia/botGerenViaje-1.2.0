@@ -31,11 +31,20 @@ function requestError(message, statusCode) {
 }
 
 async function requireTelegramDriver(request) {
+  if (request.driverUser) {
+    return {
+      id_conductores: request.driverUser.id_conductores,
+      nombre: request.driverUser.nombre,
+      activo: true,
+      conductor_activo: true
+    };
+  }
+
   const telegramData = validateTelegramInitData(
     request.get("X-Telegram-Init-Data") || "",
     {
       botToken: process.env.TELEGRAM_BOT_TOKEN,
-      maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
+      maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 86400)
     }
   );
   const telegramUser = await findTelegramUserById(telegramData.user.id);
@@ -48,15 +57,16 @@ async function requireTelegramDriver(request) {
 }
 
 async function requireTripOwner(request, idViaje) {
-  const telegramUser = await requireTelegramDriver(request);
+  const driverUser = await requireTelegramDriver(request);
   const trip = await getTripById({ idViaje });
 
   if (!trip) throw requestError("El viaje no existe.", 404);
-  if (Number(trip.id_conductores) !== Number(telegramUser.id_conductores)) {
+  if (Number(trip.id_conductores) !== Number(driverUser.id_conductores)) {
     throw requestError("No tienes permiso para modificar este viaje.", 403);
   }
-  return telegramUser;
+  return driverUser;
 }
+
 
 function normalizeTripResponse(trip) {
   return {

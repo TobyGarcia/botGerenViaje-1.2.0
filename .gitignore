@@ -1,5 +1,23 @@
 # Variables privadas
 .env
+.env.production
+.env.local
+.env.*.local
+
+# Archivos de sesión y credenciales sensibles
+admin-cookies.txt
+*cookies.txt
+*.pem
+*.key
+
+# Dumps de base de datos y respaldos
+*.dump
+*.sql
+*.tar.gz
+
+# Archivos subidos dinámicamente
+uploads/
+backend/uploads/
 
 # Node.js
 node_modules/
@@ -24,3 +42,4 @@ Thumbs.db
 
 # PostgreSQL local
 postgres_data/
+

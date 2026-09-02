@@ -7,6 +7,8 @@ import {
 import {
   validateTelegramInitData
 } from "../utils/telegram-init-data.js";
+import { sendDriverRegistrationSupervisorAlert } from "../bot/bot.js";
+
 
 export async function authenticateTelegramController(
   request,
@@ -201,12 +203,18 @@ export async function registerTelegramDriverController(request, response) {
       ...driverData
     });
 
+    if (result.created && result.conductor) {
+      sendDriverRegistrationSupervisorAlert({ conductor: result.conductor }).catch((err) => {
+        console.warn("Fallo al enviar alerta de registro a supervisores:", err.message);
+      });
+    }
+
     return response.status(result.created ? 201 : 200).json({
       success: true,
       data: {
         authenticated: true,
         registered: true,
-        estadoRegistro: "COMPLETO",
+        estadoRegistro: result.telegramUser.estado_registro || "PENDIENTE_APROBACION",
         usuario: {
           firstName: result.telegramUser.telegram_first_name,
           lastName: result.telegramUser.telegram_last_name,
@@ -215,6 +223,7 @@ export async function registerTelegramDriverController(request, response) {
         conductor: result.conductor
       }
     });
+
   } catch (error) {
     const statusCode = error instanceof TelegramRegistrationError
       ? error.statusCode

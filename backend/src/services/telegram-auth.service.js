@@ -224,9 +224,10 @@ export async function registerTelegramDriver({
           licencia_vencimiento,
           licencia_vigente,
           fecha_manejo_comentado,
-          activo
+          activo,
+          aprobado_por_admin
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, FALSE)
         RETURNING ${conductorColumns}
       `,
       [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null]
@@ -238,7 +239,7 @@ export async function registerTelegramDriver({
         UPDATE usuarios_telegram
         SET
           id_conductores = $1,
-          estado_registro = 'COMPLETO',
+          estado_registro = 'PENDIENTE_APROBACION',
           actualizado_en = CURRENT_TIMESTAMP
         WHERE telegram_user_id = $2
       `,
@@ -254,11 +255,12 @@ export async function registerTelegramDriver({
       telegramUser: {
         ...telegramUser,
         id_conductores: conductor.id_conductores,
-        estado_registro: "COMPLETO"
+        estado_registro: "PENDIENTE_APROBACION"
       },
       conductor,
       created: true
     };
+
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

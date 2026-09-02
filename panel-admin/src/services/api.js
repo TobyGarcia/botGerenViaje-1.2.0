@@ -187,6 +187,31 @@ export function assignAdminConductorVehicle(idConductor, idVehiculo) {
   );
 }
 
+export function approveAdminConductor(idConductor, aprobado) {
+  return request(
+    `/admin/conductores/${idConductor}/aprobar`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        aprobado
+      })
+    }
+  );
+}
+
+export function setAdminConductorPin(idConductor, pin) {
+  return request(
+    `/admin/conductores/${idConductor}/pin`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        pin
+      })
+    }
+  );
+}
+
+
 export function getAdminVehiculos({
   search = "",
   status = "TODOS"

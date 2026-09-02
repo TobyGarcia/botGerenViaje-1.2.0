@@ -25,6 +25,8 @@ import {
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
+import PinLoginForm from "./components/PinLoginForm.jsx";
+
 import {
   captureAndQueueLocation,
   captureIntermediatePoint,
@@ -221,6 +223,20 @@ const [cancelledTrip, setCancelledTrip] =
 
   const [telegramAuthAttempt, setTelegramAuthAttempt] =
     useState(0);
+
+  const [showPinLogin, setShowPinLogin] = useState(false);
+
+  function handlePinLoginSuccess(conductor) {
+    setTelegramAuth({
+      authenticated: true,
+      registered: true,
+      estadoRegistro: "COMPLETO",
+      conductor: normalizeConductor(conductor)
+    });
+    setShowPinLogin(false);
+    setTelegramAuthError("");
+  }
+
 
   const telegramAuthStartedRef = useRef(false);
 
@@ -1039,34 +1055,102 @@ async function handleAddIntermediatePoint() {
     return <p className="loading-message">Validando identidad de Telegram...</p>;
   }
 
-  if (telegramAuthError) {
+  if (showPinLogin) {
     return (
       <main className="telegram-auth-error">
-        <h1>No fue posible validar tu acceso</h1>
+        <PinLoginForm
+          onSuccess={handlePinLoginSuccess}
+          onCancel={() => setShowPinLogin(false)}
+        />
+      </main>
+    );
+  }
 
-        <p>{telegramAuthError}</p>
+  if (telegramAuthError) {
+    return (
+      <main className="telegram-auth-error" style={{ padding: "24px 16px", textAlign: "center" }}>
+        <h1>Acceso a la Aplicación</h1>
 
-        <button
-          type="button"
-          onClick={retryTelegramAuthentication}
-        >
-          Reintentar
-        </button>
+        <p style={{ color: "#64748b", margin: "12px 0 20px" }}>{telegramAuthError}</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "300px", margin: "0 auto" }}>
+          <button
+            type="button"
+            onClick={() => setShowPinLogin(true)}
+            style={{
+              padding: "12px",
+              fontSize: "1rem",
+              fontWeight: 600,
+              backgroundColor: "#0284c7",
+              color: "#ffffff",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer"
+            }}
+          >
+            🔑 Ingresar con Nombre y PIN
+          </button>
+
+          <button
+            type="button"
+            onClick={retryTelegramAuthentication}
+            style={{
+              padding: "10px",
+              fontSize: "0.875rem",
+              backgroundColor: "transparent",
+              color: "#64748b",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              cursor: "pointer"
+            }}
+          >
+            Reintentar con Telegram
+          </button>
+        </div>
       </main>
     );
   }
 
   if (!telegramAuth?.authenticated) {
     return (
-      <p className="loading-message">
-        No fue posible validar tu acceso.
-      </p>
+      <main className="telegram-auth-error" style={{ textAlign: "center", padding: "30px 16px" }}>
+        <p className="loading-message">No fue posible validar tu acceso.</p>
+        <button
+          type="button"
+          onClick={() => setShowPinLogin(true)}
+          style={{ marginTop: "16px", padding: "10px 16px", backgroundColor: "#0284c7", color: "#fff", border: "none", borderRadius: "8px" }}
+        >
+          Ingresar con PIN de Conductor
+        </button>
+      </main>
+    );
+  }
+
+  if (telegramAuth.estadoRegistro === "PENDIENTE_APROBACION") {
+    return (
+      <main className="telegram-auth-error" style={{ textAlign: "center", padding: "30px 16px" }}>
+        <h2 style={{ color: "#0f172a" }}>⏳ Registro Pendiente de Aprobación</h2>
+        <p style={{ marginTop: "12px", color: "#475569" }}>
+          Tu registro de conductor ha sido guardado correctamente.
+        </p>
+        <p style={{ marginTop: "8px", color: "#64748b", fontSize: "0.9rem" }}>
+          Se ha notificado al grupo de supervisores. Un administrador debe aprobar tu cuenta antes de poder realizar tu primer viaje.
+        </p>
+        <button
+          type="button"
+          onClick={retryTelegramAuthentication}
+          style={{ marginTop: "20px", padding: "10px 16px", backgroundColor: "#0284c7", color: "#fff", border: "none", borderRadius: "8px" }}
+        >
+          Comprobar Estado
+        </button>
+      </main>
     );
   }
 
   if (telegramAuth.estadoRegistro === "BLOQUEADO" || !telegramAuth.usuario?.activo) {
     return <p className="loading-message">Tu acceso está restringido.</p>;
   }
+
 
   if (!telegramAuth.registered || telegramAuth.estadoRegistro === "PENDIENTE" || !telegramAuth.conductor) {
     return (

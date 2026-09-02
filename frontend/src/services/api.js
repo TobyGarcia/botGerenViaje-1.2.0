@@ -3,6 +3,8 @@ const API_BASE_URL =
 
 async function request(path, options = {}) {
   const telegramInitData = window.Telegram?.WebApp?.initData || "";
+  const driverToken = localStorage.getItem("driver_token") || "";
+
   const response = await fetch(
     `${API_BASE_URL}${path}`,
     {
@@ -11,11 +13,15 @@ async function request(path, options = {}) {
         ...(telegramInitData
           ? { "X-Telegram-Init-Data": telegramInitData }
           : {}),
+        ...(driverToken
+          ? { "Authorization": `Bearer ${driverToken}` }
+          : {}),
         ...options.headers
       },
       ...options
     }
   );
+
 
   const contentType =
     response.headers.get("content-type") || "";
@@ -149,6 +155,13 @@ export function autenticarTelegram(
       })
     }
   );
+}
+
+export function loginConductorConPin(idConductor, pin) {
+  return request("/api/conductor/auth/login-pin", {
+    method: "POST",
+    body: JSON.stringify({ idConductor, pin })
+  });
 }
 
 export function registrarConductorTelegram(

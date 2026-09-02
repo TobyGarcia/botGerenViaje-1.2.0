@@ -2,8 +2,11 @@ import {
   assignVehicleToDriver,
   createAdminDriver,
   listAdminDrivers,
-  updateAdminDriverStatus
+  updateAdminDriverStatus,
+  approveAdminDriver
 } from "../services/admin-conductores.service.js";
+import { setDriverPin } from "../services/driver-auth.service.js";
+
 
 function normalizeDriverInput(body) {
   return {
@@ -266,6 +269,82 @@ export async function updateAdminDriverStatusController(
   }
 }
 
+export async function approveAdminDriverController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    const { aprobado } = request.body || {};
+
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    const updated = await approveAdminDriver({
+      idConductor,
+      aprobado: Boolean(aprobado)
+    });
+
+    if (!updated) {
+      return response.status(404).json({
+        success: false,
+        message: "Conductor no encontrado."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      message: aprobado ? "Conductor aprobado correctamente." : "Conductor rechazado.",
+      data: updated
+    });
+  } catch (error) {
+    console.error("Error en approveAdminDriverController:", error);
+    return response.status(500).json({
+      success: false,
+      message: "Ocurrió un error al procesar la aprobación del conductor."
+    });
+  }
+}
+
+export async function setDriverPinAdminController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    const { pin } = request.body || {};
+
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    if (!pin || !/^\d{4}$/.test(String(pin).trim())) {
+      return response.status(400).json({
+        success: false,
+        message: "El PIN debe ser un código de 4 dígitos numéricos."
+      });
+    }
+
+    const updated = await setDriverPin({
+      idConductor,
+      pin: String(pin).trim()
+    });
+
+    return response.status(200).json({
+      success: true,
+      message: "PIN del conductor actualizado correctamente.",
+      data: updated
+    });
+  } catch (error) {
+    console.error("Error en setDriverPinAdminController:", error);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "Ocurrió un error al actualizar el PIN del conductor."
+    });
+  }
+}
+
 export async function assignAdminConductorVehicleController(request, response) {
   try {
     const idConductor = Number(request.params.idConductor);
@@ -292,4 +371,6 @@ export async function assignAdminConductorVehicleController(request, response) {
     });
   }
 }
+
+
 

@@ -61,6 +61,8 @@ export async function listAdminDrivers({
           c.licencia_vigente,
           c.fecha_manejo_comentado,
           c.activo,
+          c.aprobado_por_admin,
+          (c.pin_hash IS NOT NULL) AS tiene_pin,
 
           ut.telegram_user_id,
           ut.telegram_username,
@@ -84,6 +86,7 @@ export async function listAdminDrivers({
         ${whereClause}
 
         ORDER BY
+          c.aprobado_por_admin ASC,
           c.activo DESC,
           c.nombre ASC
       `,
@@ -92,6 +95,39 @@ export async function listAdminDrivers({
 
   return result.rows;
 }
+
+export async function approveAdminDriver({ idConductor, aprobado }) {
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE conductores
+       SET aprobado_por_admin = $1, fecha_aprobacion = CURRENT_TIMESTAMP
+       WHERE id_conductores = $2
+       RETURNING id_conductores, nombre, aprobado_por_admin`,
+      [Boolean(aprobado), idConductor]
+    );
+
+    const driver = result.rows[0];
+    if (driver) {
+      await client.query(
+        `UPDATE usuarios_telegram
+         SET estado_registro = CASE WHEN $1 = TRUE THEN 'COMPLETO' ELSE 'RECHAZADO' END
+         WHERE id_conductores = $2`,
+        [Boolean(aprobado), idConductor]
+      );
+    }
+
+    await client.query("COMMIT");
+    return driver;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 
 export async function createAdminDriver({
   nombre,
