@@ -4,6 +4,17 @@ export function getDriverCookieName() {
   return process.env.DRIVER_COOKIE_NAME || "driver_session";
 }
 
+export function getDriverCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 días
+  };
+}
+
+
 export function createDriverSessionToken(conductor) {
   const secret = process.env.DRIVER_JWT_SECRET || process.env.ADMIN_JWT_SECRET;
 

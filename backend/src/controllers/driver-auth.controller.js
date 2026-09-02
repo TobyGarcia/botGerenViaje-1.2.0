@@ -36,13 +36,8 @@ export async function loginDriverWithPinController(request, response) {
       });
     }
 
-    // Opcional: Establecer cookie httpOnly si aplica
-    response.cookie(getDriverCookieName(), authResult.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 días
-    });
+    response.cookie(getDriverCookieName(), authResult.token, getDriverCookieOptions());
+
 
     return response.status(200).json({
       success: true,
