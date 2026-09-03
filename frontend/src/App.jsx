@@ -981,36 +981,41 @@ async function handleAddIntermediatePoint() {
   }
 
   if (showPinLogin || !telegramAuth?.authenticated || !telegramAuth?.conductor) {
+    if (showConductorRegister) {
+      return (
+        <div className="app-shell" style={{ minHeight: "100vh", overflowY: "auto" }}>
+          <TopBar conductor={null} onLogout={handleLogout} />
+          <main className="container" style={{ paddingBottom: "40px" }}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setShowConductorRegister(false)}
+              style={{ marginBottom: "16px", background: "#ffffff", color: "#334155", border: "1px solid #cbd5e1" }}
+            >
+              ← Volver al inicio por PIN
+            </button>
+            <RegistroConductor
+              telegramAuth={telegramAuth}
+              onRegistered={(data) => {
+                setShowConductorRegister(false);
+                if (data?.conductor) {
+                  handlePinLoginSuccess(data.conductor);
+                }
+              }}
+            />
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
-          {showConductorRegister ? (
-            <div style={{ maxWidth: "500px", width: "100%", margin: "0 auto", padding: "16px" }}>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowConductorRegister(false)}
-                style={{ marginBottom: "16px", background: "#ffffff", color: "#334155", border: "1px solid #cbd5e1" }}
-              >
-                ← Volver al inicio por PIN
-              </button>
-              <RegistroConductor
-                telegramAuth={telegramAuth}
-                onRegistered={(data) => {
-                  setShowConductorRegister(false);
-                  if (data?.conductor) {
-                    handlePinLoginSuccess(data.conductor);
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <PinLoginForm
-              onSuccess={handlePinLoginSuccess}
-              onRegisterClick={() => setShowConductorRegister(true)}
-            />
-          )}
+          <PinLoginForm
+            onSuccess={handlePinLoginSuccess}
+            onRegisterClick={() => setShowConductorRegister(true)}
+          />
         </main>
       </div>
     );
