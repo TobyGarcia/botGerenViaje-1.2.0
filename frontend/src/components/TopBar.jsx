@@ -1,4 +1,5 @@
 import React from "react";
+import logoAQR from "../assets/logoAQR.webp";
 
 export default function TopBar({ conductor, onLogout }) {
   const isTelegram = Boolean(window.Telegram?.WebApp);
@@ -17,7 +18,7 @@ export default function TopBar({ conductor, onLogout }) {
     <header className="app-topbar">
       <div className="topbar-inner">
         <div className="topbar-brand">
-          <span className="topbar-icon" aria-hidden="true">🛡️</span>
+          <img src={logoAQR} alt="AQUARIO" className="topbar-logo-img" />
           <div className="topbar-titles">
             <span className="topbar-title">AQUARIO</span>
             <span className="topbar-subtitle">Control de Viajes</span>

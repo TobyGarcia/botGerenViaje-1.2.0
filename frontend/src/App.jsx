@@ -1007,9 +1007,9 @@ async function handleAddIntermediatePoint() {
 
   if (showPinLogin || !telegramAuth?.authenticated || !telegramAuth?.conductor) {
     return (
-      <div className="app-shell">
+      <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
-        <main className="container">
+        <main className="pin-view-main">
           <PinLoginForm
             onSuccess={handlePinLoginSuccess}
           />

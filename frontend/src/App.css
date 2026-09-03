@@ -457,14 +457,16 @@
 .topbar-brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   text-decoration: none;
   user-select: none;
 }
 
-.topbar-icon {
-  font-size: 1.35rem;
-  line-height: 1;
+.topbar-logo-img {
+  height: 28px;
+  max-width: 90px;
+  object-fit: contain;
+  display: block;
 }
 
 .topbar-titles {
@@ -474,14 +476,14 @@
 }
 
 .topbar-title {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 900;
   letter-spacing: 0.06em;
   color: #ffffff;
 }
 
 .topbar-subtitle {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: #7dd3fc;
   text-transform: uppercase;
@@ -594,5 +596,314 @@
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
+
+/* =========================================================
+   PANTALLA PIN - GLASSMORPHISM Y AJUSTE A PANTALLA
+   ========================================================= */
+.pin-view-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 10%, #e0f2fe 0%, #f0f9ff 45%, #f8fafc 100%);
+}
+
+.pin-view-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px max(10px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pin-login-wrapper {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+.pin-login-card {
+  padding: 14px 16px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.09), 0 2px 6px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.pin-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pin-aquario-logo {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 3px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+}
+
+.pin-title {
+  font-size: 1.12rem;
+  color: #0f172a;
+  margin: 0;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.pin-subtitle {
+  font-size: 0.76rem;
+  color: #64748b;
+  margin: 2px 0 0;
+  line-height: 1.25;
+}
+
+.pin-error-banner {
+  background: rgba(254, 242, 242, 0.9);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #991b1b;
+  border: 1px solid rgba(254, 202, 202, 0.95);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  text-align: center;
+  font-weight: 700;
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.pin-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pin-selector-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+}
+
+.pin-loading-conductores {
+  padding: 8px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.pin-select-container {
+  position: relative;
+}
+
+.pin-select-control {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1.5px solid rgba(186, 230, 253, 0.9);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.05);
+}
+
+.pin-select-control:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+/* Indicadores de PIN */
+.pin-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 2px;
+  min-height: 22px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-sizing: border-box;
+}
+
+.pin-dot.filled {
+  border-color: #0284c7;
+  background: #0284c7;
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.65), 0 2px 4px rgba(2, 132, 199, 0.3);
+  transform: scale(1.18);
+}
+
+.pin-dot.verifying {
+  animation: pulse-dot 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-dot {
+  from { transform: scale(1); opacity: 0.7; }
+  to { transform: scale(1.25); opacity: 1; }
+}
+
+/* Teclado Glassmorphism */
+.pin-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 3px 0 6px;
+}
+
+.glass-key {
+  padding: 10px 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+}
+
+.glass-key:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(2, 132, 199, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(2, 132, 199, 0.12), inset 0 1px 1px rgba(255, 255, 255, 1);
+}
+
+.glass-key:active:not(:disabled) {
+  transform: scale(0.93);
+  background: rgba(2, 132, 199, 0.2);
+  border-color: rgba(2, 132, 199, 0.5);
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);
+}
+
+.glass-key:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.key-number {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.glass-key-aux {
+  background: rgba(241, 245, 249, 0.5);
+  border-color: rgba(226, 232, 240, 0.75);
+}
+
+.key-aux-text {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.glass-key-delete {
+  background: rgba(254, 226, 226, 0.45);
+  border-color: rgba(254, 202, 202, 0.65);
+}
+
+.glass-key-delete:hover:not(:disabled) {
+  background: rgba(254, 226, 226, 0.7);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.glass-key-delete:active:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+}
+
+.key-delete-icon {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #dc2626;
+  line-height: 1;
+}
+
+/* Botón de envío */
+.pin-submit-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  border-radius: 12px;
+  border: none;
+  background: #cbd5e1;
+  color: #ffffff;
+  cursor: not-allowed;
+  transition: all 0.2s ease;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.pin-submit-btn.ready {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.pin-submit-btn.ready:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.pin-submit-btn.ready:active {
+  transform: translateY(1px);
+  filter: brightness(0.95);
+}
+
+.pin-submit-btn.loading {
+  background: #0284c7;
+  opacity: 0.85;
+}
+
 
 
