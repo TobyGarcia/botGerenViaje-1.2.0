@@ -217,4 +217,4 @@ export async function registerTelegramDriver({
   } finally {
     client.release();
   }
-}}
+}
