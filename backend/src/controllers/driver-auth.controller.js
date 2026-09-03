@@ -5,15 +5,15 @@ export async function loginDriverWithPinController(request, response) {
   try {
     const { idConductor, pin } = request.body || {};
 
-    if (!idConductor || !pin) {
+    if (!pin) {
       return response.status(400).json({
         success: false,
-        message: "El conductor y el PIN son obligatorios."
+        message: "El PIN de 4 dígitos es obligatorio."
       });
     }
 
     const authResult = await authenticateDriverWithPin({
-      idConductor: Number(idConductor),
+      idConductor: idConductor ? Number(idConductor) : null,
       pin
     });
 

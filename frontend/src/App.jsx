@@ -270,38 +270,12 @@ const [cancelledTrip, setCancelledTrip] =
     dateStyle: "long"
   }).format(new Date());
 
-  // Verificar sesión de conductor por PIN al cargar
+  // Por seguridad, cada vez que abren la app de conductor se solicita su PIN
   useEffect(() => {
-    async function checkDriverSession() {
-      setTelegramAuthLoading(true);
-      const token = localStorage.getItem("driver_token");
-      if (token) {
-        try {
-          const sessionRes = await getDriverSession();
-          if (sessionRes?.data?.conductor) {
-            setTelegramAuth({
-              authenticated: true,
-              registered: true,
-              estadoRegistro: "COMPLETO",
-              conductor: normalizeConductor(sessionRes.data.conductor)
-            });
-            setShowPinLogin(false);
-            setTelegramAuthLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.warn("Sesión inválida o expirada:", err);
-          localStorage.removeItem("driver_token");
-        }
-      }
-
-      // Si no hay token de conductor guardado o falló, mostrar pantalla de PIN
-      setTelegramAuth(null);
-      setShowPinLogin(true);
-      setTelegramAuthLoading(false);
-    }
-
-    checkDriverSession();
+    localStorage.removeItem("driver_token");
+    setTelegramAuth(null);
+    setShowPinLogin(true);
+    setTelegramAuthLoading(false);
   }, []);
 
   useEffect(() => {

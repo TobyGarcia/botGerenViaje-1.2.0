@@ -1,34 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { getConductores, loginConductorConPin } from "../services/api";
+import React, { useState } from "react";
+import { loginConductorConPin } from "../services/api";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 
 export default function PinLoginForm({ onSuccess, onCancel }) {
-  const [conductores, setConductores] = useState([]);
-  const [selectedDriverId, setSelectedDriverId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingConductores, setLoadingConductores] = useState(true);
-
-  // Cargar lista de conductores
-  useEffect(() => {
-    async function loadConductores() {
-      try {
-        setLoadingConductores(true);
-        const data = await getConductores();
-        const activeDrivers = (data?.data || []).filter(c => c.activo !== false);
-        setConductores(activeDrivers);
-        if (activeDrivers.length > 0) {
-          setSelectedDriverId(String(activeDrivers[0].id_conductores));
-        }
-      } catch (err) {
-        setError("No fue posible cargar la lista de conductores.");
-      } finally {
-        setLoadingConductores(false);
-      }
-    }
-    loadConductores();
-  }, []);
 
   const handleKeyPress = (digit) => {
     if (loading) return;
@@ -37,7 +14,7 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
       setPin(nextPin);
       setError("");
       if (nextPin.length === 4) {
-        executeLogin(selectedDriverId, nextPin);
+        executeLogin(nextPin);
       }
     }
   };
@@ -54,13 +31,8 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
     setError("");
   };
 
-  const executeLogin = async (driverId, pinToVerify) => {
-    if (!driverId) {
-      setError("Selecciona tu nombre de conductor.");
-      return;
-    }
-
-    if (pinToVerify.length !== 4) {
+  const executeLogin = async (pinToVerify) => {
+    if (!pinToVerify || pinToVerify.length !== 4) {
       setError("Ingresa los 4 dígitos de tu PIN de acceso.");
       return;
     }
@@ -68,15 +40,16 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
     try {
       setLoading(true);
       setError("");
-      const result = await loginConductorConPin(Number(driverId), pinToVerify);
+      const result = await loginConductorConPin(pinToVerify);
 
       if (result.success && result.data?.token) {
+        // Almacenar token de sesión de la app
         localStorage.setItem("driver_token", result.data.token);
         if (onSuccess) {
           onSuccess(result.data.conductor);
         }
       } else {
-        setError(result.message || "Credenciales incorrectas.");
+        setError(result.message || "PIN incorrecto. Verifica e intenta nuevamente.");
         setPin("");
       }
     } catch (err) {
@@ -87,12 +60,6 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
     }
   };
 
-  const handleDriverChange = (e) => {
-    setSelectedDriverId(e.target.value);
-    setPin("");
-    setError("");
-  };
-
   return (
     <div className="pin-login-wrapper">
       <div className="pin-login-card glass-panel">
@@ -101,7 +68,7 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
           <img src={aquarioBlanco} alt="AQUARIO" className="pin-aquario-logo" />
           <h2 className="pin-title">Ingreso por PIN</h2>
           <p className="pin-subtitle">
-            Selecciona tu nombre e ingresa tu PIN de 4 dígitos
+            Ingresa tu PIN de 4 dígitos para acceder al sistema
           </p>
         </div>
 
@@ -111,32 +78,6 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
             <span>⚠️ {error}</span>
           </div>
         )}
-
-        {/* Selector de Conductor con estilo frosted glass */}
-        <div className="pin-selector-group">
-          <label htmlFor="conductor-select" className="pin-selector-label">
-            Conductor:
-          </label>
-          {loadingConductores ? (
-            <div className="pin-loading-conductores">Cargando catálogo...</div>
-          ) : (
-            <div className="pin-select-container">
-              <select
-                id="conductor-select"
-                value={selectedDriverId}
-                onChange={handleDriverChange}
-                className="pin-select-control"
-                disabled={loading}
-              >
-                {conductores.map(c => (
-                  <option key={c.id_conductores} value={c.id_conductores}>
-                    {c.nombre} {c.empresa ? `(${c.empresa})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
 
         {/* Indicadores de los 4 dígitos (Glow Circles) */}
         <div className="pin-indicators">
@@ -213,10 +154,10 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
         <button
           type="button"
           disabled={pin.length !== 4 || loading}
-          onClick={() => executeLogin(selectedDriverId, pin)}
+          onClick={() => executeLogin(pin)}
           className={`pin-submit-btn ${pin.length === 4 ? "ready" : ""} ${loading ? "loading" : ""}`}
         >
-          {loading ? "Verificando acceso..." : "Ingresar"}
+          {loading ? "Verificando PIN..." : "Ingresar"}
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import { databasePool } from "../database/pool.js";
 import { validateTenantEmailAndWhitelist } from "./azure-auth.service.js";
 
-const allowedDomains = ["itzamna.mx"];
+const allowedDomains = ["itzamna.mx", "aspromex.mx"];
 
 function requiresEmailConfirmation() {
   return String(process.env.SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION) === "true";
@@ -27,7 +27,7 @@ function validateRegistration({ nombre, username, correo, telefono, password, co
   const domain = email.split("@")[1];
   if (!nombre?.trim() || nombre.trim().length > 150) throw new SupervisorTelegramError("El nombre es obligatorio.");
   if (!/^[a-z0-9][a-z0-9._-]{2,99}$/i.test(String(username || ""))) throw new SupervisorTelegramError("El usuario debe tener de 3 a 100 caracteres y usar solo letras, números, punto, guion o guion bajo.");
-  if (!/^\S+@\S+\.\S+$/.test(email) || !allowedDomains.includes(domain)) throw new SupervisorTelegramError("Solo se autorizan correos con dominio @itzamna.mx durante esta etapa de pruebas.");
+  if (!/^\S+@\S+\.\S+$/.test(email) || !allowedDomains.includes(domain)) throw new SupervisorTelegramError("Solo se autorizan correos corporativos autorizados (@itzamna.mx, @aspromex.mx).");
   if (!telefono?.trim() || telefono.trim().length > 30) throw new SupervisorTelegramError("El teléfono es obligatorio.");
   if (String(password || "").length < 10) throw new SupervisorTelegramError("La contraseña debe tener al menos 10 caracteres.");
   if (password !== confirmacionPassword) throw new SupervisorTelegramError("Las contraseñas no coinciden.");
@@ -63,10 +63,19 @@ export async function registerSupervisorGroupMember({ telegramUser, groupId }) {
 
 export async function getSupervisorAccess(telegramUserId) {
   const result = await databasePool.query(`
-    SELECT a.telegram_user_id, ua.id_usuarios_admin, ua.nombre, ua.username, ua.correo, ua.rol, ua.activo, ua.correo_confirmado_en
-    FROM accesos_supervisor_telegram a
-    LEFT JOIN usuarios_admin ua ON ua.telegram_user_id=a.telegram_user_id
-    WHERE a.telegram_user_id=$1 LIMIT 1`, [String(telegramUserId)]);
+    SELECT
+      COALESCE(a.telegram_user_id, ua.telegram_user_id) AS telegram_user_id,
+      ua.id_usuarios_admin,
+      ua.nombre,
+      ua.username,
+      ua.correo,
+      ua.rol,
+      ua.activo,
+      ua.correo_confirmado_en
+    FROM usuarios_admin ua
+    FULL OUTER JOIN accesos_supervisor_telegram a ON a.telegram_user_id = ua.telegram_user_id
+    WHERE (ua.telegram_user_id = $1 AND ua.activo = TRUE) OR a.telegram_user_id = $1
+    LIMIT 1`, [String(telegramUserId)]);
   const row = result.rows[0];
   if (!row) return { invited: false, registered: false, confirmed: false, user: null };
   return {

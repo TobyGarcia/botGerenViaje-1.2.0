@@ -157,7 +157,15 @@ export function autenticarTelegram(
   );
 }
 
-export function loginConductorConPin(idConductor, pin) {
+export function loginConductorConPin(idConductorOrPin, optionalPin) {
+  let idConductor = null;
+  let pin = "";
+  if (optionalPin !== undefined) {
+    idConductor = idConductorOrPin;
+    pin = optionalPin;
+  } else {
+    pin = idConductorOrPin;
+  }
   return request("/api/conductor/auth/login-pin", {
     method: "POST",
     body: JSON.stringify({ idConductor, pin })

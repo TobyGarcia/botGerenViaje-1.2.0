@@ -3,7 +3,7 @@ import { databasePool } from "../database/pool.js";
 import { createDriverSessionToken } from "../utils/driver-session.js";
 
 export async function authenticateDriverWithPin({ idConductor, pin }) {
-  if (!idConductor || !pin) {
+  if (!pin) {
     return { authenticated: false, reason: "MISSING_FIELDS" };
   }
 
@@ -12,47 +12,81 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
     return { authenticated: false, reason: "INVALID_PIN_FORMAT" };
   }
 
-  const result = await databasePool.query(
-    `SELECT 
-       id_conductores,
-       nombre,
-       licencia_numero,
-       tipo_licencia,
-       empresa,
-       licencia_vigente,
-       licencia_vencimiento,
-       telefono,
-       activo,
-       aprobado_por_admin,
-       pin_hash
-     FROM conductores
-     WHERE id_conductores = $1
-     LIMIT 1`,
-    [idConductor]
-  );
+  let conductor = null;
 
-  const conductor = result.rows[0];
+  if (idConductor) {
+    const result = await databasePool.query(
+      `SELECT 
+         id_conductores,
+         nombre,
+         licencia_numero,
+         tipo_licencia,
+         empresa,
+         licencia_vigente,
+         licencia_vencimiento,
+         telefono,
+         activo,
+         aprobado_por_admin,
+         pin_hash
+       FROM conductores
+       WHERE id_conductores = $1
+       LIMIT 1`,
+      [idConductor]
+    );
+    conductor = result.rows[0];
 
-  if (!conductor) {
-    return { authenticated: false, reason: "CONDUCTOR_NOT_FOUND" };
-  }
+    if (!conductor) {
+      return { authenticated: false, reason: "CONDUCTOR_NOT_FOUND" };
+    }
 
-  if (!conductor.activo) {
-    return { authenticated: false, reason: "CONDUCTOR_INACTIVE" };
-  }
+    if (!conductor.activo) {
+      return { authenticated: false, reason: "CONDUCTOR_INACTIVE" };
+    }
 
-  if (conductor.aprobado_por_admin === false) {
-    return { authenticated: false, reason: "PENDING_APPROVAL" };
-  }
+    if (conductor.aprobado_por_admin === false) {
+      return { authenticated: false, reason: "PENDING_APPROVAL" };
+    }
 
-  if (!conductor.pin_hash) {
-    return { authenticated: false, reason: "PIN_NOT_SET" };
-  }
+    if (!conductor.pin_hash) {
+      return { authenticated: false, reason: "PIN_NOT_SET" };
+    }
 
-  const matches = await bcrypt.compare(cleanPin, conductor.pin_hash);
+    const matches = await bcrypt.compare(cleanPin, conductor.pin_hash);
+    if (!matches) {
+      return { authenticated: false, reason: "INVALID_PIN" };
+    }
+  } else {
+    // Buscar entre todos los conductores activos que tienen PIN asignado
+    const result = await databasePool.query(
+      `SELECT 
+         id_conductores,
+         nombre,
+         licencia_numero,
+         tipo_licencia,
+         empresa,
+         licencia_vigente,
+         licencia_vencimiento,
+         telefono,
+         activo,
+         aprobado_por_admin,
+         pin_hash
+       FROM conductores
+       WHERE activo = TRUE 
+         AND aprobado_por_admin IS NOT FALSE 
+         AND pin_hash IS NOT NULL`
+    );
 
-  if (!matches) {
-    return { authenticated: false, reason: "INVALID_PIN" };
+    for (const row of result.rows) {
+      const isMatch = await bcrypt.compare(cleanPin, row.pin_hash);
+      if (isMatch) {
+        conductor = row;
+        break;
+      }
+    }
+
+    if (!conductor) {
+      return { authenticated: false, reason: "INVALID_PIN" };
+    }
   }
 
   const token = createDriverSessionToken(conductor);
