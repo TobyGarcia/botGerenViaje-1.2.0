@@ -137,8 +137,9 @@ export async function linkExistingSupervisor({ telegramUserId, data }) {
     if (linkedAccount.rows[0] && Number(linkedAccount.rows[0].id_usuarios_admin) !== Number(user?.id_usuarios_admin)) {
       throw new SupervisorTelegramError("Tu cuenta de Telegram ya está vinculada a otro usuario administrativo.", 409);
     }
-    if (!user || !["SUPERVISOR", "ADMINISTRADOR"].includes(user.rol) || !user.activo) {
-      throw new SupervisorTelegramError("No encontramos un supervisor o administrador activo con ese usuario o contraseña.", 401);
+    const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+    if (!user || !allowedRoles.includes(user.rol) || !user.activo) {
+      throw new SupervisorTelegramError("No encontramos un usuario administrativo o supervisor activo con ese usuario o contraseña.", 401);
     }
     if (!await bcrypt.compare(input.password, user.password_hash)) {
       throw new SupervisorTelegramError("No encontramos un supervisor activo con ese usuario o contraseña.", 401);
@@ -205,8 +206,9 @@ export async function linkSupervisorByTenantEmail({ telegramUserId, email, teleg
 
   const user = whitelistCheck.user;
 
-  if (user.rol !== "SUPERVISOR" && user.rol !== "ADMINISTRADOR") {
-    throw new SupervisorTelegramError("La cuenta registrada no tiene permisos de rol SUPERVISOR o ADMINISTRADOR.", 403);
+  const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+  if (!allowedRoles.includes(user.rol)) {
+    throw new SupervisorTelegramError("La cuenta registrada no tiene permisos de rol de supervisión o superior.", 403);
   }
 
   const client = await databasePool.connect();

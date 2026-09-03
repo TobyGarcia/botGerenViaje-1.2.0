@@ -550,8 +550,11 @@ function DashboardPage({ user, onLogout }) {
     };
   }, []);
 
+  const rolesSupervisorYSuperior = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+  const rolesTodos = [...rolesSupervisorYSuperior, "OPERADOR", "CONSULTA"];
+
   useEffect(() => {
-    if (!["ADMINISTRADOR", "SUPERVISOR"].includes(user.rol)) {
+    if (!rolesSupervisorYSuperior.includes(user.rol)) {
       return undefined;
     }
     let active = true;
@@ -574,16 +577,16 @@ function DashboardPage({ user, onLogout }) {
   }, [user.rol]);
 
   const modules = [
-    { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
-    { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
-    { id: "conductores", label: "Conductores", icon: IconConductores, roles: ["ADMINISTRADOR", "SUPERVISOR"] },
-    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
-    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"] },
-    { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] },
-    { id: "viajes", label: "Viajes", icon: IconViajes, roles: ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "OPERADOR", "CONSULTA"] }
+    { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: rolesSupervisorYSuperior },
+    { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: rolesSupervisorYSuperior },
+    { id: "conductores", label: "Conductores", icon: IconConductores, roles: rolesSupervisorYSuperior },
+    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: rolesSupervisorYSuperior },
+    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: rolesSupervisorYSuperior },
+    { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: rolesTodos },
+    { id: "viajes", label: "Viajes", icon: IconViajes, roles: rolesTodos }
   ].filter((module) => module.roles.includes(user.rol));
 
-  const canInspect = ["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR", "COORDINADOR", "COORDINADOR_AREA", "GERENTE", "GERENTE_GENERAL", "QHSE", "COORDINADOR_QHSE"].includes(user.rol);
+  const canInspect = rolesSupervisorYSuperior.includes(user.rol);
 
 
   return (

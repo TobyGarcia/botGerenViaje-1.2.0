@@ -118,10 +118,10 @@ export default function UsuariosAdminPage({ currentUser }) {
                       borderRadius: "12px",
                       fontWeight: "bold",
                       fontSize: "0.78rem",
-                      background: user.rol === "GERENTE" ? "#fee2e2" : user.rol === "COORDINADOR" ? "#fef9c3" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#dcfce7" : "#f1f5f9",
-                      color: user.rol === "GERENTE" ? "#991b1b" : user.rol === "COORDINADOR" ? "#854d0e" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#166534" : "#334155"
+                      background: user.rol === "GERENTE" ? "#fee2e2" : user.rol === "COORDINADOR" ? "#fef9c3" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#dcfce7" : user.rol === "INSTRUCTOR" ? "#e0f2fe" : "#f1f5f9",
+                      color: user.rol === "GERENTE" ? "#991b1b" : user.rol === "COORDINADOR" ? "#854d0e" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#166534" : user.rol === "INSTRUCTOR" ? "#0369a1" : "#334155"
                     }}>
-                      {user.rol === "GERENTE" ? "🔴 GERENTE" : user.rol === "COORDINADOR" ? "🟡 COORDINADOR" : user.rol === "SUPERVISOR" ? "🟢 SUPERVISOR" : user.rol === "QHSE" ? "🛡️ QHSE" : user.rol}
+                      {user.rol === "GERENTE" ? "🔴 GERENTE" : user.rol === "COORDINADOR" ? "🟡 COORDINADOR" : user.rol === "SUPERVISOR" ? "🟢 SUPERVISOR" : user.rol === "QHSE" ? "🛡️ QHSE" : user.rol === "INSTRUCTOR" ? "🎓 INSTRUCTOR" : user.rol}
                     </span>
                   </td>
                   <td>{user.conductor || "—"}</td>
@@ -247,6 +247,7 @@ export default function UsuariosAdminPage({ currentUser }) {
                   <option value="COORDINADOR">🟡 COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)</option>
                   <option value="SUPERVISOR">🟢 SUPERVISOR DIRECTO — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
                   <option value="QHSE">🛡️ QHSE — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
+                  <option value="INSTRUCTOR">🎓 INSTRUCTOR — Manejo Comentado y Capacitación Vial</option>
                   <option value="OPERADOR">🚛 OPERADOR — Módulo de Operaciones Diarias</option>
                   <option value="CONSULTA">👁️ CONSULTA — Solo Lectura</option>
                 </select>

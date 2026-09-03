@@ -19,7 +19,8 @@ export async function getAdminInspectionController(request, response) {
 }
 export async function decideAdminInspectionController(request, response) {
   try {
-    if (!["ADMINISTRADOR", "SUPERVISOR"].includes(request.adminUser?.rol)) return response.status(403).json({ success: false, message: "No tienes permiso para aprobar inspecciones." });
+    const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+    if (!allowedRoles.includes(request.adminUser?.rol)) return response.status(403).json({ success: false, message: "No tienes permiso para aprobar inspecciones." });
     const approved = request.body?.aprobada;
     if (typeof approved !== "boolean") return response.status(400).json({ success: false, message: "La decisión no es válida." });
     const idInspeccion = Number(request.params.idInspeccion);

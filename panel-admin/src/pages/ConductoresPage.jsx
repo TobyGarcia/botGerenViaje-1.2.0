@@ -644,7 +644,7 @@ function ConductoresPage({ user }) {
                   <th>Aprobación Admin</th>
                   <th>PIN Web</th>
                   <th>Estado</th>
-                  {(!user || user.rol === "ADMINISTRADOR" || user.rol === "SUPERVISOR") && <th>Acciones</th>}
+                  {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && <th>Acciones</th>}
                 </tr>
               </thead>
 
@@ -767,7 +767,7 @@ function ConductoresPage({ user }) {
                         </span>
                       </td>
 
-                      {(!user || user.rol === "ADMINISTRADOR" || user.rol === "SUPERVISOR") && (
+                      {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                         <td>
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             {!conductor.aprobado_por_admin && (

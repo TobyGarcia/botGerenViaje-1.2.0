@@ -19,7 +19,7 @@ const initialForm = {
 
 function DestinosPage({ user }) {
   const canEdit = user?.rol === "ADMINISTRADOR";
-  const canCreate = ["ADMINISTRADOR", "SUPERVISOR"].includes(user?.rol);
+  const canCreate = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user?.rol);
   const [destinos, setDestinos] =
     useState([]);
 

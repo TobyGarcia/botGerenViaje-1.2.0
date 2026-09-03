@@ -16,7 +16,17 @@ function parseVehicleId(value) {
 }
 
 function canManageMileage(adminUser) {
-  return ["ADMINISTRADOR", "SUPERVISOR"].includes(adminUser?.rol);
+  return [
+    "ADMINISTRADOR",
+    "GERENTE",
+    "GERENTE_GENERAL",
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE",
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR"
+  ].includes(adminUser?.rol);
 }
 
 function normalizeVehicleInput(body) {

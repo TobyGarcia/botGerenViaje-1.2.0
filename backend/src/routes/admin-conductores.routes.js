@@ -12,9 +12,10 @@ import {
 } from "../controllers/admin-conductores.controller.js";
 
 import {
-  requireAdminSession
+  requireAdminSession,
+  requireAdminRoles,
+  ROLES_SUPERVISOR_Y_SUPERIOR
 } from "../middlewares/admin-auth.middleware.js";
-import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.use(
 
 router.get(
   "/",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   listAdminDriversController
 );
 
@@ -42,19 +43,19 @@ router.patch(
 
 router.patch(
   "/:idConductor/asignar-vehiculo",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   assignAdminConductorVehicleController
 );
 
 router.patch(
   "/:idConductor/aprobar",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   approveAdminDriverController
 );
 
 router.patch(
   "/:idConductor/pin",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   setDriverPinAdminController
 );
 

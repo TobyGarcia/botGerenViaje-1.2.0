@@ -297,13 +297,17 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
       const userRes = await client.query("SELECT rol FROM usuarios_admin WHERE id_usuarios_admin = $1", [idUsuarioAdmin]);
       const userRol = String(userRes.rows[0]?.rol || "").toUpperCase();
 
-      if (recordCheck.nivel_riesgo === 'BAJO' && !['SUPERVISOR', 'QHSE', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
-        throw new Error("El nivel de Riesgo BAJO (0-15 pts) requiere la aprobación de Supervisor o QHSE.");
+      const rolesBajo = ['SUPERVISOR', 'QHSE', 'COORDINADOR', 'COORDINADOR_AREA', 'COORDINADOR_QHSE', 'GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN', 'INSTRUCTOR'];
+      const rolesMedio = ['COORDINADOR', 'COORDINADOR_AREA', 'COORDINADOR_QHSE', 'GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'];
+      const rolesAlto = ['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'];
+
+      if (recordCheck.nivel_riesgo === 'BAJO' && !rolesBajo.includes(userRol)) {
+        throw new Error("El nivel de Riesgo BAJO (0-15 pts) requiere la aprobación de Supervisor o superior.");
       }
-      if (recordCheck.nivel_riesgo === 'MEDIO' && !['COORDINADOR', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
-        throw new Error("El nivel de Riesgo MEDIO (16-22 pts) requiere la aprobación de Coordinador de Área.");
+      if (recordCheck.nivel_riesgo === 'MEDIO' && !rolesMedio.includes(userRol)) {
+        throw new Error("El nivel de Riesgo MEDIO (16-22 pts) requiere la aprobación de Coordinador o superior.");
       }
-      if (recordCheck.nivel_riesgo === 'ALTO' && !['GERENTE', 'ADMINISTRADOR', 'ADMIN'].includes(userRol)) {
+      if (recordCheck.nivel_riesgo === 'ALTO' && !rolesAlto.includes(userRol)) {
         throw new Error("El nivel de Riesgo ALTO (>23 pts) requiere la aprobación de Gerente o Administrador.");
       }
     }

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { requireAdminRoles, requireAdminSession } from "../middlewares/admin-auth.middleware.js";
+import { requireAdminRoles, requireAdminSession, ROLES_SUPERVISOR_Y_SUPERIOR } from "../middlewares/admin-auth.middleware.js";
 import { countAdminInspectionsController, decideAdminInspectionController, downloadAdminInspectionPdfController, getAdminInspectionController, listAdminInspectionsController, previewAdminInspectionPdfController } from "../controllers/admin-inspecciones.controller.js";
 const router = Router();
 router.use(requireAdminSession);
-router.use(requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"));
+router.use(requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR));
 router.get("/", listAdminInspectionsController);
 router.get("/pendientes/count", countAdminInspectionsController);
 router.get("/:idInspeccion/vista-previa-pdf", previewAdminInspectionPdfController);

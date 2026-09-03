@@ -8,29 +8,29 @@ import {
   listScheduledCoursesController,
   getCourseDetailsController
 } from "../controllers/manejo-comentado.controller.js";
-import { requireAdminSession, requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
+import { requireAdminSession, requireAdminRoles, ROLES_SUPERVISOR_Y_SUPERIOR } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
 router.use(requireAdminSession);
 
-// Resumen rápido de expirados para el dashboard (accesible para Admin, Supervisor e Instructor)
-router.get("/resumen-expirados", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), getExpiringSummaryController);
+// Resumen rápido de expirados para el dashboard
+router.get("/resumen-expirados", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), getExpiringSummaryController);
 
 // Listado de conductores con estatus de Manejo Comentado
-router.get("/conductores", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), listDriversManejoComentadoController);
+router.get("/conductores", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), listDriversManejoComentadoController);
 
-// Programar curso de manejo comentado (Exclusivo o prioritario para Instructor y Supervisor)
-router.post("/cursos", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), scheduleCourseController);
+// Programar curso de manejo comentado
+router.post("/cursos", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), scheduleCourseController);
 
 // Listar cursos programados
-router.get("/cursos", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), listScheduledCoursesController);
-router.get("/cursos/:idCurso", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), getCourseDetailsController);
+router.get("/cursos", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), listScheduledCoursesController);
+router.get("/cursos/:idCurso", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), getCourseDetailsController);
 
 // Renovación directa desde el panel administrativo
-router.post("/renovar", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), renewDirectController);
+router.post("/renovar", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), renewDirectController);
 
 // Registro/Calificación de evaluación por parte del Instructor (App Web /evaluacion)
-router.post("/evaluar", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"), submitInstructorEvaluationController);
+router.post("/evaluar", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), submitInstructorEvaluationController);
 
 export default router;

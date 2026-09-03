@@ -11,8 +11,8 @@ import { getVehiculos } from "../services/catalogos.service.js";
 
 async function requireSupervisor(request) {
   const telegramData = validateTelegramInitData(request.get("X-Telegram-Init-Data") || "", { botToken: process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) });
-  const access = await getSupervisorAccess(telegramData.user.id);
-  if (!access.invited || !access.registered || !access.confirmed || !access.user?.activo || !["SUPERVISOR", "ADMINISTRADOR"].includes(access.user.rol)) throw Object.assign(new Error("Tu cuenta de supervisor no está autorizada o aún no confirmó el correo."), { statusCode: 403 });
+  const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+  if (!access.invited || !access.registered || !access.confirmed || !access.user?.activo || !allowedRoles.includes(access.user.rol)) throw Object.assign(new Error("Tu cuenta de supervisor no está autorizada o aún no confirmó el correo."), { statusCode: 403 });
   return access.user;
 }
 export async function listSupervisorInspectionsController(request, response) {

@@ -186,7 +186,7 @@ export default function ManejoComentadoPage({ user }) {
         </div>
 
         <div className="header-actions" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          {["ADMINISTRADOR", "SUPERVISOR", "INSTRUCTOR"].includes(user.rol) && (
+          {["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user.rol) && (
             <>
               <a
                 href="/evaluacion"

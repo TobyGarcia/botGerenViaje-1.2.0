@@ -15,9 +15,10 @@ import {
 } from "../controllers/admin-vehiculos.controller.js";
 
 import {
-  requireAdminSession
+  requireAdminSession,
+  requireAdminRoles,
+  ROLES_SUPERVISOR_Y_SUPERIOR
 } from "../middlewares/admin-auth.middleware.js";
-import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
@@ -27,23 +28,23 @@ router.use(
 
 router.get(
   "/",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   listAdminVehiclesController
 );
 
 router.post(
   "/",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   createAdminVehicleController
 );
 
-router.get("/:idVehiculo", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleDetailController);
+router.get("/:idVehiculo", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), getAdminVehicleDetailController);
 router.patch("/:idVehiculo", requireAdminRoles("ADMINISTRADOR"), updateAdminVehicleController);
 
-router.get("/:idVehiculo/kilometraje", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleMileageHistoryController);
-router.get("/:idVehiculo/kilometraje/resumen", requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"), getAdminVehicleMileageSummaryController);
-router.post("/:idVehiculo/kilometraje", requireAdminRoles("ADMINISTRADOR"), createAdminVehicleMileageReadingController);
-router.post("/:idVehiculo/kilometraje/correccion", requireAdminRoles("ADMINISTRADOR"), createAdminVehicleMileageReadingController);
+router.get("/:idVehiculo/kilometraje", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), getAdminVehicleMileageHistoryController);
+router.get("/:idVehiculo/kilometraje/resumen", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), getAdminVehicleMileageSummaryController);
+router.post("/:idVehiculo/kilometraje", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), createAdminVehicleMileageReadingController);
+router.post("/:idVehiculo/kilometraje/correccion", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), createAdminVehicleMileageReadingController);
 
 router.patch(
   "/:idVehiculo/estado",

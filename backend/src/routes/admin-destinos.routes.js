@@ -10,9 +10,10 @@ import {
 } from "../controllers/admin-destinos.controller.js";
 
 import {
-  requireAdminSession
+  requireAdminSession,
+  requireAdminRoles,
+  ROLES_SUPERVISOR_Y_SUPERIOR
 } from "../middlewares/admin-auth.middleware.js";
-import { requireAdminRoles } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
 
@@ -22,13 +23,13 @@ router.use(
 
 router.get(
   "/",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   listAdminDestinationsController
 );
 
 router.post(
   "/",
-  requireAdminRoles("ADMINISTRADOR", "SUPERVISOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   createAdminDestinationController
 );
 

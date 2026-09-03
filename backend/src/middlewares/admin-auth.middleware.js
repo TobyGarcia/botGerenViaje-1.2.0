@@ -62,10 +62,28 @@ export async function requireAdminSession(
   }
 }
 
+export const ROLES_SUPERVISOR_Y_SUPERIOR = [
+  "ADMINISTRADOR",
+  "GERENTE",
+  "GERENTE_GENERAL",
+  "COORDINADOR",
+  "COORDINADOR_AREA",
+  "COORDINADOR_QHSE",
+  "SUPERVISOR",
+  "QHSE",
+  "INSTRUCTOR"
+];
+
+export const ROLES_TODOS_OPERATIVOS = [
+  ...ROLES_SUPERVISOR_Y_SUPERIOR,
+  "OPERADOR",
+  "CONSULTA"
+];
+
 /** Restricción de autorización centralizada. La interfaz oculta acciones,
  * pero el servidor siempre conserva la última palabra. */
 export function requireAdminRoles(...roles) {
-  const allowedRoles = new Set(roles);
+  const allowedRoles = new Set(roles.flat());
 
   return (request, response, next) => {
     if (!allowedRoles.has(request.adminUser?.rol)) {
@@ -77,3 +95,4 @@ export function requireAdminRoles(...roles) {
     return next();
   };
 }
+
