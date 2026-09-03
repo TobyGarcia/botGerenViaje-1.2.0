@@ -10,7 +10,14 @@ function LoginPage({ onAuthenticated }) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const codeParam = urlParams.get("code");
+    const stateParam = urlParams.get("state");
     const errorParam = urlParams.get("error");
+
+    if (stateParam === "supervisor" || window.location.pathname.startsWith("/supervisor")) {
+      const codeQuery = codeParam ? `?code=${encodeURIComponent(codeParam)}&state=supervisor` : "";
+      window.location.href = `${window.location.origin}/supervisor/${codeQuery}`;
+      return;
+    }
 
     if (errorParam) {
       setMessage(decodeURIComponent(errorParam));

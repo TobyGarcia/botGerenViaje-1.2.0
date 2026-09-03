@@ -34,14 +34,20 @@ function App() {
   const inactivityTimeoutRef = useRef(null);
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const stateParam = urlParams.get("state");
+    const codeParam = urlParams.get("code");
+
+    if (stateParam === "supervisor" || window.location.pathname.startsWith("/supervisor")) {
+      const codeQuery = codeParam ? `?code=${encodeURIComponent(codeParam)}&state=supervisor` : "";
+      window.location.href = `${window.location.origin}/supervisor/${codeQuery}`;
+      return;
+    }
+
     async function loadSession() {
       try {
-        const response =
-          await getAdminSession();
-
-        setAdminUser(
-          response.data.user
-        );
+        const response = await getAdminSession();
+        setAdminUser(response.data.user);
       } catch {
         setAdminUser(null);
       } finally {
