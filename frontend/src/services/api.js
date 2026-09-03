@@ -164,6 +164,16 @@ export function loginConductorConPin(idConductor, pin) {
   });
 }
 
+export function getDriverSession() {
+  return request("/api/conductor/auth/session");
+}
+
+export function logoutDriver() {
+  return request("/api/conductor/auth/logout", {
+    method: "POST"
+  });
+}
+
 export function registrarConductorTelegram(
   initData,
   conductorData

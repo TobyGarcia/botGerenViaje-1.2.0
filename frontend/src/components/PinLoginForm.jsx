@@ -84,7 +84,7 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
           Ingreso por PIN de Conductor
         </h2>
         <p style={{ fontSize: "0.875rem", color: "#64748b" }}>
-          Ingresa con tu nombre y tu PIN de 4 dígitos si no estás en Telegram
+          Selecciona tu nombre e ingresa tu PIN de 4 dígitos para acceder al sistema
         </p>
       </div>
 
@@ -198,7 +198,25 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
           >
             Cancelar
           </button>
-        ) : <div />}
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setPin(""); setError(""); }}
+            style={{
+              padding: "16px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "#f8fafc",
+              color: "#64748b",
+              cursor: "pointer"
+            }}
+            title="Borrar PIN"
+          >
+            Limpiar
+          </button>
+        )}
 
         <button
           type="button"

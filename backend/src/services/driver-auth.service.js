@@ -17,6 +17,10 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
        id_conductores,
        nombre,
        licencia_numero,
+       tipo_licencia,
+       empresa,
+       licencia_vigente,
+       licencia_vencimiento,
        telefono,
        activo,
        aprobado_por_admin,
@@ -57,10 +61,18 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
     authenticated: true,
     token,
     conductor: {
+      id_conductores: conductor.id_conductores,
       idConductor: conductor.id_conductores,
       nombre: conductor.nombre,
+      licencia_numero: conductor.licencia_numero,
       licenciaNumero: conductor.licencia_numero,
-      telefono: conductor.telefono
+      tipo_licencia: conductor.tipo_licencia,
+      empresa: conductor.empresa,
+      licencia_vigente: conductor.licencia_vigente,
+      licencia_vencimiento: conductor.licencia_vencimiento,
+      telefono: conductor.telefono,
+      activo: conductor.activo,
+      aprobado_por_admin: conductor.aprobado_por_admin
     }
   };
 }

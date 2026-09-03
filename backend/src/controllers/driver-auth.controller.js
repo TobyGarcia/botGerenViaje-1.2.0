@@ -1,5 +1,5 @@
-import { authenticateDriverWithPin } from "../services/driver-auth.service.js";
-import { getDriverCookieName, getDriverCookieOptions } from "../utils/driver-session.js";
+import { authenticateDriverWithPin, findActiveDriverById } from "../services/driver-auth.service.js";
+import { getDriverCookieName, getDriverCookieOptions, verifyDriverSessionToken } from "../utils/driver-session.js";
 
 export async function loginDriverWithPinController(request, response) {
   try {
@@ -38,7 +38,6 @@ export async function loginDriverWithPinController(request, response) {
 
     response.cookie(getDriverCookieName(), authResult.token, getDriverCookieOptions());
 
-
     return response.status(200).json({
       success: true,
       message: "Inicio de sesión exitoso.",
@@ -55,3 +54,68 @@ export async function loginDriverWithPinController(request, response) {
     });
   }
 }
+
+export async function getDriverSessionController(request, response) {
+  try {
+    const authHeader = request.get("Authorization");
+    const cookieToken = request.cookies?.[getDriverCookieName()];
+
+    let token = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7).trim();
+    } else if (cookieToken) {
+      token = cookieToken;
+    }
+
+    if (!token) {
+      return response.status(401).json({
+        success: false,
+        message: "No hay sesión activa."
+      });
+    }
+
+    const payload = verifyDriverSessionToken(token);
+    const conductor = await findActiveDriverById(Number(payload.sub));
+
+    if (!conductor) {
+      return response.status(401).json({
+        success: false,
+        message: "Conductor no encontrado o inactivo."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: {
+        conductor: {
+          id_conductores: conductor.id_conductores,
+          idConductor: conductor.id_conductores,
+          nombre: conductor.nombre,
+          licencia_numero: conductor.licencia_numero,
+          licenciaNumero: conductor.licencia_numero,
+          tipo_licencia: conductor.tipo_licencia,
+          empresa: conductor.empresa,
+          licencia_vigente: conductor.licencia_vigente,
+          licencia_vencimiento: conductor.licencia_vencimiento,
+          telefono: conductor.telefono,
+          activo: conductor.activo,
+          aprobado_por_admin: conductor.aprobado_por_admin
+        }
+      }
+    });
+  } catch (error) {
+    return response.status(401).json({
+      success: false,
+      message: "Sesión inválida o expirada."
+    });
+  }
+}
+
+export function logoutDriverController(request, response) {
+  response.clearCookie(getDriverCookieName(), getDriverCookieOptions());
+  return response.status(200).json({
+    success: true,
+    message: "Sesión cerrada correctamente."
+  });
+}
+

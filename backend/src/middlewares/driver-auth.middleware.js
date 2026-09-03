@@ -13,8 +13,29 @@ export async function requireActiveDriver(request, response, next) {
     let driver = null;
     let authSource = null;
 
-    // 1. Intentar autenticación por Telegram initData
-    if (telegramInitData && telegramInitData.trim() !== "") {
+    // 1. Prioridad: Intentar autenticación mediante JWT Bearer / Cookie (Ingreso por PIN)
+    let token = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7).trim();
+    } else if (cookieToken) {
+      token = cookieToken;
+    }
+
+    if (token) {
+      try {
+        const payload = verifyDriverSessionToken(token);
+        driver = await findActiveDriverById(Number(payload.sub));
+        if (driver) {
+          authSource = "WEB_PIN";
+        }
+      } catch (err) {
+        // Token no válido o expirado, continuar con fallback
+      }
+    }
+
+    // 2. Fallback: Intentar autenticación por Telegram initData si no hay sesión PIN activa
+    if (!driver && telegramInitData && telegramInitData.trim() !== "") {
       try {
         const telegramData = validateTelegramInitData(telegramInitData, {
           botToken: process.env.TELEGRAM_BOT_TOKEN,
@@ -41,30 +62,6 @@ export async function requireActiveDriver(request, response, next) {
         authSource = "TELEGRAM";
       } catch (err) {
         console.warn("[DriverAuth] Falló verificación Telegram InitData:", err.message);
-      }
-    }
-
-    // 2. Fallback: Intentar autenticación Web mediante JWT Bearer / Cookie
-    if (!driver) {
-      let token = null;
-
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.substring(7).trim();
-      } else if (cookieToken) {
-        token = cookieToken;
-      }
-
-      if (token) {
-        try {
-          const payload = verifyDriverSessionToken(token);
-          driver = await findActiveDriverById(Number(payload.sub));
-          authSource = "WEB_PIN";
-        } catch (err) {
-          return response.status(401).json({
-            success: false,
-            message: "Sesión de conductor inválida o expirada."
-          });
-        }
       }
     }
 

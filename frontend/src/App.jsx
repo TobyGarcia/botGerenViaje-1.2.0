@@ -6,7 +6,6 @@ import {
 import "./App.css";
 
 import {
-  autenticarTelegram,
   cancelarViaje,
   createLugar,
   createViaje,
@@ -20,12 +19,15 @@ import {
   iniciarViaje,
   registrarUbicacion,
   getGerenciamientoViajePorViaje,
-  registrarReporteHoraGerenciamiento
+  registrarReporteHoraGerenciamiento,
+  getDriverSession,
+  logoutDriver
 } from "./services/api.js";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
+import TopBar from "./components/TopBar.jsx";
 
 import {
   captureAndQueueLocation,
@@ -212,33 +214,50 @@ const [cancelledTrip, setCancelledTrip] =
     }
   }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
 
-  const [telegramAuth, setTelegramAuth] =
-    useState(null);
-
-  const [telegramAuthLoading, setTelegramAuthLoading] =
-    useState(true);
-
-  const [telegramAuthError, setTelegramAuthError] =
-    useState("");
-
-  const [telegramAuthAttempt, setTelegramAuthAttempt] =
-    useState(0);
-
+  const [telegramAuth, setTelegramAuth] = useState(null);
+  const [telegramAuthLoading, setTelegramAuthLoading] = useState(true);
+  const [telegramAuthError, setTelegramAuthError] = useState("");
   const [showPinLogin, setShowPinLogin] = useState(false);
 
   function handlePinLoginSuccess(conductor) {
+    const normalized = normalizeConductor(conductor);
     setTelegramAuth({
       authenticated: true,
       registered: true,
       estadoRegistro: "COMPLETO",
-      conductor: normalizeConductor(conductor)
+      conductor: normalized
     });
     setShowPinLogin(false);
     setTelegramAuthError("");
   }
 
+  async function handleLogout() {
+    if (startedTrip && startedTrip.estado === "EN_CURSO") {
+      const confirmed = window.confirm(
+        "Tienes un viaje en curso. Si cierras sesión, el viaje seguirá registrado en el sistema y podrás retomarlo volviendo a ingresar con tu PIN. ¿Deseas salir?"
+      );
+      if (!confirmed) return;
+    }
 
-  const telegramAuthStartedRef = useRef(false);
+    try {
+      await logoutDriver();
+    } catch {
+      // Ignorar fallo de red
+    }
+
+    stopTracking();
+    localStorage.removeItem("driver_token");
+    setTelegramAuth(null);
+    setCreatedTrip(null);
+    setStartedTrip(null);
+    setFinishedTrip(null);
+    setCancelledTrip(null);
+    setKilometrajeFinal("");
+    setLastLocation(null);
+    setForm(initialForm);
+    setShowPinLogin(true);
+    setMessage("");
+  }
 
   const authenticatedDriver = telegramAuth?.conductor ?? null;
   const selectedDriver = authenticatedDriver ?? conductores.find(
@@ -251,70 +270,39 @@ const [cancelledTrip, setCancelledTrip] =
     dateStyle: "long"
   }).format(new Date());
 
+  // Verificar sesión de conductor por PIN al cargar
   useEffect(() => {
-    async function authenticateTelegramUser() {
-      if (telegramAuthStartedRef.current) {
-        return;
+    async function checkDriverSession() {
+      setTelegramAuthLoading(true);
+      const token = localStorage.getItem("driver_token");
+      if (token) {
+        try {
+          const sessionRes = await getDriverSession();
+          if (sessionRes?.data?.conductor) {
+            setTelegramAuth({
+              authenticated: true,
+              registered: true,
+              estadoRegistro: "COMPLETO",
+              conductor: normalizeConductor(sessionRes.data.conductor)
+            });
+            setShowPinLogin(false);
+            setTelegramAuthLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn("Sesión inválida o expirada:", err);
+          localStorage.removeItem("driver_token");
+        }
       }
 
-      telegramAuthStartedRef.current = true;
-      setTelegramAuthError("");
-
-      try {
-      const telegramWebApp =
-        window.Telegram?.WebApp;
-
-      if (!telegramWebApp) {
-        setTelegramAuthError(
-          "Esta aplicación debe abrirse desde el bot de Telegram."
-        );
-        return;
-      }
-
-      telegramWebApp.ready();
-      telegramWebApp.expand();
-
-      const initData =
-        telegramWebApp.initData || "";
-
-      if (!initData) {
-        setTelegramAuthError(
-          "No se recibió la información de autenticación de Telegram. Cierra esta ventana y vuelve a abrirla desde el botón del bot."
-        );
-        return;
-      }
-
-      const authenticationResponse =
-        await autenticarTelegram(initData);
-
-        setTelegramAuth(authenticationResponse.data);
-      } catch (error) {
-
-        setTelegramAuthError(
-          error.message ||
-          "No fue posible autenticar al usuario de Telegram."
-        );
-      } finally {
-        telegramAuthStartedRef.current = false;
-        setTelegramAuthLoading(false);
-      }
+      // Si no hay token de conductor guardado o falló, mostrar pantalla de PIN
+      setTelegramAuth(null);
+      setShowPinLogin(true);
+      setTelegramAuthLoading(false);
     }
 
-    authenticateTelegramUser();
-  }, [telegramAuthAttempt]);
-
-  function retryTelegramAuthentication() {
-    if (telegramAuthLoading) {
-      return;
-    }
-
-    setTelegramAuth(null);
-    setTelegramAuthError("");
-    setTelegramAuthLoading(true);
-    setTelegramAuthAttempt((current) =>
-      current + 1
-    );
-  }
+    checkDriverSession();
+  }, []);
 
   useEffect(() => {
     const idConductor = telegramAuth?.conductor?.id_conductores;
@@ -383,128 +371,90 @@ const [cancelledTrip, setCancelledTrip] =
     loadCatalogs();
   }, []);*/
   
-  // nuevo use effect para poder usar si recargamos o perdemos conexión
   useEffect(() => {
-  async function loadInitialData() {
-    try {
-      const [
-        conductoresResponse,
-        vehiculosResponse,
-        lugaresResponse,
-        activeTripResponse
-      ] = await Promise.all([
-        getConductores(),
-        getVehiculos(),
-        getLugares(),
-        getViajeActivo()
-      ]);
+    if (!telegramAuth?.conductor?.id_conductores) {
+      setLoading(false);
+      return;
+    }
 
-      setConductores(
-        conductoresResponse.data ?? []
-      );
+    async function loadInitialData() {
+      setLoading(true);
+      try {
+        const [
+          conductoresResponse,
+          vehiculosResponse,
+          lugaresResponse,
+          activeTripResponse
+        ] = await Promise.all([
+          getConductores(),
+          getVehiculos(),
+          getLugares(),
+          getViajeActivo().catch(() => ({ data: null }))
+        ]);
 
-      setVehiculos(
-        vehiculosResponse.data ?? []
-      );
+        setConductores(conductoresResponse.data ?? []);
+        setVehiculos(vehiculosResponse.data ?? []);
+        setLugares(lugaresResponse.data ?? []);
 
-      setLugares(
-        lugaresResponse.data ?? []
-      );
+        const activeTrip = activeTripResponse?.data;
 
-      const activeTrip =
-        activeTripResponse.data;
-
-      if (!activeTrip) {
-        stopTracking();
-        return;
-      }
-
-      const normalizedTrip = {
-        idViaje:
-          activeTrip.idViaje,
-
-        id_viajes:
-          activeTrip.idViaje,
-
-        folio:
-          activeTrip.folio,
-
-        conductor:
-          activeTrip.conductor?.nombre,
-
-        vehiculo:
-          activeTrip.vehiculo?.nombre,
-
-        numeroEconomico:
-          activeTrip.vehiculo
-            ?.numeroEconomico,
-
-        estado:
-          activeTrip.estado,
-
-        kilometrajeInicial:
-          activeTrip.kilometrajeInicial,
-
-        horaSalida:
-          activeTrip.horaSalida,
-
-        origen:
-          activeTrip.origen?.nombre,
-
-        destino:
-          activeTrip.destino?.nombre
-      };
-
-      setCreatedTrip(normalizedTrip);
-
-      if (
-        activeTrip.estado === "EN_CURSO"
-      ) {
-        setStartedTrip(normalizedTrip);
-
-        setKilometrajeFinal(
-          String(
-            activeTrip.kilometrajeInicial ??
-            ""
-          )
-        );
-
-        setLastLocation(
-          activeTrip.ultimaUbicacion
-        );
-
-        if (activeTrip.ultimaUbicacion) {
-          setTrackingInfo((current) => ({
-            ...current,
-            lastCapture: activeTrip.ultimaUbicacion.gpsTimestamp,
-            latitude: Number(activeTrip.ultimaUbicacion.latitude),
-            longitude: Number(activeTrip.ultimaUbicacion.longitude)
-          }));
+        if (!activeTrip) {
+          stopTracking();
+          return;
         }
 
-        setGpsStatus("Reanudando seguimiento GPS...");
-        await startTracking(activeTrip.idViaje);
-      } else {
-        stopTracking();
+        const normalizedTrip = {
+          idViaje: activeTrip.idViaje,
+          id_viajes: activeTrip.idViaje,
+          folio: activeTrip.folio,
+          conductor: activeTrip.conductor?.nombre,
+          vehiculo: activeTrip.vehiculo?.nombre,
+          numeroEconomico: activeTrip.vehiculo?.numeroEconomico,
+          estado: activeTrip.estado,
+          kilometrajeInicial: activeTrip.kilometrajeInicial,
+          horaSalida: activeTrip.horaSalida,
+          origen: activeTrip.origen?.nombre,
+          destino: activeTrip.destino?.nombre
+        };
+
+        setCreatedTrip(normalizedTrip);
+
+        if (activeTrip.estado === "EN_CURSO") {
+          setStartedTrip(normalizedTrip);
+          setKilometrajeFinal(String(activeTrip.kilometrajeInicial ?? ""));
+          setLastLocation(activeTrip.ultimaUbicacion);
+
+          if (activeTrip.ultimaUbicacion) {
+            setTrackingInfo((current) => ({
+              ...current,
+              lastCapture: activeTrip.ultimaUbicacion.gpsTimestamp,
+              latitude: Number(activeTrip.ultimaUbicacion.latitude),
+              longitude: Number(activeTrip.ultimaUbicacion.longitude)
+            }));
+          }
+
+          setGpsStatus("Reanudando seguimiento GPS...");
+          await startTracking(activeTrip.idViaje);
+        } else {
+          stopTracking();
+        }
+
+        setMessage(
+          activeTrip.estado === "EN_CURSO"
+            ? "Se recuperó un viaje en curso."
+            : "Se recuperó un viaje pendiente."
+        );
+        setMessageType("success");
+      } catch (error) {
+        setMessage(error.message);
+        setMessageType("error");
+      } finally {
+        setLoading(false);
       }
-
-      setMessage(
-        activeTrip.estado === "EN_CURSO"
-          ? "Se recuperó un viaje en curso."
-          : "Se recuperó un viaje pendiente."
-      );
-
-      setMessageType("success");
-    } catch (error) {
-      setMessage(error.message);
-      setMessageType("error");
-    } finally {
-      setLoading(false);
     }
-  }
 
-  loadInitialData();
-}, []);
+    loadInitialData();
+  }, [telegramAuth?.conductor?.id_conductores]);
 
   useEffect(() => {
     setTrackingStatusListener((update) => {
@@ -1043,158 +993,72 @@ async function handleAddIntermediatePoint() {
   }
 
   function handleExitApp() {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.close();
-      return;
-    }
-
-    window.close();
+    handleLogout();
   }
 
   if (telegramAuthLoading) {
-    return <p className="loading-message">Validando identidad de Telegram...</p>;
-  }
-
-  if (showPinLogin) {
     return (
-      <main className="telegram-auth-error">
-        <PinLoginForm
-          onSuccess={handlePinLoginSuccess}
-          onCancel={() => setShowPinLogin(false)}
-        />
-      </main>
+      <div className="app-shell">
+        <TopBar conductor={null} onLogout={handleLogout} />
+        <p className="loading-message">Verificando sesión...</p>
+      </div>
     );
   }
 
-  if (telegramAuthError) {
+  if (showPinLogin || !telegramAuth?.authenticated || !telegramAuth?.conductor) {
     return (
-      <main className="telegram-auth-error" style={{ padding: "24px 16px", textAlign: "center" }}>
-        <h1>Acceso a la Aplicación</h1>
-
-        <p style={{ color: "#64748b", margin: "12px 0 20px" }}>{telegramAuthError}</p>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "300px", margin: "0 auto" }}>
-          <button
-            type="button"
-            onClick={() => setShowPinLogin(true)}
-            style={{
-              padding: "12px",
-              fontSize: "1rem",
-              fontWeight: 600,
-              backgroundColor: "#0284c7",
-              color: "#ffffff",
-              borderRadius: "8px",
-              border: "none",
-              cursor: "pointer"
-            }}
-          >
-            🔑 Ingresar con Nombre y PIN
-          </button>
-
-          <button
-            type="button"
-            onClick={retryTelegramAuthentication}
-            style={{
-              padding: "10px",
-              fontSize: "0.875rem",
-              backgroundColor: "transparent",
-              color: "#64748b",
-              border: "1px solid #cbd5e1",
-              borderRadius: "8px",
-              cursor: "pointer"
-            }}
-          >
-            Reintentar con Telegram
-          </button>
-        </div>
-      </main>
+      <div className="app-shell">
+        <TopBar conductor={null} onLogout={handleLogout} />
+        <main className="container">
+          <PinLoginForm
+            onSuccess={handlePinLoginSuccess}
+          />
+        </main>
+      </div>
     );
   }
 
-  if (!telegramAuth?.authenticated) {
+  if (telegramAuth.estadoRegistro === "BLOQUEADO" || (telegramAuth.conductor && !telegramAuth.conductor.activo)) {
     return (
-      <main className="telegram-auth-error" style={{ textAlign: "center", padding: "30px 16px" }}>
-        <p className="loading-message">No fue posible validar tu acceso.</p>
-        <button
-          type="button"
-          onClick={() => setShowPinLogin(true)}
-          style={{ marginTop: "16px", padding: "10px 16px", backgroundColor: "#0284c7", color: "#fff", border: "none", borderRadius: "8px" }}
-        >
-          Ingresar con PIN de Conductor
-        </button>
-      </main>
-    );
-  }
-
-  if (telegramAuth.estadoRegistro === "PENDIENTE_APROBACION") {
-    return (
-      <main className="telegram-auth-error" style={{ textAlign: "center", padding: "30px 16px" }}>
-        <h2 style={{ color: "#0f172a" }}>⏳ Registro Pendiente de Aprobación</h2>
-        <p style={{ marginTop: "12px", color: "#475569" }}>
-          Tu registro de conductor ha sido guardado correctamente.
-        </p>
-        <p style={{ marginTop: "8px", color: "#64748b", fontSize: "0.9rem" }}>
-          Se ha notificado al grupo de supervisores. Un administrador debe aprobar tu cuenta antes de poder realizar tu primer viaje.
-        </p>
-        <button
-          type="button"
-          onClick={retryTelegramAuthentication}
-          style={{ marginTop: "20px", padding: "10px 16px", backgroundColor: "#0284c7", color: "#fff", border: "none", borderRadius: "8px" }}
-        >
-          Comprobar Estado
-        </button>
-      </main>
-    );
-  }
-
-  if (telegramAuth.estadoRegistro === "BLOQUEADO" || !telegramAuth.usuario?.activo) {
-    return <p className="loading-message">Tu acceso está restringido.</p>;
-  }
-
-
-  if (!telegramAuth.registered || telegramAuth.estadoRegistro === "PENDIENTE" || !telegramAuth.conductor) {
-    return (
-      <RegistroConductor
-        telegramAuth={telegramAuth}
-        onRegistered={(registration) => {
-          setTelegramAuth((current) => ({
-            ...current,
-            ...registration,
-            usuario: {
-              ...current.usuario,
-              ...registration.usuario
-            },
-            registered: true,
-            estadoRegistro: "COMPLETO",
-            conductor: normalizeConductor(registration.conductor)
-          }));
-        }}
-      />
+      <div className="app-shell">
+        <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+        <p className="loading-message">Tu acceso de conductor está inactivo o restringido.</p>
+      </div>
     );
   }
 
   if (loading) {
-    return <p className="loading-message">Cargando catálogos...</p>;
+    return (
+      <div className="app-shell">
+        <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+        <p className="loading-message">Cargando catálogos...</p>
+      </div>
+    );
   }
 
   // Telegram WebView maneja de forma inconsistente los portales superpuestos.
   // La inspección es una pantalla propia para que no dependa del stacking del chat.
   if (inspectionOpen && inspection?.required) {
     return (
-      <main className="inspection-page">
-        <InspeccionVehicular
-          context={inspection.context}
-          estado={inspection.inspection?.estado}
-          onSubmit={submitInspection}
-          saving={inspectionSaving}
-          onClose={() => setInspectionOpen(false)}
-        />
-      </main>
+      <div className="app-shell">
+        <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+        <main className="inspection-page">
+          <InspeccionVehicular
+            context={inspection.context}
+            estado={inspection.inspection?.estado}
+            onSubmit={submitInspection}
+            saving={inspectionSaving}
+            onClose={() => setInspectionOpen(false)}
+          />
+        </main>
+      </div>
     );
   }
 
   return (
-    <main className="container">
+    <div className="app-shell">
+      <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+      <main className="container">
       <h1>
         {createdTrip
         ? "GERENCIAMIENTO DE VIAJE"
@@ -1968,7 +1832,8 @@ async function handleAddIntermediatePoint() {
           </div>
         </div>
       )}
-    </main>
+      </main>
+    </div>
   );
 }
 
