@@ -33,6 +33,10 @@ function serializeAdminUser(user) {
 }
 
 function getAzureRedirectUri(request) {
+  const customUri = (request.query?.redirectUri || request.body?.redirectUri || "").trim();
+  if (customUri) {
+    return customUri;
+  }
   const configured = (process.env.AZURE_REDIRECT_URI || "").trim();
   if (configured) {
     return configured;

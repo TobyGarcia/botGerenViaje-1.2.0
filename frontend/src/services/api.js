@@ -4,6 +4,7 @@ const API_BASE_URL =
 async function request(path, options = {}) {
   const telegramInitData = window.Telegram?.WebApp?.initData || "";
   const driverToken = localStorage.getItem("driver_token") || "";
+  const supervisorToken = localStorage.getItem("supervisor_token") || localStorage.getItem("admin_token") || "";
 
   const response = await fetch(
     `${API_BASE_URL}${path}`,
@@ -15,6 +16,8 @@ async function request(path, options = {}) {
           : {}),
         ...(driverToken
           ? { "Authorization": `Bearer ${driverToken}` }
+          : supervisorToken
+          ? { "Authorization": `Bearer ${supervisorToken}` }
           : {}),
         ...options.headers
       },
@@ -241,6 +244,19 @@ export function registrarReporteHoraGerenciamiento(idGerenciamiento, { puntoInde
     body: JSON.stringify({ puntoIndex, horaReportada })
   });
 }
+
+export function getAzureOAuthUrl(redirectUri) {
+  const query = redirectUri ? `?redirectUri=${encodeURIComponent(redirectUri)}` : "";
+  return request(`/api/admin/auth/azure/login${query}`);
+}
+
+export function exchangeAzureOAuthCode({ code, redirectUri }) {
+  return request("/api/admin/auth/azure/exchange", {
+    method: "POST",
+    body: JSON.stringify({ code, redirectUri })
+  });
+}
+
 
 
 
