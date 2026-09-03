@@ -10,9 +10,15 @@ import { listAdminDrivers, assignVehicleToDriver } from "../services/admin-condu
 import { getVehiculos } from "../services/catalogos.service.js";
 
 async function requireSupervisor(request) {
+  const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+  if (request.adminUser) {
+    if (!request.adminUser.activo || !allowedRoles.includes(request.adminUser.rol)) {
+      throw Object.assign(new Error("Tu cuenta no tiene permisos de supervisión."), { statusCode: 403 });
+    }
+    return request.adminUser;
+  }
   const telegramData = validateTelegramInitData(request.get("X-Telegram-Init-Data") || "", { botToken: process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) });
   const access = await getSupervisorAccess(telegramData.user.id);
-  const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
   if (!access?.invited || !access?.registered || !access?.confirmed || !access?.user?.activo || !allowedRoles.includes(access.user.rol)) throw Object.assign(new Error("Tu cuenta de supervisor no está autorizada o aún no confirmó el correo."), { statusCode: 403 });
   return access.user;
 }

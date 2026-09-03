@@ -13,11 +13,15 @@ export async function requireAdminSession(
   next
 ) {
   try {
-    const cookieName =
-      getAdminCookieName();
+    const cookieName = getAdminCookieName();
+    let token = request.cookies?.[cookieName];
 
-    const token =
-      request.cookies?.[cookieName];
+    if (!token && request.headers.authorization) {
+      const authHeader = request.headers.authorization;
+      if (authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7).trim();
+      }
+    }
 
     if (!token) {
       return response
@@ -29,13 +33,8 @@ export async function requireAdminSession(
         });
     }
 
-    const payload =
-      verifyAdminSessionToken(token);
-
-    const adminUser =
-      await findActiveAdminById(
-        Number(payload.sub)
-      );
+    const payload = verifyAdminSessionToken(token);
+    const adminUser = await findActiveAdminById(Number(payload.sub));
 
     if (!adminUser) {
       return response
@@ -47,9 +46,7 @@ export async function requireAdminSession(
         });
     }
 
-    request.adminUser =
-      adminUser;
-
+    request.adminUser = adminUser;
     return next();
   } catch (error) {
     return response
@@ -60,6 +57,33 @@ export async function requireAdminSession(
           "La sesión es inválida o expiró."
       });
   }
+}
+
+export async function requireOptionalAdminSession(request, response, next) {
+  try {
+    const cookieName = getAdminCookieName();
+    let token = request.cookies?.[cookieName];
+
+    if (!token && request.headers.authorization) {
+      const authHeader = request.headers.authorization;
+      if (authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7).trim();
+      }
+    }
+
+    if (token) {
+      const payload = verifyAdminSessionToken(token);
+      if (payload?.sub) {
+        const adminUser = await findActiveAdminById(Number(payload.sub));
+        if (adminUser) {
+          request.adminUser = adminUser;
+        }
+      }
+    }
+  } catch {
+    // Si la sesión es inválida, se continúa sin adjuntar request.adminUser
+  }
+  return next();
 }
 
 export const ROLES_SUPERVISOR_Y_SUPERIOR = [

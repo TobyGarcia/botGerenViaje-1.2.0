@@ -4,8 +4,38 @@ import { confirmSupervisorEmail, getSupervisorAccess, linkExistingSupervisor, li
 function telegramData(request) { return validateTelegramInitData(request.get("X-Telegram-Init-Data") || request.body?.initData || "", { botToken: process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN, maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600) }); }
 function requiresEmailConfirmation() { return String(process.env.SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION) === "true"; }
 export async function supervisorAccessController(request, response) {
-  try { const data = await getSupervisorAccess(telegramData(request).user.id); return response.json({ success: true, data }); }
-  catch (error) { return response.status(401).json({ success: false, message: error.message }); }
+  try {
+    if (request.adminUser) {
+      return response.json({
+        success: true,
+        data: {
+          invited: true,
+          registered: true,
+          confirmed: true,
+          user: request.adminUser
+        }
+      });
+    }
+
+    let telegramUserId = null;
+    try {
+      telegramUserId = telegramData(request)?.user?.id;
+    } catch {
+      // initData no enviado
+    }
+
+    if (!telegramUserId) {
+      return response.status(401).json({
+        success: false,
+        message: "No se encontró una sesión activa de Microsoft ni datos de Telegram."
+      });
+    }
+
+    const data = await getSupervisorAccess(telegramUserId);
+    return response.json({ success: true, data });
+  } catch (error) {
+    return response.status(401).json({ success: false, message: error.message });
+  }
 }
 export async function registerSupervisorController(request, response) {
   try {
