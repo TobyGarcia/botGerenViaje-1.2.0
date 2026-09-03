@@ -193,13 +193,22 @@ function validateDriverRegistration(body) {
 
 export async function registerTelegramDriverController(request, response) {
   try {
-    const telegramData = validateTelegramInitData(request.body?.initData, {
-      botToken: process.env.TELEGRAM_BOT_TOKEN,
-      maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
-    });
+    let telegramUserId = null;
+    if (request.body?.initData) {
+      try {
+        const telegramData = validateTelegramInitData(request.body.initData, {
+          botToken: process.env.TELEGRAM_BOT_TOKEN,
+          maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
+        });
+        telegramUserId = telegramData?.user?.id || null;
+      } catch (e) {
+        console.warn("initData enviado no verificado (registro vía navegador):", e.message);
+      }
+    }
+
     const driverData = validateDriverRegistration(request.body);
     const result = await registerTelegramDriver({
-      telegramUserId: telegramData.user.id,
+      telegramUserId,
       ...driverData
     });
 
@@ -211,14 +220,15 @@ export async function registerTelegramDriverController(request, response) {
 
     return response.status(result.created ? 201 : 200).json({
       success: true,
+      message: "Registro completado con éxito.",
       data: {
         authenticated: true,
         registered: true,
-        estadoRegistro: result.telegramUser.estado_registro || "PENDIENTE_APROBACION",
+        estadoRegistro: result.telegramUser?.estado_registro || "PENDIENTE_APROBACION",
         usuario: {
-          firstName: result.telegramUser.telegram_first_name,
-          lastName: result.telegramUser.telegram_last_name,
-          rol: result.telegramUser.rol
+          firstName: result.telegramUser?.telegram_first_name || null,
+          lastName: result.telegramUser?.telegram_last_name || null,
+          rol: result.telegramUser?.rol || "CONDUCTOR"
         },
         conductor: result.conductor
       }
@@ -227,11 +237,7 @@ export async function registerTelegramDriverController(request, response) {
   } catch (error) {
     const statusCode = error instanceof TelegramRegistrationError
       ? error.statusCode
-      : ["initData", "firma", "auth_date", "sesión", "usuario"].some((text) =>
-        error.message?.toLowerCase().includes(text.toLowerCase())
-      )
-        ? 401
-        : 500;
+      : 500;
 
     if (statusCode === 500) {
       console.error("Error registrando conductor de Telegram:", error.message);
@@ -239,9 +245,7 @@ export async function registerTelegramDriverController(request, response) {
 
     return response.status(statusCode).json({
       success: false,
-      message: statusCode === 500
-        ? "No fue posible registrar al conductor."
-        : error.message
+      message: error.message || "No fue posible registrar al conductor."
     });
   }
 }

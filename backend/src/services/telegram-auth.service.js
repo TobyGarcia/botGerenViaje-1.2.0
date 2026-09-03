@@ -149,7 +149,7 @@ export async function findOrCreateTelegramUser({
 }
 
 export async function registerTelegramDriver({
-  telegramUserId,
+  telegramUserId = null,
   nombre,
   telefono,
   licenciaNumero,
@@ -163,69 +163,33 @@ export async function registerTelegramDriver({
   try {
     await client.query("BEGIN");
 
-    const telegramUserResult = await client.query(
-      `
-        SELECT
-          id_usuario_telegram,
-          telegram_user_id,
-          telegram_username,
-          telegram_first_name,
-          telegram_last_name,
-          id_conductores,
-          rol,
-          estado_registro,
-          activo
-        FROM usuarios_telegram
-        WHERE telegram_user_id = $1
-        FOR UPDATE
-      `,
-      [telegramUserId]
-    );
-
-    const telegramUser = telegramUserResult.rows[0];
-
-    if (!telegramUser) {
-      throw new TelegramRegistrationError(
-        "El usuario de Telegram no ha sido autenticado.",
-        409
+    let telegramUser = null;
+    if (telegramUserId) {
+      const telegramUserResult = await client.query(
+        `SELECT id_usuario_telegram, telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, id_conductores, rol, estado_registro, activo
+         FROM usuarios_telegram WHERE telegram_user_id = $1 FOR UPDATE`,
+        [telegramUserId]
       );
-    }
+      telegramUser = telegramUserResult.rows[0] || null;
 
-    if (!telegramUser.activo || telegramUser.estado_registro === "BLOQUEADO") {
-      throw new TelegramRegistrationError(
-        "Tu acceso está restringido.",
-        403
-      );
-    }
-
-    if (telegramUser.id_conductores && telegramUser.estado_registro === "COMPLETO") {
-      const conductor = await getConductorById(client, telegramUser.id_conductores);
-
-      if (!conductor) {
-        throw new TelegramRegistrationError(
-          "El conductor vinculado no existe.",
-          409
-        );
+      if (telegramUser && !telegramUser.activo) {
+        throw new TelegramRegistrationError("Tu acceso está restringido.", 403);
       }
 
-      await client.query("COMMIT");
-      return { telegramUser, conductor, created: false };
+      if (telegramUser && telegramUser.id_conductores && telegramUser.estado_registro === "COMPLETO") {
+        const conductor = await getConductorById(client, telegramUser.id_conductores);
+        if (conductor) {
+          await client.query("COMMIT");
+          return { telegramUser, conductor, created: false };
+        }
+      }
     }
 
     const licenciaVigente = licenciaVencimiento >= new Date().toISOString().slice(0, 10);
     const conductorResult = await client.query(
       `
         INSERT INTO conductores (
-          nombre,
-          telefono,
-          licencia_numero,
-          tipo_licencia,
-          empresa,
-          licencia_vencimiento,
-          licencia_vigente,
-          fecha_manejo_comentado,
-          activo,
-          aprobado_por_admin
+          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, activo, aprobado_por_admin
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, FALSE)
         RETURNING ${conductorColumns}
@@ -234,37 +198,23 @@ export async function registerTelegramDriver({
     );
     const conductor = conductorResult.rows[0];
 
-    const updateResult = await client.query(
-      `
-        UPDATE usuarios_telegram
-        SET
-          id_conductores = $1,
-          estado_registro = 'PENDIENTE_APROBACION',
-          actualizado_en = CURRENT_TIMESTAMP
-        WHERE telegram_user_id = $2
-      `,
-      [conductor.id_conductores, telegramUserId]
-    );
-
-    if (updateResult.rowCount !== 1) {
-      throw new Error("No fue posible vincular el conductor registrado.");
+    if (telegramUser) {
+      await client.query(
+        `UPDATE usuarios_telegram SET id_conductores = $1, estado_registro = 'PENDIENTE_APROBACION', actualizado_en = CURRENT_TIMESTAMP WHERE telegram_user_id = $2`,
+        [conductor.id_conductores, telegramUserId]
+      );
     }
 
     await client.query("COMMIT");
     return {
-      telegramUser: {
-        ...telegramUser,
-        id_conductores: conductor.id_conductores,
-        estado_registro: "PENDIENTE_APROBACION"
-      },
+      telegramUser: telegramUser ? { ...telegramUser, id_conductores: conductor.id_conductores, estado_registro: "PENDIENTE_APROBACION" } : { estado_registro: "PENDIENTE_APROBACION" },
       conductor,
       created: true
     };
-
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
   }
-}
+}}
