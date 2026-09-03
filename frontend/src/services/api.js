@@ -245,9 +245,15 @@ export function registrarReporteHoraGerenciamiento(idGerenciamiento, { puntoInde
   });
 }
 
-export function getAzureOAuthUrl(redirectUri) {
-  const query = redirectUri ? `?redirectUri=${encodeURIComponent(redirectUri)}` : "";
-  return request(`/api/admin/auth/azure/login${query}`);
+export function getAzureOAuthUrl(params = {}) {
+  let queryString = "";
+  if (typeof params === "string") {
+    queryString = `?state=${encodeURIComponent(params)}`;
+  } else if (params && typeof params === "object") {
+    const search = new URLSearchParams(params).toString();
+    if (search) queryString = `?${search}`;
+  }
+  return request(`/api/admin/auth/azure/login${queryString}`);
 }
 
 export function exchangeAzureOAuthCode({ code, redirectUri }) {

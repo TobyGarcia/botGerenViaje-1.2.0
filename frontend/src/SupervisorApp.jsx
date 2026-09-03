@@ -10,23 +10,23 @@ export default function SupervisorApp() {
   const [error, setError] = useState("");
   const [authenticatingMs, setAuthenticatingMs] = useState(false);
 
-  const getRedirectUri = () => {
-    return window.location.origin + window.location.pathname;
+  const getBaseRedirectUri = () => {
+    return window.location.origin + "/";
   };
 
   async function loadAccess() {
     try {
       setLoading(true);
-      setError("");
       const response = await getSupervisorAccess();
 
       if (response?.data?.invited && response?.data?.user) {
         setAccess(response.data);
+        setError("");
       } else {
         setAccess(null);
       }
     } catch (err) {
-      console.warn("Validación de acceso de supervisor:", err.message);
+      console.warn("Acceso inicial de supervisor sin sesión activa:", err.message);
       setAccess(null);
     } finally {
       setLoading(false);
@@ -50,9 +50,13 @@ export default function SupervisorApp() {
         setAuthenticatingMs(true);
         setLoading(true);
         try {
-          const redirectUri = getRedirectUri();
+          const redirectUri = getBaseRedirectUri();
           const response = await exchangeAzureOAuthCode({ code: codeParam, redirectUri });
           
+          if (response?.data?.token) {
+            localStorage.setItem("supervisor_token", response.data.token);
+          }
+
           if (response?.data?.user) {
             window.history.replaceState({}, document.title, window.location.pathname);
             await loadAccess();
@@ -80,8 +84,7 @@ export default function SupervisorApp() {
     try {
       setAuthenticatingMs(true);
       setError("");
-      const redirectUri = getRedirectUri();
-      const response = await getAzureOAuthUrl(redirectUri);
+      const response = await getAzureOAuthUrl({ state: "supervisor" });
 
       if (response?.authUrl) {
         window.location.href = response.authUrl;

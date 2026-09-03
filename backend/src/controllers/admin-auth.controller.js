@@ -143,13 +143,15 @@ export function getAdminSessionController(request, response) {
  */
 export function getAzureOAuthUrlController(request, response) {
   try {
+    const state = String(request.query?.state || request.body?.state || "admin_login").trim();
     const redirectUri = getAzureRedirectUri(request);
-    const authUrl = getAzureOAuthLoginUrl({ redirectUri });
-    console.log(`[Azure OAuth] Generada URL de Microsoft. Redirect URI: "${redirectUri}"`);
+    const authUrl = getAzureOAuthLoginUrl({ redirectUri, state });
+    console.log(`[Azure OAuth] Generada URL de Microsoft. Redirect URI: "${redirectUri}", State: "${state}"`);
     return response.json({
       success: true,
       authUrl,
-      redirectUri
+      redirectUri,
+      state
     });
   } catch (error) {
     console.error("Error al generar la URL de login de Azure:", error.message);
@@ -221,6 +223,7 @@ export async function exchangeAzureOAuthCodeController(request, response) {
       success: true,
       data: {
         authenticated: true,
+        token,
         user: serializeAdminUser(result.user)
       }
     });
