@@ -248,7 +248,7 @@ export function registrarReporteHoraGerenciamiento(idGerenciamiento, { puntoInde
 export function getAzureOAuthUrl(params = {}) {
   let queryString = "";
   if (typeof params === "string") {
-    queryString = `?state=${encodeURIComponent(params)}`;
+    queryString = `?redirectUri=${encodeURIComponent(params)}`;
   } else if (params && typeof params === "object") {
     const search = new URLSearchParams(params).toString();
     if (search) queryString = `?${search}`;
