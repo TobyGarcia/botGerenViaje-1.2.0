@@ -58,13 +58,13 @@ export default function SupervisorApp() {
           }
 
           if (response?.data?.user) {
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState({}, document.title, "/supervisor/");
             await loadAccess();
           } else {
             throw new Error("No se pudo obtener el perfil de usuario de Microsoft.");
           }
         } catch (err) {
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState({}, document.title, "/supervisor/");
           setError(err.message || "Error al autenticar con Microsoft.");
           setLoading(false);
         } finally {
