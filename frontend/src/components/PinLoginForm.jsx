@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getConductores, loginConductorConPin } from "../services/api";
-import logoAQR from "../assets/logoAQR.webp";
+import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 
 export default function PinLoginForm({ onSuccess, onCancel }) {
   const [conductores, setConductores] = useState([]);
@@ -96,9 +96,9 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
   return (
     <div className="pin-login-wrapper">
       <div className="pin-login-card glass-panel">
-        {/* Header con Logo y Título */}
+        {/* Header con Logo Blanco y Título */}
         <div className="pin-header">
-          <img src={logoAQR} alt="AQUARIO" className="pin-aquario-logo" />
+          <img src={aquarioBlanco} alt="AQUARIO" className="pin-aquario-logo" />
           <h2 className="pin-title">Ingreso por PIN</h2>
           <p className="pin-subtitle">
             Selecciona tu nombre e ingresa tu PIN de 4 dígitos

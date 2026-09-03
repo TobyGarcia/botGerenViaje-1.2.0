@@ -528,32 +528,39 @@
   text-overflow: ellipsis;
 }
 
-.topbar-btn-logout {
+.driver-avatar-svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.topbar-btn-logout-icon {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: #dc2626;
-  color: #ffffff;
-  border: 1px solid #b91c1c;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: auto;
-  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
 }
 
-.topbar-btn-logout:hover,
-.topbar-btn-logout:active {
-  background: #b91c1c;
+.topbar-btn-logout-icon:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #b91c1c;
   transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
 }
 
-.topbar-btn-logout .btn-logout-icon {
-  font-size: 0.85rem;
-  line-height: 1;
+.topbar-btn-logout-icon:active {
+  transform: scale(0.93);
+  background: #b91c1c;
 }
 
 .topbar-guest-area {
