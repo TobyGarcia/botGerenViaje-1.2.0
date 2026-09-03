@@ -10,7 +10,11 @@ export default function SupervisorApp() {
   const [error, setError] = useState("");
   const [authenticatingMs, setAuthenticatingMs] = useState(false);
 
-  const getSupervisorRedirectUri = () => {
+  const getAzureAuthRedirectUri = () => {
+    return window.location.origin + "/";
+  };
+
+  const getSupervisorAppUrl = () => {
     return window.location.origin + "/supervisor/";
   };
 
@@ -50,7 +54,7 @@ export default function SupervisorApp() {
         setAuthenticatingMs(true);
         setLoading(true);
         try {
-          const redirectUri = getSupervisorRedirectUri();
+          const redirectUri = getAzureAuthRedirectUri();
           const response = await exchangeAzureOAuthCode({ code: codeParam, redirectUri });
           
           if (response?.data?.token) {
@@ -58,6 +62,10 @@ export default function SupervisorApp() {
           }
 
           if (response?.data?.user) {
+            if (!window.location.pathname.startsWith("/supervisor")) {
+              window.location.href = getSupervisorAppUrl();
+              return;
+            }
             window.history.replaceState({}, document.title, "/supervisor/");
             await loadAccess();
           } else {
@@ -84,7 +92,7 @@ export default function SupervisorApp() {
     try {
       setAuthenticatingMs(true);
       setError("");
-      const redirectUri = getSupervisorRedirectUri();
+      const redirectUri = getAzureAuthRedirectUri();
       const response = await getAzureOAuthUrl({ redirectUri, state: "supervisor" });
 
       if (response?.authUrl) {
