@@ -591,4 +591,11 @@ export function getAdminUsuarios() {
   return request("/admin/usuarios");
 }
 
+export function assignUserPin(idUsuario, pin) {
+  return request(`/admin/usuarios/${idUsuario}/pin`, {
+    method: "POST",
+    body: JSON.stringify({ pin })
+  });
+}
+
 

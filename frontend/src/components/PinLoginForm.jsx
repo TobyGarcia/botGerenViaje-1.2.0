@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { loginConductorConPin } from "../services/api";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 
-export default function PinLoginForm({ onSuccess, onCancel }) {
+export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -159,6 +159,28 @@ export default function PinLoginForm({ onSuccess, onCancel }) {
         >
           {loading ? "Verificando PIN..." : "Ingresar"}
         </button>
+
+        {onRegisterClick && (
+          <button
+            type="button"
+            onClick={onRegisterClick}
+            style={{
+              marginTop: "16px",
+              background: "none",
+              border: "none",
+              color: "#0284c7",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              textDecoration: "underline",
+              display: "block",
+              width: "100%",
+              textAlign: "center"
+            }}
+          >
+            📝 ¿Eres un conductor nuevo? Regístrate aquí
+          </button>
+        )}
       </div>
     </div>
   );

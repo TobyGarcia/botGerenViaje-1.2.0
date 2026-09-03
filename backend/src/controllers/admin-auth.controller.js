@@ -1,6 +1,7 @@
 import {
   authenticateAdminUser,
-  authenticateAdminByTenantEmail
+  authenticateAdminByTenantEmail,
+  authenticateSupervisorWithPin
 } from "../services/admin-auth.service.js";
 
 import {
@@ -325,6 +326,44 @@ export async function loginWithTenantEmailController(request, response) {
     return response.status(500).json({
       success: false,
       message: "Error al autenticar por correo del tenant."
+    });
+  }
+}
+
+export async function loginWithPinController(request, response) {
+  try {
+    const pin = String(request.body?.pin || "").trim();
+    if (!pin) {
+      return response.status(400).json({
+        success: false,
+        message: "Ingresa tu PIN de 4 dígitos."
+      });
+    }
+
+    const result = await authenticateSupervisorWithPin(pin);
+    if (!result.authenticated) {
+      return response.status(401).json({
+        success: false,
+        message: "PIN incorrecto o no asignado a ninguna cuenta activa."
+      });
+    }
+
+    const token = createAdminSessionToken(result.user);
+    response.cookie(getAdminCookieName(), token, getAdminCookieOptions());
+
+    return response.status(200).json({
+      success: true,
+      data: {
+        authenticated: true,
+        token,
+        user: serializeAdminUser(result.user)
+      }
+    });
+  } catch (error) {
+    console.error("Error en login por PIN:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: "Error al autenticar por PIN."
     });
   }
 }

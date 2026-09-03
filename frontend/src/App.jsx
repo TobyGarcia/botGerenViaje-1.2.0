@@ -218,6 +218,7 @@ const [cancelledTrip, setCancelledTrip] =
   const [telegramAuthLoading, setTelegramAuthLoading] = useState(true);
   const [telegramAuthError, setTelegramAuthError] = useState("");
   const [showPinLogin, setShowPinLogin] = useState(false);
+  const [showConductorRegister, setShowConductorRegister] = useState(false);
 
   function handlePinLoginSuccess(conductor) {
     const normalized = normalizeConductor(conductor);
@@ -984,9 +985,32 @@ async function handleAddIntermediatePoint() {
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
-          <PinLoginForm
-            onSuccess={handlePinLoginSuccess}
-          />
+          {showConductorRegister ? (
+            <div style={{ maxWidth: "500px", width: "100%", margin: "0 auto", padding: "16px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowConductorRegister(false)}
+                style={{ marginBottom: "16px", background: "#ffffff", color: "#334155", border: "1px solid #cbd5e1" }}
+              >
+                ← Volver al inicio por PIN
+              </button>
+              <RegistroConductor
+                telegramAuth={telegramAuth}
+                onRegistered={(data) => {
+                  setShowConductorRegister(false);
+                  if (data?.conductor) {
+                    handlePinLoginSuccess(data.conductor);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <PinLoginForm
+              onSuccess={handlePinLoginSuccess}
+              onRegisterClick={() => setShowConductorRegister(true)}
+            />
+          )}
         </main>
       </div>
     );

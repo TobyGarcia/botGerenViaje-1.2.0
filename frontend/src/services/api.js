@@ -263,6 +263,20 @@ export function exchangeAzureOAuthCode({ code, redirectUri }) {
   });
 }
 
+export function registrarUsuarioPublico(data) {
+  return request("/api/admin/usuarios/registro-publico", {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
+export function loginUsuarioConPin(pin) {
+  return request("/api/admin/auth/pin-login", {
+    method: "POST",
+    body: JSON.stringify({ pin })
+  });
+}
+
 
 
 

@@ -266,3 +266,34 @@ export async function authenticateAdminByTenantEmail({ email }) {
   };
 }
 
+export async function authenticateSupervisorWithPin(pin) {
+  const cleanPin = String(pin || "").trim();
+  if (!/^\d{4}$/.test(cleanPin)) {
+    return { authenticated: false, reason: "INVALID_PIN_FORMAT" };
+  }
+
+  const result = await databasePool.query(`
+    SELECT id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, pin_hash
+    FROM usuarios_admin
+    WHERE activo = TRUE AND pin_hash IS NOT NULL`
+  );
+
+  for (const user of result.rows) {
+    const isMatch = await bcrypt.compare(cleanPin, user.pin_hash);
+    if (isMatch) {
+      await databasePool.query(`
+        UPDATE usuarios_admin
+        SET ultimo_acceso_en = CURRENT_TIMESTAMP
+        WHERE id_usuarios_admin = $1`,
+        [user.id_usuarios_admin]
+      );
+      return {
+        authenticated: true,
+        user
+      };
+    }
+  }
+
+  return { authenticated: false, reason: "INVALID_PIN" };
+}
+

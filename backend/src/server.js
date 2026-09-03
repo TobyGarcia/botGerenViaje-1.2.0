@@ -100,6 +100,9 @@ async function initializeDependencies() {
       await databasePool.query(`
         ALTER TABLE inspecciones_vehiculares
           ADD COLUMN IF NOT EXISTS id_usuario_autorizador BIGINT REFERENCES usuarios_admin(id_usuarios_admin);
+
+        ALTER TABLE usuarios_admin
+          ADD COLUMN IF NOT EXISTS pin_hash TEXT;
         
         ALTER TABLE usuarios_admin DROP CONSTRAINT IF EXISTS chk_usuarios_admin_rol;
         ALTER TABLE usuarios_admin ADD CONSTRAINT chk_usuarios_admin_rol CHECK (

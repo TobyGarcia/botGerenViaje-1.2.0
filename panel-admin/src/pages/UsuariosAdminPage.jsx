@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  assignUserPin,
   createAdminUser,
   deleteAdminUser,
   getAdminConductores,
@@ -24,6 +25,11 @@ export default function UsuariosAdminPage({ currentUser }) {
   const [form, setForm] = useState(empty);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+
+  const [pinUser, setPinUser] = useState(null);
+  const [newPin, setNewPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
 
   const load = async () => {
     try {
@@ -60,6 +66,32 @@ export default function UsuariosAdminPage({ currentUser }) {
     setOpen(true);
   }
 
+  function openPinModal(user) {
+    setPinUser(user);
+    setNewPin("");
+    setPinError("");
+  }
+
+  async function submitPin(e) {
+    e.preventDefault();
+    if (!/^\d{4}$/.test(newPin)) {
+      setPinError("El PIN debe constar de 4 dígitos numéricos.");
+      return;
+    }
+    setSavingPin(true);
+    setPinError("");
+    try {
+      await assignUserPin(pinUser.id_usuarios_admin, newPin);
+      setMessage(`PIN asignado con éxito a ${pinUser.nombre}`);
+      setPinUser(null);
+      load();
+    } catch (err) {
+      setPinError(err.message || "Error al asignar el PIN.");
+    } finally {
+      setSavingPin(false);
+    }
+  }
+
   async function submit(event) {
     event.preventDefault();
     try {
@@ -82,7 +114,7 @@ export default function UsuariosAdminPage({ currentUser }) {
         <div>
           <span className="module-label">Administración</span>
           <h1>Administrador de usuarios</h1>
-          <p>Gestiona jerarquías, accesos y la relación opcional de Operador con un conductor.</p>
+          <p>Gestiona jerarquías, accesos, asignación de PIN de 4 dígitos y vínculo de conductores.</p>
         </div>
         <button type="button" className="primary-button" onClick={create}>
           ＋ Añadir usuario
@@ -100,6 +132,7 @@ export default function UsuariosAdminPage({ currentUser }) {
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Conductor</th>
+                <th>Acceso PIN</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -126,12 +159,34 @@ export default function UsuariosAdminPage({ currentUser }) {
                   </td>
                   <td>{user.conductor || "—"}</td>
                   <td>
+                    <span style={{
+                      padding: "3px 8px",
+                      borderRadius: "8px",
+                      fontSize: "0.78rem",
+                      fontWeight: "bold",
+                      background: user.tiene_pin ? "#dcfce7" : "#fef3c7",
+                      color: user.tiene_pin ? "#166534" : "#92400e"
+                    }}>
+                      {user.tiene_pin ? "🔑 Con PIN" : "⚠️ Sin PIN"}
+                    </span>
+                  </td>
+                  <td>
                     <span className={`status-badge ${user.activo ? "status-active" : "status-inactive"}`}>
                       {user.activo ? "Activo" : "Inactivo"}
                     </span>
                   </td>
                   <td>
                     <div className="table-action-icons">
+                      <button
+                        type="button"
+                        className="action-icon-btn"
+                        onClick={() => openPinModal(user)}
+                        title="Asignar o cambiar PIN de 4 dígitos"
+                        aria-label="Asignar PIN"
+                        style={{ fontSize: "1.05rem" }}
+                      >
+                        🔑
+                      </button>
                       <button
                         type="button"
                         className="action-icon-btn action-icon-edit"
@@ -169,6 +224,60 @@ export default function UsuariosAdminPage({ currentUser }) {
           </table>
         </div>
       </section>
+
+      {/* Modal para Asignar PIN de 4 dígitos */}
+      {pinUser && (
+        <div className="modal-overlay" role="presentation" onMouseDown={() => setPinUser(null)}>
+          <section
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ maxWidth: "420px", width: "100%", padding: "24px" }}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2>🔑 Asignar PIN de Acceso</h2>
+                <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "0.88rem" }}>
+                  Establece un PIN de 4 dígitos para <strong>{pinUser.nombre}</strong>.
+                </p>
+              </div>
+              <button type="button" className="close-button" onClick={() => setPinUser(null)}>×</button>
+            </div>
+
+            {pinError && <p className="module-message module-message-error" style={{ marginTop: "12px" }}>{pinError}</p>}
+
+            <form onSubmit={submitPin} style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              <label>
+                PIN de 4 dígitos *
+                <input
+                  required
+                  type="password"
+                  maxLength="4"
+                  pattern="\d{4}"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="Ej: 1234"
+                  style={{
+                    fontSize: "1.4rem",
+                    letterSpacing: "8px",
+                    textAlign: "center",
+                    padding: "10px",
+                    fontWeight: "bold"
+                  }}
+                />
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button type="button" className="secondary-button" onClick={() => setPinUser(null)}>Cancelar</button>
+                <button type="submit" className="primary-button" disabled={savingPin || newPin.length !== 4}>
+                  {savingPin ? "Guardando..." : "Asignar PIN"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {open && (
         <div className="modal-overlay" role="presentation" onMouseDown={() => setOpen(false)}>

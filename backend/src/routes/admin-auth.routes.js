@@ -10,6 +10,7 @@ import {
   exchangeAzureOAuthCodeController,
   loginAdminController,
   loginWithTenantEmailController,
+  loginWithPinController,
   logoutAdminController
 } from "../controllers/admin-auth.controller.js";
 
@@ -22,6 +23,11 @@ const router = Router();
 router.post(
   "/login",
   loginAdminController
+);
+
+router.post(
+  "/pin-login",
+  loginWithPinController
 );
 
 router.post(
