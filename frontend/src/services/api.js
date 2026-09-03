@@ -253,11 +253,11 @@ export function getAzureOAuthUrl(params = {}) {
     const search = new URLSearchParams(params).toString();
     if (search) queryString = `?${search}`;
   }
-  return request(`/api/admin/auth/azure/login${queryString}`);
+  return request(`/api/admin/auth/azure/url${queryString}`);
 }
 
 export function exchangeAzureOAuthCode({ code, redirectUri }) {
-  return request("/api/admin/auth/azure/exchange", {
+  return request("/api/admin/auth/azure/exchange-code", {
     method: "POST",
     body: JSON.stringify({ code, redirectUri })
   });
