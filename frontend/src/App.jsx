@@ -224,6 +224,9 @@ const [cancelledTrip, setCancelledTrip] =
 
   function handlePinLoginSuccess(conductor) {
     const normalized = normalizeConductor(conductor);
+    if (normalized) {
+      localStorage.setItem("cached_driver", JSON.stringify(normalized));
+    }
     setTelegramAuth({
       authenticated: true,
       registered: true,
@@ -250,6 +253,7 @@ const [cancelledTrip, setCancelledTrip] =
 
     stopTracking();
     localStorage.removeItem("driver_token");
+    localStorage.removeItem("cached_driver");
     setTelegramAuth(null);
     setCreatedTrip(null);
     setStartedTrip(null);
@@ -273,11 +277,31 @@ const [cancelledTrip, setCancelledTrip] =
     dateStyle: "long"
   }).format(new Date());
 
-  // Por seguridad, cada vez que abren la app de conductor se solicita su PIN
+  // Soporte PWA Offline: restaurar sesión previa si el conductor ya inició sesión antes
   useEffect(() => {
-    localStorage.removeItem("driver_token");
-    setTelegramAuth(null);
-    setShowPinLogin(true);
+    const token = localStorage.getItem("driver_token");
+    const cachedDriverRaw = localStorage.getItem("cached_driver");
+
+    let cachedDriver = null;
+    if (cachedDriverRaw) {
+      try {
+        cachedDriver = JSON.parse(cachedDriverRaw);
+      } catch {
+        cachedDriver = null;
+      }
+    }
+
+    if (token && cachedDriver) {
+      setTelegramAuth({
+        authenticated: true,
+        registered: true,
+        estadoRegistro: "COMPLETO",
+        conductor: cachedDriver
+      });
+      setShowPinLogin(false);
+    } else {
+      setShowPinLogin(true);
+    }
     setTelegramAuthLoading(false);
   }, []);
 

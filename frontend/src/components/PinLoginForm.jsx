@@ -54,7 +54,24 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         setPin("");
       }
     } catch (err) {
-      setError(err.message || "Error al iniciar sesión.");
+      const isNetworkError = !navigator.onLine || err.message?.includes("Failed to fetch") || err.message?.includes("fetch");
+      if (isNetworkError) {
+        const cachedDriverRaw = localStorage.getItem("cached_driver");
+        if (cachedDriverRaw) {
+          try {
+            const cachedDriver = JSON.parse(cachedDriverRaw);
+            if (onSuccess) {
+              onSuccess(cachedDriver);
+              return;
+            }
+          } catch {
+            // Ignorar error de JSON parse
+          }
+        }
+        setError("Sin conexión a internet. Para entrar sin red, debes haber iniciado sesión al menos una vez con internet en este celular.");
+      } else {
+        setError(err.message || "Error al iniciar sesión.");
+      }
       setPin("");
     } finally {
       setLoading(false);
