@@ -17,6 +17,9 @@
 \ir ../migrations/015_supervisor_telegram_group_nullable.sql
 \ir ../migrations/016_puntos_intermedios_viaje.sql
 \ir ../migrations/017_inspeccion_dia_siguiente.sql
+\ir ../migrations/018_gerenciamiento_viajes.sql
+\ir ../migrations/019_fix_inspecciones_autorizador.sql
+\ir ../migrations/020_conductor_pin_and_approval.sql
 
 
 
