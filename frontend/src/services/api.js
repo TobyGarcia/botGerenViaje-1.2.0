@@ -6,39 +6,52 @@ async function request(path, options = {}) {
   const driverToken = localStorage.getItem("driver_token") || "";
   const supervisorToken = localStorage.getItem("supervisor_token") || localStorage.getItem("admin_token") || "";
 
-  const response = await fetch(
-    `${API_BASE_URL}${path}`,
-    {
-      headers: {
-        "Content-Type": "application/json",
-        ...(telegramInitData
-          ? { "X-Telegram-Init-Data": telegramInitData }
-          : {}),
-        ...(driverToken
-          ? { "Authorization": `Bearer ${driverToken}` }
-          : supervisorToken
-          ? { "Authorization": `Bearer ${supervisorToken}` }
-          : {}),
-        ...options.headers
-      },
-      ...options
-    }
-  );
+  const controller = new AbortController();
+  const timeoutMs = options.timeout || 8000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-
-  const contentType =
-    response.headers.get("content-type") || "";
-  const data = contentType.includes("application/json")
-    ? await response.json()
-    : null;
-
-  if (!response.ok) {
-    throw new Error(
-      data?.message || "Ocurrió un error en la solicitud."
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${path}`,
+      {
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...(telegramInitData
+            ? { "X-Telegram-Init-Data": telegramInitData }
+            : {}),
+          ...(driverToken
+            ? { "Authorization": `Bearer ${driverToken}` }
+            : supervisorToken
+            ? { "Authorization": `Bearer ${supervisorToken}` }
+            : {}),
+          ...options.headers
+        },
+        ...options
+      }
     );
-  }
 
-  return data;
+    const contentType =
+      response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : null;
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message || "Ocurrió un error en la solicitud."
+      );
+    }
+
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error("Tiempo de espera agotado al conectar con el servidor.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export function getConductores() {
