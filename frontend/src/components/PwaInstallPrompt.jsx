@@ -3,21 +3,27 @@ import { useState, useEffect } from 'react';
 export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // Detect if already running in standalone mode (installed PWA)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone ||
+      document.referrer.includes('android-app://');
+
     if (isStandalone) {
       setIsInstalled(true);
       return;
     }
 
-    // Detect iOS Safari
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIos) {
-      setShowIosGuide(true);
-    }
+    const ua = navigator.userAgent;
+    const mobileDetected = /Android|iPhone|iPad|iPod/i.test(ua);
+    const iosDetected = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+    setIsMobile(mobileDetected);
+    setIsIos(iosDetected);
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -47,23 +53,25 @@ export default function PwaInstallPrompt() {
     return (
       <div
         style={{
-          padding: '10px 14px',
-          marginBottom: '12px',
-          borderRadius: '10px',
-          backgroundColor: '#1e293b',
+          padding: '12px 14px',
+          margin: '10px 16px',
+          borderRadius: '12px',
+          backgroundColor: '#0f172a',
           color: '#f8fafc',
           border: '1px solid #3b82f6',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '10px',
-          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.3)'
+          gap: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
         }}
       >
         <div>
-          <strong style={{ fontSize: '0.9rem', color: '#60a5fa' }}>📲 Instalar App de Viajes</strong>
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-            Instálala en tu celular para operar 100% sin internet.
+          <strong style={{ fontSize: '0.9rem', color: '#60a5fa', display: 'block' }}>
+            📲 Instalar App de Viajes
+          </strong>
+          <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+            Instálala en tu celular para marcar puntos y lecturas 100% sin internet.
           </div>
         </div>
         <button
@@ -72,12 +80,13 @@ export default function PwaInstallPrompt() {
             backgroundColor: '#2563eb',
             color: '#ffffff',
             border: 'none',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            fontSize: '0.82rem',
             fontWeight: 'bold',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}
         >
           Instalar
@@ -86,22 +95,46 @@ export default function PwaInstallPrompt() {
     );
   }
 
-  if (showIosGuide) {
+  if (isIos) {
     return (
       <div
         style={{
-          padding: '10px 14px',
-          marginBottom: '12px',
-          borderRadius: '10px',
-          backgroundColor: '#1e293b',
+          padding: '12px 14px',
+          margin: '10px 16px',
+          borderRadius: '12px',
+          backgroundColor: '#0f172a',
           color: '#f8fafc',
           border: '1px solid #0284c7',
-          fontSize: '0.8rem'
+          fontSize: '0.8rem',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
         }}
       >
-        <strong style={{ color: '#38bdf8' }}>📱 Instalar en iPhone / iPad (iOS):</strong>
-        <div style={{ color: '#cbd5e1', marginTop: '4px' }}>
-          Para usar sin internet, toca el botón <strong>Compartir</strong> ⎋ en Safari y selecciona <strong>"Agregar a inicio"</strong>.
+        <strong style={{ color: '#38bdf8', fontSize: '0.88rem' }}>📱 Instalar en iPhone / iPad (iOS):</strong>
+        <div style={{ color: '#cbd5e1', marginTop: '4px', lineHeight: '1.4' }}>
+          Para usar la aplicación sin conexión de internet, toca el botón <strong>Compartir</strong> ⎋ en Safari y selecciona <strong>"Agregar a inicio"</strong>.
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for Android/Chrome browser when automatic install prompt hasn't triggered yet
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          padding: '12px 14px',
+          margin: '10px 16px',
+          borderRadius: '12px',
+          backgroundColor: '#0f172a',
+          color: '#f8fafc',
+          border: '1px solid #334155',
+          fontSize: '0.8rem',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+        }}
+      >
+        <strong style={{ color: '#60a5fa', fontSize: '0.88rem' }}>📲 ¿Cómo instalar la App de Viajes?</strong>
+        <div style={{ color: '#cbd5e1', marginTop: '4px', lineHeight: '1.4' }}>
+          Para operar sin internet: abre el menú del navegador <strong>(⋮ los 3 puntos arriba a la derecha)</strong> y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a la pantalla de inicio"</strong>.
         </div>
       </div>
     );
