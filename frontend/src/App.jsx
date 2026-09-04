@@ -28,6 +28,8 @@ import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
+import OfflineBanner from "./components/OfflineBanner.jsx";
+import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
 
 import {
   captureAndQueueLocation,
@@ -1078,7 +1080,9 @@ function isOutsideOperatingHours() {
     <div className="app-shell">
       <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
       <main className="container">
-      <h1>
+        <PwaInstallPrompt />
+        <OfflineBanner idViaje={createdTrip?.idViaje} />
+        <h1>
         {createdTrip
         ? "GERENCIAMIENTO DE VIAJE"
         : activeTabMode === "gerenciamiento"

@@ -1,6 +1,7 @@
 {
-  "short_name": "Evaluación",
-  "name": "Evaluación de Manejo Comentado",
+  "short_name": "Viajes",
+  "name": "Gerenciamiento de Viajes",
+  "description": "Aplicación de Registro, Marcado de Puntos y Lectura de Kilometraje para Viajes",
   "icons": [
     {
       "src": "/favicon.svg",
@@ -9,8 +10,9 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": "/evaluacion",
-  "background_color": "#ffffff",
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#0f172a",
   "theme_color": "#2e81ab",
   "display": "standalone",
   "orientation": "portrait"
