@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import aquarioLogo from '../assets/aquario-logo.png';
 
 export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -52,7 +53,7 @@ export default function PwaInstallPrompt() {
   const cardStyle = {
     width: '100%',
     maxWidth: '360px',
-    margin: '0 auto 14px auto',
+    margin: '16px auto 0 auto',
     padding: '14px 16px',
     borderRadius: '16px',
     background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
@@ -69,8 +70,12 @@ export default function PwaInstallPrompt() {
     return (
       <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.4rem' }}>📲</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img
+              src={aquarioLogo}
+              alt="AQUARIO"
+              style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: '6px' }}
+            />
             <div>
               <strong style={{ fontSize: '0.92rem', color: '#60a5fa', display: 'block', lineHeight: '1.2' }}>
                 Instalar App de Viajes
@@ -92,8 +97,7 @@ export default function PwaInstallPrompt() {
               fontWeight: 'bold',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
-              transition: 'transform 0.15s ease'
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)'
             }}
           >
             Instalar
@@ -106,8 +110,12 @@ export default function PwaInstallPrompt() {
   if (isIos) {
     return (
       <div style={{ ...cardStyle, border: '1px solid rgba(2, 132, 199, 0.4)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.2rem' }}>📱</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img
+            src={aquarioLogo}
+            alt="AQUARIO"
+            style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+          />
           <strong style={{ color: '#38bdf8', fontSize: '0.88rem' }}>Instalar en iPhone / iPad (iOS)</strong>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
@@ -121,8 +129,12 @@ export default function PwaInstallPrompt() {
   if (isMobile) {
     return (
       <div style={cardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.2rem' }}>📲</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img
+            src={aquarioLogo}
+            alt="AQUARIO"
+            style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+          />
           <strong style={{ color: '#60a5fa', fontSize: '0.88rem' }}>¿Cómo usar sin internet?</strong>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>

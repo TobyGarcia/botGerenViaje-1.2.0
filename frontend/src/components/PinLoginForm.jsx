@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { loginConductorConPin } from "../services/api";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
+import PwaInstallPrompt from "./PwaInstallPrompt";
 
 export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [pin, setPin] = useState("");
@@ -182,6 +183,7 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
           </button>
         )}
       </div>
+      <PwaInstallPrompt />
     </div>
   );
 }

@@ -1030,7 +1030,6 @@ function isOutsideOperatingHours() {
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
-          <PwaInstallPrompt />
           <PinLoginForm
             onSuccess={handlePinLoginSuccess}
             onRegisterClick={() => setShowConductorRegister(true)}
