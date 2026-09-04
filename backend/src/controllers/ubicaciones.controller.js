@@ -356,14 +356,19 @@ export async function registerTripLocationBatchController(request, response) {
       return response.status(400).json({ success: false, message: `El lote debe contener entre 1 y ${MAX_BATCH_SIZE} ubicaciones.` });
     }
 
-    const telegramData = validateTelegramInitData(initData, {
-      botToken: process.env.TELEGRAM_BOT_TOKEN,
-      maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
-    });
-    const telegramUser = await findTelegramUserById(telegramData.user.id);
+    let driverId = request.driverUser?.id_conductores;
 
-    if (!telegramUser?.activo || !telegramUser?.conductor_activo || !telegramUser.id_conductores) {
-      return response.status(403).json({ success: false, message: "El usuario de Telegram no tiene un conductor activo asociado." });
+    if (!driverId) {
+      const telegramData = validateTelegramInitData(initData, {
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
+      });
+      const telegramUser = await findTelegramUserById(telegramData.user.id);
+
+      if (!telegramUser?.activo || !telegramUser?.conductor_activo || !telegramUser.id_conductores) {
+        return response.status(403).json({ success: false, message: "El usuario de Telegram no tiene un conductor activo asociado." });
+      }
+      driverId = telegramUser.id_conductores;
     }
 
     const normalized = locations.map(normalizeBatchLocation);
@@ -374,7 +379,7 @@ export async function registerTripLocationBatchController(request, response) {
 
     const result = await saveTripLocationBatch({
       idViaje,
-      idConductor: telegramUser.id_conductores,
+      idConductor: driverId,
       locations: validLocations
     });
 

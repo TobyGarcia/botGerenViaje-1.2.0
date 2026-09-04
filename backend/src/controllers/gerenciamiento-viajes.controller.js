@@ -14,6 +14,13 @@ import {
 } from "../services/gerenciamiento-viajes.service.js";
 
 async function authenticateDriver(request) {
+  if (request.driverUser) {
+    return {
+      id_conductores: request.driverUser.id_conductores,
+      nombre: request.driverUser.nombre,
+      activo: true
+    };
+  }
   const initDataHeader = request.get("X-Telegram-Init-Data") || "";
   if (!initDataHeader) {
     throw new Error("No se proporcionó información de autenticación de Telegram.");

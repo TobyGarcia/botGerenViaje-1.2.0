@@ -4,6 +4,9 @@ import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { notifyNewInspectionRequest } from "../bot/supervisor-bot.js";
 
 async function authenticateDriver(request) {
+  if (request.driverUser) {
+    return request.driverUser.id_conductores;
+  }
   const telegramData = validateTelegramInitData(request.get("X-Telegram-Init-Data") || "", {
     botToken: process.env.TELEGRAM_BOT_TOKEN,
     maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)

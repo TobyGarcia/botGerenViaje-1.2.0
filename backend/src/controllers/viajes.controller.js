@@ -451,24 +451,10 @@ export async function getActiveTripController(
   response
 ) {
   try {
-    const telegramData = validateTelegramInitData(
-      request.get("X-Telegram-Init-Data") || "",
-      {
-        botToken: process.env.TELEGRAM_BOT_TOKEN,
-        maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 3600)
-      }
-    );
-    const telegramUser = await findTelegramUserById(telegramData.user.id);
-
-    if (!telegramUser?.activo || !telegramUser?.conductor_activo || !telegramUser.id_conductores) {
-      return response.status(403).json({
-        success: false,
-        message: "El usuario de Telegram no tiene un conductor activo asociado."
-      });
-    }
+    const driverUser = await requireTelegramDriver(request);
 
     const trip = await getActiveTrip({
-      idConductor: telegramUser.id_conductores
+      idConductor: driverUser.id_conductores
     });
 
     return response.status(200).json({
