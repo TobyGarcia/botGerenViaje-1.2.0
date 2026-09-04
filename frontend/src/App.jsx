@@ -393,13 +393,23 @@ const [cancelledTrip, setCancelledTrip] =
           getViajeActivo().catch(() => ({ data: null }))
         ]);
 
-        setConductores(conductoresResponse.data ?? []);
-        setVehiculos(vehiculosResponse.data ?? []);
-        setLugares(lugaresResponse.data ?? []);
+        if (conductoresResponse?.data) {
+          setConductores(conductoresResponse.data);
+          localStorage.setItem("cached_conductores", JSON.stringify(conductoresResponse.data));
+        }
+        if (vehiculosResponse?.data) {
+          setVehiculos(vehiculosResponse.data);
+          localStorage.setItem("cached_vehiculos", JSON.stringify(vehiculosResponse.data));
+        }
+        if (lugaresResponse?.data) {
+          setLugares(lugaresResponse.data);
+          localStorage.setItem("cached_lugares", JSON.stringify(lugaresResponse.data));
+        }
 
         const activeTrip = activeTripResponse?.data;
 
         if (!activeTrip) {
+          localStorage.removeItem("cached_active_trip");
           stopTracking();
           return;
         }
@@ -418,6 +428,7 @@ const [cancelledTrip, setCancelledTrip] =
           destino: activeTrip.destino?.nombre
         };
 
+        localStorage.setItem("cached_active_trip", JSON.stringify(normalizedTrip));
         setCreatedTrip(normalizedTrip);
 
         if (activeTrip.estado === "EN_CURSO") {
@@ -447,8 +458,33 @@ const [cancelledTrip, setCancelledTrip] =
         );
         setMessageType("success");
       } catch (error) {
-        setMessage(error.message);
-        setMessageType("error");
+        console.warn("Error cargando catálogos iniciales, intentando usar caché offline:", error.message);
+        try {
+          const cCond = localStorage.getItem("cached_conductores");
+          const cVeh = localStorage.getItem("cached_vehiculos");
+          const cLug = localStorage.getItem("cached_lugares");
+          const cTrip = localStorage.getItem("cached_active_trip");
+
+          if (cCond) setConductores(JSON.parse(cCond));
+          if (cVeh) setVehiculos(JSON.parse(cVeh));
+          if (cLug) setLugares(JSON.parse(cLug));
+          if (cTrip) {
+            const parsedTrip = JSON.parse(cTrip);
+            setCreatedTrip(parsedTrip);
+            if (parsedTrip.estado === "EN_CURSO") {
+              setStartedTrip(parsedTrip);
+            }
+          }
+        } catch (cacheErr) {
+          console.warn("Error leyendo caché local:", cacheErr);
+        }
+        if (!navigator.onLine) {
+          setMessage("Modo sin conexión: mostrando datos de viaje guardados en este dispositivo.");
+          setMessageType("success");
+        } else {
+          setMessage(error.message);
+          setMessageType("error");
+        }
       } finally {
         setLoading(false);
       }
