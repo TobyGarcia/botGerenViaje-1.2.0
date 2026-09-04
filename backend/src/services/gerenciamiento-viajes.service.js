@@ -60,7 +60,6 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       const acompanantesFormateados = Array.isArray(data.acompanantes)
         ? data.acompanantes.map((nombre) => (typeof nombre === 'string' ? { nombre } : nombre))
         : [];
-
       const newTrip = await createTrip({
         idConductor,
         idVehiculo: Number(data.idVehiculo),
@@ -68,7 +67,8 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
         idDestino: Number(data.idDestino),
         acompanantes: acompanantesFormateados,
         kilometrajeInicial: Number(data.kilometraje || 0),
-        motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`
+        motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`,
+        esGerenciamiento: true
       });
       idViaje = newTrip.id_viajes || newTrip.idViaje || null;
     } catch (tripErr) {
@@ -86,7 +86,7 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
         danos: data.danos || {},
         observaciones: data.observacionesVehiculo || data.observaciones || null,
         firma: data.firmaConductor || null,
-        esDiaSiguiente: Boolean(data.esDiaSiguiente)
+        esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente)
       };
       await saveInspection({ idViaje, idConductor, data: inspPayload });
     } catch (inspErr) {
@@ -155,7 +155,7 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     data.placa || null,
     data.modelo || null,
     data.color || null,
-    data.vehiculoEmpresa !== undefined ? Boolean(data.vehiculoEmpresa) : true,
+    data.vehiculoEmpresa !== false,
     data.nombreContratista || null,
     data.numeroUnidad || null,
     idConductor,
@@ -165,12 +165,12 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     data.licenciaVencimiento || null,
     data.telefonoConductor || null,
     JSON.stringify(rutaPuntos),
-    Number(data.tiempoViajeHoras || 0),
-    JSON.stringify(data.acompanantes || []),
+    Number(data.tiempoViajeHoras || 1),
+    JSON.stringify(Array.isArray(data.acompanantes) ? data.acompanantes : []),
     JSON.stringify(sitiosReporte),
-    data.conocimientoRiesgosLocales !== undefined ? Boolean(data.conocimientoRiesgosLocales) : true,
-    data.prohibidoPersonalAjeno !== undefined ? Boolean(data.prohibidoPersonalAjeno) : true,
-    data.inspeccionVehiculoRealizada !== undefined ? Boolean(data.inspeccionVehiculoRealizada) : true,
+    data.conocimientoRiesgosLocales !== false,
+    data.prohibidoPersonalAjeno !== false,
+    data.inspeccionVehiculoRealizada !== false,
     Boolean(data.reunionPreCaravanaRealizada),
     riesgo.ptsDistancia,
     riesgo.ptsClima,
@@ -202,7 +202,10 @@ export async function getGerenciamientoById(idGerenciamiento) {
       i.checklist AS inspeccion_checklist,
       i.danos AS inspeccion_danos,
       i.observaciones_conductor AS inspeccion_observaciones,
-      i.estado AS inspeccion_estado
+      i.estado AS inspeccion_estado,
+      i.es_dia_siguiente AS inspeccion_es_dia_siguiente,
+      i.firma_conductor AS inspeccion_firma_conductor,
+      i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
@@ -222,7 +225,10 @@ export async function getGerenciamientoByViaje(idViaje) {
       i.checklist AS inspeccion_checklist,
       i.danos AS inspeccion_danos,
       i.observaciones_conductor AS inspeccion_observaciones,
-      i.estado AS inspeccion_estado
+      i.estado AS inspeccion_estado,
+      i.es_dia_siguiente AS inspeccion_es_dia_siguiente,
+      i.firma_conductor AS inspeccion_firma_conductor,
+      i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
@@ -269,7 +275,10 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
       i.checklist AS inspeccion_checklist,
       i.danos AS inspeccion_danos,
       i.observaciones_conductor AS inspeccion_observaciones,
-      i.estado AS inspeccion_estado
+      i.estado AS inspeccion_estado,
+      i.es_dia_siguiente AS inspeccion_es_dia_siguiente,
+      i.firma_conductor AS inspeccion_firma_conductor,
+      i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen

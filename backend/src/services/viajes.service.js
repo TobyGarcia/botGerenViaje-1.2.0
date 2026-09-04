@@ -13,6 +13,29 @@ function buildTripFolio(sequenceNumber) {
   return `VJ-${year}${month}${day}-${sequence}`;
 }
 
+function isOutsideOperatingHours() {
+  const now = new Date();
+  const timeZone = process.env.TZ || "America/Mexico_City";
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(now);
+    const hour = parseInt(parts.find((p) => p.type === "hour").value, 10);
+    const minute = parseInt(parts.find((p) => p.type === "minute").value, 10);
+    const currentTotal = hour * 60 + minute;
+    return currentTotal < 390 || currentTotal > 1080;
+  } catch (e) {
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const currentTotal = hours * 60 + minutes;
+    return currentTotal < 390 || currentTotal > 1080;
+  }
+}
+
 export async function createTrip({
   idConductor,
   idVehiculo,
@@ -20,8 +43,13 @@ export async function createTrip({
   idDestino,
   acompanantes,
   kilometrajeInicial,
-  motivo
+  motivo,
+  esGerenciamiento = false
 }) {
+  if (!esGerenciamiento && isOutsideOperatingHours()) {
+    throw new Error("El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
+  }
+
   const client = await databasePool.connect();
 
   try {

@@ -302,6 +302,10 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     setErrorMessage("");
     setSuccessMessage("");
 
+    if (!inspeccionCompleted) {
+      setErrorMessage("⛔ Debes realizar y completar la Inspección Vehicular Interactiva antes de registrar el Gerenciamiento de Viaje.");
+      return;
+    }
     if (!form.idOrigen && !form.origenTexto) {
       setErrorMessage("Por favor selecciona o especifica el Origen.");
       return;
@@ -339,7 +343,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         danos: {},
         observaciones: form.observacionesVehiculo || null,
         firma: firmaDataUrl,
-        esDiaSiguiente: false
+        esDiaSiguiente: Boolean(inspeccionData?.esDiaSiguiente)
       };
 
       const payload = {
@@ -688,7 +692,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 </strong>
                 <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
                   {inspeccionCompleted
-                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK | Firma de Conductor Capturada`
+                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK ${inspeccionData?.esDiaSiguiente ? " | 🌙 Programado Día Siguiente (24h anticipación)" : ""}`
                     : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
                 </p>
               </div>
@@ -718,10 +722,16 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
+          {!inspeccionCompleted && (
+            <div style={{ background: "#eff6ff", color: "#1d4ed8", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "14px", fontSize: "0.85rem", fontWeight: "bold" }}>
+              🔒 Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: "10px", opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones, animales)?</span>
-              <select name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
@@ -729,7 +739,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>2. ¿El conductor ha consumido medicamentos que producen somnolencia?</span>
-              <select name="medicamentosSomnolencia" value={form.medicamentosSomnolencia ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, medicamentosSomnolencia: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="medicamentosSomnolencia" value={form.medicamentosSomnolencia ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, medicamentosSomnolencia: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="false">NO (Normal)</option>
                 <option value="true">SÍ (Somnolencia)</option>
               </select>
@@ -737,7 +747,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>3. ¿El conductor ha dormido adecuadamente?</span>
-              <select name="dormidoAdecuadamente" value={form.dormidoAdecuadamente ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, dormidoAdecuadamente: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="dormidoAdecuadamente" value={form.dormidoAdecuadamente ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, dormidoAdecuadamente: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
@@ -745,7 +755,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>4. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
-              <select name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
@@ -753,7 +763,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</span>
-              <select name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="true">SÍ</option>
                 <option value="false">NO</option>
               </select>
@@ -761,7 +771,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <span>6. ¿Se realizó la reunión pre caravana? (Solo si viajan &gt;1 vehículo)</span>
-              <select name="reunionPreCaravanaRealizada" value={form.reunionPreCaravanaRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
+              <select disabled={!inspeccionCompleted} name="reunionPreCaravanaRealizada" value={form.reunionPreCaravanaRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
                 <option value="false">NO</option>
                 <option value="true">SÍ</option>
               </select>
@@ -770,13 +780,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 4. Tabuladores de Riesgo (COMPLETOS A, B, C, D, E, F, G) */}
-        <section className="geren-card">
+        <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
           <h4 className="geren-card-title">⚠️ 4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h4>
 
           <div className="geren-grid-2">
             <div className="geren-field">
               <label className="geren-field-label">A. Distancia a Recorrer</label>
-              <select name="ptsDistancia" value={form.ptsDistancia} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsDistancia" value={form.ptsDistancia} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Menos de 50 Km (1 pto)</option>
                 <option value={2}>Menos de 100 Km (2 ptos)</option>
                 <option value={5}>Menos de 200 Km (5 ptos)</option>
@@ -786,7 +796,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">B. Clima Esperado</label>
-              <select name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="geren-field-select">
                 <option value={2}>Seco / Condiciones Normales (2 ptos)</option>
                 <option value={4}>Lluvia suave (4 ptos)</option>
                 <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
@@ -796,7 +806,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">C. Vehículos y Personas</label>
-              <select name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>2+ Vehículos y 2+ Personas (1 pto)</option>
                 <option value={2}>2+ Vehículos y 1+ Persona (2 ptos)</option>
                 <option value={3}>1 Vehículo y 2+ Personas (3 ptos)</option>
@@ -806,7 +816,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">D. Condiciones de la Vía</label>
-              <select name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Pavimentada (1 pto)</option>
                 <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
                 <option value={4}>No Pavimentada / Terregal (4 ptos)</option>
@@ -815,7 +825,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">E. Cobertura Comunicaciones</label>
-              <select name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} className="geren-field-select">
                 <option value={0}>Teléfono Celular con Señal (0 ptos)</option>
                 <option value={2}>Sin comunicación y Viaje en Caravana (2 ptos)</option>
                 <option value={4}>Sin comunicación y Viaje en Solitario (4 ptos)</option>
@@ -824,7 +834,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">F. Horas Trabajadas + Viaje</label>
-              <select name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Menos de 12 horas acumuladas (1 pto)</option>
                 <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
                 <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
@@ -834,7 +844,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">G. Hora del Traslado</label>
-              <select name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleInputChange} className="geren-field-select">
+              <select disabled={!inspeccionCompleted} name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleInputChange} className="geren-field-select">
                 <option value={1}>Día (06:00 a 18:00 hrs) (1 pto)</option>
                 <option value={8}>Noche (18:00 a 06:00 hrs) (8 ptos)</option>
               </select>
@@ -860,7 +870,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </section>
 
         {/* 5. Firma Digital Conductor */}
-        <section className="geren-card">
+        <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
           <h4 className="geren-card-title">✍️ 5. Firma Digital del Conductor *</h4>
           <p style={{ margin: "0 0 10px", fontSize: "0.82rem", color: "#64748b" }}>
             Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás apto para conducir.
@@ -871,14 +881,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               ref={canvasRef}
               width={640}
               height={150}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
-              style={{ width: "100%", height: "130px", touchAction: "none", cursor: "crosshair" }}
+              onMouseDown={inspeccionCompleted ? startDrawing : undefined}
+              onMouseMove={inspeccionCompleted ? draw : undefined}
+              onMouseUp={inspeccionCompleted ? stopDrawing : undefined}
+              onMouseLeave={inspeccionCompleted ? stopDrawing : undefined}
+              onTouchStart={inspeccionCompleted ? startDrawing : undefined}
+              onTouchMove={inspeccionCompleted ? draw : undefined}
+              onTouchEnd={inspeccionCompleted ? stopDrawing : undefined}
+              style={{ width: "100%", height: "130px", touchAction: "none", cursor: inspeccionCompleted ? "crosshair" : "not-allowed" }}
             />
           </div>
 
@@ -889,8 +899,8 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             <button
               type="button"
               onClick={clearSignature}
-              disabled={!hasSignature}
-              style={{ background: "#e2e8f0", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
+              disabled={!hasSignature || !inspeccionCompleted}
+              style={{ background: "#e2e8f0", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: (!hasSignature || !inspeccionCompleted) ? "not-allowed" : "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
             >
               Limpiar Firma
             </button>
@@ -912,17 +922,17 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
           <button
             type="submit"
-            disabled={submitting || esBloqueante}
+            disabled={submitting || esBloqueante || !inspeccionCompleted}
             style={{
-              background: esBloqueante ? "#94a3b8" : "#16a34a",
+              background: (esBloqueante || !inspeccionCompleted) ? "#94a3b8" : "#16a34a",
               color: "#ffffff",
               border: 0,
               padding: "14px 32px",
               borderRadius: "10px",
               fontWeight: "bold",
               fontSize: "0.98rem",
-              cursor: esBloqueante ? "not-allowed" : "pointer",
-              boxShadow: esBloqueante ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)"
+              cursor: (esBloqueante || !inspeccionCompleted) ? "not-allowed" : "pointer",
+              boxShadow: (esBloqueante || !inspeccionCompleted) ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)"
             }}
           >
             {submitting ? "Enviando Solicitud..." : "🚀 Registrar Gerenciamiento e Inspección"}

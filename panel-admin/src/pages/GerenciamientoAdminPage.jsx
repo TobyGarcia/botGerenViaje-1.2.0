@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import { getAdminUsuarios } from "../services/api.js";
+import DamageViewer from "../components/DamageViewer.jsx";
 
 function ApprovalSignature({ onChange }) {
   const canvasRef = useRef(null);
@@ -1081,12 +1082,65 @@ export default function GerenciamientoAdminPage({ user }) {
                 </div>
               </div>
 
-              {/* Inspección Integrada */}
-              {selectedDoc.inspeccion_id && (
-                <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "6px 8px", marginTop: "4px", fontSize: "0.72rem", color: "#0369a1" }}>
-                  <strong>🚗 Inspección Vehicular Integrada:</strong> Combustible: <strong>{selectedDoc.inspeccion_combustible || "3/4"}</strong> | Estado Inspección: <strong>{selectedDoc.inspeccion_estado || selectedDoc.estado}</strong>
+              {/* Inspección Vehicular Integrada Completa */}
+              <div style={{ marginTop: "12px", border: "1.5px solid #0284c7", borderRadius: "8px", padding: "12px", background: "#f0f9ff" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                  <h3 style={{ margin: 0, color: "#0369a1", fontSize: "0.95rem", fontWeight: "800" }}>
+                    🚗 Inspección Vehicular Integrada
+                  </h3>
+                  {(selectedDoc.inspeccion_es_dia_siguiente || selectedDoc.es_dia_siguiente) && (
+                    <span style={{ background: "#2563eb", color: "#ffffff", padding: "4px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold" }}>
+                      🌙 Programado con 24h Anticipación (Día Siguiente 4:00 AM - 7:00 AM)
+                    </span>
+                  )}
                 </div>
-              )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", fontSize: "0.78rem", marginBottom: "10px", background: "#ffffff", padding: "8px", borderRadius: "6px", border: "1px solid #bae6fd" }}>
+                  <div><strong>Combustible:</strong> {selectedDoc.inspeccion_combustible || selectedDoc.combustible || "3/4"}</div>
+                  <div><strong>Estado Inspección:</strong> <span style={{ fontWeight: "bold", color: "#0284c7" }}>{selectedDoc.inspeccion_estado || selectedDoc.estado || "REGISTRADA"}</span></div>
+                  <div><strong>Fecha Operativa:</strong> {selectedDoc.inspeccion_fecha_operativa || String(selectedDoc.fecha_emision || "").split("T")[0]}</div>
+                </div>
+
+                {/* Componente de Visualizador de Daños */}
+                <div style={{ background: "#ffffff", padding: "10px", borderRadius: "6px", border: "1px solid #bae6fd", marginBottom: "10px" }}>
+                  <DamageViewer
+                    damages={selectedDoc.inspeccion_danos || {}}
+                    vehicle={selectedDoc.tipo_vehiculo || selectedDoc.numero_unidad || "Vehículo"}
+                  />
+                </div>
+
+                {/* Checklist si existe */}
+                {selectedDoc.inspeccion_checklist && typeof selectedDoc.inspeccion_checklist === 'object' && Object.keys(selectedDoc.inspeccion_checklist).length > 0 && (
+                  <div style={{ background: "#ffffff", padding: "10px", borderRadius: "6px", border: "1px solid #bae6fd", marginBottom: "10px" }}>
+                    <strong style={{ fontSize: "0.82rem", color: "#0f172a", display: "block", marginBottom: "6px" }}>📋 Checklist de Componentes Inspeccionados:</strong>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", maxHeight: "180px", overflowY: "auto", fontSize: "0.78rem" }}>
+                      {Object.entries(selectedDoc.inspeccion_checklist).map(([item, state]) => (
+                        <div key={item} style={{ display: "flex", justifyContent: "space-between", background: "#f8fafc", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                          <span>{item}</span>
+                          <span style={{ fontWeight: "bold", color: state === "B" ? "#166534" : state === "M" ? "#991b1b" : "#854d0e" }}>
+                            {state === "B" ? "Bueno (B)" : state === "R" ? "Regular (R)" : state === "M" ? "Malo (M)" : state}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Observaciones y Firma */}
+                {(selectedDoc.inspeccion_observaciones || selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor) && (
+                  <div style={{ background: "#ffffff", padding: "8px", borderRadius: "6px", border: "1px solid #bae6fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: "0.78rem" }}>
+                      <strong>Observaciones Inspección:</strong> {selectedDoc.inspeccion_observaciones || "Sin observaciones."}
+                    </div>
+                    {(selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor) && (
+                      <div style={{ textAlign: "center" }}>
+                        <img src={selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor} alt="Firma Inspección" style={{ maxHeight: "32px" }} />
+                        <small style={{ display: "block", fontSize: "0.68rem", fontWeight: "bold" }}>Firma Conductor</small>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Acciones del Modal */}

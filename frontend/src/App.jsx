@@ -755,8 +755,24 @@ async function handleAddIntermediatePoint() {
     setMessage("");
   }
 
+function isOutsideOperatingHours() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentTotal = hours * 60 + minutes;
+  const startTotal = 6 * 60 + 30; // 06:30 -> 390
+  const endTotal = 18 * 60;       // 18:00 -> 1080
+  return currentTotal < startTotal || currentTotal > endTotal;
+}
+
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (isOutsideOperatingHours()) {
+      triggerModalError("⛔ El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
+      setActiveTabMode("gerenciamiento");
+      return;
+    }
 
     if (savingRef.current) {
       return;
@@ -1167,7 +1183,24 @@ async function handleAddIntermediatePoint() {
       )}
 
       {!createdTrip && activeTabMode === "urban" && (
-        <form onSubmit={handleSubmit}>
+        <>
+          {isOutsideOperatingHours() && (
+            <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.88rem" }}>
+              <strong>⚠️ Fuera de Horario Operativo Urbano (6:30 AM - 6:00 PM)</strong>
+              <p style={{ margin: "4px 0 8px 0", fontSize: "0.82rem", color: "#475569" }}>
+                Los viajes locales solo pueden registrarse de 6:30 AM a 6:00 PM. Después de este horario se debe realizar un Gerenciamiento de Viaje.
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveTabMode("gerenciamiento")}
+                style={{ background: "#ea580c", color: "#ffffff", border: 0, padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.82rem" }}
+              >
+                🗺️ Ir a Gerenciamiento de Viajes
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
           <section className="information-panel" aria-label="Conductor autenticado">
             <p><strong>Conductor:</strong> {telegramAuth.conductor.nombre}</p>
             <p><strong>Licencia:</strong>{" "}
@@ -1435,6 +1468,7 @@ async function handleAddIntermediatePoint() {
           {saving ? "Guardando..." : "Crear viaje"}
         </button>
         </form>
+        </>
       )}
 
      
