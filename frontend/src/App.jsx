@@ -271,11 +271,13 @@ const [cancelledTrip, setCancelledTrip] =
   const [showConductorRegister, setShowConductorRegister] = useState(false);
   const [onlineRefreshVersion, setOnlineRefreshVersion] = useState(0);
 
-  function handlePinLoginSuccess(conductor) {
+  function handlePinLoginSuccess(conductor, token) {
     const normalized = normalizeConductor(conductor);
     if (normalized) {
       localStorage.setItem("cached_driver", JSON.stringify(normalized));
     }
+    const tokenToSave = token || localStorage.getItem("driver_token") || `driver_session_${normalized?.id_conductores || "active"}`;
+    localStorage.setItem("driver_token", tokenToSave);
     setTelegramAuth({
       authenticated: true,
       registered: true,
@@ -327,14 +329,24 @@ const [cancelledTrip, setCancelledTrip] =
     dateStyle: "long"
   }).format(new Date());
 
-  // Soporte PWA Offline y Telegram Mini App: autenticación automática por initData o restauración de sesión previa
+  // Soporte PWA Offline y Telegram Mini App: mantener la sesión iniciada sin volver a pedir PIN al quedar sin red
   useEffect(() => {
     let active = true;
     const token = localStorage.getItem("driver_token");
     const cachedDriver = getCachedJson("cached_driver", null);
     const telegramInitData = window.Telegram?.WebApp?.initData || "";
 
-    if (token && cachedDriver) {
+    // Si ya existe un perfil de conductor guardado localmente en este celular:
+    if (cachedDriver) {
+      if (!token) {
+        localStorage.setItem("driver_token", `driver_session_${cachedDriver.id_conductores || "active"}`);
+      }
+      setTelegramAuth({
+        authenticated: true,
+        registered: true,
+        estadoRegistro: "COMPLETO",
+        conductor: cachedDriver
+      });
       setTelegramAuthLoading(false);
       setShowPinLogin(false);
       return () => { active = false; };
@@ -346,7 +358,7 @@ const [cancelledTrip, setCancelledTrip] =
         .then((response) => {
           if (!active) return;
           if (response?.data?.authenticated && response?.data?.registered && response?.data?.conductor) {
-            handlePinLoginSuccess(response.data.conductor);
+            handlePinLoginSuccess(response.data.conductor, response.data.token);
           } else if (response?.data?.authenticated && !response?.data?.registered) {
             setShowConductorRegister(true);
             setShowPinLogin(false);

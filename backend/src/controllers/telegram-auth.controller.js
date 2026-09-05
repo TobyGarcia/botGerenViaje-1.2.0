@@ -7,6 +7,7 @@ import {
 import {
   validateTelegramInitData
 } from "../utils/telegram-init-data.js";
+import { createDriverSessionToken } from "../utils/driver-session.js";
 import { sendDriverRegistrationSupervisorAlert } from "../bot/bot.js";
 
 
@@ -50,6 +51,8 @@ export async function authenticateTelegramController(
           .id_conductores
       );
 
+    const token = result.conductor ? createDriverSessionToken(result.conductor) : null;
+
     return response
       .status(200)
       .json({
@@ -58,6 +61,7 @@ export async function authenticateTelegramController(
         data: {
           authenticated: true,
           registered,
+          token,
 
           estadoRegistro:
             result.telegramUser
