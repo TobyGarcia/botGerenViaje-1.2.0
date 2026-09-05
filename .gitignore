@@ -43,3 +43,10 @@ Thumbs.db
 # PostgreSQL local
 postgres_data/
 
+# Archivos de desarrollo/despliegue secundarios (solo se usa compose.prod.yml en producción)
+compose.yml
+ngrok.yml
+ngrok-entrypoint.sh
+render.yaml
+
+

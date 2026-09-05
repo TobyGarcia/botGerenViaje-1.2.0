@@ -21,7 +21,8 @@ import {
   getGerenciamientoViajePorViaje,
   registrarReporteHoraGerenciamiento,
   getDriverSession,
-  logoutDriver
+  logoutDriver,
+  autenticarTelegram
 } from "./services/api.js";
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
@@ -326,15 +327,39 @@ const [cancelledTrip, setCancelledTrip] =
     dateStyle: "long"
   }).format(new Date());
 
-  // Soporte PWA Offline: restaurar sesión previa si el conductor ya inició sesión antes
+  // Soporte PWA Offline y Telegram Mini App: autenticación automática por initData o restauración de sesión previa
   useEffect(() => {
     let active = true;
     const token = localStorage.getItem("driver_token");
     const cachedDriver = getCachedJson("cached_driver", null);
+    const telegramInitData = window.Telegram?.WebApp?.initData || "";
 
     if (token && cachedDriver) {
       setTelegramAuthLoading(false);
       setShowPinLogin(false);
+      return () => { active = false; };
+    }
+
+    // Si se está ejecutando dentro de Telegram Mini App y hay initData disponible
+    if (telegramInitData && navigator.onLine) {
+      autenticarTelegram(telegramInitData)
+        .then((response) => {
+          if (!active) return;
+          if (response?.data?.authenticated && response?.data?.registered && response?.data?.conductor) {
+            handlePinLoginSuccess(response.data.conductor);
+          } else if (response?.data?.authenticated && !response?.data?.registered) {
+            setShowConductorRegister(true);
+            setShowPinLogin(false);
+          } else {
+            setShowPinLogin(true);
+          }
+        })
+        .catch(() => {
+          if (active) setShowPinLogin(true);
+        })
+        .finally(() => {
+          if (active) setTelegramAuthLoading(false);
+        });
       return () => { active = false; };
     }
 
@@ -448,10 +473,10 @@ const [cancelledTrip, setCancelledTrip] =
           lugaresResponse,
           activeTripResponse
         ] = await Promise.all([
-          getConductores().catch(() => null),
-          getVehiculos().catch(() => null),
-          getLugares().catch(() => null),
-          getViajeActivo().catch(() => ({ data: null }))
+          getConductores().catch((err) => ({ _error: err, data: null })),
+          getVehiculos().catch((err) => ({ _error: err, data: null })),
+          getLugares().catch((err) => ({ _error: err, data: null })),
+          getViajeActivo().catch((err) => ({ _error: err, data: null }))
         ]);
 
         if (conductoresResponse?.data) {
@@ -465,6 +490,24 @@ const [cancelledTrip, setCancelledTrip] =
         if (lugaresResponse?.data) {
           setLugares(lugaresResponse.data);
           localStorage.setItem("cached_lugares", JSON.stringify(lugaresResponse.data));
+        }
+
+        // Si la petición a /api/viajes/activo falló por error de red/tiempo de espera
+        if (activeTripResponse?._error) {
+          console.warn("Error de red al consultar viaje activo:", activeTripResponse._error?.message);
+          const cachedActive = getCachedJson("cached_active_trip", null);
+          if (cachedActive) {
+            setCreatedTrip(cachedActive);
+            if (cachedActive.estado === "EN_CURSO") {
+              setStartedTrip(cachedActive);
+              setKilometrajeFinal(String(cachedActive.kilometrajeInicial ?? cachedActive.kilometraje_inicial ?? ""));
+              setGpsStatus("Reanudando seguimiento GPS en modo sin conexión...");
+              void startTracking(cachedActive.idViaje).catch(() => {});
+            }
+            setMessage("Modo sin conexión: mostrando datos del viaje guardados en este dispositivo.");
+            setMessageType("success");
+          }
+          return;
         }
 
         const activeTrip = activeTripResponse?.data;
@@ -941,13 +984,16 @@ function isOutsideOperatingHours() {
         motivo: form.motivo.trim()
       });
 
-      setCreatedTrip({
+      const createdData = {
         ...response.data,
+        idViaje: response.data.idViaje || response.data.id_viajes,
         kilometrajeInicial:
           response.data.kilometrajeInicial ??
           response.data.kilometraje_inicial ??
           kilometrajeInicial
-      });
+      };
+      setCreatedTrip(createdData);
+      localStorage.setItem("cached_active_trip", JSON.stringify(createdData));
       setMessage(`Viaje creado correctamente. Folio: ${response.data.folio}`);
       setMessageType("success");
       setForm({
@@ -1011,6 +1057,7 @@ function isOutsideOperatingHours() {
 
       setStartedTrip(normalizedTrip);
       setCreatedTrip(normalizedTrip);
+      localStorage.setItem("cached_active_trip", JSON.stringify(normalizedTrip));
       setKilometrajeFinal(
         String(
           normalizedTrip.kilometrajeInicial ??
