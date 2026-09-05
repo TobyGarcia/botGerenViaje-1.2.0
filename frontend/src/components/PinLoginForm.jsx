@@ -9,10 +9,22 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [loading, setLoading] = useState(false);
 
   async function digestPin(value) {
-    if (!window.crypto?.subtle) return null;
-    const bytes = new TextEncoder().encode(`gerenciamiento-viajes:${value}`);
-    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    try {
+      if (window.crypto?.subtle) {
+        const bytes = new TextEncoder().encode(`gerenciamiento-viajes:${value}`);
+        const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+        return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      }
+    } catch {
+      // Continuar a fallback
+    }
+    let hash = 0;
+    const str = `geren_pin_${value}`;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `fb_${Math.abs(hash)}`;
   }
 
   const handleKeyPress = (digit) => {
@@ -51,8 +63,11 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
       const result = await loginConductorConPin(pinToVerify);
 
       if (result.success && result.data?.token) {
-        // Almacenar token de sesión de la app
+        // Almacenar token y perfil de conductor
         localStorage.setItem("driver_token", result.data.token);
+        if (result.data.conductor) {
+          localStorage.setItem("cached_driver", JSON.stringify(result.data.conductor));
+        }
         const pinDigest = await digestPin(pinToVerify);
         if (pinDigest) localStorage.setItem("offline_driver_pin_digest", pinDigest);
         if (onSuccess) {

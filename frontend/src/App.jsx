@@ -74,6 +74,15 @@ function formatDate(value) {
   });
 }
 
+function getCachedJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function normalizeConductor(conductor) {
   if (!conductor) {
     return conductor;
@@ -88,18 +97,34 @@ function normalizeConductor(conductor) {
 }
 
 function App() {
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => {
+    const cached = getCachedJson("cached_driver", null);
+    return {
+      ...initialForm,
+      idConductor: cached?.id_conductores ? String(cached.id_conductores) : ""
+    };
+  });
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
-  const [conductores, setConductores] = useState([]);
-  const [vehiculos, setVehiculos] = useState([]);
-  const [lugares, setLugares] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [conductores, setConductores] = useState(() => getCachedJson("cached_conductores", []));
+  const [vehiculos, setVehiculos] = useState(() => getCachedJson("cached_vehiculos", []));
+  const [lugares, setLugares] = useState(() => getCachedJson("cached_lugares", []));
+  const [loading, setLoading] = useState(() => {
+    const token = localStorage.getItem("driver_token");
+    const cached = getCachedJson("cached_driver", null);
+    const cLug = getCachedJson("cached_lugares", []);
+    const cVeh = getCachedJson("cached_vehiculos", []);
+    const hasCachedCatalogs = cLug.length > 0 && cVeh.length > 0;
+    return Boolean(token && cached && !hasCachedCatalogs);
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
-  const [createdTrip, setCreatedTrip] = useState(null);
+  const [createdTrip, setCreatedTrip] = useState(() => getCachedJson("cached_active_trip", null));
   const [startingTrip, setStartingTrip] = useState(false);
-  const [startedTrip, setStartedTrip] = useState(null);
+  const [startedTrip, setStartedTrip] = useState(() => {
+    const trip = getCachedJson("cached_active_trip", null);
+    return trip?.estado === "EN_CURSO" ? trip : null;
+  });
   const savingRef = useRef(false);
   const startingTripRef = useRef(false);
   const geolocationWatchRef = useRef(null);
@@ -216,10 +241,32 @@ const [cancelledTrip, setCancelledTrip] =
     }
   }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
 
-  const [telegramAuth, setTelegramAuth] = useState(null);
-  const [telegramAuthLoading, setTelegramAuthLoading] = useState(true);
+  const [telegramAuth, setTelegramAuth] = useState(() => {
+    const token = localStorage.getItem("driver_token");
+    const cached = getCachedJson("cached_driver", null);
+    if (token && cached) {
+      return {
+        authenticated: true,
+        registered: true,
+        estadoRegistro: "COMPLETO",
+        conductor: cached
+      };
+    }
+    return null;
+  });
+  const [telegramAuthLoading, setTelegramAuthLoading] = useState(() => {
+    const token = localStorage.getItem("driver_token");
+    const cached = getCachedJson("cached_driver", null);
+    if (token && cached) return false;
+    if (!token) return false;
+    return true;
+  });
   const [telegramAuthError, setTelegramAuthError] = useState("");
-  const [showPinLogin, setShowPinLogin] = useState(false);
+  const [showPinLogin, setShowPinLogin] = useState(() => {
+    const token = localStorage.getItem("driver_token");
+    const cached = getCachedJson("cached_driver", null);
+    return !(token && cached);
+  });
   const [showConductorRegister, setShowConductorRegister] = useState(false);
   const [onlineRefreshVersion, setOnlineRefreshVersion] = useState(0);
 
@@ -283,26 +330,11 @@ const [cancelledTrip, setCancelledTrip] =
   useEffect(() => {
     let active = true;
     const token = localStorage.getItem("driver_token");
-    const cachedDriverRaw = localStorage.getItem("cached_driver");
-
-    let cachedDriver = null;
-    if (cachedDriverRaw) {
-      try {
-        cachedDriver = JSON.parse(cachedDriverRaw);
-      } catch {
-        cachedDriver = null;
-      }
-    }
+    const cachedDriver = getCachedJson("cached_driver", null);
 
     if (token && cachedDriver) {
-      setTelegramAuth({
-        authenticated: true,
-        registered: true,
-        estadoRegistro: "COMPLETO",
-        conductor: cachedDriver
-      });
-      setShowPinLogin(false);
       setTelegramAuthLoading(false);
+      setShowPinLogin(false);
       return () => { active = false; };
     }
 
@@ -402,7 +434,13 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     async function loadInitialData() {
-      setLoading(true);
+      const cCond = getCachedJson("cached_conductores", []);
+      const cVeh = getCachedJson("cached_vehiculos", []);
+      const cLug = getCachedJson("cached_lugares", []);
+      const hasCached = cCond.length > 0 && cVeh.length > 0 && cLug.length > 0;
+      if (!hasCached) {
+        setLoading(true);
+      }
       try {
         const [
           conductoresResponse,
@@ -410,9 +448,9 @@ const [cancelledTrip, setCancelledTrip] =
           lugaresResponse,
           activeTripResponse
         ] = await Promise.all([
-          getConductores(),
-          getVehiculos(),
-          getLugares(),
+          getConductores().catch(() => null),
+          getVehiculos().catch(() => null),
+          getLugares().catch(() => null),
           getViajeActivo().catch(() => ({ data: null }))
         ]);
 
@@ -433,6 +471,8 @@ const [cancelledTrip, setCancelledTrip] =
 
         if (!activeTrip) {
           localStorage.removeItem("cached_active_trip");
+          setCreatedTrip(null);
+          setStartedTrip(null);
           stopTracking();
           return;
         }
@@ -486,26 +526,7 @@ const [cancelledTrip, setCancelledTrip] =
         );
         setMessageType("success");
       } catch (error) {
-        console.warn("Error cargando catálogos iniciales, intentando usar caché offline:", error.message);
-        try {
-          const cCond = localStorage.getItem("cached_conductores");
-          const cVeh = localStorage.getItem("cached_vehiculos");
-          const cLug = localStorage.getItem("cached_lugares");
-          const cTrip = localStorage.getItem("cached_active_trip");
-
-          if (cCond) setConductores(JSON.parse(cCond));
-          if (cVeh) setVehiculos(JSON.parse(cVeh));
-          if (cLug) setLugares(JSON.parse(cLug));
-          if (cTrip) {
-            const parsedTrip = JSON.parse(cTrip);
-            setCreatedTrip(parsedTrip);
-            if (parsedTrip.estado === "EN_CURSO") {
-              setStartedTrip(parsedTrip);
-            }
-          }
-        } catch (cacheErr) {
-          console.warn("Error leyendo caché local:", cacheErr);
-        }
+        console.warn("Error cargando catálogos iniciales, usando datos locales:", error.message);
         if (!navigator.onLine) {
           setMessage("Modo sin conexión: mostrando datos de viaje guardados en este dispositivo.");
           setMessageType("success");

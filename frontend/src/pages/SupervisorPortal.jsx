@@ -39,6 +39,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [gerenciamientos, setGerenciamientos] = useState([]);
   const [gerenciamientoDetail, setGerenciamientoDetail] = useState(null);
   const [autorizadorNombre, setAutorizadorNombre] = useState(access.supervisorNombre || "Supervisor");
+  const [subTabGerencia, setSubTabGerencia] = useState("PENDIENTE");
 
   // Asignaciones state
   const [conductores, setConductores] = useState([]);
@@ -194,7 +195,6 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
 
   const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
-  const [subTabGerencia, setSubTabGerencia] = useState("PENDIENTE");
 
   return (
     <main className="container">
