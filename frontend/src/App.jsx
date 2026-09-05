@@ -305,7 +305,7 @@ const [cancelledTrip, setCancelledTrip] =
     stopTracking();
     localStorage.removeItem("driver_token");
     localStorage.removeItem("cached_driver");
-    localStorage.removeItem("offline_driver_pin_digest");
+    // Conservar offline_driver_pin_digest para permitir volver a ingresar con PIN sin conexión
     setTelegramAuth(null);
     setCreatedTrip(null);
     setStartedTrip(null);
