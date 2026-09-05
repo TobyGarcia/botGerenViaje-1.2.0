@@ -8,6 +8,13 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function digestPin(value) {
+    if (!window.crypto?.subtle) return null;
+    const bytes = new TextEncoder().encode(`gerenciamiento-viajes:${value}`);
+    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
   const handleKeyPress = (digit) => {
     if (loading) return;
     if (pin.length < 4) {
@@ -46,6 +53,8 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
       if (result.success && result.data?.token) {
         // Almacenar token de sesión de la app
         localStorage.setItem("driver_token", result.data.token);
+        const pinDigest = await digestPin(pinToVerify);
+        if (pinDigest) localStorage.setItem("offline_driver_pin_digest", pinDigest);
         if (onSuccess) {
           onSuccess(result.data.conductor);
         }
@@ -54,10 +63,16 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         setPin("");
       }
     } catch (err) {
-      const isNetworkError = !navigator.onLine || err.message?.includes("Failed to fetch") || err.message?.includes("fetch");
+      const isNetworkError = !navigator.onLine ||
+        err.code === "NETWORK_ERROR" ||
+        err.code === "NETWORK_TIMEOUT" ||
+        err.message?.includes("Failed to fetch") ||
+        err.message?.includes("fetch");
       if (isNetworkError) {
         const cachedDriverRaw = localStorage.getItem("cached_driver");
-        if (cachedDriverRaw) {
+        const savedPinDigest = localStorage.getItem("offline_driver_pin_digest");
+        const enteredPinDigest = await digestPin(pinToVerify);
+        if (cachedDriverRaw && savedPinDigest && enteredPinDigest === savedPinDigest) {
           try {
             const cachedDriver = JSON.parse(cachedDriverRaw);
             if (onSuccess) {
@@ -204,4 +219,3 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
     </div>
   );
 }
-

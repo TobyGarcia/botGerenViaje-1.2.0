@@ -46,7 +46,12 @@ async function request(path, options = {}) {
     return data;
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new Error("Tiempo de espera agotado al conectar con el servidor.");
+      const timeoutError = new Error("Tiempo de espera agotado al conectar con el servidor.");
+      timeoutError.code = "NETWORK_TIMEOUT";
+      throw timeoutError;
+    }
+    if (err instanceof TypeError) {
+      err.code = "NETWORK_ERROR";
     }
     throw err;
   } finally {

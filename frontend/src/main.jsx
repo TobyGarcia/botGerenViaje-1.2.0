@@ -5,14 +5,6 @@ import App from './App.jsx'
 import SupervisorApp from './SupervisorApp.jsx'
 import EvaluacionApp from './pages/EvaluacionApp.jsx'
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((err) => {
-      console.warn('Registro de Service Worker falló:', err);
-    });
-  });
-}
-
 const pathname = window.location.pathname;
 const urlParams = new URLSearchParams(window.location.search);
 const stateParam = urlParams.get("state");

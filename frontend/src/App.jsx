@@ -221,6 +221,7 @@ const [cancelledTrip, setCancelledTrip] =
   const [telegramAuthError, setTelegramAuthError] = useState("");
   const [showPinLogin, setShowPinLogin] = useState(false);
   const [showConductorRegister, setShowConductorRegister] = useState(false);
+  const [onlineRefreshVersion, setOnlineRefreshVersion] = useState(0);
 
   function handlePinLoginSuccess(conductor) {
     const normalized = normalizeConductor(conductor);
@@ -254,6 +255,7 @@ const [cancelledTrip, setCancelledTrip] =
     stopTracking();
     localStorage.removeItem("driver_token");
     localStorage.removeItem("cached_driver");
+    localStorage.removeItem("offline_driver_pin_digest");
     setTelegramAuth(null);
     setCreatedTrip(null);
     setStartedTrip(null);
@@ -279,6 +281,7 @@ const [cancelledTrip, setCancelledTrip] =
 
   // Soporte PWA Offline: restaurar sesión previa si el conductor ya inició sesión antes
   useEffect(() => {
+    let active = true;
     const token = localStorage.getItem("driver_token");
     const cachedDriverRaw = localStorage.getItem("cached_driver");
 
@@ -299,10 +302,30 @@ const [cancelledTrip, setCancelledTrip] =
         conductor: cachedDriver
       });
       setShowPinLogin(false);
+      setTelegramAuthLoading(false);
+      return () => { active = false; };
+    }
+
+    // Recuperar y persistir el perfil si hay token pero una versión anterior
+    // de la PWA todavía no había creado cached_driver.
+    if (token && navigator.onLine) {
+      getDriverSession()
+        .then((response) => {
+          if (!active || !response?.data?.conductor) return;
+          handlePinLoginSuccess(response.data.conductor);
+        })
+        .catch(() => {
+          if (active) setShowPinLogin(true);
+        })
+        .finally(() => {
+          if (active) setTelegramAuthLoading(false);
+        });
     } else {
       setShowPinLogin(true);
+      setTelegramAuthLoading(false);
     }
-    setTelegramAuthLoading(false);
+
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -445,8 +468,13 @@ const [cancelledTrip, setCancelledTrip] =
             }));
           }
 
+          // La geolocalización puede requerir permiso o tardar. No debe bloquear
+          // la carga de la pantalla ni mantener la PWA en "Cargando catálogos".
           setGpsStatus("Reanudando seguimiento GPS...");
-          await startTracking(activeTrip.idViaje);
+          void startTracking(activeTrip.idViaje).catch((trackingError) => {
+            console.warn("No fue posible iniciar el seguimiento GPS:", trackingError);
+            setGpsStatus("GPS pendiente de autorización.");
+          });
         } else {
           stopTracking();
         }
@@ -491,7 +519,7 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     loadInitialData();
-  }, [telegramAuth?.conductor?.id_conductores]);
+  }, [telegramAuth?.conductor?.id_conductores, onlineRefreshVersion]);
 
   useEffect(() => {
     setTrackingStatusListener((update) => {
@@ -525,6 +553,9 @@ const [cancelledTrip, setCancelledTrip] =
     function syncWhenOnline() {
       const idViaje = startedTrip?.idViaje ?? createdTrip?.idViaje;
       if (idViaje) syncPendingLocations(idViaje);
+      // Refrescar catálogos, viaje activo, inspección y estado operativo.
+      // Antes sólo se sincronizaba GPS y la pantalla quedaba con datos antiguos.
+      setOnlineRefreshVersion((current) => current + 1);
     }
 
     document.addEventListener("visibilitychange", resumeWhenVisible);
