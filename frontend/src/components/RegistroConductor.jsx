@@ -7,7 +7,6 @@ import {
   registrarConductorTelegram
 } from "../services/api.js";
 import { compressImageToMaxKb } from "../utils/imageCompressor.js";
-import CameraModal from "./CameraModal.jsx";
 
 function getInitialName(usuario) {
   return [usuario?.firstName, usuario?.lastName]
@@ -35,7 +34,6 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
 
   const [licenciaFrente, setLicenciaFrente] = useState({ name: "", preview: "", base64: "", sizeKb: 0, isPdf: false, compressing: false });
   const [licenciaReverso, setLicenciaReverso] = useState({ name: "", preview: "", base64: "", sizeKb: 0, isPdf: false, compressing: false });
-  const [activeCameraSide, setActiveCameraSide] = useState(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -71,14 +69,6 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     const file = event.target.files?.[0];
     if (!file) return;
     await processFile(side, file);
-  }
-
-  async function handleCameraCapture(file) {
-    const side = activeCameraSide;
-    setActiveCameraSide(null);
-    if (side && file) {
-      await processFile(side, file);
-    }
   }
 
   function updateExpiry(part, value) {
@@ -174,13 +164,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
           <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Frente) *</legend>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
-            <button
-              type="button"
-              onClick={() => setActiveCameraSide("frente")}
-              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600" }}
-            >
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
               📷 Tomar foto (Cámara)
-            </button>
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => handleLicenseFileChange("frente", e)} style={{ display: "none" }} />
+            </label>
             <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
               📁 Elegir archivo
               <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("frente", e)} style={{ display: "none" }} />
@@ -207,13 +194,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
           <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Reverso / Trasero)</legend>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
-            <button
-              type="button"
-              onClick={() => setActiveCameraSide("reverso")}
-              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600" }}
-            >
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
               📷 Tomar foto (Cámara)
-            </button>
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => handleLicenseFileChange("reverso", e)} style={{ display: "none" }} />
+            </label>
             <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
               📁 Elegir archivo
               <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("reverso", e)} style={{ display: "none" }} />
@@ -248,13 +232,6 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
       </form>
 
       {error && <p className="message message-error" role="alert">{error}</p>}
-
-      {activeCameraSide && (
-        <CameraModal
-          onCapture={handleCameraCapture}
-          onClose={() => setActiveCameraSide(null)}
-        />
-      )}
     </main>
   );
 }
