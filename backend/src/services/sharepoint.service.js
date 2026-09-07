@@ -249,3 +249,58 @@ export async function uploadGerenciamientoPdfToSharePoint({ filename, pdfBuffer,
   return uploadPdfToSharePoint({ filename, pdfBuffer, folio, date, baseFolder });
 }
 
+/**
+ * Sube una imagen de evidencia a SharePoint en la carpeta "Evidencias".
+ */
+export async function uploadEvidenceImageToSharePoint({ filename, buffer, imageBuffer, mimeType = "image/png", date, baseFolder = "Evidencias" } = {}) {
+  const targetBuffer = buffer || imageBuffer;
+  if (!targetBuffer) {
+    return { success: false, message: "No se proporcionó buffer de imagen." };
+  }
+  const tenantId = process.env.AZURE_TENANT_ID;
+  const clientId = process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
+
+  if (!tenantId || !clientId || !clientSecret) {
+    return { success: false, reason: "NOT_CONFIGURED" };
+  }
+
+  try {
+    const accessToken = await getAzureAccessToken({ clientId, clientSecret });
+    const { siteIdentifier } = parseSharePointTarget();
+
+    const fullFolderPath = getSharePointFolderPath({ baseFolder, date });
+    const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
+
+    const cleanFilename = String(filename || `evidencia_${Date.now()}.png`).replace(/[/\\?%*:|"<>]/g, "-");
+    const encodedFilename = encodeURIComponent(cleanFilename);
+
+    const folderSegment = fullFolderPath ? `${fullFolderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
+    const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${folderSegment}${encodedFilename}:/content`;
+
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": mimeType
+      },
+      body: targetBuffer
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, statusCode: response.status, message: errorText };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      webUrl: data.webUrl || null,
+      itemId: data.id || null,
+      name: data.name || cleanFilename
+    };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
