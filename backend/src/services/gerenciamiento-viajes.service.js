@@ -516,16 +516,6 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
   }
 }
 
-    await client.query("COMMIT");
-    return record ?? null;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
 export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, horaReportada }) {
   const currentRes = await databasePool.query(`
     SELECT sitios_reporte FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1

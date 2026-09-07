@@ -127,6 +127,9 @@ export async function getAdminInspection(idInspeccion) {
     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin=i.id_usuario_admin_aprobador
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
+  return result.rows[0] ?? null;
+}
+
 export async function getInspectionByViaje(idViaje) {
   const result = await databasePool.query(`
     SELECT id_inspeccion FROM inspecciones_vehiculares WHERE id_viajes = $1 ORDER BY id_inspeccion DESC LIMIT 1
