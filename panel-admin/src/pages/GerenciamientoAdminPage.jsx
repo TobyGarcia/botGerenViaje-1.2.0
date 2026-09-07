@@ -732,6 +732,17 @@ export default function GerenciamientoAdminPage({ user }) {
                         <button className="secondary-button" onClick={() => openGerenciamientoPdfPreview(item, true)}>
                           PDF
                         </button>
+                        {item.sharepoint_web_url && (
+                          <a
+                            href={item.sharepoint_web_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="secondary-button"
+                            style={{ textDecoration: "none", color: "#0284c7", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                          >
+                            📂 SharePoint
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );

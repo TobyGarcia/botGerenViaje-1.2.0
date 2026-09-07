@@ -153,11 +153,10 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
 }
 
 /**
- * Sube un archivo PDF a la carpeta de SharePoint mediante Microsoft Graph API,
+ * Sube un archivo PDF a cualquier carpeta base de SharePoint mediante Microsoft Graph API,
  * organizándolo en subcarpetas por Año / Mes / Semana.
- * Utiliza autenticación de aplicación (client_credentials) con Azure AD.
  */
-export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, folio, date }) {
+export async function uploadPdfToSharePoint({ filename, pdfBuffer, folio, date, baseFolder = "Inspecciones" }) {
   const tenantId = process.env.AZURE_TENANT_ID;
   const clientId = process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
@@ -175,10 +174,10 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, fol
 
   try {
     const accessToken = await getAzureAccessToken({ clientId, clientSecret });
-    const { siteIdentifier, folderPath: baseFolderPath } = parseSharePointTarget();
+    const { siteIdentifier } = parseSharePointTarget();
 
-    // Generar ruta de subcarpetas (inspecciones/Año/MM-Mes/Semana-WW)
-    const fullFolderPath = getSharePointFolderPath({ baseFolder: baseFolderPath, date });
+    // Generar ruta de subcarpetas (baseFolder/Año/MM-Mes/Semana-WW)
+    const fullFolderPath = getSharePointFolderPath({ baseFolder, date });
 
     // Resolver el Site ID único mediante Microsoft Graph API
     const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
@@ -189,7 +188,7 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, fol
       const cleanFolio = String(folio).trim();
       rawFilename = cleanFolio.toLowerCase().endsWith(".pdf") ? cleanFolio : `${cleanFolio}.pdf`;
     }
-    const cleanFilename = String(rawFilename || `inspeccion_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
+    const cleanFilename = String(rawFilename || `documento_${Date.now()}.pdf`).replace(/[/\\?%*:|"<>]/g, "-");
     const encodedFilename = encodeURIComponent(cleanFilename);
 
     const folderSegment = fullFolderPath ? `${fullFolderPath.split("/").map(encodeURIComponent).join("/")}/` : "";
@@ -232,5 +231,21 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, fol
       message: error.message
     };
   }
+}
+
+/**
+ * Sube un PDF de Inspección Vehicular a la carpeta "Inspecciones".
+ */
+export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, folio, date }) {
+  const baseFolder = process.env.SHAREPOINT_FOLDER_INSPECCIONES || process.env.SHAREPOINT_FOLDER_PATH || "Inspecciones";
+  return uploadPdfToSharePoint({ filename, pdfBuffer, folio, date, baseFolder });
+}
+
+/**
+ * Sube un PDF de Gerenciamiento de Viaje a la carpeta "Gerenciamientos".
+ */
+export async function uploadGerenciamientoPdfToSharePoint({ filename, pdfBuffer, folio, date }) {
+  const baseFolder = process.env.SHAREPOINT_FOLDER_GERENCIAMIENTOS || "Gerenciamientos";
+  return uploadPdfToSharePoint({ filename, pdfBuffer, folio, date, baseFolder });
 }
 

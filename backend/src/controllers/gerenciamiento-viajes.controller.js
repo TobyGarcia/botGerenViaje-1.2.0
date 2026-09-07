@@ -10,8 +10,13 @@ import {
   getGerenciamientoByViaje,
   listGerenciamientos,
   aprovarGerenciamiento,
-  registrarReporteHoraPoint
+  registrarReporteHoraPoint,
+  storeGerenciamientoPdf,
+  updateGerenciamientoSharePointDetails,
+  getStoredGerenciamientoPdf
 } from "../services/gerenciamiento-viajes.service.js";
+import { buildGerenciamientoPdf } from "../services/gerenciamiento-pdf.service.js";
+import { uploadGerenciamientoPdfToSharePoint } from "../services/sharepoint.service.js";
 
 async function authenticateDriver(request) {
   if (request.driverUser) {
@@ -141,13 +146,84 @@ export async function aprovarGerenciamientoController(request, response) {
       return response.status(404).json({ success: false, message: "No se encontró el registro para actualizar." });
     }
 
+    let sharepointResult = null;
+    if ((estado || 'APROBADO') === 'APROBADO') {
+      try {
+        const fullDetail = await getGerenciamientoById(idGerenciamiento);
+        const pdf = buildGerenciamientoPdf(fullDetail || updated);
+        await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
+
+        sharepointResult = await uploadGerenciamientoPdfToSharePoint({
+          filename: pdf.nombre,
+          pdfBuffer: pdf.buffer,
+          folio: updated.folio_documento || `GERENCIAMIENTO-${idGerenciamiento}`,
+          date: updated.creado_en || new Date()
+        });
+
+        if (sharepointResult.success && sharepointResult.webUrl) {
+          await updateGerenciamientoSharePointDetails({
+            idGerenciamiento,
+            webUrl: sharepointResult.webUrl,
+            itemId: sharepointResult.itemId
+          });
+        }
+      } catch (spError) {
+        console.error("[GerenciamientoViajes] Error al generar/subir PDF a SharePoint:", spError.message);
+      }
+    }
+
     return response.json({
       success: true,
       message: `Gerenciamiento ${estado || 'APROBADO'} exitosamente.`,
-      data: updated
+      data: { ...updated, sharepoint: sharepointResult }
     });
   } catch (error) {
     return response.status(400).json({ success: false, message: error.message });
+  }
+}
+
+export async function downloadGerenciamientoPdfController(request, response) {
+  try {
+    const idGerenciamiento = Number(request.params.id);
+    let stored = await getStoredGerenciamientoPdf(idGerenciamiento);
+
+    if (!stored?.pdf_documento) {
+      const detail = await getGerenciamientoById(idGerenciamiento);
+      if (!detail) {
+        return response.status(404).json({ success: false, message: "Gerenciamiento no encontrado." });
+      }
+      const pdf = buildGerenciamientoPdf(detail);
+      await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
+      stored = { pdf_nombre: pdf.nombre, pdf_documento: pdf.buffer };
+    }
+
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `attachment; filename="${stored.pdf_nombre}"`);
+    return response.send(stored.pdf_documento);
+  } catch (error) {
+    return response.status(500).json({ success: false, message: error.message });
+  }
+}
+
+export async function previewGerenciamientoPdfController(request, response) {
+  try {
+    const idGerenciamiento = Number(request.params.id);
+    let stored = await getStoredGerenciamientoPdf(idGerenciamiento);
+
+    if (!stored?.pdf_documento) {
+      const detail = await getGerenciamientoById(idGerenciamiento);
+      if (!detail) {
+        return response.status(404).json({ success: false, message: "Gerenciamiento no encontrado." });
+      }
+      const pdf = buildGerenciamientoPdf(detail);
+      stored = { pdf_nombre: pdf.nombre, pdf_documento: pdf.buffer };
+    }
+
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `inline; filename="vista-previa-${stored.pdf_nombre}"`);
+    return response.send(stored.pdf_documento);
+  } catch (error) {
+    return response.status(500).json({ success: false, message: error.message });
   }
 }
 

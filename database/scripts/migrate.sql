@@ -22,6 +22,7 @@
 \ir ../migrations/020_conductor_pin_and_approval.sql
 \ir ../migrations/021_reportes_vehiculares.sql
 \ir ../migrations/022_licencia_imagen.sql
+\ir ../migrations/023_gerenciamiento_sharepoint_and_pdf.sql
 
 
 

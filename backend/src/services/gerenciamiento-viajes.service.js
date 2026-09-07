@@ -392,13 +392,31 @@ export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, 
     sitios[puntoIndex].horaReportada = horaReportada || new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
-  const updateRes = await databasePool.query(`
-    UPDATE gerenciamiento_viajes
-    SET sitios_reporte = $1::jsonb,
-        actualizado_en = CURRENT_TIMESTAMP
-    WHERE id_gerenciamiento = $2
-    RETURNING *
-  `, [JSON.stringify(sitios), idGerenciamiento]);
-
   return updateRes.rows[0];
+}
+
+export async function storeGerenciamientoPdf({ idGerenciamiento, nombre, document }) {
+  await databasePool.query(
+    `UPDATE gerenciamiento_viajes
+     SET pdf_nombre=$1, pdf_documento=$2, actualizado_en=CURRENT_TIMESTAMP
+     WHERE id_gerenciamiento=$3`,
+    [nombre, document, idGerenciamiento]
+  );
+}
+
+export async function updateGerenciamientoSharePointDetails({ idGerenciamiento, webUrl, itemId }) {
+  await databasePool.query(
+    `UPDATE gerenciamiento_viajes
+     SET sharepoint_web_url=$1, sharepoint_item_id=$2, sharepoint_subido_en=CURRENT_TIMESTAMP, actualizado_en=CURRENT_TIMESTAMP
+     WHERE id_gerenciamiento=$3`,
+    [webUrl, itemId, idGerenciamiento]
+  );
+}
+
+export async function getStoredGerenciamientoPdf(idGerenciamiento) {
+  const result = await databasePool.query(
+    "SELECT pdf_nombre, pdf_documento, sharepoint_web_url FROM gerenciamiento_viajes WHERE id_gerenciamiento=$1",
+    [idGerenciamiento]
+  );
+  return result.rows[0] ?? null;
 }
