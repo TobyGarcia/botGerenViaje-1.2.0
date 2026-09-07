@@ -16,6 +16,14 @@ export async function getAzureAccessToken({ clientId: customClientId, clientSecr
     );
   }
 
+  // Detectar si por error se colocó el Secret ID (UUID) en lugar del Secret Value
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (uuidRegex.test(clientSecret.trim())) {
+    console.warn(
+      `[Azure AD] ADVERTENCIA: El secreto configurado para la app "${clientId}" parece ser el "Secret ID" (GUID). Asegúrate de copiar la columna "VALUE" (Valor) del secreto en Azure Portal.`
+    );
+  }
+
   const cacheKey = `${tenantId}:${clientId}`;
   const existing = tokenCache.get(cacheKey);
 
