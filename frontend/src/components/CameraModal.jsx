@@ -20,11 +20,7 @@ export default function CameraModal({ onCapture, onClose }) {
         }
 
         const constraints = {
-          video: {
-            facingMode: { ideal: facingMode },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
+          video: facingMode ? { facingMode: facingMode } : true,
           audio: false
         };
 
@@ -40,7 +36,7 @@ export default function CameraModal({ onCapture, onClose }) {
       } catch (err) {
         console.warn("Fallo al acceder a la cámara mediante WebRTC:", err);
         setCameraError(
-          "No fue posible abrir el visor en vivo de la cámara. Puedes conceder permisos de cámara o utilizar la opción de 'Elegir archivo'."
+          "No se pudo acceder al visor directo de cámara. Puedes seleccionar la opción de 'Elegir archivo'."
         );
         setLoading(false);
       }
@@ -49,7 +45,7 @@ export default function CameraModal({ onCapture, onClose }) {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       initCamera();
     } else {
-      setCameraError("Tu navegador no soporta el visor directo de cámara WebRTC. Usa la opción de 'Elegir archivo'.");
+      setCameraError("Tu navegador no soporta el visor directo de cámara.");
       setLoading(false);
     }
 
@@ -107,7 +103,7 @@ export default function CameraModal({ onCapture, onClose }) {
       className="modal-overlay"
       style={{
         zIndex: 10000,
-        backgroundColor: "rgba(0, 0, 0, 0.88)",
+        backgroundColor: "rgba(0, 0, 0, 0.92)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -117,7 +113,8 @@ export default function CameraModal({ onCapture, onClose }) {
         left: 0,
         right: 0,
         bottom: 0,
-        padding: "16px"
+        padding: "12px",
+        boxSizing: "border-box"
       }}
       role="dialog"
       aria-modal="true"
@@ -125,7 +122,8 @@ export default function CameraModal({ onCapture, onClose }) {
       <div
         style={{
           width: "100%",
-          maxWidth: "480px",
+          maxWidth: "460px",
+          maxHeight: "96vh",
           background: "#0f172a",
           borderRadius: "16px",
           overflow: "hidden",
@@ -138,14 +136,15 @@ export default function CameraModal({ onCapture, onClose }) {
         {/* Encabezado */}
         <div
           style={{
-            padding: "14px 16px",
+            padding: "12px 16px",
             display: "flex",
-            justify: "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
-            borderBottom: "1px solid #1e293b"
+            borderBottom: "1px solid #1e293b",
+            background: "#0f172a"
           }}
         >
-          <span style={{ color: "#f8fafc", fontWeight: "600", fontSize: "1rem" }}>
+          <span style={{ color: "#f8fafc", fontWeight: "600", fontSize: "0.95rem" }}>
             📷 Visor de Cámara
           </span>
           <button
@@ -175,7 +174,8 @@ export default function CameraModal({ onCapture, onClose }) {
             background: "#000",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center"
+            justifyContent: "center",
+            overflow: "hidden"
           }}
         >
           {loading && (
@@ -206,15 +206,16 @@ export default function CameraModal({ onCapture, onClose }) {
         {/* Acciones */}
         <div
           style={{
-            padding: "16px",
+            padding: "14px 16px",
             display: "flex",
-            gap: "12px",
+            gap: "10px",
             justify: "center",
             alignItems: "center",
+            flexWrap: "wrap",
             background: "#0f172a"
           }}
         >
-          {!cameraError && (
+          {!cameraError && !loading && (
             <>
               <button
                 type="button"
@@ -223,14 +224,14 @@ export default function CameraModal({ onCapture, onClose }) {
                   background: "#334155",
                   color: "#f8fafc",
                   border: "none",
-                  padding: "10px 16px",
-                  borderRadius: "24px",
+                  padding: "10px 14px",
+                  borderRadius: "20px",
                   fontSize: "0.85rem",
                   fontWeight: "600",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "6px"
+                  gap: "4px"
                 }}
               >
                 🔄 Voltear
@@ -239,12 +240,11 @@ export default function CameraModal({ onCapture, onClose }) {
               <button
                 type="button"
                 onClick={handleTakeSnapshot}
-                disabled={loading}
                 style={{
                   background: "#16a34a",
                   color: "#ffffff",
                   border: "none",
-                  padding: "12px 24px",
+                  padding: "12px 20px",
                   borderRadius: "24px",
                   fontSize: "0.95rem",
                   fontWeight: "bold",
@@ -255,7 +255,7 @@ export default function CameraModal({ onCapture, onClose }) {
                   gap: "6px"
                 }}
               >
-                📸 Tomar foto
+                📸 Capturar Foto
               </button>
             </>
           )}
@@ -268,12 +268,12 @@ export default function CameraModal({ onCapture, onClose }) {
               color: "#f8fafc",
               border: "none",
               padding: "10px 16px",
-              borderRadius: "24px",
+              borderRadius: "20px",
               fontSize: "0.85rem",
               cursor: "pointer"
             }}
           >
-            Cancelar
+            Cerrar
           </button>
         </div>
       </div>
