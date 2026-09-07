@@ -6,9 +6,15 @@ import {
   approveAdminDriver
 } from "../services/admin-conductores.service.js";
 import { setDriverPin } from "../services/driver-auth.service.js";
+import { saveLicenseFileBase64 } from "../utils/file-storage.js";
 
 
 function normalizeDriverInput(body) {
+  let licenciaUrl = typeof body?.licenciaUrl === "string" ? body.licenciaUrl.trim() : null;
+  if (typeof body?.licenciaArchivoBase64 === "string" && body.licenciaArchivoBase64.trim()) {
+    licenciaUrl = saveLicenseFileBase64(body.licenciaArchivoBase64, body.licenciaNombreArchivo || "");
+  }
+
   return {
     nombre:
       String(
@@ -37,9 +43,12 @@ function normalizeDriverInput(body) {
     fechaManejoComentado:
       String(
         body?.fechaManejoComentado || ""
-      ).trim()
+      ).trim(),
+
+    licenciaUrl
   };
 }
+
 
 
 function validateDriverInput(driver) {

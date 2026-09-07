@@ -94,6 +94,9 @@ function ConductoresPage({ user }) {
   const [assigningId, setAssigningId] =
     useState(null);
 
+  const [approveModalConductor, setApproveModalConductor] =
+    useState(null);
+
   const submitRef =
     useRef(false);
 
@@ -770,15 +773,24 @@ function ConductoresPage({ user }) {
                       {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                         <td>
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            {!conductor.aprobado_por_admin && (
+                            {!conductor.aprobado_por_admin ? (
                               <button
                                 type="button"
                                 className="primary-button"
                                 style={{ padding: "4px 8px", fontSize: "0.8rem", backgroundColor: "#16a34a" }}
                                 disabled={updatingId === conductor.id_conductores}
-                                onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                                onClick={() => setApproveModalConductor(conductor)}
                               >
                                 Aprobar
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                                onClick={() => setApproveModalConductor(conductor)}
+                              >
+                                Ver Licencia
                               </button>
                             )}
 
@@ -823,8 +835,149 @@ function ConductoresPage({ user }) {
           </div>
         )}
       </section>
+
+      {approveModalConductor && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onMouseDown={() => setApproveModalConductor(null)}
+        >
+          <section
+            className="modal-card"
+            style={{ maxWidth: "720px", width: "95%", maxHeight: "90vh", overflowY: "auto" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="approve-modal-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2 id="approve-modal-title">Revisión de Conductor</h2>
+                <p>Verifica los datos personales y el documento de licencia antes de aprobar.</p>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                onClick={() => setApproveModalConductor(null)}
+                aria-label="Cerrar modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="driver-approval-body" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", padding: "16px 0" }}>
+              <div className="driver-info-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.9rem", lineHeight: "1.7" }}>
+                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0 0 12px 0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px" }}>
+                  📋 Información General
+                </h3>
+                <p style={{ margin: "4px 0" }}><strong>Nombre:</strong> {approveModalConductor.nombre}</p>
+                <p style={{ margin: "4px 0" }}><strong>Teléfono:</strong> {approveModalConductor.telefono || "No registrado"}</p>
+                <p style={{ margin: "4px 0" }}><strong>Empresa:</strong> <span className="status-badge" style={{ background: "#e0f2fe", color: "#0369a1" }}>{approveModalConductor.empresa || "Sin asignar"}</span></p>
+                <p style={{ margin: "4px 0" }}><strong>No. Licencia:</strong> {approveModalConductor.licencia_numero}</p>
+                <p style={{ margin: "4px 0" }}><strong>Tipo de Licencia:</strong> {approveModalConductor.tipo_licencia || "No especificado"}</p>
+                <p style={{ margin: "4px 0" }}>
+                  <strong>Vencimiento:</strong> {formatDate(approveModalConductor.licencia_vencimiento)}{" "}
+                  {approveModalConductor.licencia_vigente ? (
+                    <span style={{ color: "#16a34a", fontWeight: "600", fontSize: "0.8rem" }}>✓ Vigente</span>
+                  ) : (
+                    <span style={{ color: "#dc2626", fontWeight: "600", fontSize: "0.8rem" }}>⚠ Vencida</span>
+                  )}
+                </p>
+                <p style={{ margin: "4px 0" }}><strong>Manejo Comentado:</strong> {formatDate(approveModalConductor.fecha_manejo_comentado)}</p>
+                <p style={{ margin: "4px 0" }}><strong>Telegram:</strong> {approveModalConductor.telegram_user_id ? "✅ Vinculado" : "⚪ Sin vincular"}</p>
+                <p style={{ margin: "4px 0" }}>
+                  <strong>Estatus Aprobación:</strong>{" "}
+                  <span style={{ fontWeight: "600", color: approveModalConductor.aprobado_por_admin ? "#15803d" : "#b45309" }}>
+                    {approveModalConductor.aprobado_por_admin ? "Aprobado" : "Pendiente de Aprobación"}
+                  </span>
+                </p>
+              </div>
+
+              <div className="driver-license-panel" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0 0 12px 0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px", width: "100%" }}>
+                  🪪 Documento de Licencia
+                </h3>
+                {approveModalConductor.licencia_url ? (
+                  approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
+                    <div style={{ textAlign: "center", padding: "24px 16px", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe", width: "100%" }}>
+                      <span style={{ fontSize: "2.5rem", display: "block", marginBottom: "8px" }}>📄</span>
+                      <p style={{ fontWeight: "600", color: "#1e40af", marginBottom: "12px", fontSize: "0.9rem" }}>Archivo PDF de la Licencia</p>
+                      <a
+                        href={approveModalConductor.licencia_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="primary-button"
+                        style={{ textDecoration: "none", display: "inline-block", fontSize: "0.85rem", padding: "8px 16px" }}
+                      >
+                        Abrir y revisar PDF ↗
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", width: "100%" }}>
+                      <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" title="Abrir imagen completa">
+                        <img
+                          src={approveModalConductor.licencia_url}
+                          alt={`Licencia de ${approveModalConductor.nombre}`}
+                          style={{ maxWidth: "100%", maxHeight: "280px", borderRadius: "8px", border: "1px solid #cbd5e1", objectFit: "contain", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
+                        />
+                      </a>
+                      <p style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "6px" }}>🔍 Haz clic en la foto para verla a tamaño completo</p>
+                    </div>
+                  )
+                ) : (
+                  <div style={{ textAlign: "center", padding: "36px 16px", background: "#fef2f2", borderRadius: "8px", border: "1px dashed #fca5a5", width: "100%", color: "#991b1b" }}>
+                    <span style={{ fontSize: "2rem", display: "block", marginBottom: "6px" }}>📷</span>
+                    <p style={{ fontSize: "0.88rem", fontWeight: "500" }}>No se adjuntó archivo de la licencia de conducir en el registro.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="form-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "12px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setApproveModalConductor(null)}
+                disabled={updatingId === approveModalConductor.id_conductores}
+              >
+                Cerrar
+              </button>
+
+              {!approveModalConductor.aprobado_por_admin && (
+                <>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+                    disabled={updatingId === approveModalConductor.id_conductores}
+                    onClick={async () => {
+                      await handleApproveDriver(approveModalConductor.id_conductores, false);
+                      setApproveModalConductor(null);
+                    }}
+                  >
+                    Rechazar
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    style={{ backgroundColor: "#16a34a", fontSize: "0.85rem", padding: "8px 16px" }}
+                    disabled={updatingId === approveModalConductor.id_conductores}
+                    onClick={async () => {
+                      await handleApproveDriver(approveModalConductor.id_conductores, true);
+                      setApproveModalConductor(null);
+                    }}
+                  >
+                    {updatingId === approveModalConductor.id_conductores ? "Procesando..." : "✓ Aprobar Conductor"}
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
 
 export default ConductoresPage;
+

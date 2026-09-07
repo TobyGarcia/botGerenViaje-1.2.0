@@ -20,6 +20,9 @@
 \ir ../migrations/018_gerenciamiento_viajes.sql
 \ir ../migrations/019_fix_inspecciones_autorizador.sql
 \ir ../migrations/020_conductor_pin_and_approval.sql
+\ir ../migrations/021_reportes_vehiculares.sql
+\ir ../migrations/022_licencia_imagen.sql
+
 
 
 

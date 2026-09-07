@@ -9,6 +9,7 @@ import {
 } from "../utils/telegram-init-data.js";
 import { createDriverSessionToken } from "../utils/driver-session.js";
 import { sendDriverRegistrationSupervisorAlert } from "../bot/bot.js";
+import { saveLicenseFileBase64 } from "../utils/file-storage.js";
 
 
 export async function authenticateTelegramController(
@@ -192,7 +193,12 @@ function validateDriverRegistration(body) {
     }
   }
 
-  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado };
+  let licenciaUrl = typeof body?.licenciaUrl === "string" ? body.licenciaUrl.trim() : null;
+  if (typeof body?.licenciaArchivoBase64 === "string" && body.licenciaArchivoBase64.trim()) {
+    licenciaUrl = saveLicenseFileBase64(body.licenciaArchivoBase64, body.licenciaNombreArchivo || "");
+  }
+
+  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado, licenciaUrl };
 }
 
 export async function registerTelegramDriverController(request, response) {
