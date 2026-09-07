@@ -16,7 +16,9 @@ import {
   getStoredGerenciamientoPdf
 } from "../services/gerenciamiento-viajes.service.js";
 import { buildGerenciamientoPdf } from "../services/gerenciamiento-pdf.service.js";
-import { uploadGerenciamientoPdfToSharePoint } from "../services/sharepoint.service.js";
+import { uploadGerenciamientoPdfToSharePoint, uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
+import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
+import { getInspectionByViaje, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 
 async function authenticateDriver(request) {
   if (request.driverUser) {
@@ -149,6 +151,7 @@ export async function aprovarGerenciamientoController(request, response) {
     let sharepointResult = null;
     if ((estado || 'APROBADO') === 'APROBADO') {
       try {
+        // 1. Generar y subir PDF del Gerenciamiento de Viaje -> Carpeta "Gerenciamientos"
         const fullDetail = await getGerenciamientoById(idGerenciamiento);
         const pdf = buildGerenciamientoPdf(fullDetail || updated);
         await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
@@ -166,6 +169,34 @@ export async function aprovarGerenciamientoController(request, response) {
             webUrl: sharepointResult.webUrl,
             itemId: sharepointResult.itemId
           });
+        }
+
+        // 2. Si existe una Inspección Vehicular vinculada a este viaje, generar su PDF y subirlo -> Carpeta "Inspecciones"
+        if (updated.id_viaje) {
+          try {
+            const linkedInsp = await getInspectionByViaje(updated.id_viaje);
+            if (linkedInsp && linkedInsp.id_inspeccion) {
+              const inspPdf = buildInspectionPdf(linkedInsp);
+              await storeInspectionPdf({ idInspeccion: linkedInsp.id_inspeccion, nombre: inspPdf.nombre, document: inspPdf.buffer });
+
+              const inspSpRes = await uploadInspectionPdfToSharePoint({
+                filename: inspPdf.nombre,
+                pdfBuffer: inspPdf.buffer,
+                folio: linkedInsp.folio || `INSP-${linkedInsp.id_inspeccion}`,
+                date: linkedInsp.creado_en || new Date()
+              });
+
+              if (inspSpRes.success && inspSpRes.webUrl) {
+                await updateInspectionSharePointDetails({
+                  idInspeccion: linkedInsp.id_inspeccion,
+                  webUrl: inspSpRes.webUrl,
+                  itemId: inspSpRes.itemId
+                });
+              }
+            }
+          } catch (inspSpErr) {
+            console.error("[GerenciamientoViajes] Error al generar/subir PDF de la inspección vinculada:", inspSpErr.message);
+          }
         }
       } catch (spError) {
         console.error("[GerenciamientoViajes] Error al generar/subir PDF a SharePoint:", spError.message);

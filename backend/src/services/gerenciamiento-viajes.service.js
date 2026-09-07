@@ -53,18 +53,91 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     throw new Error("Horas de trabajo + Horas de Viaje >= 16 Horas: NO CONDUCIR (Riesgo Bloqueante).");
   }
 
+  // Obtener datos por defecto del conductor si no vienen en data
+  let cLicNumero = data.licenciaNumero || data.licencia_numero || null;
+  let cLicTipo = data.licenciaTipo || data.licencia_tipo || null;
+  let cLicVenc = data.licenciaVencimiento || data.licencia_vencimiento || null;
+  let cTelefono = data.telefonoConductor || data.telefono_conductor || null;
+  let cNombre = data.nombreConductor || data.nombre_conductor || null;
+
+  if (idConductor) {
+    try {
+      const cRes = await databasePool.query(
+        "SELECT nombre, licencia_numero, tipo_licencia, licencia_vencimiento, telefono FROM conductores WHERE id_conductores = $1",
+        [idConductor]
+      );
+      if (cRes.rows[0]) {
+        const c = cRes.rows[0];
+        cNombre = cNombre || c.nombre;
+        cLicNumero = cLicNumero || c.licencia_numero;
+        cLicTipo = cLicTipo || c.tipo_licencia;
+        cLicVenc = cLicVenc || c.licencia_vencimiento;
+        cTelefono = cTelefono || c.telefono;
+      }
+    } catch (cErr) {
+      console.warn("No se pudieron obtener datos del conductor para el gerenciamiento:", cErr.message);
+    }
+  }
+
+  // Resoluciones dinámicas de Vehículo, Origen y Destino para la creación del viaje base
+  let idVehiculo = data.idVehiculo ? Number(data.idVehiculo) : null;
+  let idOrigen = data.idOrigen ? Number(data.idOrigen) : null;
+  let idDestino = data.idDestino ? Number(data.idDestino) : null;
+
+  if (!idVehiculo && (data.numeroUnidad || data.placa)) {
+    try {
+      const vRes = await databasePool.query(
+        "SELECT id_vehiculos FROM vehiculos WHERE numero_economico = $1 OR placas = $2 OR nombre ILIKE $3 LIMIT 1",
+        [data.numeroUnidad || "", data.placa || "", `%${data.numeroUnidad || data.placa}%`]
+      );
+      if (vRes.rows[0]) idVehiculo = vRes.rows[0].id_vehiculos;
+    } catch (vErr) {}
+  }
+  if (!idVehiculo) {
+    try {
+      const vFirst = await databasePool.query("SELECT id_vehiculos FROM vehiculos WHERE activo = TRUE LIMIT 1");
+      if (vFirst.rows[0]) idVehiculo = vFirst.rows[0].id_vehiculos;
+    } catch (vErr) {}
+  }
+
+  if (!idOrigen && data.origenTexto) {
+    try {
+      const oRes = await databasePool.query("SELECT id_lugares FROM lugares WHERE nombre ILIKE $1 AND activo = TRUE LIMIT 1", [`%${data.origenTexto.trim()}%`]);
+      if (oRes.rows[0]) idOrigen = oRes.rows[0].id_lugares;
+    } catch (oErr) {}
+  }
+  if (!idOrigen) {
+    try {
+      const oFirst = await databasePool.query("SELECT id_lugares FROM lugares WHERE activo = TRUE ORDER BY id_lugares ASC LIMIT 1");
+      if (oFirst.rows[0]) idOrigen = oFirst.rows[0].id_lugares;
+    } catch (oErr) {}
+  }
+
+  if (!idDestino && data.destinoTexto) {
+    try {
+      const dRes = await databasePool.query("SELECT id_lugares FROM lugares WHERE nombre ILIKE $1 AND activo = TRUE LIMIT 1", [`%${data.destinoTexto.trim()}%`]);
+      if (dRes.rows[0]) idDestino = dRes.rows[0].id_lugares;
+    } catch (dErr) {}
+  }
+  if (!idDestino) {
+    try {
+      const dFirst = await databasePool.query("SELECT id_lugares FROM lugares WHERE activo = TRUE AND id_lugares != $1 ORDER BY id_lugares DESC LIMIT 1", [idOrigen || 0]);
+      if (dFirst.rows[0]) idDestino = dFirst.rows[0].id_lugares;
+    } catch (dErr) {}
+  }
+
   // 1. Si no existe un id_viaje previo, crear el viaje base en estado PENDIENTE
   let idViaje = data.idViaje || null;
-  if (!idViaje && data.idVehiculo && data.idOrigen && data.idDestino) {
+  if (!idViaje && idVehiculo && idOrigen && idDestino) {
     try {
       const acompanantesFormateados = Array.isArray(data.acompanantes)
         ? data.acompanantes.map((nombre) => (typeof nombre === 'string' ? { nombre } : nombre))
         : [];
       const newTrip = await createTrip({
         idConductor,
-        idVehiculo: Number(data.idVehiculo),
-        idOrigen: Number(data.idOrigen),
-        idDestino: Number(data.idDestino),
+        idVehiculo,
+        idOrigen,
+        idDestino,
         acompanantes: acompanantesFormateados,
         kilometrajeInicial: Number(data.kilometraje || 0),
         motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`,
@@ -140,8 +213,8 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     data.departamento || null,
     data.fechaEmision || new Date().toISOString().split('T')[0],
     data.horaSalida || null,
-    data.idOrigen || null,
-    data.idDestino || null,
+    idOrigen,
+    idDestino,
     data.origenTexto || null,
     data.destinoTexto || null,
     Number(data.kilometraje || 0),
@@ -159,11 +232,11 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     data.nombreContratista || null,
     data.numeroUnidad || null,
     idConductor,
-    data.nombreConductor || null,
-    data.licenciaNumero || null,
-    data.licenciaTipo || null,
-    data.licenciaVencimiento || null,
-    data.telefonoConductor || null,
+    cNombre,
+    cLicNumero,
+    cLicTipo,
+    cLicVenc,
+    cTelefono,
     JSON.stringify(rutaPuntos),
     Number(data.tiempoViajeHoras || 1),
     JSON.stringify(Array.isArray(data.acompanantes) ? data.acompanantes : []),
@@ -185,7 +258,7 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     riesgo.esBloqueanteHoras,
     riesgo.requiereAprobacionNocturna,
     data.firmaConductor || null,
-    data.nombreConductorFirma || data.nombreConductor || null
+    data.nombreConductorFirma || cNombre || null
   ];
 
   const result = await databasePool.query(query, values);
@@ -195,6 +268,11 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
 export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
     SELECT g.*,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
+      COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
+      COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
+      COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
+      COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
       o.nombre AS origen_nombre,
       d.nombre AS destino_nombre,
       i.id_inspeccion,
@@ -207,6 +285,7 @@ export async function getGerenciamientoById(idGerenciamiento) {
       i.firma_conductor AS inspeccion_firma_conductor,
       i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
+    LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
     LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
@@ -218,6 +297,11 @@ export async function getGerenciamientoById(idGerenciamiento) {
 export async function getGerenciamientoByViaje(idViaje) {
   const result = await databasePool.query(`
     SELECT g.*,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
+      COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
+      COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
+      COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
+      COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
       o.nombre AS origen_nombre,
       d.nombre AS destino_nombre,
       i.id_inspeccion,
@@ -230,6 +314,7 @@ export async function getGerenciamientoByViaje(idViaje) {
       i.firma_conductor AS inspeccion_firma_conductor,
       i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
+    LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
     LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
@@ -267,7 +352,11 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
 
   const query = `
     SELECT g.*,
-      c.nombre AS conductor_nombre,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS conductor_nombre,
+      COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
+      COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
+      COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
+      COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
       o.nombre AS origen_nombre,
       d.nombre AS destino_nombre,
       i.id_inspeccion,
@@ -299,7 +388,7 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
     await client.query("BEGIN");
 
     // Consultar registro para validar nivel de riesgo
-    const checkRes = await client.query("SELECT id_gerenciamiento, nivel_riesgo FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1", [idGerenciamiento]);
+    const checkRes = await client.query("SELECT id_gerenciamiento, nivel_riesgo, id_viaje, id_conductor, id_origen, id_destino, numero_unidad, placa, acompanantes, kilometraje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1", [idGerenciamiento]);
     const recordCheck = checkRes.rows[0];
 
     if (estado === 'APROBADO' && recordCheck && idUsuarioAdmin) {
@@ -336,27 +425,76 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
 
     const record = updateRes.rows[0];
 
-    // Al APROBAR el Gerenciamiento, aprobar automáticamente la Inspección Vehicular vinculada y habilitar el viaje en estado PENDIENTE listo para iniciar
-    if (record && record.id_viaje) {
+    // Al APROBAR el Gerenciamiento, habilitar el viaje en estado PENDIENTE listo para iniciar y aprobar inspección
+    if (record) {
       if (estado === 'APROBADO') {
-        await client.query(`
-          UPDATE inspecciones_vehiculares
-          SET estado = 'APROBADA',
-              id_usuario_admin_aprobador = $1,
-              firma_supervisor = $2,
-              comentario_aprobacion = $3,
-              aprobado_en = CURRENT_TIMESTAMP,
-              actualizado_en = CURRENT_TIMESTAMP
-          WHERE id_viajes = $4
-        `, [idUsuarioAdmin, firmaAutorizador, observaciones, record.id_viaje]);
+        let targetViajeId = record.id_viaje;
+        if (!targetViajeId) {
+          try {
+            let idVehiculo = null;
+            if (record.numero_unidad || record.placa) {
+              const vRes = await client.query("SELECT id_vehiculos FROM vehiculos WHERE numero_economico = $1 OR placas = $2 LIMIT 1", [record.numero_unidad || "", record.placa || ""]);
+              if (vRes.rows[0]) idVehiculo = vRes.rows[0].id_vehiculos;
+            }
+            if (!idVehiculo) {
+              const vFirst = await client.query("SELECT id_vehiculos FROM vehiculos WHERE activo = TRUE LIMIT 1");
+              if (vFirst.rows[0]) idVehiculo = vFirst.rows[0].id_vehiculos;
+            }
 
-        await client.query(`
-          UPDATE viajes
-          SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
-              actualizado_en = CURRENT_TIMESTAMP
-          WHERE id_viajes = $1
-        `, [record.id_viaje]);
-      } else if (estado === 'RECHAZADO') {
+            let idOrigen = record.id_origen;
+            if (!idOrigen) {
+              const oFirst = await client.query("SELECT id_lugares FROM lugares WHERE activo = TRUE ORDER BY id_lugares ASC LIMIT 1");
+              if (oFirst.rows[0]) idOrigen = oFirst.rows[0].id_lugares;
+            }
+
+            let idDestino = record.id_destino;
+            if (!idDestino) {
+              const dFirst = await client.query("SELECT id_lugares FROM lugares WHERE activo = TRUE AND id_lugares != $1 ORDER BY id_lugares DESC LIMIT 1", [idOrigen || 0]);
+              if (dFirst.rows[0]) idDestino = dFirst.rows[0].id_lugares;
+            }
+
+            if (idVehiculo && idOrigen && idDestino) {
+              const newTrip = await createTrip({
+                idConductor: record.id_conductor,
+                idVehiculo,
+                idOrigen,
+                idDestino,
+                acompanantes: record.acompanantes || [],
+                kilometrajeInicial: Number(record.kilometraje || 0),
+                motivo: `Gerenciamiento Fuera de Ciudad - Riesgo ${record.nivel_riesgo}`,
+                esGerenciamiento: true
+              });
+              targetViajeId = newTrip.id_viajes || newTrip.idViaje || null;
+              if (targetViajeId) {
+                await client.query("UPDATE gerenciamiento_viajes SET id_viaje = $1 WHERE id_gerenciamiento = $2", [targetViajeId, record.id_gerenciamiento]);
+                record.id_viaje = targetViajeId;
+              }
+            }
+          } catch (tErr) {
+            console.warn("[GerenciamientoViajes] No se pudo crear viaje al aprobar:", tErr.message);
+          }
+        }
+
+        if (targetViajeId) {
+          await client.query(`
+            UPDATE viajes
+            SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE id_viajes = $1
+          `, [targetViajeId]);
+
+          await client.query(`
+            UPDATE inspecciones_vehiculares
+            SET estado = 'APROBADA',
+                id_usuario_admin_aprobador = $1,
+                firma_supervisor = $2,
+                comentario_aprobacion = $3,
+                aprobado_en = CURRENT_TIMESTAMP,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE id_viajes = $4 OR (id_conductores = $5 AND fecha_operativa = CURRENT_DATE)
+          `, [idUsuarioAdmin, firmaAutorizador, observaciones, targetViajeId, record.id_conductor]);
+        }
+      } else if (estado === 'RECHAZADO' && record.id_viaje) {
         await client.query(`
           UPDATE inspecciones_vehiculares
           SET estado = 'RECHAZADA',
@@ -367,6 +505,16 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
         `, [idUsuarioAdmin, observaciones, record.id_viaje]);
       }
     }
+
+    await client.query("COMMIT");
+    return record ?? null;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
     await client.query("COMMIT");
     return record ?? null;
