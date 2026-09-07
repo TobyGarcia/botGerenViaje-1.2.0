@@ -6,6 +6,7 @@ import {
 import {
   registrarConductorTelegram
 } from "../services/api.js";
+import { compressImageToMaxKb } from "../utils/imageCompressor.js";
 
 function getInitialName(usuario) {
   return [usuario?.firstName, usuario?.lastName]
@@ -30,7 +31,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     mcMes: "",
     mcAnio: ""
   });
-  const [licenciaFile, setLicenciaFile] = useState({ name: "", preview: "", base64: "", isPdf: false });
+
+  const [licenciaFrente, setLicenciaFrente] = useState({ name: "", preview: "", base64: "", sizeKb: 0, isPdf: false, compressing: false });
+  const [licenciaReverso, setLicenciaReverso] = useState({ name: "", preview: "", base64: "", sizeKb: 0, isPdf: false, compressing: false });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,33 +43,29 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function handleFileChange(event) {
+  async function handleLicenseFileChange(side, event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError("El archivo no debe exceder 10MB.");
-      return;
-    }
+    const setSideState = side === "frente" ? setLicenciaFrente : setLicenciaReverso;
+    setSideState((prev) => ({ ...prev, compressing: true }));
+    setError("");
 
-    const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setLicenciaFile({
+    try {
+      const compressed = await compressImageToMaxKb(file, 77);
+      setSideState({
         name: file.name,
-        preview: isPdf ? "" : reader.result,
-        base64: reader.result,
-        isPdf
+        preview: compressed.base64,
+        base64: compressed.base64,
+        sizeKb: compressed.sizeKb,
+        isPdf: compressed.isPdf,
+        compressing: false
       });
-      setError("");
-    };
-
-    reader.onerror = () => {
-      setError("Error al leer el archivo de licencia.");
-    };
-
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error al procesar la imagen:", err);
+      setError("No fue posible procesar y comprimir la foto de la licencia.");
+      setSideState((prev) => ({ ...prev, compressing: false }));
+    }
   }
 
   function updateExpiry(part, value) {
@@ -96,8 +96,13 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     event.preventDefault();
     if (savingRef.current) return;
 
-    if (!licenciaFile.base64) {
-      setError("Es obligatorio adjuntar una fotografía o archivo de tu licencia de conducir.");
+    if (!licenciaFrente.base64) {
+      setError("Es obligatorio tomar o adjuntar la foto frontal de tu licencia de conducir.");
+      return;
+    }
+
+    if (licenciaFrente.compressing || licenciaReverso.compressing) {
+      setError("Espera a que termine de procesarse la foto.");
       return;
     }
 
@@ -109,8 +114,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
       const initData = window.Telegram?.WebApp?.initData || "";
       const payload = {
         ...form,
-        licenciaArchivoBase64: licenciaFile.base64,
-        licenciaNombreArchivo: licenciaFile.name
+        licenciaArchivoBase64: licenciaFrente.base64,
+        licenciaNombreArchivo: licenciaFrente.name,
+        licenciaReversoBase64: licenciaReverso.base64 || null,
+        licenciaReversoNombre: licenciaReverso.name || null
       };
       const response = await registrarConductorTelegram(initData, payload);
       onRegistered(response.data);
@@ -149,28 +156,74 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
           Tipo de licencia
           <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} maxLength="50" placeholder="Ej. Federal B" required />
         </label>
-        <label>
-          Subir Licencia (Imagen o PDF)
-          <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} required />
-        </label>
-        {licenciaFile.name && (
-          <div className="license-preview-container" style={{ marginBottom: "12px" }}>
-            {licenciaFile.isPdf ? (
-              <p style={{ fontSize: "0.88rem", color: "#2563eb", margin: "4px 0" }}>📄 Archivo PDF seleccionado: <strong>{licenciaFile.name}</strong></p>
-            ) : (
-              <div style={{ marginTop: "4px" }}>
-                <img src={licenciaFile.preview} alt="Vista previa licencia" style={{ maxWidth: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain" }} />
-              </div>
-            )}
+
+        {/* Sección Licencia Frente */}
+        <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
+          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Frente) *</legend>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", padding: "8px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", display: "inline-block" }}>
+              📷 Tomar foto (Cámara)
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => handleLicenseFileChange("frente", e)} style={{ display: "none" }} />
+            </label>
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "8px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", display: "inline-block" }}>
+              📁 Elegir archivo
+              <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("frente", e)} style={{ display: "none" }} />
+            </label>
           </div>
-        )}
+
+          {licenciaFrente.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7" }}>⏳ Comprimiendo imagen (objetivo &le; 77KB)...</p>}
+
+          {licenciaFrente.base64 && !licenciaFrente.compressing && (
+            <div style={{ marginTop: "8px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+              <p style={{ fontSize: "0.82rem", color: "#15803d", fontWeight: "600", margin: "0 0 4px 0" }}>
+                ✓ Foto Frente procesada ({licenciaFrente.sizeKb} KB)
+              </p>
+              {licenciaFrente.isPdf ? (
+                <p style={{ fontSize: "0.85rem", color: "#2563eb" }}>📄 {licenciaFrente.name}</p>
+              ) : (
+                <img src={licenciaFrente.preview} alt="Vista previa frente" style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "4px", objectFit: "contain", border: "1px solid #e2e8f0" }} />
+              )}
+            </div>
+          )}
+        </fieldset>
+
+        {/* Sección Licencia Reverso */}
+        <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
+          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Reverso / Trasero)</legend>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", padding: "8px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", display: "inline-block" }}>
+              📷 Tomar foto (Cámara)
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => handleLicenseFileChange("reverso", e)} style={{ display: "none" }} />
+            </label>
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "8px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", display: "inline-block" }}>
+              📁 Elegir archivo
+              <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("reverso", e)} style={{ display: "none" }} />
+            </label>
+          </div>
+
+          {licenciaReverso.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7" }}>⏳ Comprimiendo imagen (objetivo &le; 77KB)...</p>}
+
+          {licenciaReverso.base64 && !licenciaReverso.compressing && (
+            <div style={{ marginTop: "8px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+              <p style={{ fontSize: "0.82rem", color: "#15803d", fontWeight: "600", margin: "0 0 4px 0" }}>
+                ✓ Foto Reverso procesada ({licenciaReverso.sizeKb} KB)
+              </p>
+              {licenciaReverso.isPdf ? (
+                <p style={{ fontSize: "0.85rem", color: "#2563eb" }}>📄 {licenciaReverso.name}</p>
+              ) : (
+                <img src={licenciaReverso.preview} alt="Vista previa reverso" style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "4px", objectFit: "contain", border: "1px solid #e2e8f0" }} />
+              )}
+            </div>
+          )}
+        </fieldset>
+
         <label>
           Última Evaluación de Manejo Comentado (dd/mm/aaaa)
           <span className="date-selects"><select value={form.mcDia} onChange={e=>updateManejoComentado("mcDia",e.target.value)}><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.mcMes} onChange={e=>updateManejoComentado("mcMes",e.target.value)}><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.mcAnio} onChange={e=>updateManejoComentado("mcAnio",e.target.value)}><option value="">yyyy</option>{Array.from({length:10},(_,i)=>String(anioActual - 5 + i)).map(year=><option key={year}>{year}</option>)}</select></span>
         </label>
         <label>Empresa<select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"].map(empresa=><option key={empresa}>{empresa}</option>)}</select></label>
 
-        <button type="submit" disabled={saving}>
+        <button type="submit" disabled={saving || licenciaFrente.compressing || licenciaReverso.compressing}>
           {saving ? "Guardando..." : "Completar registro"}
         </button>
       </form>
@@ -178,4 +231,5 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     </main>
   );
 }
+
 

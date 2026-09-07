@@ -8,7 +8,7 @@ import crypto from "node:crypto";
  * @param {string} originalName Nombre original del archivo (opcional)
  * @returns {string} URL relativa accesible desde express (/uploads/licencias/...)
  */
-export function saveLicenseFileBase64(base64Data, originalName = "") {
+export function saveLicenseFileBase64(base64Data, originalName = "", prefix = "licencia") {
   if (!base64Data || typeof base64Data !== "string") {
     return null;
   }
@@ -45,10 +45,11 @@ export function saveLicenseFileBase64(base64Data, originalName = "") {
   mkdirSync(uploadDir, { recursive: true });
 
   const randomHash = crypto.randomBytes(6).toString("hex");
-  const fileName = `licencia_${Date.now()}_${randomHash}.${extension}`;
+  const fileName = `${prefix}_${Date.now()}_${randomHash}.${extension}`;
   const filePath = join(uploadDir, fileName);
 
   writeFileSync(filePath, buffer);
 
   return `/uploads/licencias/${fileName}`;
 }
+

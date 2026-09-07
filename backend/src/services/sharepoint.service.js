@@ -61,6 +61,10 @@ export function parseSharePointTarget() {
         rest = rest.replace(/^Forms(\/.*)?$/i, "").replace(/\/Forms(\/.*)?$/i, "");
         rest = rest.replace(/^\/+|\/+$/g, "");
 
+        if (rest.toLowerCase().includes(".aspx") || rest.toLowerCase().startsWith("sitepages")) {
+          rest = "";
+        }
+
         const configuredFolder = (process.env.SHAREPOINT_FOLDER_PATH || "").replace(/^\/+|\/+$/g, "");
 
         return {
@@ -155,8 +159,8 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
  */
 export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, folio, date }) {
   const tenantId = process.env.AZURE_TENANT_ID;
-  const clientId = process.env.AZURE_CLIENT_ID;
-  const clientSecret = process.env.AZURE_CLIENT_SECRET;
+  const clientId = process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
 
   if (!tenantId || !clientId || !clientSecret) {
     console.warn(
@@ -170,7 +174,7 @@ export async function uploadInspectionPdfToSharePoint({ filename, pdfBuffer, fol
   }
 
   try {
-    const accessToken = await getAzureAccessToken();
+    const accessToken = await getAzureAccessToken({ clientId, clientSecret });
     const { siteIdentifier, folderPath: baseFolderPath } = parseSharePointTarget();
 
     // Generar ruta de subcarpetas (inspecciones/Año/MM-Mes/Semana-WW)

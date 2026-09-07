@@ -61,6 +61,7 @@ export async function listAdminDrivers({
           c.licencia_vigente,
           c.fecha_manejo_comentado,
           c.licencia_url,
+          c.licencia_reverso_url,
           c.activo,
           c.aprobado_por_admin,
           (c.pin_hash IS NOT NULL) AS tiene_pin,
@@ -138,7 +139,8 @@ export async function createAdminDriver({
   empresa,
   licenciaVencimiento,
   fechaManejoComentado,
-  licenciaUrl
+  licenciaUrl,
+  licenciaReversoUrl
 }) {
   const expirationDate =
     new Date(
@@ -195,6 +197,7 @@ export async function createAdminDriver({
             licencia_vigente,
             fecha_manejo_comentado,
             licencia_url,
+            licencia_reverso_url,
             activo
           )
           VALUES (
@@ -207,6 +210,7 @@ export async function createAdminDriver({
             $7,
             $8,
             $9,
+            $10,
             TRUE
           )
           RETURNING
@@ -220,6 +224,7 @@ export async function createAdminDriver({
             licencia_vigente,
             fecha_manejo_comentado,
             licencia_url,
+            licencia_reverso_url,
             activo
         `,
         [
@@ -231,7 +236,8 @@ export async function createAdminDriver({
           licenciaVencimiento,
           licenciaVigente,
           fechaManejoComentado || null,
-          licenciaUrl || null
+          licenciaUrl || null,
+          licenciaReversoUrl || null
         ]
       );
 

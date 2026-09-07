@@ -21,7 +21,8 @@ const conductorColumns = `
   fecha_manejo_comentado,
   telefono,
   activo,
-  licencia_url
+  licencia_url,
+  licencia_reverso_url
 `;
 
 async function getConductorById(client, idConductor) {
@@ -38,6 +39,7 @@ async function getConductorById(client, idConductor) {
        c.telefono,
        c.activo,
        c.licencia_url,
+       c.licencia_reverso_url,
        v.id_vehiculos AS id_vehiculo_asignado,
        v.nombre AS vehiculo_asignado_nombre,
        v.numero_economico AS vehiculo_asignado_numero_economico
@@ -159,7 +161,8 @@ export async function registerTelegramDriver({
   empresa,
   licenciaVencimiento,
   fechaManejoComentado = null,
-  licenciaUrl = null
+  licenciaUrl = null,
+  licenciaReversoUrl = null
 }) {
   const client = await databasePool.connect();
 
@@ -192,12 +195,12 @@ export async function registerTelegramDriver({
     const conductorResult = await client.query(
       `
         INSERT INTO conductores (
-          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, activo, aprobado_por_admin
+          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, FALSE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE)
         RETURNING ${conductorColumns}
       `,
-      [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null]
+      [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null]
     );
     const conductor = conductorResult.rows[0];
 

@@ -195,11 +195,17 @@ function validateDriverRegistration(body) {
 
   let licenciaUrl = typeof body?.licenciaUrl === "string" ? body.licenciaUrl.trim() : null;
   if (typeof body?.licenciaArchivoBase64 === "string" && body.licenciaArchivoBase64.trim()) {
-    licenciaUrl = saveLicenseFileBase64(body.licenciaArchivoBase64, body.licenciaNombreArchivo || "");
+    licenciaUrl = saveLicenseFileBase64(body.licenciaArchivoBase64, body.licenciaNombreArchivo || "", "licencia_frente");
   }
 
-  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado, licenciaUrl };
+  let licenciaReversoUrl = typeof body?.licenciaReversoUrl === "string" ? body.licenciaReversoUrl.trim() : null;
+  if (typeof body?.licenciaReversoBase64 === "string" && body.licenciaReversoBase64.trim()) {
+    licenciaReversoUrl = saveLicenseFileBase64(body.licenciaReversoBase64, body.licenciaReversoNombre || "", "licencia_reverso");
+  }
+
+  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado, licenciaUrl, licenciaReversoUrl };
 }
+
 
 export async function registerTelegramDriverController(request, response) {
   try {

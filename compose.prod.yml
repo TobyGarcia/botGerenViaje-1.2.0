@@ -78,6 +78,9 @@ services:
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
       AZURE_CLIENT_SECRET_ID: ${AZURE_CLIENT_SECRET_ID}
+      AZURE_CLIENT_ID_S: ${AZURE_CLIENT_ID_S}
+      AZURE_CLIENT_SECRET_S: ${AZURE_CLIENT_SECRET_S}
+      AZURE_CLIENT_SECRET_ID_S: ${AZURE_CLIENT_SECRET_ID_S}
       AZURE_TENANT_DOMAIN: ${AZURE_TENANT_DOMAIN}
       AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-https://gv.aspromex.mx}
       SHAREPOINT_URL: ${SHAREPOINT_URL:-https://itzamnaoilandgas.sharepoint.com/sites/GerenciamientoViajes/Documentos%20compartidos/Forms/AllItems.aspx}

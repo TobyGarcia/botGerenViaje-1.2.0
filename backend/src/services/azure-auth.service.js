@@ -1,24 +1,26 @@
 import { databasePool } from "../database/pool.js";
 
-let cachedToken = null;
-let tokenExpiresAt = 0;
+const tokenCache = new Map();
 
 /**
  * Obtiene un Access Token de Azure AD (Microsoft Entra ID) mediante el flujo client_credentials.
  */
-export async function getAzureAccessToken() {
+export async function getAzureAccessToken({ clientId: customClientId, clientSecret: customClientSecret } = {}) {
   const tenantId = process.env.AZURE_TENANT_ID;
-  const clientId = process.env.AZURE_CLIENT_ID;
-  const clientSecret = process.env.AZURE_CLIENT_SECRET;
+  const clientId = customClientId || process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
+  const clientSecret = customClientSecret || process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
 
   if (!tenantId || !clientId || !clientSecret) {
     throw new Error(
-      "Credenciales de Azure AD incompletas. Asegúrate de configurar AZURE_TENANT_ID, AZURE_CLIENT_ID y AZURE_CLIENT_SECRET en .env"
+      "Credenciales de Azure AD incompletas. Asegúrate de configurar AZURE_TENANT_ID, AZURE_CLIENT_ID (o AZURE_CLIENT_ID_S) y AZURE_CLIENT_SECRET (o AZURE_CLIENT_SECRET_S) en .env"
     );
   }
 
-  if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
-    return cachedToken;
+  const cacheKey = `${tenantId}:${clientId}`;
+  const existing = tokenCache.get(cacheKey);
+
+  if (existing && Date.now() < existing.expiresAt - 60000) {
+    return existing.token;
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
@@ -43,10 +45,12 @@ export async function getAzureAccessToken() {
   }
 
   const data = await response.json();
-  cachedToken = data.access_token;
-  tokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+  const token = data.access_token;
+  const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
 
-  return cachedToken;
+  tokenCache.set(cacheKey, { token, expiresAt });
+
+  return token;
 }
 
 /**

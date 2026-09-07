@@ -893,43 +893,59 @@ function ConductoresPage({ user }) {
                 </p>
               </div>
 
-              <div className="driver-license-panel" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0 0 12px 0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px", width: "100%" }}>
-                  🪪 Documento de Licencia
+              <div className="driver-license-panel" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px", width: "100%" }}>
+                  🪪 Documentos de Licencia
                 </h3>
-                {approveModalConductor.licencia_url ? (
-                  approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
-                    <div style={{ textAlign: "center", padding: "24px 16px", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe", width: "100%" }}>
-                      <span style={{ fontSize: "2.5rem", display: "block", marginBottom: "8px" }}>📄</span>
-                      <p style={{ fontWeight: "600", color: "#1e40af", marginBottom: "12px", fontSize: "0.9rem" }}>Archivo PDF de la Licencia</p>
-                      <a
-                        href={approveModalConductor.licencia_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="primary-button"
-                        style={{ textDecoration: "none", display: "inline-block", fontSize: "0.85rem", padding: "8px 16px" }}
-                      >
-                        Abrir y revisar PDF ↗
-                      </a>
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: "center", width: "100%" }}>
-                      <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" title="Abrir imagen completa">
-                        <img
-                          src={approveModalConductor.licencia_url}
-                          alt={`Licencia de ${approveModalConductor.nombre}`}
-                          style={{ maxWidth: "100%", maxHeight: "280px", borderRadius: "8px", border: "1px solid #cbd5e1", objectFit: "contain", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
-                        />
-                      </a>
-                      <p style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "6px" }}>🔍 Haz clic en la foto para verla a tamaño completo</p>
-                    </div>
-                  )
-                ) : (
-                  <div style={{ textAlign: "center", padding: "36px 16px", background: "#fef2f2", borderRadius: "8px", border: "1px dashed #fca5a5", width: "100%", color: "#991b1b" }}>
-                    <span style={{ fontSize: "2rem", display: "block", marginBottom: "6px" }}>📷</span>
-                    <p style={{ fontSize: "0.88rem", fontWeight: "500" }}>No se adjuntó archivo de la licencia de conducir en el registro.</p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", width: "100%" }}>
+                  {/* Licencia Frente */}
+                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Frente</p>
+                    {approveModalConductor.licencia_url ? (
+                      approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
+                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
+                          <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
+                        </div>
+                      ) : (
+                        <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" title="Ver Frente a tamaño completo">
+                          <img
+                            src={approveModalConductor.licencia_url}
+                            alt={`Licencia frente de ${approveModalConductor.nombre}`}
+                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
+                          />
+                        </a>
+                      )
+                    ) : (
+                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Frente</p>
+                    )}
                   </div>
-                )}
+
+                  {/* Licencia Reverso */}
+                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Reverso / Trasero</p>
+                    {approveModalConductor.licencia_reverso_url ? (
+                      approveModalConductor.licencia_reverso_url.toLowerCase().endsWith(".pdf") ? (
+                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
+                          <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
+                        </div>
+                      ) : (
+                        <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" title="Ver Reverso a tamaño completo">
+                          <img
+                            src={approveModalConductor.licencia_reverso_url}
+                            alt={`Licencia reverso de ${approveModalConductor.nombre}`}
+                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
+                          />
+                        </a>
+                      )
+                    ) : (
+                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Reverso</p>
+                    )}
+                  </div>
+                </div>
+                <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "2px 0 0 0", textAlign: "center" }}>🔍 Haz clic en las imágenes para ampliarlas</p>
               </div>
             </div>
 
