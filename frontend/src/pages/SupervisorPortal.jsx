@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Component } from "react";
 import {
   asignarVehiculoSupervisor,
   decidirSupervisorInspeccion,
@@ -163,6 +163,54 @@ function checkRolCanAuthorize(userRol, nivelRiesgo) {
   return rolesBajo.includes(rol);
 }
 
+function tryParseJson(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "object") return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      return parsed ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("[SupervisorPortal] Error en render:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: "16px", background: "#fee2e2", border: "1px solid #f87171", borderRadius: "8px", color: "#991b1b", margin: "16px 0" }}>
+          <h3>⚠️ Ocurrió un problema al mostrar el gerenciamiento</h3>
+          <p style={{ fontSize: "0.85rem" }}>{this.state.error?.message || "Error al procesar los datos del formulario"}</p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onReset?.();
+            }}
+            style={{ padding: "8px 14px", background: "#b91c1c", color: "#fff", border: 0, borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}
+          >
+            ← Volver a la lista
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function SupervisorPortal({ access, onAccessChanged }) {
   const [tenantEmail, setTenantEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -244,6 +292,9 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   }
 
   const currentUserRole = String(access.user?.rol || access.rol || "SUPERVISOR").toUpperCase();
+  const canAuthorizeGerenciamiento = gerenciamientoDetail
+    ? checkRolCanAuthorize(currentUserRole, gerenciamientoDetail.nivel_riesgo)
+    : false;
 
   async function openInspeccion(id) {
     try {
@@ -594,361 +645,387 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
               )}
             </section>
           ) : (
-            <section className="result-card" style={{ textAlign: "left" }}>
-              <button type="button" onClick={() => { setGerenciamientoDetail(null); setSignature(""); setComment(""); }}>← Volver</button>
-              
-              {/* Encabezado Institucional SII-MX-23-LOG-003 */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", margin: "14px 0 10px 0", borderBottom: "2px solid #0284c7", paddingBottom: "10px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <img src={logoAQR} alt="AQUARIO" style={{ height: "38px" }} />
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h2>
-                    <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Código: <strong>{gerenciamientoDetail.folio_documento || "SII-MX-23-LOG-003"}</strong> (Rev. {gerenciamientoDetail.version_documento || "3.0"})</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{
-                    padding: "4px 12px",
-                    borderRadius: "14px",
-                    fontSize: "0.82rem",
-                    fontWeight: "bold",
-                    background: gerenciamientoDetail.estado === "APROBADO" ? "#dcfce7" : gerenciamientoDetail.estado === "RECHAZADO" ? "#fee2e2" : "#fef9c3",
-                    color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : gerenciamientoDetail.estado === "RECHAZADO" ? "#991b1b" : "#854d0e"
-                  }}>
-                    {gerenciamientoDetail.estado === "APROBADO" ? "✅ APROBADO" : gerenciamientoDetail.estado === "RECHAZADO" ? "❌ RECHAZADO" : "⏳ PENDIENTE DE AUTORIZACIÓN"}
-                  </span>
-                </div>
-              </div>
+            <ErrorBoundary onReset={() => { setGerenciamientoDetail(null); setSignature(""); setComment(""); }}>
+              {(() => {
+                const rawAcomp = tryParseJson(gerenciamientoDetail.acompanantes, []);
+                const acompanantesList = Array.isArray(rawAcomp) ? rawAcomp : [];
 
-              {/* 1. Control del Documento */}
-              <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.83rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "6px", marginBottom: "12px" }}>
-                <div><strong>Área:</strong> {gerenciamientoDetail.area_responsable || "Logística"}</div>
-                <div><strong>Depto:</strong> {gerenciamientoDetail.departamento || "Operaciones"}</div>
-                <div><strong>Fecha:</strong> {String(gerenciamientoDetail.fecha_emision).split("T")[0]}</div>
-                <div><strong>Hora salida:</strong> {gerenciamientoDetail.hora_salida || "N/A"}</div>
-              </div>
+                const rawSitios = tryParseJson(gerenciamientoDetail.sitios_reporte, []);
+                const sitiosList = Array.isArray(rawSitios) ? rawSitios : [];
 
-              {/* 2. Conductor y Acompañantes */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                👤 Conductor y Pasajeros
-              </h3>
-              <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gap: "5px", marginBottom: "12px" }}>
-                <div><strong>Nombre Conductor:</strong> {gerenciamientoDetail.nombre_conductor}</div>
-                <div><strong>Licencia:</strong> No. {gerenciamientoDetail.licencia_numero || "N/A"} · Tipo: {gerenciamientoDetail.licencia_tipo || "Chofer"} · Vigencia: {gerenciamientoDetail.licencia_vencimiento ? String(gerenciamientoDetail.licencia_vencimiento).split("T")[0] : "Vigente"}</div>
-                <div><strong>Teléfono de contacto:</strong> {gerenciamientoDetail.telefono_conductor || "No registrado"}</div>
-                <div><strong>Tiempo estimado de viaje:</strong> {gerenciamientoDetail.tiempo_viaje_horas || 1} hora(s)</div>
-                <div><strong>Ruta declarada:</strong> 📍 <strong>{gerenciamientoDetail.origen_nombre || gerenciamientoDetail.origen_texto}</strong> ➔ 🏁 <strong>{gerenciamientoDetail.destino_nombre || gerenciamientoDetail.destino_texto}</strong></div>
-                {Array.isArray(gerenciamientoDetail.acompanantes) && gerenciamientoDetail.acompanantes.length > 0 ? (
-                  <div>
-                    <strong>Acompañantes registrados:</strong>
-                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                      {gerenciamientoDetail.acompanantes.map((ac, idx) => (
-                        <li key={idx}>{typeof ac === 'object' ? ac.nombre || JSON.stringify(ac) : ac}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div><strong>Acompañantes:</strong> <em>Sin acompañantes (viaja solo)</em></div>
-                )}
-                {Array.isArray(gerenciamientoDetail.sitios_reporte) && gerenciamientoDetail.sitios_reporte.length > 0 && (
-                  <div style={{ marginTop: "4px" }}>
-                    <strong>Sitios de reporte en ruta:</strong>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
-                      {gerenciamientoDetail.sitios_reporte.map((s, idx) => (
-                        <span key={idx} style={{ padding: "2px 8px", borderRadius: "6px", background: s.horaReportada ? "#dcfce7" : "#f1f5f9", fontSize: "0.78rem", border: "1px solid #cbd5e1" }}>
-                          📍 {s.punto} {s.horaReportada ? `(Reportado: ${s.horaReportada})` : "(Pendiente)"}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                const checklistRaw = tryParseJson(gerenciamientoDetail.inspeccion_checklist, null);
+                const safeChecklist = (checklistRaw && typeof checklistRaw === "object" && !Array.isArray(checklistRaw))
+                  ? checklistRaw
+                  : null;
 
-              {/* 3. Datos del Vehículo */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                🚗 Unidad y Vehículo
-              </h3>
-              <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "6px", marginBottom: "12px" }}>
-                <div><strong>No. Económico:</strong> {gerenciamientoDetail.numero_unidad || "S/N"}</div>
-                <div><strong>Placas:</strong> {gerenciamientoDetail.placa || "N/A"}</div>
-                <div><strong>Modelo / Color:</strong> {gerenciamientoDetail.modelo || "N/A"} ({gerenciamientoDetail.color || "N/A"})</div>
-                <div><strong>Tipo vehículo:</strong> {gerenciamientoDetail.tipo_vehiculo || "Vehículo Liviano"}</div>
-                <div><strong>Km inicial:</strong> {Number(gerenciamientoDetail.kilometraje || 0).toLocaleString("es-MX")} km</div>
-                <div><strong>Propiedad:</strong> {gerenciamientoDetail.vehiculo_empresa !== false ? "Vehículo Empresa" : (gerenciamientoDetail.nombre_contratista ? `Contratista: ${gerenciamientoDetail.nombre_contratista}` : "Contratista / Tercero")}</div>
-              </div>
+                const danosRaw = tryParseJson(gerenciamientoDetail.inspeccion_danos, null);
+                const safeDanos = (danosRaw && typeof danosRaw === "object" && !Array.isArray(danosRaw))
+                  ? danosRaw
+                  : null;
 
-              {/* 4. Valoración Médica Preliminar */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                🩺 Aptitud y Valoración Médica
-              </h3>
-              <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "6px", marginBottom: "12px" }}>
-                <div><strong>Presión arterial:</strong> {gerenciamientoDetail.presion_arterial || "120/80"}</div>
-                <div><strong>Glucosa:</strong> {gerenciamientoDetail.glucosa ? `${gerenciamientoDetail.glucosa} mg/dL` : "N/R"}</div>
-                <div><strong>Frec. Cardíaca:</strong> {gerenciamientoDetail.frecuencia_cardiaca ? `${gerenciamientoDetail.frecuencia_cardiaca} bpm` : "Normal"}</div>
-                <div><strong>Frec. Respiratoria:</strong> {gerenciamientoDetail.frecuencia_respiratoria ? `${gerenciamientoDetail.frecuencia_respiratoria} rpm` : "Normal"}</div>
-                <div><strong>Examen visual:</strong> {gerenciamientoDetail.examen_visual || "Normal"}</div>
-                <div>
-                  <strong>Alcoholímetro:</strong>{" "}
-                  {gerenciamientoDetail.alcoholimetro ? (
-                    <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b", fontWeight: "bold" }}>⚠️ POSITIVO (ALTO RIESGO)</span>
-                  ) : (
-                    <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#dcfce7", color: "#166534", fontWeight: "bold" }}>✅ 0.00 Negativo</span>
-                  )}
-                </div>
-              </div>
-
-              {/* 5. Preguntas de Verificación Operativa */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                📋 Verificación de Procedimientos y Reglas
-              </h3>
-              <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.82rem", display: "grid", gap: "6px", marginBottom: "12px" }}>
-                <div>1. ¿Conocimiento de riesgos locales de la ruta? <strong>{gerenciamientoDetail.conocimiento_riesgos_locales !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                <div>2. ¿Prohibido subir personal ajeno a la empresa? <strong>{gerenciamientoDetail.prohibido_personal_ajeno !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                <div>3. ¿Inspección previa del vehículo realizada? <strong>{gerenciamientoDetail.inspeccion_vehiculo_realizada !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                <div>4. ¿Reunión previa de caravana realizada? <strong>{gerenciamientoDetail.reunion_pre_caravana_realizada ? "✅ SÍ" : "⚪ NO APLICA / NO"}</strong></div>
-              </div>
-
-              {/* 6. Inspección Vehicular Integrada */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                🔧 Inspección Vehicular Integrada
-              </h3>
-              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", padding: "10px 12px", borderRadius: "8px", marginBottom: "12px", fontSize: "0.85rem", color: "#0369a1" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
-                  <div>Combustible: <strong>{gerenciamientoDetail.inspeccion_combustible || "3/4"}</strong></div>
-                  <div>Estado Inspección: <strong>{gerenciamientoDetail.inspeccion_estado || (gerenciamientoDetail.estado === 'APROBADO' ? 'APROBADA' : 'PENDIENTE')}</strong></div>
-                </div>
-                {gerenciamientoDetail.inspeccion_observaciones && (
-                  <div style={{ marginBottom: "8px" }}><strong>Obs. del conductor:</strong> {gerenciamientoDetail.inspeccion_observaciones}</div>
-                )}
-
-                {gerenciamientoDetail.inspeccion_checklist && typeof gerenciamientoDetail.inspeccion_checklist === 'object' && Object.keys(gerenciamientoDetail.inspeccion_checklist).length > 0 && (
-                  <div style={{ marginTop: "8px" }}>
-                    <strong style={{ display: "block", marginBottom: "6px" }}>Puntos de Inspección Checklist:</strong>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px" }}>
-                      {Object.entries(gerenciamientoDetail.inspeccion_checklist).map(([nombreItem, estadoItem]) => (
-                        <div key={nombreItem} style={{ background: "#ffffff", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
-                          <span>{nombreItem}</span>
-                          <span className={`checklist-badge checklist-badge-${estadoItem === "B" ? "good" : estadoItem === "R" ? "regular" : estadoItem === "M" ? "bad" : "na"}`}>
-                            {estadoItem}
-                          </span>
+                return (
+                  <section className="result-card" style={{ textAlign: "left" }}>
+                    <button type="button" onClick={() => { setGerenciamientoDetail(null); setSignature(""); setComment(""); }}>← Volver</button>
+                    
+                    {/* Encabezado Institucional SII-MX-23-LOG-003 */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", margin: "14px 0 10px 0", borderBottom: "2px solid #0284c7", paddingBottom: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <img src={logoAQR} alt="AQUARIO" style={{ height: "38px" }} />
+                        <div>
+                          <h2 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h2>
+                          <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Código: <strong>{gerenciamientoDetail.folio_documento || "SII-MX-23-LOG-003"}</strong> (Rev. {gerenciamientoDetail.version_documento || "3.0"})</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {gerenciamientoDetail.inspeccion_danos && Object.keys(gerenciamientoDetail.inspeccion_danos).length > 0 && (
-                  <div style={{ marginTop: "10px" }}>
-                    <DamageViewer damages={gerenciamientoDetail.inspeccion_danos} vehicle={gerenciamientoDetail.tipo_vehiculo} />
-                  </div>
-                )}
-              </div>
-
-              {/* 7. Matriz de Riesgo y Tabuladores A a G */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                ⚖️ Evaluación de Riesgo y Factores (Tabuladores A - G)
-              </h3>
-              <div style={{
-                background: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#fef2f2' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#fefce8' : '#f0fdf4',
-                border: `1.5px solid ${gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#f87171' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#facc15' : '#86efac'}`,
-                padding: "12px",
-                borderRadius: "10px",
-                marginBottom: "12px"
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
-                  <div style={{ fontSize: "1.05rem", fontWeight: "bold", color: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#991b1b' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#854d0e' : '#166534' }}>
-                    Puntaje Total: {gerenciamientoDetail.puntaje_total} pts · NIVEL {gerenciamientoDetail.nivel_riesgo}
-                  </div>
-                  <div style={{ fontSize: "0.82rem", background: "#ffffff", padding: "4px 10px", borderRadius: "12px", border: "1px solid #cbd5e1", fontWeight: "bold" }}>
-                    Autorización: {gerenciamientoDetail.autorizacion_requerida || "SUPERVISIÓN / QHSE"}
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "6px", fontSize: "0.8rem" }}>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>A. Distancia: <strong>{gerenciamientoDetail.pts_distancia} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>B. Clima: <strong>{gerenciamientoDetail.pts_clima} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>C. Vehículos: <strong>{gerenciamientoDetail.pts_vehiculos_personas} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>D. Condiciones vía: <strong>{gerenciamientoDetail.pts_condiciones_via} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>E. Comunicación: <strong>{gerenciamientoDetail.pts_comunicaciones} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>F. Horas previas: <strong>{gerenciamientoDetail.pts_horas_trabajadas} pts</strong></div>
-                  <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>G. Horario traslado: <strong>{gerenciamientoDetail.pts_hora_traslado} pts</strong></div>
-                </div>
-
-                {gerenciamientoDetail.es_bloqueante_horas && (
-                  <div style={{ marginTop: "8px", background: "#fee2e2", color: "#991b1b", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                    ⚠️ Alerta Crítica: Conductor con jornada excesiva previa al viaje. Requiere descanso obligatorio.
-                  </div>
-                )}
-                {gerenciamientoDetail.requiere_aprobacion_nocturna && (
-                  <div style={{ marginTop: "6px", background: "#eff6ff", color: "#1e40af", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                    🌙 Traslado programado en horario nocturno. Requiere autorización estricta.
-                  </div>
-                )}
-              </div>
-
-              {/* 8. Firma del Conductor */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                ✍️ Firma del Conductor
-              </h3>
-              <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-                {gerenciamientoDetail.firma_conductor ? (
-                  <div>
-                    <img
-                      src={gerenciamientoDetail.firma_conductor}
-                      alt="Firma Conductor"
-                      style={{ maxHeight: "80px", maxWidth: "220px", display: "block", background: "#fff", border: "1px solid #cbd5e1", padding: "4px", borderRadius: "6px" }}
-                    />
-                    <small style={{ color: "#64748b", fontSize: "0.78rem" }}>
-                      Conductor: {gerenciamientoDetail.nombre_conductor_firma || gerenciamientoDetail.nombre_conductor}
-                    </small>
-                  </div>
-                ) : (
-                  <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0 }}>Firma no registrada por el conductor.</p>
-                )}
-              </div>
-
-              {/* 9. Dictamen de Aprobación según Rol */}
-              <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                🛡️ Dictamen de Autorización (Rol: {currentUserRole})
-              </h3>
-
-              {gerenciamientoDetail.estado !== "PENDIENTE" ? (
-                /* Detalle de Gerenciamiento ya procesado */
-                <div style={{ background: gerenciamientoDetail.estado === "APROBADO" ? "#f0fdf4" : "#fef2f2", border: `1px solid ${gerenciamientoDetail.estado === "APROBADO" ? "#86efac" : "#f87171"}`, padding: "14px", borderRadius: "10px", marginBottom: "12px" }}>
-                  <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : "#991b1b", marginBottom: "6px" }}>
-                    {gerenciamientoDetail.estado === "APROBADO" ? "✅ VIAJE Y GERENCIAMIENTO AUTORIZADO" : "❌ VIAJE RECHAZADO"}
-                  </div>
-                  <div style={{ fontSize: "0.85rem" }}>
-                    <div><strong>Autorizado por:</strong> {gerenciamientoDetail.nombre_autorizador_firma || "Supervisor"}</div>
-                    {gerenciamientoDetail.fecha_firma_autorizador && (
-                      <div><strong>Fecha dictamen:</strong> {new Date(gerenciamientoDetail.fecha_firma_autorizador).toLocaleString("es-MX")}</div>
-                    )}
-                    {gerenciamientoDetail.observaciones && (
-                      <div style={{ marginTop: "4px" }}><strong>Comentarios:</strong> {gerenciamientoDetail.observaciones}</div>
-                    )}
-                  </div>
-                  {gerenciamientoDetail.firma_autorizador && (
-                    <div style={{ marginTop: "10px" }}>
-                      <small style={{ color: "#475569", display: "block", marginBottom: "4px" }}>Firma del Autorizador:</small>
-                      <img src={gerenciamientoDetail.firma_autorizador} alt="Firma Autorizador" style={{ maxHeight: "75px", maxWidth: "220px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px" }} />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Formulario de Decisión para Gerenciamiento PENDIENTE */
-                <div>
-                  {/* Validación de Rol */}
-                  {!canAuthorizeGerenciamiento && (
-                    <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.85rem" }}>
-                      <strong>⚠️ Facultades de Autorización Insuficientes:</strong>
-                      <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
-                        Tu rol actual es <strong>{currentUserRole}</strong>. Este viaje clasificado como <strong>RIESGO {gerenciamientoDetail.nivel_riesgo}</strong> requiere la aprobación de: <strong>{gerenciamientoDetail.autorizacion_requerida || "COORDINACIÓN / GERENCIA"}</strong>.
-                      </p>
-                    </div>
-                  )}
-
-                  <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "block", marginBottom: "8px" }}>
-                    Nombre del Autorizador:
-                    <input
-                      type="text"
-                      value={autorizadorNombre}
-                      onChange={e => setAutorizadorNombre(e.target.value)}
-                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px" }}
-                    />
-                  </label>
-
-                  <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "block", marginBottom: "12px" }}>
-                    Observaciones / Condiciones de Aprobación:
-                    <textarea
-                      rows="2"
-                      value={comment}
-                      onChange={e => setComment(e.target.value)}
-                      placeholder="Indica condiciones de ruta, velocidad máxima sugerida, o motivo en caso de rechazo..."
-                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px" }}
-                    />
-                  </label>
-
-                  {/* Captura de Firma Digital */}
-                  {signature ? (
-                    <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem" }}>✅ Tu firma digital está lista</span>
-                        <button
-                          type="button"
-                          onClick={() => setShowSignatureModal(true)}
-                          style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer" }}
-                        >
-                          🔄 Modificar Firma
-                        </button>
                       </div>
-                      <img
-                        src={signature}
-                        alt="Firma Supervisor"
-                        style={{ maxHeight: "80px", maxWidth: "100%", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "4px", display: "block" }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ marginBottom: "14px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setShowSignatureModal(true)}
-                        style={{
-                          width: "100%",
-                          padding: "12px",
-                          borderRadius: "8px",
-                          background: "linear-gradient(135deg, #1e40af, #0284c7)",
-                          color: "#ffffff",
-                          border: 0,
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{
+                          padding: "4px 12px",
+                          borderRadius: "14px",
+                          fontSize: "0.82rem",
                           fontWeight: "bold",
-                          fontSize: "0.92rem",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "8px"
-                        }}
-                      >
-                        ✍️ Abrir Captura de Firma Digital
-                      </button>
+                          background: gerenciamientoDetail.estado === "APROBADO" ? "#dcfce7" : gerenciamientoDetail.estado === "RECHAZADO" ? "#fee2e2" : "#fef9c3",
+                          color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : gerenciamientoDetail.estado === "RECHAZADO" ? "#991b1b" : "#854d0e"
+                        }}>
+                          {gerenciamientoDetail.estado === "APROBADO" ? "✅ APROBADO" : gerenciamientoDetail.estado === "RECHAZADO" ? "❌ RECHAZADO" : "⏳ PENDIENTE DE AUTORIZACIÓN"}
+                        </span>
+                      </div>
                     </div>
-                  )}
 
-                  {/* Acciones de Decisión */}
-                  <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-                    <button
-                      type="button"
-                      style={{ flex: 1, background: "#ef4444", color: "#fff", padding: "10px", borderRadius: "8px", border: 0, fontWeight: "bold", cursor: signature ? "pointer" : "not-allowed", opacity: signature ? 1 : 0.6 }}
-                      disabled={!signature}
-                      onClick={() => decideGerenciamiento("RECHAZADO")}
-                    >
-                      ❌ Rechazar Gerenciamiento
-                    </button>
-                    <button
-                      type="button"
-                      style={{
-                        flex: 2,
-                        background: (canAuthorizeGerenciamiento && signature) ? "#16a34a" : "#94a3b8",
-                        color: "#fff",
-                        padding: "10px",
-                        borderRadius: "8px",
-                        border: 0,
-                        fontWeight: "bold",
-                        cursor: (canAuthorizeGerenciamiento && signature) ? "pointer" : "not-allowed"
-                      }}
-                      disabled={!canAuthorizeGerenciamiento || !signature}
-                      onClick={() => decideGerenciamiento("APROBADO")}
-                    >
-                      ✅ Aprobar Gerenciamiento e Inspección
-                    </button>
-                  </div>
-                  {!canAuthorizeGerenciamiento && (
-                    <small style={{ display: "block", color: "#b91c1c", marginTop: "6px", fontSize: "0.78rem" }}>
-                      * El botón de aprobación está restringido para tu nivel de rol ({currentUserRole}).
-                    </small>
-                  )}
-                </div>
-              )}
-            </section>
+                    {/* 1. Control del Documento */}
+                    <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.83rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "6px", marginBottom: "12px" }}>
+                      <div><strong>Área:</strong> {gerenciamientoDetail.area_responsable || "Logística"}</div>
+                      <div><strong>Depto:</strong> {gerenciamientoDetail.departamento || "Operaciones"}</div>
+                      <div><strong>Fecha:</strong> {gerenciamientoDetail.fecha_emision ? String(gerenciamientoDetail.fecha_emision).split("T")[0] : "N/A"}</div>
+                      <div><strong>Hora salida:</strong> {gerenciamientoDetail.hora_salida || "N/A"}</div>
+                    </div>
+
+                    {/* 2. Conductor y Acompañantes */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      👤 Conductor y Pasajeros
+                    </h3>
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gap: "5px", marginBottom: "12px" }}>
+                      <div><strong>Nombre Conductor:</strong> {gerenciamientoDetail.nombre_conductor}</div>
+                      <div><strong>Licencia:</strong> No. {gerenciamientoDetail.licencia_numero || "N/A"} · Tipo: {gerenciamientoDetail.licencia_tipo || "Chofer"} · Vigencia: {gerenciamientoDetail.licencia_vencimiento ? String(gerenciamientoDetail.licencia_vencimiento).split("T")[0] : "Vigente"}</div>
+                      <div><strong>Teléfono de contacto:</strong> {gerenciamientoDetail.telefono_conductor || "No registrado"}</div>
+                      <div><strong>Tiempo estimado de viaje:</strong> {gerenciamientoDetail.tiempo_viaje_horas || 1} hora(s)</div>
+                      <div><strong>Ruta declarada:</strong> 📍 <strong>{gerenciamientoDetail.origen_nombre || gerenciamientoDetail.origen_texto}</strong> ➔ 🏁 <strong>{gerenciamientoDetail.destino_nombre || gerenciamientoDetail.destino_texto}</strong></div>
+                      {acompanantesList.length > 0 ? (
+                        <div>
+                          <strong>Acompañantes registrados:</strong>
+                          <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                            {acompanantesList.map((ac, idx) => (
+                              <li key={idx}>{typeof ac === 'object' && ac !== null ? (ac.nombre || JSON.stringify(ac)) : String(ac)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div><strong>Acompañantes:</strong> <em>Sin acompañantes (viaja solo)</em></div>
+                      )}
+                      {sitiosList.length > 0 && (
+                        <div style={{ marginTop: "4px" }}>
+                          <strong>Sitios de reporte en ruta:</strong>
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+                            {sitiosList.map((s, idx) => {
+                              const puntoName = typeof s === 'object' && s !== null ? (s.punto || s.nombre || JSON.stringify(s)) : String(s);
+                              const hora = typeof s === 'object' && s !== null ? s.horaReportada : null;
+                              return (
+                                <span key={idx} style={{ padding: "2px 8px", borderRadius: "6px", background: hora ? "#dcfce7" : "#f1f5f9", fontSize: "0.78rem", border: "1px solid #cbd5e1" }}>
+                                  📍 {puntoName} {hora ? `(Reportado: ${hora})` : "(Pendiente)"}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Datos del Vehículo */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      🚗 Unidad y Vehículo
+                    </h3>
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "6px", marginBottom: "12px" }}>
+                      <div><strong>No. Económico:</strong> {gerenciamientoDetail.numero_unidad || "S/N"}</div>
+                      <div><strong>Placas:</strong> {gerenciamientoDetail.placa || "N/A"}</div>
+                      <div><strong>Modelo / Color:</strong> {gerenciamientoDetail.modelo || "N/A"} ({gerenciamientoDetail.color || "N/A"})</div>
+                      <div><strong>Tipo vehículo:</strong> {gerenciamientoDetail.tipo_vehiculo || "Vehículo Liviano"}</div>
+                      <div><strong>Km inicial:</strong> {Number(gerenciamientoDetail.kilometraje || 0).toLocaleString("es-MX")} km</div>
+                      <div><strong>Propiedad:</strong> {gerenciamientoDetail.vehiculo_empresa !== false ? "Vehículo Empresa" : (gerenciamientoDetail.nombre_contratista ? `Contratista: ${gerenciamientoDetail.nombre_contratista}` : "Contratista / Tercero")}</div>
+                    </div>
+
+                    {/* 4. Valoración Médica Preliminar */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      🩺 Aptitud y Valoración Médica
+                    </h3>
+                    <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "6px", marginBottom: "12px" }}>
+                      <div><strong>Presión arterial:</strong> {gerenciamientoDetail.presion_arterial || "120/80"}</div>
+                      <div><strong>Glucosa:</strong> {gerenciamientoDetail.glucosa ? `${gerenciamientoDetail.glucosa} mg/dL` : "N/R"}</div>
+                      <div><strong>Frec. Cardíaca:</strong> {gerenciamientoDetail.frecuencia_cardiaca ? `${gerenciamientoDetail.frecuencia_cardiaca} bpm` : "Normal"}</div>
+                      <div><strong>Frec. Respiratoria:</strong> {gerenciamientoDetail.frecuencia_respiratoria ? `${gerenciamientoDetail.frecuencia_respiratoria} rpm` : "Normal"}</div>
+                      <div><strong>Examen visual:</strong> {gerenciamientoDetail.examen_visual || "Normal"}</div>
+                      <div>
+                        <strong>Alcoholímetro:</strong>{" "}
+                        {gerenciamientoDetail.alcoholimetro ? (
+                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b", fontWeight: "bold" }}>⚠️ POSITIVO (ALTO RIESGO)</span>
+                        ) : (
+                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#dcfce7", color: "#166534", fontWeight: "bold" }}>✅ 0.00 Negativo</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5. Preguntas de Verificación Operativa */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      📋 Verificación de Procedimientos y Reglas
+                    </h3>
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.82rem", display: "grid", gap: "6px", marginBottom: "12px" }}>
+                      <div>1. ¿Conocimiento de riesgos locales de la ruta? <strong>{gerenciamientoDetail.conocimiento_riesgos_locales !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
+                      <div>2. ¿Prohibido subir personal ajeno a la empresa? <strong>{gerenciamientoDetail.prohibido_personal_ajeno !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
+                      <div>3. ¿Inspección previa del vehículo realizada? <strong>{gerenciamientoDetail.inspeccion_vehiculo_realizada !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
+                      <div>4. ¿Reunión previa de caravana realizada? <strong>{gerenciamientoDetail.reunion_pre_caravana_realizada ? "✅ SÍ" : "⚪ NO APLICA / NO"}</strong></div>
+                    </div>
+
+                    {/* 6. Inspección Vehicular Integrada */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      🔧 Inspección Vehicular Integrada
+                    </h3>
+                    <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", padding: "10px 12px", borderRadius: "8px", marginBottom: "12px", fontSize: "0.85rem", color: "#0369a1" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
+                        <div>Combustible: <strong>{gerenciamientoDetail.inspeccion_combustible || "3/4"}</strong></div>
+                        <div>Estado Inspección: <strong>{gerenciamientoDetail.inspeccion_estado || (gerenciamientoDetail.estado === 'APROBADO' ? 'APROBADA' : 'PENDIENTE')}</strong></div>
+                      </div>
+                      {gerenciamientoDetail.inspeccion_observaciones && (
+                        <div style={{ marginBottom: "8px" }}><strong>Obs. del conductor:</strong> {gerenciamientoDetail.inspeccion_observaciones}</div>
+                      )}
+
+                      {safeChecklist && Object.keys(safeChecklist).length > 0 && (
+                        <div style={{ marginTop: "8px" }}>
+                          <strong style={{ display: "block", marginBottom: "6px" }}>Puntos de Inspección Checklist:</strong>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px" }}>
+                            {Object.entries(safeChecklist).map(([nombreItem, estadoItem]) => (
+                              <div key={nombreItem} style={{ background: "#ffffff", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
+                                <span>{nombreItem}</span>
+                                <span className={`checklist-badge checklist-badge-${estadoItem === "B" ? "good" : estadoItem === "R" ? "regular" : estadoItem === "M" ? "bad" : "na"}`}>
+                                  {estadoItem}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {safeDanos && Object.keys(safeDanos).length > 0 && (
+                        <div style={{ marginTop: "10px" }}>
+                          <DamageViewer damages={safeDanos} vehicle={gerenciamientoDetail.tipo_vehiculo} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 7. Matriz de Riesgo y Tabuladores A a G */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      ⚖️ Evaluación de Riesgo y Factores (Tabuladores A - G)
+                    </h3>
+                    <div style={{
+                      background: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#fef2f2' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#fefce8' : '#f0fdf4',
+                      border: `1.5px solid ${gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#f87171' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#facc15' : '#86efac'}`,
+                      padding: "12px",
+                      borderRadius: "10px",
+                      marginBottom: "12px"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ fontSize: "1.05rem", fontWeight: "bold", color: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#991b1b' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#854d0e' : '#166534' }}>
+                          Puntaje Total: {gerenciamientoDetail.puntaje_total} pts · NIVEL {gerenciamientoDetail.nivel_riesgo}
+                        </div>
+                        <div style={{ fontSize: "0.82rem", background: "#ffffff", padding: "4px 10px", borderRadius: "12px", border: "1px solid #cbd5e1", fontWeight: "bold" }}>
+                          Autorización: {gerenciamientoDetail.autorizacion_requerida || "SUPERVISIÓN / QHSE"}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "6px", fontSize: "0.8rem" }}>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>A. Distancia: <strong>{gerenciamientoDetail.pts_distancia} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>B. Clima: <strong>{gerenciamientoDetail.pts_clima} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>C. Vehículos: <strong>{gerenciamientoDetail.pts_vehiculos_personas} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>D. Condiciones vía: <strong>{gerenciamientoDetail.pts_condiciones_via} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>E. Comunicación: <strong>{gerenciamientoDetail.pts_comunicaciones} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>F. Horas previas: <strong>{gerenciamientoDetail.pts_horas_trabajadas} pts</strong></div>
+                        <div style={{ background: "#ffffff", padding: "6px 8px", borderRadius: "6px" }}>G. Horario traslado: <strong>{gerenciamientoDetail.pts_hora_traslado} pts</strong></div>
+                      </div>
+
+                      {gerenciamientoDetail.es_bloqueante_horas && (
+                        <div style={{ marginTop: "8px", background: "#fee2e2", color: "#991b1b", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
+                          ⚠️ Alerta Crítica: Conductor con jornada excesiva previa al viaje. Requiere descanso obligatorio.
+                        </div>
+                      )}
+                      {gerenciamientoDetail.requiere_aprobacion_nocturna && (
+                        <div style={{ marginTop: "6px", background: "#eff6ff", color: "#1e40af", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
+                          🌙 Traslado programado en horario nocturno. Requiere autorización estricta.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 8. Firma del Conductor */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      ✍️ Firma del Conductor
+                    </h3>
+                    <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                      {gerenciamientoDetail.firma_conductor ? (
+                        <div>
+                          <img
+                            src={gerenciamientoDetail.firma_conductor}
+                            alt="Firma Conductor"
+                            style={{ maxHeight: "80px", maxWidth: "220px", display: "block", background: "#fff", border: "1px solid #cbd5e1", padding: "4px", borderRadius: "6px" }}
+                          />
+                          <small style={{ color: "#64748b", fontSize: "0.78rem" }}>
+                            Conductor: {gerenciamientoDetail.nombre_conductor_firma || gerenciamientoDetail.nombre_conductor}
+                          </small>
+                        </div>
+                      ) : (
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0 }}>Firma no registrada por el conductor.</p>
+                      )}
+                    </div>
+
+                    {/* 9. Dictamen de Aprobación según Rol */}
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
+                      🛡️ Dictamen de Autorización (Rol: {currentUserRole})
+                    </h3>
+
+                    {gerenciamientoDetail.estado !== "PENDIENTE" ? (
+                      /* Detalle de Gerenciamiento ya procesado */
+                      <div style={{ background: gerenciamientoDetail.estado === "APROBADO" ? "#f0fdf4" : "#fef2f2", border: `1px solid ${gerenciamientoDetail.estado === "APROBADO" ? "#86efac" : "#f87171"}`, padding: "14px", borderRadius: "10px", marginBottom: "12px" }}>
+                        <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : "#991b1b", marginBottom: "6px" }}>
+                          {gerenciamientoDetail.estado === "APROBADO" ? "✅ VIAJE Y GERENCIAMIENTO AUTORIZADO" : "❌ VIAJE RECHAZADO"}
+                        </div>
+                        <div style={{ fontSize: "0.85rem" }}>
+                          <div><strong>Autorizado por:</strong> {gerenciamientoDetail.nombre_autorizador_firma || "Supervisor"}</div>
+                          {gerenciamientoDetail.fecha_firma_autorizador && (
+                            <div><strong>Fecha dictamen:</strong> {new Date(gerenciamientoDetail.fecha_firma_autorizador).toLocaleString("es-MX")}</div>
+                          )}
+                          {gerenciamientoDetail.observaciones && (
+                            <div style={{ marginTop: "4px" }}><strong>Comentarios:</strong> {gerenciamientoDetail.observaciones}</div>
+                          )}
+                        </div>
+                        {gerenciamientoDetail.firma_autorizador && (
+                          <div style={{ marginTop: "10px" }}>
+                            <small style={{ color: "#475569", display: "block", marginBottom: "4px" }}>Firma del Autorizador:</small>
+                            <img src={gerenciamientoDetail.firma_autorizador} alt="Firma Autorizador" style={{ maxHeight: "75px", maxWidth: "220px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px" }} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Formulario de Decisión para Gerenciamiento PENDIENTE */
+                      <div>
+                        {/* Validación de Rol */}
+                        {!canAuthorizeGerenciamiento && (
+                          <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.85rem" }}>
+                            <strong>⚠️ Facultades de Autorización Insuficientes:</strong>
+                            <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
+                              Tu rol actual es <strong>{currentUserRole}</strong>. Este viaje clasificado como <strong>RIESGO {gerenciamientoDetail.nivel_riesgo}</strong> requiere la aprobación de: <strong>{gerenciamientoDetail.autorizacion_requerida || "COORDINACIÓN / GERENCIA"}</strong>.
+                            </p>
+                          </div>
+                        )}
+
+                        <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "block", marginBottom: "8px" }}>
+                          Nombre del Autorizador:
+                          <input
+                            type="text"
+                            value={autorizadorNombre}
+                            onChange={e => setAutorizadorNombre(e.target.value)}
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px" }}
+                          />
+                        </label>
+
+                        <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "block", marginBottom: "12px" }}>
+                          Observaciones / Condiciones de Aprobación:
+                          <textarea
+                            rows="2"
+                            value={comment}
+                            onChange={e => setComment(e.target.value)}
+                            placeholder="Indica condiciones de ruta, velocidad máxima sugerida, o motivo en caso de rechazo..."
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px" }}
+                          />
+                        </label>
+
+                        {/* Captura de Firma Digital */}
+                        {signature ? (
+                          <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                              <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem" }}>✅ Tu firma digital está lista</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowSignatureModal(true)}
+                                style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer" }}
+                              >
+                                🔄 Modificar Firma
+                              </button>
+                            </div>
+                            <img
+                              src={signature}
+                              alt="Firma Supervisor"
+                              style={{ maxHeight: "80px", maxWidth: "100%", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "4px", display: "block" }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: "14px" }}>
+                            <button
+                              type="button"
+                              onClick={() => setShowSignatureModal(true)}
+                              style={{
+                                width: "100%",
+                                padding: "12px",
+                                borderRadius: "8px",
+                                background: "linear-gradient(135deg, #1e40af, #0284c7)",
+                                color: "#ffffff",
+                                border: 0,
+                                fontWeight: "bold",
+                                fontSize: "0.92rem",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "8px"
+                              }}
+                            >
+                              ✍️ Abrir Captura de Firma Digital
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Acciones de Decisión */}
+                        <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                          <button
+                            type="button"
+                            style={{ flex: 1, background: "#ef4444", color: "#fff", padding: "10px", borderRadius: "8px", border: 0, fontWeight: "bold", cursor: signature ? "pointer" : "not-allowed", opacity: signature ? 1 : 0.6 }}
+                            disabled={!signature}
+                            onClick={() => decideGerenciamiento("RECHAZADO")}
+                          >
+                            ❌ Rechazar Gerenciamiento
+                          </button>
+                          <button
+                            type="button"
+                            style={{
+                              flex: 2,
+                              background: (canAuthorizeGerenciamiento && signature) ? "#16a34a" : "#94a3b8",
+                              color: "#fff",
+                              padding: "10px",
+                              borderRadius: "8px",
+                              border: 0,
+                              fontWeight: "bold",
+                              cursor: (canAuthorizeGerenciamiento && signature) ? "pointer" : "not-allowed"
+                            }}
+                            disabled={!canAuthorizeGerenciamiento || !signature}
+                            onClick={() => decideGerenciamiento("APROBADO")}
+                          >
+                            ✅ Aprobar Gerenciamiento e Inspección
+                          </button>
+                        </div>
+                        {!canAuthorizeGerenciamiento && (
+                          <small style={{ display: "block", color: "#b91c1c", marginTop: "6px", fontSize: "0.78rem" }}>
+                            * El botón de aprobación está restringido para tu nivel de rol ({currentUserRole}).
+                          </small>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
+            </ErrorBoundary>
           )}
         </>
       )}
