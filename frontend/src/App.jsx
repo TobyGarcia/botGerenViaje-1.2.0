@@ -136,7 +136,7 @@ const sendingLocationRef = useRef(false);
     useState(false);
   const [modalAlertMessage, setModalAlertMessage] = useState("");
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
-  const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(null);
+  const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(() => getCachedJson("cached_gerenciamiento_pendiente", null));
 
   // Estado para modal/formulario de nuevo destino
   const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
@@ -305,9 +305,11 @@ const [cancelledTrip, setCancelledTrip] =
     stopTracking();
     localStorage.removeItem("driver_token");
     localStorage.removeItem("cached_driver");
+    localStorage.removeItem("cached_gerenciamiento_pendiente");
     // Conservar offline_driver_pin_digest para permitir volver a ingresar con PIN sin conexión
     setTelegramAuth(null);
     setCreatedTrip(null);
+    setGerenciamientoPendiente(null);
     setStartedTrip(null);
     setFinishedTrip(null);
     setCancelledTrip(null);
@@ -525,7 +527,16 @@ const [cancelledTrip, setCancelledTrip] =
         const activeTrip = activeTripResponse?.data;
 
         if (!activeTrip) {
+          const cachedGeren = getCachedJson("cached_gerenciamiento_pendiente", null);
+          const cachedActive = getCachedJson("cached_active_trip", null);
+          if (cachedGeren && cachedActive) {
+            setGerenciamientoPendiente(cachedGeren);
+            setCreatedTrip(cachedActive);
+            return;
+          }
           localStorage.removeItem("cached_active_trip");
+          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          setGerenciamientoPendiente(null);
           setCreatedTrip(null);
           setStartedTrip(null);
           stopTracking();
@@ -833,6 +844,9 @@ async function handleAddIntermediatePoint() {
 
       setMessage("Viaje finalizado correctamente.");
       setMessageType("success");
+      setGerenciamientoPendiente(null);
+      localStorage.removeItem("cached_gerenciamiento_pendiente");
+      localStorage.removeItem("cached_active_trip");
       stopTracking();
       await syncPendingLocations(idViaje);
     } catch (error) {
@@ -877,6 +891,9 @@ async function handleAddIntermediatePoint() {
       stopTracking();
       setCancelledTrip(cancelledData);
       setStartedTrip(null);
+      setGerenciamientoPendiente(null);
+      localStorage.removeItem("cached_gerenciamiento_pendiente");
+      localStorage.removeItem("cached_active_trip");
       setCreatedTrip((current) => ({
         ...current,
         ...cancelledData,
@@ -1129,6 +1146,51 @@ function isOutsideOperatingHours() {
     return () => window.clearInterval(timer);
   }, [createdTrip?.id_viajes, createdTrip?.idViaje, inspection?.inspection?.estado]);
 
+  // Polling para verificar si el Gerenciamiento de Viaje ha sido aprobado/rechazado por el supervisor
+  useEffect(() => {
+    if (!gerenciamientoPendiente) return undefined;
+    const idViaje = gerenciamientoPendiente.id_viaje || createdTrip?.id_viajes || createdTrip?.idViaje;
+    if (!idViaje) return undefined;
+
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await getGerenciamientoViajePorViaje(idViaje);
+        const doc = res?.data;
+        if (!doc) return;
+
+        if (doc.estado === "APROBADO") {
+          setGerenciamientoPendiente(null);
+          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          setMessage("🎉 Tu Gerenciamiento de Viaje ha sido AUTORIZADO por la supervisión. Ya puedes iniciar tu viaje.");
+          setMessageType("success");
+          if (window.Telegram?.WebApp?.showAlert) {
+            try {
+              window.Telegram.WebApp.showAlert("🎉 ¡Gerenciamiento de Viaje APROBADO! Ya puedes iniciar el viaje.");
+            } catch {}
+          }
+          await loadInspection(idViaje);
+        } else if (doc.estado === "RECHAZADO") {
+          setGerenciamientoPendiente(null);
+          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          setCreatedTrip(null);
+          localStorage.removeItem("cached_active_trip");
+          const motivo = doc.observaciones ? `: ${doc.observaciones}` : "";
+          setMessage(`❌ Tu Gerenciamiento de Viaje fue RECHAZADO por supervisión${motivo}. Contacta a tu supervisor.`);
+          setMessageType("error");
+          if (window.Telegram?.WebApp?.showAlert) {
+            try {
+              window.Telegram.WebApp.showAlert(`❌ Gerenciamiento RECHAZADO${motivo}`);
+            } catch {}
+          }
+        }
+      } catch (err) {
+        // Ignorar fallos de red esporádicos en el polling
+      }
+    }, 7000);
+
+    return () => window.clearInterval(timer);
+  }, [gerenciamientoPendiente, createdTrip]);
+
   function handleNewTrip(){
     stopTracking();
 
@@ -1142,6 +1204,9 @@ function isOutsideOperatingHours() {
     setStartedTrip(null);
     setFinishedTrip(null);
     setCancelledTrip(null);
+    setGerenciamientoPendiente(null);
+    localStorage.removeItem("cached_gerenciamiento_pendiente");
+    localStorage.removeItem("cached_active_trip");
     setKilometrajeFinal("");
     setLastLocation(null);
     setGpsStatus("GPS detenido.");
@@ -1339,8 +1404,9 @@ function isOutsideOperatingHours() {
           onComplete={(gerenData) => {
             setActiveTabMode("urban");
             setGerenciamientoPendiente(gerenData);
+            localStorage.setItem("cached_gerenciamiento_pendiente", JSON.stringify(gerenData));
             if (gerenData?.id_viaje) {
-              setCreatedTrip({
+              const pendingTrip = {
                 id_viajes: gerenData.id_viaje,
                 idViaje: gerenData.id_viaje,
                 folio: gerenData.folio_documento || `GEREN-${gerenData.id_gerenciamiento}`,
@@ -1349,7 +1415,9 @@ function isOutsideOperatingHours() {
                 numeroEconomico: gerenData.numero_unidad || "N/A",
                 kilometrajeInicial: gerenData.kilometraje || 0,
                 estado: "PENDIENTE_APROBACION"
-              });
+              };
+              setCreatedTrip(pendingTrip);
+              localStorage.setItem("cached_active_trip", JSON.stringify(pendingTrip));
             }
             setMessage("✅ Gerenciamiento de Viaje registrado exitosamente. En espera de aprobación por supervisión.");
             setMessageType("success");
@@ -1357,7 +1425,7 @@ function isOutsideOperatingHours() {
         />
       )}
 
-      {!createdTrip && activeTabMode === "urban" && (
+      {!createdTrip && !gerenciamientoPendiente && activeTabMode === "urban" && (
         <>
           {isOutsideOperatingHours() && (
             <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.88rem" }}>
@@ -1785,7 +1853,16 @@ function isOutsideOperatingHours() {
     )}
 
     {!startedTrip && !finishedTrip && !cancelledTrip && (
-      inspectionStatus === "loading" || inspectionStatus === "idle" ? <button
+      gerenciamientoPendiente ? (
+        <button
+          type="button"
+          className="start-trip-button inspection-required-button"
+          disabled
+          style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c" }}
+        >
+          ⏳ Esperando Autorización de Gerenciamiento...
+        </button>
+      ) : inspectionStatus === "loading" || inspectionStatus === "idle" ? <button
         type="button"
         className="start-trip-button inspection-required-button"
         disabled

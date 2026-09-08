@@ -145,25 +145,34 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       });
       idViaje = newTrip.id_viajes || newTrip.idViaje || null;
     } catch (tripErr) {
-      console.warn("No se pudo crear automáticamente el registro de viaje base:", tripErr.message);
+      console.error("[Gerenciamiento] Error al crear automáticamente el viaje base:", tripErr.message);
     }
   }
 
   // 2. Si se incluyeron datos de Inspección Vehicular en el formato de Gerenciamiento, registrarlos automáticamente
   if (idViaje && (data.inspeccionData || data.checklist)) {
     try {
-      const inspPayload = data.inspeccionData || {
-        combustible: data.combustible || "3/4",
-        tipoAsignacion: data.tipoAsignacion || "Base",
-        checklist: data.checklist || {},
-        danos: data.danos || {},
-        observaciones: data.observacionesVehiculo || data.observaciones || null,
-        firma: data.firmaConductor || null,
+      const rawTipo = String(data.tipoAsignacion || data.inspeccionData?.tipoAsignacion || "").toUpperCase();
+      const tipoAsignacion = rawTipo === "TEMPORAL" ? "TEMPORAL" : "PERMANENTE";
+      let combustible = data.inspeccionData?.combustible || data.combustible || "3/4";
+      if (!['E', '1/4', '1/2', '3/4', 'F'].includes(combustible)) {
+        combustible = "3/4";
+      }
+
+      const inspPayload = {
+        combustible,
+        tipoAsignacion,
+        asignacionInicio: data.inspeccionData?.asignacionInicio || null,
+        asignacionFin: data.inspeccionData?.asignacionFin || null,
+        checklist: data.inspeccionData?.checklist || data.checklist || {},
+        danos: data.inspeccionData?.danos || data.danos || {},
+        observaciones: data.inspeccionData?.observaciones || data.observacionesVehiculo || data.observaciones || null,
+        firma: data.inspeccionData?.firma || data.firmaConductor || null,
         esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente)
       };
       await saveInspection({ idViaje, idConductor, data: inspPayload });
     } catch (inspErr) {
-      console.warn("No se pudo vincular la inspección vehicular implícita:", inspErr.message);
+      console.error("[Gerenciamiento] Error al vincular la inspección vehicular:", inspErr.message);
     }
   }
 
@@ -262,7 +271,12 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
   ];
 
   const result = await databasePool.query(query, values);
-  return result.rows[0];
+  const created = result.rows[0];
+  if (created?.id_gerenciamiento) {
+    const full = await getGerenciamientoById(created.id_gerenciamiento);
+    if (full) return full;
+  }
+  return created;
 }
 
 export async function getGerenciamientoById(idGerenciamiento) {
@@ -495,6 +509,13 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
           `, [idUsuarioAdmin, firmaAutorizador, observaciones, targetViajeId, record.id_conductor]);
         }
       } else if (estado === 'RECHAZADO' && record.id_viaje) {
+        await client.query(`
+          UPDATE viajes
+          SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'CANCELADO' LIMIT 1),
+              actualizado_en = CURRENT_TIMESTAMP
+          WHERE id_viajes = $1
+        `, [record.id_viaje]);
+
         await client.query(`
           UPDATE inspecciones_vehiculares
           SET estado = 'RECHAZADA',

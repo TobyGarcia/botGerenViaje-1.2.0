@@ -19,6 +19,137 @@ const defaultChecklistItems = {
   "Limpieza Interior y Exterior": "B"
 };
 
+function SignaturePadModal({ onSave, onClose }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const [hasInk, setHasInk] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const configureCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = "#0f172a";
+      drawingRef.current = false;
+      setHasInk(false);
+    };
+    const frame = window.requestAnimationFrame(configureCanvas);
+    window.addEventListener("resize", configureCanvas);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", configureCanvas);
+    };
+  }, []);
+
+  function pointFor(event) {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+    };
+  }
+
+  function beginStroke(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const pt = pointFor(event);
+    drawingRef.current = true;
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y);
+    canvas.setPointerCapture?.(event.pointerId);
+    setHasInk(true);
+  }
+
+  function drawStroke(event) {
+    if (!drawingRef.current) return;
+    event.preventDefault();
+    const pt = pointFor(event);
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.lineTo(pt.x, pt.y);
+    ctx.stroke();
+  }
+
+  function endStroke(event) {
+    if (!drawingRef.current) return;
+    event.preventDefault();
+    drawingRef.current = false;
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    }
+    setHasInk(false);
+  }
+
+  function handleSave() {
+    if (!hasInk) return;
+    onSave(canvasRef.current.toDataURL("image/png"));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.75)", zIndex: 999999, display: "grid", placeItems: "center", padding: "16px" }}>
+      <div style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", maxWidth: "560px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+          <div>
+            <span style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase", color: "#2563eb", letterSpacing: "0.05em" }}>Confirmación Digital</span>
+            <h3 style={{ margin: "2px 0 0", fontSize: "1.2rem", color: "#0f172a" }}>Firma Digital del Conductor</h3>
+            <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#64748b" }}>Dibuja tu firma con tu dedo o ratón dentro del recuadro.</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "#f1f5f9", border: 0, borderRadius: "50%", width: "32px", height: "32px", fontSize: "1.2rem", cursor: "pointer", color: "#64748b" }}>×</button>
+        </div>
+
+        <div style={{ border: "2px dashed #94a3b8", borderRadius: "12px", background: "#f8fafc", overflow: "hidden", marginBottom: "16px" }}>
+          <canvas
+            ref={canvasRef}
+            style={{ width: "100%", height: "180px", touchAction: "none", cursor: "crosshair", display: "block" }}
+            onPointerDown={beginStroke}
+            onPointerMove={drawStroke}
+            onPointerUp={endStroke}
+            onPointerCancel={endStroke}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={clear}
+            style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", padding: "10px 18px", borderRadius: "8px", fontWeight: 600, fontSize: "0.88rem", cursor: "pointer" }}
+          >
+            Limpiar Firma
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", padding: "10px 18px", borderRadius: "8px", fontWeight: 600, fontSize: "0.88rem", cursor: "pointer" }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!hasInk}
+            style={{ background: hasInk ? "#16a34a" : "#94a3b8", color: "#ffffff", border: 0, padding: "10px 22px", borderRadius: "8px", fontWeight: "bold", fontSize: "0.88rem", cursor: hasInk ? "pointer" : "not-allowed" }}
+          >
+            Guardar Firma
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GerenciamientoForm({ telegramAuth, conductores = [], vehiculos = [], lugares = [], onComplete, onCancel }) {
   const selectedDriver = telegramAuth?.conductor || {};
 
@@ -69,7 +200,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
     // Inspección Vehicular Integrada
     combustible: "3/4",
-    tipoAsignacion: "Base",
+    tipoAsignacion: "PERMANENTE",
     observacionesVehiculo: "",
 
     // 4. Tabuladores de Riesgo (A a G)
@@ -96,10 +227,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Signature canvas
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
+  // Modal de Firma Digital
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [firmaConductor, setFirmaConductor] = useState("");
 
   // Determinar número máximo de acompañantes según tipo de vehículo
   const currentVehicleObj = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
@@ -247,54 +377,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       inspeccionVehiculoRealizada: true,
       observacionesVehiculo: inspData.observaciones || prev.observacionesVehiculo
     }));
-    if (inspData.firma) {
-      setHasSignature(true);
+    if (inspData.firma && !firmaConductor) {
+      setFirmaConductor(inspData.firma);
     }
-  }
-
-  // Canvas Handlers
-  function getCanvasPoint(e) {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * (canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (canvas.height / rect.height)
-    };
-  }
-
-  function startDrawing(e) {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const pt = getCanvasPoint(e);
-    ctx.beginPath();
-    ctx.moveTo(pt.x, pt.y);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#000000";
-    setIsDrawing(true);
-    setHasSignature(true);
-  }
-
-  function draw(e) {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const pt = getCanvasPoint(e);
-    ctx.lineTo(pt.x, pt.y);
-    ctx.stroke();
-  }
-
-  function stopDrawing() {
-    setIsDrawing(false);
-  }
-
-  function clearSignature() {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-    setHasSignature(false);
   }
 
   async function handleSubmit(event) {
@@ -322,13 +407,12 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       setErrorMessage("⛔ Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
       return;
     }
-    if (!hasSignature && !inspeccionData?.firma) {
-      setErrorMessage("Por favor realiza la firma digital del conductor antes de enviar.");
+
+    const firmaDataUrl = firmaConductor || inspeccionData?.firma || "";
+    if (!firmaDataUrl) {
+      setErrorMessage("Por favor realiza la captura de tu firma digital antes de enviar.");
       return;
     }
-
-    const canvas = canvasRef.current;
-    const firmaDataUrl = (canvas && hasSignature) ? canvas.toDataURL("image/png") : (inspeccionData?.firma || "");
 
     const acompanantesFiltrados = viajaAcompanado ? listaAcompanantes.filter((a) => a.trim()) : [];
     const rutaFiltrada = rutaPuntos.filter((r) => r.trim());
@@ -336,18 +420,24 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     setSubmitting(true);
 
     try {
-      const finalInspData = inspeccionData || {
-        combustible: form.combustible,
-        tipoAsignacion: form.tipoAsignacion,
+      const finalInspData = inspeccionData ? {
+        ...inspeccionData,
+        combustible: form.combustible || inspeccionData.combustible || "3/4",
+        tipoAsignacion: "PERMANENTE",
+        firma: firmaDataUrl
+      } : {
+        combustible: form.combustible || "3/4",
+        tipoAsignacion: "PERMANENTE",
         checklist: checklist,
         danos: {},
         observaciones: form.observacionesVehiculo || null,
         firma: firmaDataUrl,
-        esDiaSiguiente: Boolean(inspeccionData?.esDiaSiguiente)
+        esDiaSiguiente: false
       };
 
       const payload = {
         ...form,
+        tipoAsignacion: "PERMANENTE",
         rutaPuntos: rutaFiltrada,
         acompanantes: acompanantesFiltrados,
         firmaConductor: firmaDataUrl,
@@ -872,39 +962,58 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         {/* 5. Firma Digital Conductor */}
         <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
           <h4 className="geren-card-title">✍️ 5. Firma Digital del Conductor *</h4>
-          <p style={{ margin: "0 0 10px", fontSize: "0.82rem", color: "#64748b" }}>
-            Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás apto para conducir.
+          <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "#64748b" }}>
+            Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás en condiciones óptimas para conducir.
           </p>
 
-          <div style={{ border: "2px dashed #cbd5e1", borderRadius: "10px", background: "#ffffff", padding: "4px", textAlign: "center" }}>
-            <canvas
-              ref={canvasRef}
-              width={640}
-              height={150}
-              onMouseDown={inspeccionCompleted ? startDrawing : undefined}
-              onMouseMove={inspeccionCompleted ? draw : undefined}
-              onMouseUp={inspeccionCompleted ? stopDrawing : undefined}
-              onMouseLeave={inspeccionCompleted ? stopDrawing : undefined}
-              onTouchStart={inspeccionCompleted ? startDrawing : undefined}
-              onTouchMove={inspeccionCompleted ? draw : undefined}
-              onTouchEnd={inspeccionCompleted ? stopDrawing : undefined}
-              style={{ width: "100%", height: "130px", touchAction: "none", cursor: inspeccionCompleted ? "crosshair" : "not-allowed" }}
-            />
-          </div>
+          {firmaConductor ? (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "4px 8px" }}>
+                  <img src={firmaConductor} alt="Firma capturada" style={{ height: "60px", maxWidth: "160px", objectFit: "contain", display: "block" }} />
+                </div>
+                <div>
+                  <strong style={{ color: "#166534", fontSize: "0.92rem", display: "block" }}>✓ Firma Digital Capturada</strong>
+                  <span style={{ fontSize: "0.8rem", color: "#475569" }}>{selectedDriver.nombre || form.nombreConductor || "Conductor"}</span>
+                </div>
+              </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-            <small style={{ color: hasSignature ? "#166534" : "#64748b", fontWeight: "bold" }}>
-              {hasSignature ? "✓ Firma digital capturada" : "Dibuja tu firma con tu dedo o ratón"}
-            </small>
-            <button
-              type="button"
-              onClick={clearSignature}
-              disabled={!hasSignature || !inspeccionCompleted}
-              style={{ background: "#e2e8f0", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: (!hasSignature || !inspeccionCompleted) ? "not-allowed" : "pointer", fontSize: "0.8rem", fontWeight: "bold" }}
-            >
-              Limpiar Firma
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setShowSignatureModal(true)}
+                style={{ background: "#ffffff", border: "1px solid #86efac", color: "#15803d", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer" }}
+              >
+                🔄 Modificar Firma
+              </button>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "20px 16px", background: "#f8fafc", border: "2px dashed #cbd5e1", borderRadius: "12px" }}>
+              <p style={{ margin: "0 0 12px", fontSize: "0.88rem", color: "#64748b" }}>
+                No se ha capturado tu firma digital para este gerenciamiento.
+              </p>
+              <button
+                type="button"
+                disabled={!inspeccionCompleted}
+                onClick={() => setShowSignatureModal(true)}
+                style={{
+                  background: !inspeccionCompleted ? "#94a3b8" : "#2563eb",
+                  color: "#ffffff",
+                  border: 0,
+                  padding: "12px 24px",
+                  borderRadius: "10px",
+                  fontWeight: "bold",
+                  fontSize: "0.92rem",
+                  cursor: !inspeccionCompleted ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: !inspeccionCompleted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.25)"
+                }}
+              >
+                ✍️ Abrir Captura de Firma Digital
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Botones de Envío */}
@@ -953,6 +1062,17 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             />
           </div>
         </div>
+      )}
+
+      {/* VENTANA OVERLAY DE CAPTURA DE FIRMA DIGITAL */}
+      {showSignatureModal && (
+        <SignaturePadModal
+          onSave={(dataUrl) => {
+            setFirmaConductor(dataUrl);
+            setShowSignatureModal(false);
+          }}
+          onClose={() => setShowSignatureModal(false)}
+        />
       )}
     </div>
   );

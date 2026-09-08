@@ -80,17 +80,19 @@ export async function createTrip({
       throw new Error("La licencia de conducir del conductor no está vigente.");
     }
 
-    if (!conductor.fecha_manejo_comentado) {
+    if (!esGerenciamiento && !conductor.fecha_manejo_comentado) {
       throw new Error("El conductor no cuenta con un Manejo Comentado registrado. Debe aprobar su evaluación de manejo comentado (requerida cada 6 meses) para poder operar una unidad.");
     }
 
-    const evalDate = new Date(`${conductor.fecha_manejo_comentado}T00:00:00`);
-    const hace6Meses = new Date();
-    hace6Meses.setMonth(hace6Meses.getMonth() - 6);
-    hace6Meses.setHours(0, 0, 0, 0);
+    if (!esGerenciamiento && conductor.fecha_manejo_comentado) {
+      const evalDate = new Date(`${conductor.fecha_manejo_comentado}T00:00:00`);
+      const hace6Meses = new Date();
+      hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+      hace6Meses.setHours(0, 0, 0, 0);
 
-    if (evalDate < hace6Meses) {
-      throw new Error("El Manejo Comentado del conductor ha vencido (requiere evaluación cada 6 meses). Debe agendar y aprobar su evaluación para poder operar una unidad.");
+      if (evalDate < hace6Meses) {
+        throw new Error("El Manejo Comentado del conductor ha vencido (requiere evaluación cada 6 meses). Debe agendar y aprobar su evaluación para poder operar una unidad.");
+      }
     }
 
 
@@ -221,7 +223,7 @@ export async function createTrip({
         pendingState.id_estado_viaje,
         JSON.stringify(acompanantes),
         conductor.licencia_vigente,
-        kilometrajeInicial,
+        esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
         motivo
       ]
     );
@@ -253,10 +255,11 @@ export async function createTrip({
       client,
       idVehiculo,
       idViaje: trip.id_viajes,
-      kilometraje: kilometrajeInicial,
+      kilometraje: esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
       tipoRegistro: "INICIAL_VIAJE",
       origen: "MINI_APP",
-      observaciones: `Kilometraje inicial del viaje ${trip.folio}.`
+      observaciones: `Kilometraje inicial del viaje ${trip.folio}.`,
+      allowLower: Boolean(esGerenciamiento)
     });
 
     await client.query("COMMIT");

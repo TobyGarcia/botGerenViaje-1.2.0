@@ -7,6 +7,13 @@ import {
 let supervisorBotInstance = null;
 let supervisorBotStarted = false;
 
+export function getSupervisorBotInstance() {
+  if (!supervisorBotInstance && process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN) {
+    supervisorBotInstance = new Telegraf(process.env.TELEGRAM_SUPERVISOR_BOT_TOKEN);
+  }
+  return supervisorBotInstance;
+}
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -189,8 +196,9 @@ export async function notifyNewInspectionRequest({
     return;
   }
 
-  if (!supervisorBotInstance) {
-    console.warn("No se envió la alerta de inspección: el bot de supervisión no está inicializado.");
+  const bot = getSupervisorBotInstance();
+  if (!bot) {
+    console.warn("No se envió la alerta de inspección: el bot de supervisión no está inicializado ni configurado con token.");
     return;
   }
 
@@ -212,7 +220,7 @@ export async function notifyNewInspectionRequest({
   ].filter(Boolean).join("\n");
 
   try {
-    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+    await bot.telegram.sendMessage(groupId, message);
   } catch (error) {
     console.error("No fue posible enviar la alerta de inspección al grupo de supervisores:", error);
   }
@@ -238,8 +246,9 @@ export async function notifyNewGerenciamientoRequest({
     return;
   }
 
-  if (!supervisorBotInstance) {
-    console.warn("No se envió la alerta de gerenciamiento: el bot de supervisión no está inicializado.");
+  const bot = getSupervisorBotInstance();
+  if (!bot) {
+    console.warn("No se envió la alerta de gerenciamiento: el bot de supervisión no está inicializado ni configurado con token.");
     return;
   }
 
@@ -258,7 +267,7 @@ export async function notifyNewGerenciamientoRequest({
   ].filter(Boolean).join("\n");
 
   try {
-    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+    await bot.telegram.sendMessage(groupId, message);
   } catch (error) {
     console.error("No fue posible enviar la alerta de gerenciamiento al grupo de supervisores:", error);
   }
@@ -280,8 +289,9 @@ export async function notifyGerenciamientoCheckpoint({
     return;
   }
 
-  if (!supervisorBotInstance) {
-    console.warn("No se envió el reporte de hora: el bot de supervisión no está inicializado.");
+  const bot = getSupervisorBotInstance();
+  if (!bot) {
+    console.warn("No se envió el reporte de hora: el bot de supervisión no está inicializado ni configurado con token.");
     return;
   }
 
@@ -296,7 +306,7 @@ export async function notifyGerenciamientoCheckpoint({
   ].filter(Boolean).join("\n");
 
   try {
-    await supervisorBotInstance.telegram.sendMessage(groupId, message);
+    await bot.telegram.sendMessage(groupId, message);
   } catch (error) {
     console.error("No fue posible enviar la alerta de fichaje de hora al grupo de supervisores:", error);
   }
