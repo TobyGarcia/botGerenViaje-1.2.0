@@ -48,23 +48,33 @@ export async function captureAndQueueLocation(idViaje, extraData = {}) {
     const uuid = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const pendingLocation = { ...location, ...extraData, clientLocationId: uuid, idViaje: Number(idViaje) };
+    const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
+    const pendingLocation = {
+      ...location,
+      isBackground,
+      ...extraData,
+      clientLocationId: uuid,
+      idViaje: Number(idViaje)
+    };
     await savePendingLocation(pendingLocation);
     await notifyPending(idViaje, {
       status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
       lastCapture: pendingLocation.fechaGps,
       latitude: pendingLocation.latitud,
-      longitude: pendingLocation.longitud
+      longitude: pendingLocation.longitud,
+      isBackground
     });
     await syncPendingLocations(idViaje);
     return pendingLocation;
   } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
 }
 
-export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio") {
+export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio", categoria = "") {
+  const finalName = categoria ? `[${categoria}] ${nombrePunto}` : (nombrePunto || "Punto Intermedio");
   return captureAndQueueLocation(idViaje, {
     esPuntoIntermedio: true,
-    nombrePunto: nombrePunto || "Punto Intermedio"
+    nombrePunto: finalName,
+    categoriaParada: categoria || null
   });
 }
 
