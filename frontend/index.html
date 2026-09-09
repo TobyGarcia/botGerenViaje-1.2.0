@@ -44,14 +44,32 @@
 
         window.addEventListener('error', function(e) {
           if (!document.getElementById('root') || document.getElementById('root').children.length === 0) {
-            showFatalDiagnostic("Error al inicializar la aplicación", e.message, e.error);
+            var target = e.target;
+            var msg = e.message;
+            if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+              msg = "Error cargando archivo (" + target.tagName + "): " + (target.src || target.href);
+            }
+            showFatalDiagnostic("Error al inicializar la aplicación", msg, e.error);
           }
-        });
+        }, true);
+
         window.addEventListener('unhandledrejection', function(e) {
           if (!document.getElementById('root') || document.getElementById('root').children.length === 0) {
             showFatalDiagnostic("Error de conexión al inicializar", e.reason ? (e.reason.message || String(e.reason)) : "Rechazo de promesa no capturado", e.reason);
           }
         });
+
+        // Verificación de seguridad: si después de 4 segundos #root sigue vacío
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.children.length === 0) {
+            showFatalDiagnostic(
+              "Tiempo de espera agotado",
+              "Los recursos de la aplicación tardaron demasiado en cargar o fueron bloqueados por la red.",
+              null
+            );
+          }
+        }, 4000);
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
