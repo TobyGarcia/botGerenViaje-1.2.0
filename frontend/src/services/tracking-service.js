@@ -2,6 +2,7 @@ import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation } from "./location-provider.js";
 import { countPendingLocations, getPendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, getTrackingState, saveTrackingState } from "./tracking-state.js";
+import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
 
 const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
 const batchValue = Number(import.meta.env.VITE_GPS_SYNC_BATCH_SIZE);
@@ -76,6 +77,10 @@ export async function startTracking(idViaje) {
     stopTracking({ clearState: false });
     activeTripId = normalizedId;
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
+    
+    // Iniciar bucle de audio silencioso estrictamente en móvil para evitar que el SO duerma el GPS
+    void startSilentAudioKeepAlive().catch(() => {});
+
     notify({ status: "Esperando permiso" });
     await captureAndQueueLocation(normalizedId);
     intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
@@ -89,6 +94,8 @@ export function stopTracking({ clearState = true } = {}) {
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
   if (clearState) clearTrackingState();
   activeTripId = null;
+  // Detener y liberar audio silencioso y estado de multimedia en móvil
+  stopSilentAudioKeepAlive();
   notify({ status: "Detenido" });
 }
 export async function resumeTrackingIfNeeded() {

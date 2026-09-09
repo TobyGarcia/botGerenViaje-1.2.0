@@ -37,8 +37,9 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Visual Studio Code
+# IDEs (Visual Studio Code, Android Studio / IntelliJ)
 .vscode/
+.idea/
 
 # PostgreSQL local
 postgres_data/

@@ -40,6 +40,10 @@ import {
   stopTracking,
   syncPendingLocations
 } from "./services/tracking-service.js";
+import {
+  startSilentAudioKeepAlive,
+  stopSilentAudioKeepAlive
+} from "./services/background-audio.js";
 import safeStorage from "./utils/safeStorage.js";
 
 const initialForm = {
@@ -299,6 +303,7 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     stopTracking();
+    stopSilentAudioKeepAlive();
     safeStorage.removeItem("driver_token");
     safeStorage.removeItem("cached_driver");
     safeStorage.removeItem("cached_gerenciamiento_pendiente");
@@ -823,6 +828,7 @@ async function handleAddIntermediatePoint() {
 
     try {
       stopTracking({ clearState: false });
+      stopSilentAudioKeepAlive();
       await captureAndQueueLocation(idViaje);
       await syncPendingLocations(idViaje);
 
@@ -907,6 +913,7 @@ async function handleAddIntermediatePoint() {
       const cancelledData = response.data ?? {};
 
       stopTracking();
+      stopSilentAudioKeepAlive();
       setCancelledTrip(cancelledData);
       setStartedTrip(null);
       setGerenciamientoPendiente(null);
@@ -1080,6 +1087,9 @@ function isOutsideOperatingHours() {
     if (!confirmed) {
       return;
     }
+
+    // Iniciar bucle de audio silencioso en móvil en respuesta directa al clic del conductor
+    void startSilentAudioKeepAlive().catch(() => {});
 
     startingTripRef.current = true;
     setStartingTrip(true);
