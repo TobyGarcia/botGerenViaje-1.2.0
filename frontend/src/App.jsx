@@ -40,6 +40,7 @@ import {
   stopTracking,
   syncPendingLocations
 } from "./services/tracking-service.js";
+import safeStorage from "./utils/safeStorage.js";
 
 const initialForm = {
   idConductor: "",
@@ -76,12 +77,7 @@ function formatDate(value) {
 }
 
 function getCachedJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
+  return safeStorage.getJSON(key, fallback);
 }
 
 function normalizeConductor(conductor) {
@@ -110,7 +106,7 @@ function App() {
   const [vehiculos, setVehiculos] = useState(() => getCachedJson("cached_vehiculos", []));
   const [lugares, setLugares] = useState(() => getCachedJson("cached_lugares", []));
   const [loading, setLoading] = useState(() => {
-    const token = localStorage.getItem("driver_token");
+    const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
     const cLug = getCachedJson("cached_lugares", []);
     const cVeh = getCachedJson("cached_vehiculos", []);
@@ -243,7 +239,7 @@ const [cancelledTrip, setCancelledTrip] =
   }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
 
   const [telegramAuth, setTelegramAuth] = useState(() => {
-    const token = localStorage.getItem("driver_token");
+    const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
     if (token && cached) {
       return {
@@ -256,7 +252,7 @@ const [cancelledTrip, setCancelledTrip] =
     return null;
   });
   const [telegramAuthLoading, setTelegramAuthLoading] = useState(() => {
-    const token = localStorage.getItem("driver_token");
+    const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
     if (token && cached) return false;
     if (!token) return false;
@@ -264,7 +260,7 @@ const [cancelledTrip, setCancelledTrip] =
   });
   const [telegramAuthError, setTelegramAuthError] = useState("");
   const [showPinLogin, setShowPinLogin] = useState(() => {
-    const token = localStorage.getItem("driver_token");
+    const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
     return !(token && cached);
   });
@@ -274,10 +270,10 @@ const [cancelledTrip, setCancelledTrip] =
   function handlePinLoginSuccess(conductor, token) {
     const normalized = normalizeConductor(conductor);
     if (normalized) {
-      localStorage.setItem("cached_driver", JSON.stringify(normalized));
+      safeStorage.setJSON("cached_driver", normalized);
     }
-    const tokenToSave = token || localStorage.getItem("driver_token") || `driver_session_${normalized?.id_conductores || "active"}`;
-    localStorage.setItem("driver_token", tokenToSave);
+    const tokenToSave = token || safeStorage.getItem("driver_token") || `driver_session_${normalized?.id_conductores || "active"}`;
+    safeStorage.setItem("driver_token", tokenToSave);
     setTelegramAuth({
       authenticated: true,
       registered: true,
@@ -303,9 +299,9 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     stopTracking();
-    localStorage.removeItem("driver_token");
-    localStorage.removeItem("cached_driver");
-    localStorage.removeItem("cached_gerenciamiento_pendiente");
+    safeStorage.removeItem("driver_token");
+    safeStorage.removeItem("cached_driver");
+    safeStorage.removeItem("cached_gerenciamiento_pendiente");
     // Conservar offline_driver_pin_digest para permitir volver a ingresar con PIN sin conexión
     setTelegramAuth(null);
     setCreatedTrip(null);
@@ -334,14 +330,33 @@ const [cancelledTrip, setCancelledTrip] =
   // Soporte PWA Offline y Telegram Mini App: mantener la sesión iniciada sin volver a pedir PIN al quedar sin red
   useEffect(() => {
     let active = true;
-    const token = localStorage.getItem("driver_token");
+
+    // Asegurar que Telegram WebApp retire la cortina y expanda al máximo
+    if (window.Telegram?.WebApp) {
+      try {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      } catch (err) {
+        console.warn("Error al inicializar Telegram WebApp en App.jsx:", err);
+      }
+    }
+
+    // Temporizador de seguridad: si la validación tarda más de 4.5s, forzar salida del loading
+    const authTimeout = setTimeout(() => {
+      if (active) {
+        setTelegramAuthLoading(false);
+      }
+    }, 4500);
+
+    const token = safeStorage.getItem("driver_token");
     const cachedDriver = getCachedJson("cached_driver", null);
     const telegramInitData = window.Telegram?.WebApp?.initData || "";
 
     // Si ya existe un perfil de conductor guardado localmente en este celular:
     if (cachedDriver) {
+      clearTimeout(authTimeout);
       if (!token) {
-        localStorage.setItem("driver_token", `driver_session_${cachedDriver.id_conductores || "active"}`);
+        safeStorage.setItem("driver_token", `driver_session_${cachedDriver.id_conductores || "active"}`);
       }
       setTelegramAuth({
         authenticated: true,
@@ -351,7 +366,7 @@ const [cancelledTrip, setCancelledTrip] =
       });
       setTelegramAuthLoading(false);
       setShowPinLogin(false);
-      return () => { active = false; };
+      return () => { active = false; clearTimeout(authTimeout); };
     }
 
     // Si se está ejecutando dentro de Telegram Mini App y hay initData disponible
@@ -372,9 +387,10 @@ const [cancelledTrip, setCancelledTrip] =
           if (active) setShowPinLogin(true);
         })
         .finally(() => {
+          clearTimeout(authTimeout);
           if (active) setTelegramAuthLoading(false);
         });
-      return () => { active = false; };
+      return () => { active = false; clearTimeout(authTimeout); };
     }
 
     // Recuperar y persistir el perfil si hay token pero una versión anterior
@@ -389,14 +405,16 @@ const [cancelledTrip, setCancelledTrip] =
           if (active) setShowPinLogin(true);
         })
         .finally(() => {
+          clearTimeout(authTimeout);
           if (active) setTelegramAuthLoading(false);
         });
     } else {
+      clearTimeout(authTimeout);
       setShowPinLogin(true);
       setTelegramAuthLoading(false);
     }
 
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(authTimeout); };
   }, []);
 
   useEffect(() => {
@@ -495,15 +513,15 @@ const [cancelledTrip, setCancelledTrip] =
 
         if (conductoresResponse?.data) {
           setConductores(conductoresResponse.data);
-          localStorage.setItem("cached_conductores", JSON.stringify(conductoresResponse.data));
+          safeStorage.setJSON("cached_conductores", conductoresResponse.data);
         }
         if (vehiculosResponse?.data) {
           setVehiculos(vehiculosResponse.data);
-          localStorage.setItem("cached_vehiculos", JSON.stringify(vehiculosResponse.data));
+          safeStorage.setJSON("cached_vehiculos", vehiculosResponse.data);
         }
         if (lugaresResponse?.data) {
           setLugares(lugaresResponse.data);
-          localStorage.setItem("cached_lugares", JSON.stringify(lugaresResponse.data));
+          safeStorage.setJSON("cached_lugares", lugaresResponse.data);
         }
 
         // Si la petición a /api/viajes/activo falló por error de red/tiempo de espera
@@ -534,8 +552,8 @@ const [cancelledTrip, setCancelledTrip] =
             setCreatedTrip(cachedActive);
             return;
           }
-          localStorage.removeItem("cached_active_trip");
-          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          safeStorage.removeItem("cached_active_trip");
+          safeStorage.removeItem("cached_gerenciamiento_pendiente");
           setGerenciamientoPendiente(null);
           setCreatedTrip(null);
           setStartedTrip(null);
@@ -557,7 +575,7 @@ const [cancelledTrip, setCancelledTrip] =
           destino: activeTrip.destino?.nombre
         };
 
-        localStorage.setItem("cached_active_trip", JSON.stringify(normalizedTrip));
+        safeStorage.setJSON("cached_active_trip", normalizedTrip);
         setCreatedTrip(normalizedTrip);
 
         if (activeTrip.estado === "EN_CURSO") {
@@ -845,8 +863,8 @@ async function handleAddIntermediatePoint() {
       setMessage("Viaje finalizado correctamente.");
       setMessageType("success");
       setGerenciamientoPendiente(null);
-      localStorage.removeItem("cached_gerenciamiento_pendiente");
-      localStorage.removeItem("cached_active_trip");
+      safeStorage.removeItem("cached_gerenciamiento_pendiente");
+      safeStorage.removeItem("cached_active_trip");
       stopTracking();
       await syncPendingLocations(idViaje);
     } catch (error) {
@@ -892,8 +910,8 @@ async function handleAddIntermediatePoint() {
       setCancelledTrip(cancelledData);
       setStartedTrip(null);
       setGerenciamientoPendiente(null);
-      localStorage.removeItem("cached_gerenciamiento_pendiente");
-      localStorage.removeItem("cached_active_trip");
+      safeStorage.removeItem("cached_gerenciamiento_pendiente");
+      safeStorage.removeItem("cached_active_trip");
       setCreatedTrip((current) => ({
         ...current,
         ...cancelledData,
@@ -1022,7 +1040,7 @@ function isOutsideOperatingHours() {
           kilometrajeInicial
       };
       setCreatedTrip(createdData);
-      localStorage.setItem("cached_active_trip", JSON.stringify(createdData));
+      safeStorage.setJSON("cached_active_trip", createdData);
       setMessage(`Viaje creado correctamente. Folio: ${response.data.folio}`);
       setMessageType("success");
       setForm({
@@ -1086,7 +1104,7 @@ function isOutsideOperatingHours() {
 
       setStartedTrip(normalizedTrip);
       setCreatedTrip(normalizedTrip);
-      localStorage.setItem("cached_active_trip", JSON.stringify(normalizedTrip));
+      safeStorage.setJSON("cached_active_trip", normalizedTrip);
       setKilometrajeFinal(
         String(
           normalizedTrip.kilometrajeInicial ??
@@ -1160,7 +1178,7 @@ function isOutsideOperatingHours() {
 
         if (doc.estado === "APROBADO") {
           setGerenciamientoPendiente(null);
-          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          safeStorage.removeItem("cached_gerenciamiento_pendiente");
           setMessage("🎉 Tu Gerenciamiento de Viaje ha sido AUTORIZADO por la supervisión. Ya puedes iniciar tu viaje.");
           setMessageType("success");
           if (window.Telegram?.WebApp?.showAlert) {
@@ -1171,9 +1189,9 @@ function isOutsideOperatingHours() {
           await loadInspection(idViaje);
         } else if (doc.estado === "RECHAZADO") {
           setGerenciamientoPendiente(null);
-          localStorage.removeItem("cached_gerenciamiento_pendiente");
+          safeStorage.removeItem("cached_gerenciamiento_pendiente");
           setCreatedTrip(null);
-          localStorage.removeItem("cached_active_trip");
+          safeStorage.removeItem("cached_active_trip");
           const motivo = doc.observaciones ? `: ${doc.observaciones}` : "";
           setMessage(`❌ Tu Gerenciamiento de Viaje fue RECHAZADO por supervisión${motivo}. Contacta a tu supervisor.`);
           setMessageType("error");
@@ -1205,8 +1223,8 @@ function isOutsideOperatingHours() {
     setFinishedTrip(null);
     setCancelledTrip(null);
     setGerenciamientoPendiente(null);
-    localStorage.removeItem("cached_gerenciamiento_pendiente");
-    localStorage.removeItem("cached_active_trip");
+    safeStorage.removeItem("cached_gerenciamiento_pendiente");
+    safeStorage.removeItem("cached_active_trip");
     setKilometrajeFinal("");
     setLastLocation(null);
     setGpsStatus("GPS detenido.");
@@ -1404,7 +1422,7 @@ function isOutsideOperatingHours() {
           onComplete={(gerenData) => {
             setActiveTabMode("urban");
             setGerenciamientoPendiente(gerenData);
-            localStorage.setItem("cached_gerenciamiento_pendiente", JSON.stringify(gerenData));
+            safeStorage.setJSON("cached_gerenciamiento_pendiente", gerenData);
             if (gerenData?.id_viaje) {
               const pendingTrip = {
                 id_viajes: gerenData.id_viaje,
@@ -1417,7 +1435,7 @@ function isOutsideOperatingHours() {
                 estado: "PENDIENTE_APROBACION"
               };
               setCreatedTrip(pendingTrip);
-              localStorage.setItem("cached_active_trip", JSON.stringify(pendingTrip));
+              safeStorage.setJSON("cached_active_trip", pendingTrip);
             }
             setMessage("✅ Gerenciamiento de Viaje registrado exitosamente. En espera de aprobación por supervisión.");
             setMessageType("success");

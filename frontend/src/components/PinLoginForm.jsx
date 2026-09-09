@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { loginConductorConPin } from "../services/api";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 import PwaInstallPrompt from "./PwaInstallPrompt";
+import safeStorage from "../utils/safeStorage";
 
 export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [pin, setPin] = useState("");
@@ -64,12 +65,12 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
 
       if (result.success && result.data?.token) {
         // Almacenar token y perfil de conductor
-        localStorage.setItem("driver_token", result.data.token);
+        safeStorage.setItem("driver_token", result.data.token);
         if (result.data.conductor) {
-          localStorage.setItem("cached_driver", JSON.stringify(result.data.conductor));
+          safeStorage.setJSON("cached_driver", result.data.conductor);
         }
         const pinDigest = await digestPin(pinToVerify);
-        if (pinDigest) localStorage.setItem("offline_driver_pin_digest", pinDigest);
+        if (pinDigest) safeStorage.setItem("offline_driver_pin_digest", pinDigest);
         if (onSuccess) {
           onSuccess(result.data.conductor);
         }
@@ -84,18 +85,13 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         err.message?.includes("Failed to fetch") ||
         err.message?.includes("fetch");
       if (isNetworkError) {
-        const cachedDriverRaw = localStorage.getItem("cached_driver");
-        const savedPinDigest = localStorage.getItem("offline_driver_pin_digest");
+        const cachedDriver = safeStorage.getJSON("cached_driver", null);
+        const savedPinDigest = safeStorage.getItem("offline_driver_pin_digest");
         const enteredPinDigest = await digestPin(pinToVerify);
-        if (cachedDriverRaw && savedPinDigest && enteredPinDigest === savedPinDigest) {
-          try {
-            const cachedDriver = JSON.parse(cachedDriverRaw);
-            if (onSuccess) {
-              onSuccess(cachedDriver);
-              return;
-            }
-          } catch {
-            // Ignorar error de JSON parse
+        if (cachedDriver && savedPinDigest && enteredPinDigest === savedPinDigest) {
+          if (onSuccess) {
+            onSuccess(cachedDriver);
+            return;
           }
         }
         setError("Sin conexión a internet. Para entrar sin red, debes haber iniciado sesión al menos una vez con internet en este celular.");

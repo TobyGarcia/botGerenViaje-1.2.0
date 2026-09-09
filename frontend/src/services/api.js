@@ -1,10 +1,20 @@
-﻿const API_BASE_URL =
+import safeStorage from "../utils/safeStorage.js";
+
+const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "";
 
 async function request(path, options = {}) {
   const telegramInitData = window.Telegram?.WebApp?.initData || "";
-  const driverToken = localStorage.getItem("driver_token") || "";
-  const supervisorToken = localStorage.getItem("supervisor_token") || localStorage.getItem("admin_token") || "";
+  const driverToken = safeStorage.getItem("driver_token") || "";
+  const supervisorToken = safeStorage.getItem("supervisor_token") || safeStorage.getItem("admin_token") || "";
+
+  // Determinar si la petición es del contexto de supervisor
+  const isSupervisorContext = path.includes("/supervisor") ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/supervisor"));
+
+  const authToken = isSupervisorContext
+    ? (supervisorToken || driverToken)
+    : (driverToken || supervisorToken);
 
   const controller = new AbortController();
   const timeoutMs = options.timeout || 8000;
@@ -20,10 +30,8 @@ async function request(path, options = {}) {
           ...(telegramInitData
             ? { "X-Telegram-Init-Data": telegramInitData }
             : {}),
-          ...(driverToken
-            ? { "Authorization": `Bearer ${driverToken}` }
-            : supervisorToken
-            ? { "Authorization": `Bearer ${supervisorToken}` }
+          ...(authToken
+            ? { "Authorization": `Bearer ${authToken}` }
             : {}),
           ...options.headers
         },

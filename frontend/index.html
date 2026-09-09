@@ -2,7 +2,58 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (function() {
+        try {
+          if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            if (typeof window.Telegram.WebApp.setHeaderColor === 'function') {
+              window.Telegram.WebApp.setHeaderColor('#2e81ab');
+            }
+            if (typeof window.Telegram.WebApp.setBackgroundColor === 'function') {
+              window.Telegram.WebApp.setBackgroundColor('#f4f8fb');
+            }
+          }
+        } catch (e) {
+          console.warn("Telegram WebApp early init:", e);
+        }
+
+        // Atrapador global de errores previos a React para evitar pantalla en blanco silenciosa
+        function showFatalDiagnostic(title, message, errorObj) {
+          var root = document.getElementById('root');
+          if (!root || root.children.length > 0) return;
+          var details = (errorObj && errorObj.stack) ? errorObj.stack : (message || "Error de inicio");
+          root.innerHTML = '' +
+            '<div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:16px;background:#f4f8fb;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;box-sizing:border-box;">' +
+              '<div style="background:#ffffff;border-radius:18px;padding:24px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.08);border:1px solid #d2e4ee;text-align:center;box-sizing:border-box;">' +
+                '<div style="display:inline-block;padding:10px 14px;background:#e8f8fe;border-radius:12px;margin-bottom:14px;font-weight:bold;color:#2e81ab;font-size:14px;">AQUARIO · Control de Viajes</div>' +
+                '<h2 style="font-size:1.15rem;margin:0 0 8px;color:#0f172a;">' + title + '</h2>' +
+                '<p style="font-size:0.85rem;color:#64748b;margin:0 0 16px;line-height:1.4;">Hubo un problema al cargar los componentes de la aplicación.</p>' +
+                '<div style="text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-family:monospace;font-size:0.75rem;color:#dc2626;max-height:120px;overflow-y:auto;margin-bottom:18px;word-break:break-word;">' +
+                  details +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                  '<button type="button" onclick="window.location.reload(true)" style="background:#2e81ab;color:#ffffff;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:0.9rem;">🔄 Reintentar / Recargar</button>' +
+                  '<button type="button" onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}if(window.caches){caches.keys().then(function(k){k.forEach(function(c){caches.delete(c);});});}if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(sw){sw.unregister();});});}setTimeout(function(){window.location.reload(true);},300);" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:10px;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.82rem;">🧹 Limpiar Caché y Reiniciar</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+        }
+
+        window.addEventListener('error', function(e) {
+          if (!document.getElementById('root') || document.getElementById('root').children.length === 0) {
+            showFatalDiagnostic("Error al inicializar la aplicación", e.message, e.error);
+          }
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          if (!document.getElementById('root') || document.getElementById('root').children.length === 0) {
+            showFatalDiagnostic("Error de conexión al inicializar", e.reason ? (e.reason.message || String(e.reason)) : "Rechazo de promesa no capturado", e.reason);
+          }
+        });
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./pwa-192x192.png" />
     <meta name="mobile-web-app-capable" content="yes" />

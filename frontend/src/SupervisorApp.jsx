@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import "./App.css";
 import SupervisorPortal from "./pages/SupervisorPortal.jsx";
 import TopBar from "./components/TopBar.jsx";
 import { exchangeAzureOAuthCode, getAzureOAuthUrl, getSupervisorAccess } from "./services/api.js";
 import aquarioBlanco from "./assets/AQUARIO_BLANCO.png";
+import safeStorage from "./utils/safeStorage.js";
 
 export default function SupervisorApp() {
   const [access, setAccess] = useState(null);
@@ -38,6 +40,15 @@ export default function SupervisorApp() {
   }
 
   useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      try {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      } catch (err) {
+        console.warn("Telegram WebApp init en SupervisorApp:", err);
+      }
+    }
+
     async function initSupervisorAuth() {
       const urlParams = new URLSearchParams(window.location.search);
       const codeParam = urlParams.get("code");
@@ -58,7 +69,7 @@ export default function SupervisorApp() {
           const response = await exchangeAzureOAuthCode({ code: codeParam, redirectUri });
           
           if (response?.data?.token) {
-            localStorage.setItem("supervisor_token", response.data.token);
+            safeStorage.setItem("supervisor_token", response.data.token);
           }
 
           if (response?.data?.user) {
@@ -107,8 +118,8 @@ export default function SupervisorApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("supervisor_token");
-    localStorage.removeItem("admin_token");
+    safeStorage.removeItem("supervisor_token");
+    safeStorage.removeItem("admin_token");
     setAccess(null);
     setError("");
   };

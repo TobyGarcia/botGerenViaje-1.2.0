@@ -44,7 +44,10 @@ export async function syncPendingLocations(idViaje) {
 export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
     const location = await getCurrentLocation();
-    const pendingLocation = { ...location, ...extraData, clientLocationId: crypto.randomUUID(), idViaje: Number(idViaje) };
+    const uuid = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const pendingLocation = { ...location, ...extraData, clientLocationId: uuid, idViaje: Number(idViaje) };
     await savePendingLocation(pendingLocation);
     await notifyPending(idViaje, {
       status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
