@@ -97,7 +97,6 @@ async function initializeDependencies() {
     attempt += 1;
 
     try {
-      await databasePool.query(`
       // Auto-migración 1: Vehículos y Mantenimiento
       try {
         await databasePool.query(`
