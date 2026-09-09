@@ -24,7 +24,8 @@ import {
   IconEditar,
   IconMantenimiento,
   IconEliminar,
-  IconReactivar
+  IconReactivar,
+  IconReloj
 } from "../components/Icons.jsx";
 
 const initialForm = {

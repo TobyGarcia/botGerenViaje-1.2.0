@@ -98,6 +98,37 @@ async function initializeDependencies() {
 
     try {
       await databasePool.query(`
+        -- Auto-migración: Vehículos y Mantenimiento
+        ALTER TABLE vehiculos
+          ADD COLUMN IF NOT EXISTS en_mantenimiento BOOLEAN NOT NULL DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS fecha_inicio_mantenimiento TIMESTAMPTZ DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS motivo_mantenimiento TEXT DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS color VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS id_conductor_asignado INTEGER REFERENCES conductores(id_conductores) ON DELETE SET NULL,
+          ADD COLUMN IF NOT EXISTS id_supervisor_asignado INTEGER REFERENCES usuarios_admin(id_usuarios_admin) ON DELETE SET NULL,
+          ADD COLUMN IF NOT EXISTS personal_asignado_nombre VARCHAR(150);
+
+        CREATE INDEX IF NOT EXISTS idx_vehiculos_mantenimiento
+          ON vehiculos (en_mantenimiento)
+          WHERE en_mantenimiento = TRUE;
+
+        -- Auto-migración: Conductores, PIN y Licencias
+        ALTER TABLE conductores
+          ADD COLUMN IF NOT EXISTS pin_hash VARCHAR(255) DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS aprobado_por_admin BOOLEAN NOT NULL DEFAULT TRUE,
+          ADD COLUMN IF NOT EXISTS fecha_aprobacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS licencia_url TEXT DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS licencia_reverso_url TEXT DEFAULT NULL;
+
+        -- Auto-migración: Gerenciamiento y SharePoint
+        ALTER TABLE gerenciamiento_viajes
+          ADD COLUMN IF NOT EXISTS sharepoint_web_url TEXT,
+          ADD COLUMN IF NOT EXISTS sharepoint_item_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS sharepoint_subido_en TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS pdf_nombre VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS pdf_documento BYTEA;
+
+        -- Auto-migración: Inspecciones y Usuarios Admin
         ALTER TABLE inspecciones_vehiculares
           ADD COLUMN IF NOT EXISTS id_usuario_autorizador BIGINT REFERENCES usuarios_admin(id_usuarios_admin);
 
@@ -112,8 +143,10 @@ async function initializeDependencies() {
             'GERENTE_GENERAL', 'COORDINADOR_QHSE'
           )
         );
-      `).catch(() => {});
-      console.log("Conexión inicial con PostgreSQL verificada.");
+      `).catch((migrationErr) => {
+        console.warn("Aviso en auto-migración de esquema inicial:", migrationErr.message);
+      });
+      console.log("Conexión inicial con PostgreSQL y esquema verificados.");
       await startBots();
       return;
     } catch (error) {
