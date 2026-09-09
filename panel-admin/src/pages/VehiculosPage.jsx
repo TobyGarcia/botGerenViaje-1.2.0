@@ -65,7 +65,11 @@ function VehiculosPage({ user }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("TODOS");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
+
+  const [maintenanceModalVehicle, setMaintenanceModalVehicle] = useState(null);
+  const [maintenanceReason, setMaintenanceReason] = useState("");
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
 
   const [loading, setLoading] =
     useState(true);
@@ -363,19 +367,25 @@ function VehiculosPage({ user }) {
     }
   }
 
-  async function handleMaintenanceChange(vehiculo) {
-    const nextValue = !vehiculo.en_mantenimiento;
+  function handleMaintenanceChange(vehiculo) {
+    if (vehiculo.en_mantenimiento) {
+      handleRepairVehicle(vehiculo);
+    } else {
+      setMaintenanceModalVehicle(vehiculo);
+      setMaintenanceReason("");
+    }
+  }
+
+  async function handleRepairVehicle(vehiculo) {
     const confirmed = window.confirm(
-      nextValue
-        ? `¿Enviar la unidad ${vehiculo.nombre} a mantenimiento?`
-        : `¿Retirar la unidad ${vehiculo.nombre} de mantenimiento?`
+      `¿Marcar como reparada la unidad ${vehiculo.marca || vehiculo.nombre} ${vehiculo.modelo || ""} (${vehiculo.numero_economico}) y devolverla a estado DISPONIBLE?`
     );
     if (!confirmed) return;
 
     setUpdatingId(vehiculo.id_vehiculos);
     try {
-      const response = await updateAdminVehiculoMantenimiento(vehiculo.id_vehiculos, nextValue);
-      setMessage(response.message);
+      const response = await updateAdminVehiculoMantenimiento(vehiculo.id_vehiculos, false);
+      setMessage(response.message || "Vehículo reparado y reintegrado a unidades disponibles.");
       setMessageType("success");
       await loadVehiculos();
       if (detailVehicle?.id_vehiculos === vehiculo.id_vehiculos) {
@@ -386,6 +396,37 @@ function VehiculosPage({ user }) {
       setMessageType("error");
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function handleSendToMaintenance(e) {
+    e?.preventDefault();
+    if (!maintenanceModalVehicle) return;
+    if (!maintenanceReason.trim()) {
+      alert("Por favor especifica el motivo del mantenimiento.");
+      return;
+    }
+
+    setMaintenanceSaving(true);
+    try {
+      const response = await updateAdminVehiculoMantenimiento(
+        maintenanceModalVehicle.id_vehiculos,
+        true,
+        maintenanceReason.trim()
+      );
+      setMessage(response.message || "Vehículo enviado a mantenimiento.");
+      setMessageType("success");
+      setMaintenanceModalVehicle(null);
+      setMaintenanceReason("");
+      await loadVehiculos();
+      if (detailVehicle?.id_vehiculos === maintenanceModalVehicle.id_vehiculos) {
+        await openDetail(maintenanceModalVehicle);
+      }
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setMaintenanceSaving(false);
     }
   }
 
@@ -437,6 +478,70 @@ function VehiculosPage({ user }) {
         </button>
       </header>
 
+      {/* Subpestañas de estado */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => { setStatus("TODOS"); setCurrentPage(1); }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: 0,
+            fontWeight: "bold",
+            cursor: "pointer",
+            background: status === "TODOS" ? "#0f172a" : "#f1f5f9",
+            color: status === "TODOS" ? "#ffffff" : "#475569"
+          }}
+        >
+          Todos los Vehículos
+        </button>
+        <button
+          type="button"
+          onClick={() => { setStatus("ACTIVOS"); setCurrentPage(1); }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: 0,
+            fontWeight: "bold",
+            cursor: "pointer",
+            background: status === "ACTIVOS" ? "#16a34a" : "#f1f5f9",
+            color: status === "ACTIVOS" ? "#ffffff" : "#475569"
+          }}
+        >
+          Disponibles
+        </button>
+        <button
+          type="button"
+          onClick={() => { setStatus("MANTENIMIENTO"); setCurrentPage(1); }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: 0,
+            fontWeight: "bold",
+            cursor: "pointer",
+            background: status === "MANTENIMIENTO" ? "#d97706" : "#f1f5f9",
+            color: status === "MANTENIMIENTO" ? "#ffffff" : "#475569"
+          }}
+        >
+          En Mantenimiento
+        </button>
+        <button
+          type="button"
+          onClick={() => { setStatus("INACTIVOS"); setCurrentPage(1); }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: 0,
+            fontWeight: "bold",
+            cursor: "pointer",
+            background: status === "INACTIVOS" ? "#64748b" : "#f1f5f9",
+            color: status === "INACTIVOS" ? "#ffffff" : "#475569"
+          }}
+        >
+          Inactivos
+        </button>
+      </div>
+
       <section className="module-toolbar">
         <label className="search-field">
           <span>Buscar</span>
@@ -468,6 +573,10 @@ function VehiculosPage({ user }) {
 
             <option value="ACTIVOS">
               Disponibles
+            </option>
+
+            <option value="MANTENIMIENTO">
+              En Mantenimiento
             </option>
 
             <option value="INACTIVOS">
@@ -503,18 +612,32 @@ function VehiculosPage({ user }) {
           <>
             <div className="table-wrapper">
               <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Unidad</th>
-                    <th>Número económico</th>
-                    <th>Placas</th>
-                    <th>Color</th>
-                    <th>Personal asignado</th>
-                    <th>Kilometraje actual</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
+                {status === "MANTENIMIENTO" ? (
+                  <thead>
+                    <tr>
+                      <th>Unidad</th>
+                      <th>Número económico</th>
+                      <th>Placas</th>
+                      <th>Personal asignado</th>
+                      <th>Tiempo en Mantenimiento</th>
+                      <th>Motivo del Mantenimiento</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                ) : (
+                  <thead>
+                    <tr>
+                      <th>Unidad</th>
+                      <th>Número económico</th>
+                      <th>Placas</th>
+                      <th>Color</th>
+                      <th>Personal asignado</th>
+                      <th>Kilometraje actual</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                )}
 
                 <tbody>
                   {paginatedVehiculos.map((vehiculo) => (
@@ -529,25 +652,50 @@ function VehiculosPage({ user }) {
 
                       <td>{vehiculo.placas}</td>
 
-                      <td>{vehiculo.color || "—"}</td>
-
-                      <td>{vehiculo.personal_asignado || "—"}</td>
-
-                      <td>{vehiculo.kilometraje_actual ?? 0} km</td>
-
-                      <td>
-                        <span
-                          className={
-                            vehiculo.disponibilidad === "DISPONIBLE"
-                              ? "status-badge status-active"
-                              : "status-badge status-inactive"
-                          }
-                        >
-                          {vehiculo.disponibilidad === "DISPONIBLE" ? "Disponible" :
-                            vehiculo.disponibilidad === "MANTENIMIENTO" ? "No disponible: mantenimiento" :
-                            vehiculo.disponibilidad === "EN_VIAJE" ? "No disponible: en viaje" : "Inactivo"}
-                        </span>
-                      </td>
+                      {status === "MANTENIMIENTO" ? (
+                        <>
+                          <td>{vehiculo.personal_asignado || "—"}</td>
+                          <td>
+                            <span style={{ padding: "4px 10px", borderRadius: "12px", background: "#fef2f2", color: "#b91c1c", fontWeight: "bold", fontSize: "0.85rem", border: "1px solid #fecaca", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <IconReloj size={14} /> {vehiculo.dias_en_mantenimiento ?? 0} {vehiculo.dias_en_mantenimiento === 1 ? "día" : "días"}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: "250px", wordBreak: "break-word" }}>
+                            {vehiculo.motivo_mantenimiento || "Sin especificar"}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{vehiculo.color || "—"}</td>
+                          <td>{vehiculo.personal_asignado || "—"}</td>
+                          <td>{vehiculo.kilometraje_actual ?? 0} km</td>
+                          <td>
+                            {vehiculo.en_mantenimiento ? (
+                              <div>
+                                <span className="status-badge" style={{ background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", display: "inline-block", marginBottom: "4px" }}>
+                                  Mantenimiento ({vehiculo.dias_en_mantenimiento ?? 0} {vehiculo.dias_en_mantenimiento === 1 ? "día" : "días"})
+                                </span>
+                                {vehiculo.motivo_mantenimiento && (
+                                  <small style={{ display: "block", color: "#64748b", fontSize: "0.75rem", maxWidth: "160px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={vehiculo.motivo_mantenimiento}>
+                                    {vehiculo.motivo_mantenimiento}
+                                  </small>
+                                )}
+                              </div>
+                            ) : (
+                              <span
+                                className={
+                                  vehiculo.disponibilidad === "DISPONIBLE"
+                                    ? "status-badge status-active"
+                                    : "status-badge status-inactive"
+                                }
+                              >
+                                {vehiculo.disponibilidad === "DISPONIBLE" ? "Disponible" :
+                                  vehiculo.disponibilidad === "EN_VIAJE" ? "No disponible: en viaje" : "Inactivo"}
+                              </span>
+                            )}
+                          </td>
+                        </>
+                      )}
 
                       <td>
                         <div className="table-action-icons">
@@ -897,6 +1045,12 @@ function VehiculosPage({ user }) {
                 <span><strong>Póliza:</strong> {detailVehicle.numero_poliza || "Sin capturar"}</span>
                 <span><strong>Vence seguro:</strong> {formatVehicleDate(detailVehicle.seguro_vencimiento)}</span>
                 <span><strong>Kilometraje:</strong> {detailVehicle.kilometraje_actual ?? 0} km</span>
+                {detailVehicle.en_mantenimiento && (
+                  <>
+                    <span style={{ color: "#b91c1c" }}><strong>En mantenimiento:</strong> Sí ({detailVehicle.dias_en_mantenimiento ?? 0} {detailVehicle.dias_en_mantenimiento === 1 ? "día" : "días"})</span>
+                    <span><strong>Motivo mantenimiento:</strong> {detailVehicle.motivo_mantenimiento || "Sin registrar"}</span>
+                  </>
+                )}
                 {detailVehicle.folio_viaje_en_curso && <span><strong>Viaje en curso:</strong> {detailVehicle.folio_viaje_en_curso} · {detailVehicle.conductor_viaje_en_curso}</span>}
               </div>
             )}
@@ -907,6 +1061,48 @@ function VehiculosPage({ user }) {
                 </button>}
               </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {/* Modal para ingresar motivo de mantenimiento */}
+      {maintenanceModalVehicle && (
+        <div className="modal-overlay" role="presentation" onMouseDown={() => !maintenanceSaving && setMaintenanceModalVehicle(null)}>
+          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+            <div className="form-panel-header">
+              <div>
+                <h2 id="maintenance-modal-title">Enviar a Mantenimiento</h2>
+                <p>{maintenanceModalVehicle.marca || maintenanceModalVehicle.nombre} {maintenanceModalVehicle.modelo || ""} · Económico: {maintenanceModalVehicle.numero_economico}</p>
+              </div>
+              <button type="button" className="close-button" onClick={() => setMaintenanceModalVehicle(null)} disabled={maintenanceSaving}>×</button>
+            </div>
+            <form onSubmit={handleSendToMaintenance}>
+              <div style={{ padding: "8px 0" }}>
+                <p style={{ margin: "0 0 12px", fontSize: "0.88rem", color: "#475569" }}>
+                  Al enviar la unidad a mantenimiento, su estado cambiará a <strong>NO DISPONIBLE: MANTENIMIENTO</strong> y comenzará el conteo de días en taller hasta su reparación.
+                </p>
+                <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "6px" }}>
+                  Motivo del mantenimiento / Falla reportada *
+                  <textarea
+                    required
+                    rows="4"
+                    value={maintenanceReason}
+                    onChange={(e) => setMaintenanceReason(e.target.value)}
+                    placeholder="Describe detalladamente el motivo del servicio, falla mecánica o mantenimiento preventivo..."
+                    style={{ width: "100%", marginTop: "6px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }}
+                    disabled={maintenanceSaving}
+                  />
+                </label>
+              </div>
+              <div className="form-actions" style={{ marginTop: "16px" }}>
+                <button type="button" className="secondary-button" onClick={() => setMaintenanceModalVehicle(null)} disabled={maintenanceSaving}>
+                  Cancelar
+                </button>
+                <button type="submit" className="primary-button" style={{ background: "#d97706" }} disabled={maintenanceSaving || !maintenanceReason.trim()}>
+                  {maintenanceSaving ? "Enviando..." : "Confirmar Envío a Mantenimiento"}
+                </button>
+              </div>
+            </form>
           </section>
         </div>
       )}

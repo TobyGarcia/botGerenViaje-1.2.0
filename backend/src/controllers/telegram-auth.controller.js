@@ -229,6 +229,69 @@ export async function registerTelegramDriverController(request, response) {
     });
 
     if (result.created && result.conductor) {
+      // Subir fotos de la licencia a SharePoint en la carpeta "Licencias"
+      (async () => {
+        try {
+          const { uploadDriverLicenseToSharePoint } = await import("../services/sharepoint.service.js");
+          const { databasePool } = await import("../database/pool.js");
+
+          function parseBase64(base64Str) {
+            if (!base64Str || typeof base64Str !== "string") return null;
+            const match = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (!match) return null;
+            return {
+              mimeType: match[1],
+              buffer: Buffer.from(match[2], "base64"),
+              extension: match[1].includes("pdf") ? "pdf" : match[1].includes("png") ? "png" : "jpg"
+            };
+          }
+
+          let spFrenteUrl = null;
+          let spReversoUrl = null;
+
+          if (request.body?.licenciaArchivoBase64) {
+            const parsed = parseBase64(request.body.licenciaArchivoBase64);
+            if (parsed) {
+              const resSp = await uploadDriverLicenseToSharePoint({
+                driverName: result.conductor.nombre,
+                fileBuffer: parsed.buffer,
+                mimeType: parsed.mimeType,
+                side: "frente",
+                extension: parsed.extension
+              });
+              if (resSp.success && resSp.webUrl) spFrenteUrl = resSp.webUrl;
+            }
+          }
+
+          if (request.body?.licenciaReversoBase64) {
+            const parsed = parseBase64(request.body.licenciaReversoBase64);
+            if (parsed) {
+              const resSp = await uploadDriverLicenseToSharePoint({
+                driverName: result.conductor.nombre,
+                fileBuffer: parsed.buffer,
+                mimeType: parsed.mimeType,
+                side: "reverso",
+                extension: parsed.extension
+              });
+              if (resSp.success && resSp.webUrl) spReversoUrl = resSp.webUrl;
+            }
+          }
+
+          if (spFrenteUrl || spReversoUrl) {
+            await databasePool.query(
+              `UPDATE conductores
+               SET licencia_url = COALESCE($1, licencia_url),
+                   licencia_reverso_url = COALESCE($2, licencia_reverso_url)
+               WHERE id_conductores = $3`,
+              [spFrenteUrl, spReversoUrl, result.conductor.id_conductores]
+            );
+            console.log(`[SharePoint] Licencias asociadas al conductor ${result.conductor.nombre} en la base de datos.`);
+          }
+        } catch (err) {
+          console.warn("[SharePoint] Error al procesar subida de licencias a SharePoint:", err.message);
+        }
+      })();
+
       sendDriverRegistrationSupervisorAlert({ conductor: result.conductor }).catch((err) => {
         console.warn("Fallo al enviar alerta de registro a supervisores:", err.message);
       });

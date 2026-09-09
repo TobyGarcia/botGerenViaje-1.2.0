@@ -8,8 +8,23 @@ import {
   ingresarCorreoSupervisor,
   listGerenciamientosViaje,
   aprobarGerenciamientoViaje,
-  getGerenciamientoViaje
+  getGerenciamientoViaje,
+  getSupervisorConductoresPendientes,
+  decidirSupervisorConductor
 } from "../services/api.js";
+import {
+  IconCheck,
+  IconCross,
+  IconAlert,
+  IconCar,
+  IconMap,
+  IconClipboard,
+  IconClock,
+  IconMoon,
+  IconIdCard,
+  IconEdit,
+  IconRefresh
+} from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import logoAQR from "../assets/logoAQR.webp";
 
@@ -177,6 +192,60 @@ function tryParseJson(val, fallback) {
   return fallback;
 }
 
+const checklistGroups = {
+  "Documentación": ["Tarjeta de circulación vigente", "Póliza de seguro vigente", "Verificación vigente", "Engomado de placas", "Placa delantera", "Placa trasera", "Plan de respuesta de emergencia", "Bitácora vehicular"],
+  "Extintor": ["Plan de seguridad", "Carga vigente", "Etiqueta de inspección", "Soporte para extintor"],
+  "Kit de carretera": ["Elevador manual (gato)", "Linterna", "Triángulos reflectores (2)", "Botiquín", "Cable pasa-corriente"],
+  "Condiciones generales": ["Neumático delantero derecho", "Neumático delantero izquierdo", "Neumático trasero derecho", "Neumático trasero izquierdo", "Presión de neumáticos"],
+  "Parabrisas y espejos": ["Parabrisas frontal", "Vidrios", "Espejo lateral derecho", "Espejo lateral izquierdo", "Retrovisor"],
+  "Luces": ["Delanteras", "Intermitentes", "Freno", "Reversa", "Faros de niebla"],
+  "Revisión mecánica": ["Aceite de motor", "Líquido refrigerante", "Fluido de transmisión", "Líquido de frenos", "Freno de mano", "Bandas de motor", "Líquido de dirección", "Batería", "Limpiador de vidrios", "Cinturones de seguridad", "Llave de cruz", "Monitor de velocidad", "Neumático de repuesto"],
+  "Limpieza": ["Interior", "Exterior"]
+};
+
+function renderSupervisorChecklist(checklist = {}) {
+  const renderedItems = new Set();
+  const categories = Object.entries(checklistGroups).map(([groupName, items]) => {
+    const groupItems = items.filter(item => item in checklist).map(item => {
+      renderedItems.add(item);
+      return [item, checklist[item]];
+    });
+    return { groupName, items: groupItems };
+  }).filter(g => g.items.length > 0);
+
+  const otherItems = Object.entries(checklist).filter(([item]) => !renderedItems.has(item));
+  if (otherItems.length > 0) {
+    categories.push({ groupName: "Otros elementos", items: otherItems });
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px", margin: "14px 0" }}>
+      {categories.map(({ groupName, items }) => (
+        <div key={groupName} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+          <div style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "8px 12px", fontWeight: "bold", fontSize: "0.85rem", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>{groupName}</span>
+            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "normal" }}>{items.length} items</span>
+          </div>
+          <table className="admin-table checklist-table" style={{ margin: 0, width: "100%", fontSize: "0.82rem" }}>
+            <tbody>
+              {items.map(([item, state]) => (
+                <tr key={item} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 12px" }}>{item}</td>
+                  <td style={{ width: "65px", textAlign: "center", padding: "6px 8px" }}>
+                    <span className={`checklist-badge checklist-badge-${state === "B" ? "good" : state === "R" ? "regular" : state === "M" ? "bad" : "na"}`}>
+                      {state}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -237,6 +306,13 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [searchConductor, setSearchConductor] = useState("");
   const [savingAssignmentId, setSavingAssignmentId] = useState(null);
 
+  // Conductores pendientes state
+  const [pendingDrivers, setPendingDrivers] = useState([]);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [driverComment, setDriverComment] = useState("");
+  const [driverActionLoading, setDriverActionLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+
   async function loadInspecciones() {
     try {
       setErrorMessage("");
@@ -267,11 +343,44 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     }
   }
 
+  async function loadPendingDrivers() {
+    try {
+      setErrorMessage("");
+      const res = await getSupervisorConductoresPendientes();
+      setPendingDrivers(res.data || []);
+    } catch(error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function handleDecideDriver(idConductor, aprobado) {
+    const action = aprobado ? "aprobar" : "rechazar";
+    if (!window.confirm(`¿Estás seguro de que deseas ${action} a este conductor?`)) return;
+    setDriverActionLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await decidirSupervisorConductor(idConductor, {
+        aprobado,
+        comentario: driverComment
+      });
+      setMessage(res.message);
+      setSelectedDriver(null);
+      setDriverComment("");
+      await loadPendingDrivers();
+    } catch(error) {
+      setErrorMessage(error.message);
+    } finally {
+      setDriverActionLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (access.confirmed) {
+      loadPendingDrivers();
       if (activeTab === "inspecciones") loadInspecciones();
       else if (activeTab === "gerenciamiento") loadGerenciamientos();
       else if (activeTab === "asignaciones") loadAsignaciones();
+      else if (activeTab === "conductores") loadPendingDrivers();
     }
   }, [access.confirmed, activeTab]);
 
@@ -416,7 +525,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       <div style={{ display: "flex", gap: "6px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", overflowX: "auto" }}>
         <button
           type="button"
-          onClick={() => { setActiveTab("inspecciones"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
+          onClick={() => { setActiveTab("inspecciones"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setMessage(""); setErrorMessage(""); }}
           style={{
             padding: "8px 12px",
             border: "none",
@@ -425,14 +534,17 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             fontSize: "0.85rem",
             cursor: "pointer",
             background: activeTab === "inspecciones" ? "#1e293b" : "#f1f5f9",
-            color: activeTab === "inspecciones" ? "#ffffff" : "#475569"
+            color: activeTab === "inspecciones" ? "#ffffff" : "#475569",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px"
           }}
         >
-          📋 Inspecciones {items.length > 0 ? `(${items.length})` : ''}
+          <IconClipboard size={16} /> Inspecciones {items.length > 0 ? `(${items.length})` : ""}
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab("gerenciamiento"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
+          onClick={() => { setActiveTab("gerenciamiento"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setMessage(""); setErrorMessage(""); }}
           style={{
             padding: "8px 12px",
             border: "none",
@@ -441,14 +553,36 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             fontSize: "0.85rem",
             cursor: "pointer",
             background: activeTab === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "#f1f5f9",
-            color: activeTab === "gerenciamiento" ? "#ffffff" : "#475569"
+            color: activeTab === "gerenciamiento" ? "#ffffff" : "#475569",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px"
           }}
         >
-          🗺️ Gerenciamiento {pendingGerenciamientos.length > 0 ? `(${pendingGerenciamientos.length})` : ''}
+          <IconMap size={16} /> Gerenciamiento {pendingGerenciamientos.length > 0 ? `(${pendingGerenciamientos.length})` : ""}
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab("asignaciones"); setDetail(null); setGerenciamientoDetail(null); setMessage(""); setErrorMessage(""); }}
+          onClick={() => { setActiveTab("conductores"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setMessage(""); setErrorMessage(""); }}
+          style={{
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            fontSize: "0.85rem",
+            cursor: "pointer",
+            background: activeTab === "conductores" ? "#1e293b" : "#f1f5f9",
+            color: activeTab === "conductores" ? "#ffffff" : "#475569",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px"
+          }}
+        >
+          <IconIdCard size={16} /> Conductores {pendingDrivers.length > 0 ? `(${pendingDrivers.length})` : ""}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab("asignaciones"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setMessage(""); setErrorMessage(""); }}
           style={{
             padding: "8px 12px",
             border: "none",
@@ -457,10 +591,13 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             fontSize: "0.85rem",
             cursor: "pointer",
             background: activeTab === "asignaciones" ? "#1e293b" : "#f1f5f9",
-            color: activeTab === "asignaciones" ? "#ffffff" : "#475569"
+            color: activeTab === "asignaciones" ? "#ffffff" : "#475569",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px"
           }}
         >
-          🚗 Asignaciones
+          <IconCar size={16} /> Asignaciones
         </button>
       </div>
 
@@ -477,7 +614,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                 <button type="button" key={item.id_inspeccion} className="result-card" onClick={() => openInspeccion(item.id_inspeccion)}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
                     <strong>{item.folio}</strong>
-                    {item.es_dia_siguiente && <span style={{ background: "#2563eb", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "600" }}>🌙 Día Siguiente ({item.fecha_operativa})</span>}
+                    {item.es_dia_siguiente && (
+                      <span style={{ background: "#2563eb", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <IconMoon size={12} /> Día Siguiente ({item.fecha_operativa})
+                      </span>
+                    )}
                   </div>
                   <div>{item.conductor} · {item.vehiculo} ({item.numero_economico})</div>
                 </button>
@@ -488,8 +629,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
               <button type="button" onClick={() => setDetail(null)}>← Volver</button>
               <h2>{detail.folio}</h2>
               {detail.es_dia_siguiente && (
-                <div style={{ background: "#eff6ff", border: "1px solid #93c5fd", color: "#1d4ed8", padding: "8px 12px", borderRadius: "8px", margin: "10px 0", fontSize: "0.85rem" }}>
-                  🌙 <strong>Inspección para el Día Siguiente:</strong> Salida de madrugada programada para la fecha <strong>{detail.fecha_operativa}</strong>.
+                <div style={{ background: "#eff6ff", border: "1px solid #93c5fd", color: "#1d4ed8", padding: "8px 12px", borderRadius: "8px", margin: "10px 0", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <IconMoon size={16} /> <span><strong>Inspección para el Día Siguiente:</strong> Salida de madrugada programada para la fecha <strong>{detail.fecha_operativa}</strong>.</span>
                 </div>
               )}
               <p><strong>Conductor:</strong> {detail.conductor}</p>
@@ -497,34 +638,18 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
               <p><strong>Combustible:</strong> {detail.combustible}</p>
               <p><strong>Observaciones:</strong> {detail.observaciones_conductor || "Sin observaciones"}</p>
               <DamageViewer damages={detail.danos} vehicle={detail.vehiculo}/>
-              <h3>Checklist</h3>
-              <div className="table-wrapper checklist-table-wrapper">
-                <table className="admin-table checklist-table">
-                  <thead>
-                    <tr><th>Actividad</th><th style={{ width: "90px", textAlign: "center" }}>Estado</th></tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(detail.checklist || {}).map(([name, state]) => (
-                      <tr key={name}>
-                        <td>{name}</td>
-                        <td style={{ textAlign: "center" }}>
-                          <span className={`checklist-badge checklist-badge-${state === "B" ? "good" : state === "R" ? "regular" : state === "M" ? "bad" : "na"}`}>
-                            {state}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <h3 style={{ marginTop: "16px" }}>Checklist de Verificación por Categoría</h3>
+              {renderSupervisorChecklist(detail.checklist)}
               <label>Comentario<textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Comentarios de aprobación o rechazo"/></label>
               
               {signature ? (
                 <div style={{ margin: "12px 0", background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem" }}>✅ Firma guardada</span>
-                    <button type="button" onClick={() => setShowSignatureModal(true)} style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer" }}>
-                      🔄 Modificar Firma
+                    <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <IconCheck size={16} color="#166534" /> Firma guardada
+                    </span>
+                    <button type="button" onClick={() => setShowSignatureModal(true)} style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <IconRefresh size={12} /> Modificar Firma
                     </button>
                   </div>
                   <img src={signature} alt="Firma Autorizador" style={{ maxHeight: "80px", maxWidth: "100%", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px", display: "block" }} />
@@ -534,9 +659,9 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                   <button
                     type="button"
                     onClick={() => setShowSignatureModal(true)}
-                    style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "#0284c7", color: "#ffffff", border: 0, fontWeight: "bold", fontSize: "0.92rem", cursor: "pointer" }}
+                    style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "#0284c7", color: "#ffffff", border: 0, fontWeight: "bold", fontSize: "0.92rem", cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "6px" }}
                   >
-                    ✍️ Abrir Captura de Firma Digital
+                    <IconEdit size={16} /> Capturar Firma Digital
                   </button>
                 </div>
               )}
@@ -569,10 +694,13 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     fontSize: "0.8rem",
                     cursor: "pointer",
                     background: subTabGerencia === "PENDIENTE" ? "#1e40af" : "#ffffff",
-                    color: subTabGerencia === "PENDIENTE" ? "#ffffff" : "#475569"
+                    color: subTabGerencia === "PENDIENTE" ? "#ffffff" : "#475569",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
                   }}
                 >
-                  ⏳ Pendientes ({pendingGerenciamientos.length})
+                  <IconClock size={14} /> Pendientes ({pendingGerenciamientos.length})
                 </button>
                 <button
                   type="button"
@@ -585,10 +713,13 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     fontSize: "0.8rem",
                     cursor: "pointer",
                     background: subTabGerencia === "HISTORIAL" ? "#1e40af" : "#ffffff",
-                    color: subTabGerencia === "HISTORIAL" ? "#ffffff" : "#475569"
+                    color: subTabGerencia === "HISTORIAL" ? "#ffffff" : "#475569",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
                   }}
                 >
-                  📜 Historial Procesado ({processedGerenciamientos.length})
+                  <IconClipboard size={14} /> Historial Procesado ({processedGerenciamientos.length})
                 </button>
               </div>
 
@@ -615,7 +746,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                   );
                 }) : (
                   <div style={{ padding: "20px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1px solid #cbd5e1", margin: "12px 0" }}>
-                    <span style={{ fontSize: "2rem" }}>✅</span>
+                    <IconCheck size={36} color="#16a34a" />
                     <h3 style={{ margin: "8px 0 4px", color: "#166534" }}>No hay gerenciamientos pendientes</h3>
                     <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Todos los gerenciamientos de viaje registrados han sido procesados. Consulta la pestaña Historial para ver los aprobados o rechazados.</p>
                   </div>
@@ -1030,6 +1161,179 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </>
       )}
 
+      {/* Pestaña: Conductores Pendientes */}
+      {activeTab === "conductores" && (
+        <>
+          <h1>Aprobación de Conductores</h1>
+          <p style={{ color: "#64748b", marginBottom: "16px" }}>
+            Revisa los nuevos registros de conductores desde la MiniApp, valida sus fotos de licencia y autoriza su acceso al sistema.
+          </p>
+
+          {!selectedDriver ? (
+            <section>
+              {pendingDrivers.length ? pendingDrivers.map((driver) => (
+                <button
+                  type="button"
+                  key={driver.id_conductores}
+                  className="result-card"
+                  onClick={() => { setSelectedDriver(driver); setDriverComment(""); setMessage(""); setErrorMessage(""); }}
+                  style={{ textAlign: "left", width: "100%", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #e2e8f0" }}
+                >
+                  <div>
+                    <div style={{ fontWeight: "bold", fontSize: "1rem", color: "#0f172a", marginBottom: "4px" }}>
+                      {driver.nombre}
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                      Tel: {driver.telefono || "—"} · Empresa: {driver.empresa || "—"}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "#94a3b8", marginTop: "2px" }}>
+                      Registrado: {driver.creado_en ? new Date(driver.creado_en).toLocaleString("es-MX") : "—"}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ padding: "4px 10px", borderRadius: "12px", background: "#fef3c7", color: "#92400e", fontWeight: "bold", fontSize: "0.75rem", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <IconClock size={12} /> Pendiente
+                    </span>
+                  </div>
+                </button>
+              )) : (
+                <div style={{ padding: "30px 20px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+                  <IconCheck size={32} color="#16a34a" />
+                  <h3 style={{ margin: "8px 0 4px", color: "#166534" }}>No hay conductores pendientes</h3>
+                  <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Todos los aspirantes registrados han sido validados.</p>
+                </div>
+              )}
+            </section>
+          ) : (
+            <section className="result-card" style={{ padding: "20px" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedDriver(null)}
+                style={{ background: "#f1f5f9", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", marginBottom: "14px", fontWeight: "600", fontSize: "0.85rem" }}
+              >
+                ← Volver a la lista
+              </button>
+
+              <h2 style={{ margin: "0 0 12px", color: "#0f172a" }}>{selectedDriver.nombre}</h2>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", background: "#f8fafc", padding: "12px", borderRadius: "8px", marginBottom: "16px", fontSize: "0.88rem" }}>
+                <div><strong>Teléfono:</strong> {selectedDriver.telefono || "—"}</div>
+                <div><strong>Email / Identificador:</strong> {selectedDriver.email || "—"}</div>
+                <div><strong>Empresa:</strong> {selectedDriver.empresa || "—"}</div>
+                <div><strong>Tipo conductor:</strong> {selectedDriver.tipo_conductor || "—"}</div>
+                <div><strong>Telegram ID:</strong> {selectedDriver.telegram_chat_id || "—"}</div>
+                <div><strong>Registrado:</strong> {selectedDriver.creado_en ? new Date(selectedDriver.creado_en).toLocaleString("es-MX") : "—"}</div>
+              </div>
+
+              <h3 style={{ margin: "16px 0 10px", fontSize: "1rem", color: "#1e293b" }}>Documento de Licencia de Conducir</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", marginBottom: "16px" }}>
+                <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px", background: "#ffffff", textAlign: "center" }}>
+                  <div style={{ fontWeight: "bold", fontSize: "0.82rem", color: "#475569", marginBottom: "8px" }}>Frente de la Licencia</div>
+                  {selectedDriver.licencia_url ? (
+                    <div>
+                      <img
+                        src={selectedDriver.licencia_url}
+                        alt="Frente de Licencia"
+                        style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "6px", cursor: "pointer", objectFit: "contain", border: "1px solid #e2e8f0" }}
+                        onClick={() => setPreviewImage(selectedDriver.licencia_url)}
+                      />
+                      <div style={{ marginTop: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(selectedDriver.licencia_url)}
+                          style={{ background: "#e0f2fe", color: "#0369a1", border: 0, padding: "4px 10px", borderRadius: "4px", fontSize: "0.78rem", cursor: "pointer", fontWeight: "600" }}
+                        >
+                          Ampliar imagen
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "20px 0" }}>No se subió foto frontal.</p>
+                  )}
+                </div>
+
+                <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px", background: "#ffffff", textAlign: "center" }}>
+                  <div style={{ fontWeight: "bold", fontSize: "0.82rem", color: "#475569", marginBottom: "8px" }}>Reverso de la Licencia</div>
+                  {selectedDriver.licencia_reverso_url ? (
+                    <div>
+                      <img
+                        src={selectedDriver.licencia_reverso_url}
+                        alt="Reverso de Licencia"
+                        style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "6px", cursor: "pointer", objectFit: "contain", border: "1px solid #e2e8f0" }}
+                        onClick={() => setPreviewImage(selectedDriver.licencia_reverso_url)}
+                      />
+                      <div style={{ marginTop: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(selectedDriver.licencia_reverso_url)}
+                          style={{ background: "#e0f2fe", color: "#0369a1", border: 0, padding: "4px 10px", borderRadius: "4px", fontSize: "0.78rem", cursor: "pointer", fontWeight: "600" }}
+                        >
+                          Ampliar imagen
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "20px 0" }}>No se subió foto del reverso.</p>
+                  )}
+                </div>
+              </div>
+
+              <label style={{ display: "block", marginBottom: "16px" }}>
+                <span style={{ fontWeight: "600", fontSize: "0.88rem", display: "block", marginBottom: "4px" }}>
+                  Observaciones / Motivo (opcional):
+                </span>
+                <textarea
+                  value={driverComment}
+                  onChange={(e) => setDriverComment(e.target.value)}
+                  placeholder="Escribe comentarios u observaciones para el conductor..."
+                  rows="3"
+                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1", boxSizing: "border-box" }}
+                  disabled={driverActionLoading}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  style={{ background: "#ef4444", color: "#ffffff", border: 0, padding: "10px 18px", borderRadius: "8px", fontWeight: "bold", cursor: driverActionLoading ? "not-allowed" : "pointer" }}
+                  onClick={() => handleDecideDriver(selectedDriver.id_conductores, false)}
+                  disabled={driverActionLoading}
+                >
+                  {driverActionLoading ? "Procesando..." : "Rechazar Conductor"}
+                </button>
+                <button
+                  type="button"
+                  style={{ background: "#16a34a", color: "#ffffff", border: 0, padding: "10px 22px", borderRadius: "8px", fontWeight: "bold", cursor: driverActionLoading ? "not-allowed" : "pointer" }}
+                  onClick={() => handleDecideDriver(selectedDriver.id_conductores, true)}
+                  disabled={driverActionLoading}
+                >
+                  {driverActionLoading ? "Aprobando..." : "Aprobar y Notificar"}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Lightbox / Modal de ampliación de imagen */}
+          {previewImage && (
+            <div
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999999, display: "grid", placeItems: "center", padding: "16px" }}
+              onClick={() => setPreviewImage(null)}
+            >
+              <div style={{ maxWidth: "90vw", maxHeight: "90vh", position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                <img src={previewImage} alt="Licencia ampliada" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: "8px", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }} />
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  style={{ position: "absolute", top: "-14px", right: "-14px", background: "#ffffff", border: 0, borderRadius: "50%", width: "36px", height: "36px", fontSize: "1.2rem", fontWeight: "bold", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Pestaña: Asignación Vehicular */}
       {activeTab === "asignaciones" && (
         <>
@@ -1041,7 +1345,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
           <div style={{ marginBottom: "16px" }}>
             <input
               type="text"
-              placeholder="🔍 Buscar conductor..."
+              placeholder="Buscar conductor..."
               value={searchConductor}
               onChange={(e) => setSearchConductor(e.target.value)}
               style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
@@ -1056,8 +1360,15 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                   <div>
                     <strong>{c.nombre}</strong> {c.empresa ? `(${c.empresa})` : ""}
                   </div>
-                  <div style={{ fontSize: "0.9rem", color: assignedVehicle ? "#15803d" : "#64748b" }}>
-                    {assignedVehicle ? `🚗 Asignado: ${assignedVehicle.nombre} (${assignedVehicle.numero_economico})` : "⚪ Sin unidad asignada"}
+                  <div style={{ fontSize: "0.9rem", color: assignedVehicle ? "#15803d" : "#64748b", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {assignedVehicle ? (
+                      <>
+                        <IconCar size={16} color="#15803d" />
+                        <span>Asignado: <strong>{assignedVehicle.nombre}</strong> ({assignedVehicle.numero_economico})</span>
+                      </>
+                    ) : (
+                      <span>Sin unidad asignada</span>
+                    )}
                   </div>
                   <label style={{ margin: 0, fontWeight: "normal", fontSize: "0.85rem" }}>
                     Seleccionar unidad:

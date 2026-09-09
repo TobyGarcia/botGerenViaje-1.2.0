@@ -160,11 +160,21 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
   function markDamage(view, event) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    const stage = event.currentTarget;
+    const img = stage.querySelector("img");
+    const targetRect = img ? img.getBoundingClientRect() : stage.getBoundingClientRect();
+    if (!targetRect.width || !targetRect.height) return;
+
+    const clientX = event.clientX !== undefined ? event.clientX : event.touches?.[0]?.clientX;
+    const clientY = event.clientY !== undefined ? event.clientY : event.touches?.[0]?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+
+    const offsetX = Math.max(0, Math.min(targetRect.width, clientX - targetRect.left));
+    const offsetY = Math.max(0, Math.min(targetRect.height, clientY - targetRect.top));
+
     const point = {
-      x: Number((Math.max(0, Math.min(rect.width, event.clientX - rect.left)) / rect.width * 100).toFixed(2)),
-      y: Number((Math.max(0, Math.min(rect.height, event.clientY - rect.top)) / rect.height * 100).toFixed(2))
+      x: Number(((offsetX / targetRect.width) * 100).toFixed(2)),
+      y: Number(((offsetY / targetRect.height) * 100).toFixed(2))
     };
     setForm((current) => ({ ...current, danos: { ...current.danos, [view]: [...(current.danos[view] || []), point] } }));
     setLastMarked("Marca agregada. Toca el círculo rojo para eliminarlo.");

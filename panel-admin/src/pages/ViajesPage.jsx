@@ -121,6 +121,9 @@ function ViajesPage({ user }) {
   const [dateTo, setDateTo] =
     useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const [loading, setLoading] =
     useState(true);
 
@@ -167,6 +170,7 @@ function ViajesPage({ user }) {
       setViajes(
         response.data ?? []
       );
+      setCurrentPage(1);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -358,6 +362,7 @@ function ViajesPage({ user }) {
     setStatus("TODOS");
     setDateFrom("");
     setDateTo("");
+    setCurrentPage(1);
   }
 
   async function exportTripsPdf() {
@@ -477,6 +482,13 @@ function ViajesPage({ user }) {
     }
   }
 
+  const totalFiltered = viajes.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedViajes = viajes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -502,11 +514,10 @@ function ViajesPage({ user }) {
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Folio, conductor, unidad, origen o destino"
           />
         </label>
@@ -516,11 +527,10 @@ function ViajesPage({ user }) {
 
           <select
             value={status}
-            onChange={(event) =>
-              setStatus(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="TODOS">
               Todos
@@ -551,11 +561,10 @@ function ViajesPage({ user }) {
             <input
               type="date"
               value={dateFrom}
-              onChange={(event) =>
-                setDateFrom(
-                  event.target.value
-                )
-              }
+              onChange={(event) => {
+                setDateFrom(event.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </label>
@@ -567,11 +576,10 @@ function ViajesPage({ user }) {
             <input
               type="date"
               value={dateTo}
-              onChange={(event) =>
-                setDateTo(
-                  event.target.value
-                )
-              }
+              onChange={(event) => {
+                setDateTo(event.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </label>
@@ -624,24 +632,25 @@ function ViajesPage({ user }) {
             No se encontraron viajes.
           </p>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table trips-table">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Fecha</th>
-                  <th>Conductor</th>
-                  <th>Unidad</th>
-                  <th>Ruta</th>
-                  <th>Estado</th>
-                  <th>GPS</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table trips-table">
+                <thead>
+                  <tr>
+                    <th>Folio</th>
+                    <th>Fecha</th>
+                    <th>Conductor</th>
+                    <th>Unidad</th>
+                    <th>Ruta</th>
+                    <th>Estado</th>
+                    <th>GPS</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {viajes.map(
-                  (trip) => (
+                <tbody>
+                  {paginatedViajes.map(
+                    (trip) => (
                     <tr
                       key={trip.idViaje}
                     >
@@ -744,7 +753,37 @@ function ViajesPage({ user }) {
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            {totalFiltered > 0 && (
+              <div className="table-pagination">
+                <span className="pagination-info">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} viajes
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="pagination-page-indicator">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 

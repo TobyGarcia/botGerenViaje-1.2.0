@@ -29,6 +29,9 @@ function DestinosPage({ user }) {
   const [status, setStatus] =
     useState("TODOS");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const [loading, setLoading] =
     useState(true);
 
@@ -68,6 +71,7 @@ function DestinosPage({ user }) {
       setDestinos(
         response.data ?? []
       );
+      setCurrentPage(1);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -309,6 +313,13 @@ function DestinosPage({ user }) {
     }
   }
 
+  const totalFiltered = destinos.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedDestinos = destinos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -342,11 +353,10 @@ function DestinosPage({ user }) {
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Buscar por nombre o dirección"
           />
         </label>
@@ -356,11 +366,10 @@ function DestinosPage({ user }) {
 
           <select
             value={status}
-            onChange={(event) =>
-              setStatus(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="TODOS">
               Todos
@@ -400,20 +409,21 @@ function DestinosPage({ user }) {
             No se encontraron destinos.
           </p>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Destino</th>
-                  <th>Dirección</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Destino</th>
+                    <th>Dirección</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {destinos.map(
-                  (destino) => (
+                <tbody>
+                  {paginatedDestinos.map(
+                    (destino) => (
                     <tr
                       key={
                         destino.id_lugares
@@ -486,8 +496,38 @@ function DestinosPage({ user }) {
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+
+          {totalFiltered > 0 && (
+            <div className="table-pagination">
+              <span className="pagination-info">
+                Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} destinos
+              </span>
+              <div className="pagination-controls">
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Anterior
+                </button>
+                <span className="pagination-page-indicator">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
 
       {showForm && (
         <div

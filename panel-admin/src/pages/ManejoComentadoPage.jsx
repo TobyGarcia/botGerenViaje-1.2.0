@@ -5,6 +5,11 @@ import {
   renovarManejoComentadoDirecto,
   getCursosManejoComentado
 } from "../services/api.js";
+import {
+  IconCalendario,
+  IconDispositivo,
+  IconReloj
+} from "../components/Icons.jsx";
 
 function formatDate(value) {
   if (!value) return "Sin registro";
@@ -52,6 +57,9 @@ export default function ManejoComentadoPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [currentCondPage, setCurrentCondPage] = useState(1);
+  const [currentCursoPage, setCurrentCursoPage] = useState(1);
+  const itemsPerPage = 20;
 
   // Modales
   const [showRenovarModal, setShowRenovarModal] = useState(false);
@@ -176,26 +184,45 @@ export default function ManejoComentadoPage({ user }) {
     setCursoForm((prev) => ({ ...prev, idConductores: [] }));
   }
 
+  const canManage = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user.rol);
+
+  const totalFilteredCond = conductores.length;
+  const totalPagesCond = Math.max(1, Math.ceil(totalFilteredCond / itemsPerPage));
+  const paginatedConductores = conductores.slice(
+    (currentCondPage - 1) * itemsPerPage,
+    currentCondPage * itemsPerPage
+  );
+
+  const totalFilteredCursos = cursos.length;
+  const totalPagesCursos = Math.max(1, Math.ceil(totalFilteredCursos / itemsPerPage));
+  const paginatedCursos = cursos.slice(
+    (currentCursoPage - 1) * itemsPerPage,
+    currentCursoPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
         <div>
-          <span className="module-label">Seguridad Vial</span>
+          <span className="module-label">Capacitación Vial</span>
           <h1>Manejo Comentado</h1>
-          <p>Supervisión, agendamiento de cursos y control de vigencia semestral (6 meses) para conductores.</p>
+          <p>
+            Vigencia de evaluaciones semestrales (6 meses), programación de cursos teóricos
+            y registro de acreditaciones prácticas.
+          </p>
         </div>
 
-        <div className="header-actions" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          {["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user.rol) && (
+        <div className="module-header-actions">
+          {canManage && (
             <>
               <a
                 href="/evaluacion"
                 target="_blank"
                 rel="noreferrer"
                 className="secondary-button"
-                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                📱 Aplicativo Móvil (/evaluacion)
+                <IconDispositivo size={16} /> Aplicativo Móvil (/evaluacion)
               </a>
 
               <button
@@ -210,8 +237,9 @@ export default function ManejoComentadoPage({ user }) {
                 type="button"
                 className="primary-button"
                 onClick={() => setShowProgramarModal(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                📅 Programar Curso
+                <IconCalendario size={16} /> Programar Curso
               </button>
             </>
           )}
@@ -251,7 +279,10 @@ export default function ManejoComentadoPage({ user }) {
                 type="search"
                 placeholder="Nombre, licencia o teléfono"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentCondPage(1);
+                }}
               />
             </label>
 
@@ -259,7 +290,10 @@ export default function ManejoComentadoPage({ user }) {
               <span>Estado</span>
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentCondPage(1);
+                }}
               >
                 <option value="TODOS">Todos los estatus</option>
                 <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
@@ -276,65 +310,96 @@ export default function ManejoComentadoPage({ user }) {
             ) : conductores.length === 0 ? (
               <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
             ) : (
-              <div className="table-wrapper">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Conductor</th>
-                      <th>Empresa</th>
-                      <th>Licencia</th>
-                      <th>Última Evaluación</th>
-                      <th>Vencimiento (6 Meses)</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {conductores.map((conductor) => (
-                      <tr key={conductor.id_conductores}>
-                        <td>
-                          <strong>{conductor.nombre}</strong>
-                          {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
-                        </td>
-                        <td>{conductor.empresa || "N/A"}</td>
-                        <td>
-                          {conductor.licencia_numero}
-                          <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
-                        </td>
-                        <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
-                        <td>{formatDate(conductor.fecha_vencimiento)}</td>
-                        <td>
-                          <span className={getBadgeClass(conductor.estado_vigencia)}>
-                            {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <a
-                              href="/evaluacion"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="secondary-button"
-                              style={{ padding: "5px 12px", fontSize: "0.82rem", textDecoration: "none" }}
-                              title="Evaluar desde la app móvil"
-                            >
-                              📱 Evaluar Móvil
-                            </a>
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              style={{ padding: "5px 12px", fontSize: "0.82rem" }}
-                              onClick={() => handleSelectConductorRenovar(conductor)}
-                            >
-                              Renovar Directo
-                            </button>
-                          </div>
-                        </td>
+              <>
+                <div className="table-wrapper">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Conductor</th>
+                        <th>Empresa</th>
+                        <th>Licencia</th>
+                        <th>Última Evaluación</th>
+                        <th>Vencimiento (6 Meses)</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedConductores.map((conductor) => (
+                        <tr key={conductor.id_conductores}>
+                          <td>
+                            <strong>{conductor.nombre}</strong>
+                            {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
+                          </td>
+                          <td>{conductor.empresa || "N/A"}</td>
+                          <td>
+                            {conductor.licencia_numero}
+                            <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
+                          </td>
+                          <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
+                          <td>{formatDate(conductor.fecha_vencimiento)}</td>
+                          <td>
+                            <span className={getBadgeClass(conductor.estado_vigencia)}>
+                              {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <a
+                                href="/evaluacion"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="secondary-button"
+                                style={{ padding: "5px 12px", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                                title="Evaluar desde la app móvil"
+                              >
+                                <IconDispositivo size={13} /> Evaluar Móvil
+                              </a>
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                style={{ padding: "5px 12px", fontSize: "0.82rem" }}
+                                onClick={() => handleSelectConductorRenovar(conductor)}
+                              >
+                                Renovar Directo
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {totalFilteredCond > 0 && (
+                  <div className="table-pagination">
+                    <span className="pagination-info">
+                      Mostrando {Math.min((currentCondPage - 1) * itemsPerPage + 1, totalFilteredCond)} - {Math.min(currentCondPage * itemsPerPage, totalFilteredCond)} de {totalFilteredCond} conductores
+                    </span>
+                    <div className="pagination-controls">
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        onClick={() => setCurrentCondPage((p) => Math.max(1, p - 1))}
+                        disabled={currentCondPage === 1}
+                      >
+                        ← Anterior
+                      </button>
+                      <span className="pagination-page-indicator">
+                        Página {currentCondPage} de {totalPagesCond}
+                      </span>
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        onClick={() => setCurrentCondPage((p) => Math.min(totalPagesCond, p + 1))}
+                        disabled={currentCondPage === totalPagesCond}
+                      >
+                        Siguiente →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </>
@@ -345,47 +410,78 @@ export default function ManejoComentadoPage({ user }) {
           {cursos.length === 0 ? (
             <p className="table-status">No hay cursos de manejo comentado agendados.</p>
           ) : (
-            <div className="table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Curso</th>
-                    <th>Fecha Oral</th>
-                    <th>Ventana Evaluación Práctica</th>
-                    <th>Instructor</th>
-                    <th>Programado por</th>
-                    <th>Estatus Participantes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cursos.map((c) => (
-                    <tr key={c.id_curso}>
-                      <td>
-                        <strong>{c.titulo}</strong>
-                        {c.notas && <small style={{ display: "block", color: "#607986" }}>{c.notas}</small>}
-                      </td>
-                      <td>{formatDate(c.fecha_curso_oral)}</td>
-                      <td>
-                        {formatDate(c.fecha_evaluacion_inicio)} al {formatDate(c.fecha_evaluacion_fin)}
-                      </td>
-                      <td>{c.instructor_nombre || "Sin asignar"}</td>
-                      <td>{c.programador_nombre || "Admin"}</td>
-                      <td>
-                        <span className="status-badge status-active" style={{ marginRight: "4px" }}>
-                          Total: {c.total_participantes}
-                        </span>
-                        <span className="status-badge status-active" style={{ marginRight: "4px", backgroundColor: "#e4f7ed", color: "#12643e" }}>
-                          Aprobados: {c.aprobados}
-                        </span>
-                        <span className="status-badge status-inactive">
-                          Pendientes: {c.pendientes}
-                        </span>
-                      </td>
+            <>
+              <div className="table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Curso</th>
+                      <th>Fecha Oral</th>
+                      <th>Ventana Evaluación Práctica</th>
+                      <th>Instructor</th>
+                      <th>Programado por</th>
+                      <th>Estatus Participantes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paginatedCursos.map((c) => (
+                      <tr key={c.id_curso}>
+                        <td>
+                          <strong>{c.titulo}</strong>
+                          {c.notas && <small style={{ display: "block", color: "#607986" }}>{c.notas}</small>}
+                        </td>
+                        <td>{formatDate(c.fecha_curso_oral)}</td>
+                        <td>
+                          {formatDate(c.fecha_evaluacion_inicio)} al {formatDate(c.fecha_evaluacion_fin)}
+                        </td>
+                        <td>{c.instructor_nombre || "Sin asignar"}</td>
+                        <td>{c.programador_nombre || "Admin"}</td>
+                        <td>
+                          <span className="status-badge status-active" style={{ marginRight: "4px" }}>
+                            Total: {c.total_participantes}
+                          </span>
+                          <span className="status-badge status-active" style={{ marginRight: "4px", backgroundColor: "#e4f7ed", color: "#12643e" }}>
+                            Aprobados: {c.aprobados}
+                          </span>
+                          <span className="status-badge status-inactive">
+                            Pendientes: {c.pendientes}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalFilteredCursos > 0 && (
+                <div className="table-pagination">
+                  <span className="pagination-info">
+                    Mostrando {Math.min((currentCursoPage - 1) * itemsPerPage + 1, totalFilteredCursos)} - {Math.min(currentCursoPage * itemsPerPage, totalFilteredCursos)} de {totalFilteredCursos} cursos
+                  </span>
+                  <div className="pagination-controls">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setCurrentCursoPage((p) => Math.max(1, p - 1))}
+                      disabled={currentCursoPage === 1}
+                    >
+                      ← Anterior
+                    </button>
+                    <span className="pagination-page-indicator">
+                      Página {currentCursoPage} de {totalPagesCursos}
+                    </span>
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setCurrentCursoPage((p) => Math.min(totalPagesCursos, p + 1))}
+                      disabled={currentCursoPage === totalPagesCursos}
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       )}

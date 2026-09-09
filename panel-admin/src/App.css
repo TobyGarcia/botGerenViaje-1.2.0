@@ -497,13 +497,15 @@
 }
 
 .sidebar-text {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 600;
   color: #ffffff;
   opacity: 0;
   transform: translateX(-10px);
   transition: opacity 0.2s ease, transform 0.2s ease;
-  white-space: nowrap;
+  white-space: normal !important;
+  line-height: 1.25;
+  word-break: normal;
   pointer-events: none;
 }
 
@@ -536,7 +538,8 @@
   font-size: 0.92rem;
   font-weight: 600;
   text-align: left !important;
-  white-space: nowrap;
+  white-space: normal !important;
+  line-height: 1.25;
   cursor: pointer;
   transition: all 0.2s ease;
 }

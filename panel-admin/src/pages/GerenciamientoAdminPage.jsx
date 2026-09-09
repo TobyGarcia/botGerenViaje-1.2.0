@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import { getAdminUsuarios } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
+import { IconDocumento } from "../components/Icons.jsx";
 
 function ApprovalSignature({ onChange }) {
   const canvasRef = useRef(null);
@@ -93,6 +94,8 @@ export default function GerenciamientoAdminPage({ user }) {
   const [filterRiesgo, setFilterRiesgo] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   // Approval modal state
   const [approving, setApproving] = useState(false);
@@ -650,32 +653,53 @@ export default function GerenciamientoAdminPage({ user }) {
     return value ? new Date(value).toLocaleString("es-MX") : "—";
   }
 
+  const totalFiltered = list.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedList = list.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <>
       {/* Filtros idénticos al diseño del proyecto */}
       <div style={{ display: "flex", gap: "14px", background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
         <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
           Nivel de Riesgo:
-          <select value={filterRiesgo} onChange={(e) => setFilterRiesgo(e.target.value)} style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+          <select
+            value={filterRiesgo}
+            onChange={(e) => {
+              setFilterRiesgo(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+          >
             <option value="">Todos los Riesgos</option>
-            <option value="BAJO">🟢 Riesgo Bajo (0-15)</option>
-            <option value="MEDIO">🟡 Riesgo Medio (16-22)</option>
-            <option value="ALTO">🔴 Riesgo Alto (&gt;23)</option>
+            <option value="BAJO">Riesgo Bajo (0-15)</option>
+            <option value="MEDIO">Riesgo Medio (16-22)</option>
+            <option value="ALTO">Riesgo Alto (&gt;23)</option>
           </select>
         </label>
 
         <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
           Estado:
-          <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+          <select
+            value={filterEstado}
+            onChange={(e) => {
+              setFilterEstado(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+          >
             <option value="">Todos los Estados</option>
-            <option value="PENDIENTE">⏳ Pendientes</option>
-            <option value="APROBADO">✅ Aprobados</option>
-            <option value="RECHAZADO">❌ Rechazados</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="APROBADO">Aprobados</option>
+            <option value="RECHAZADO">Rechazados</option>
           </select>
         </label>
 
         <button onClick={loadData} className="secondary-button" style={{ marginLeft: "auto" }}>
-          🔄 Actualizar
+          Actualizar
         </button>
       </div>
 
@@ -687,69 +711,100 @@ export default function GerenciamientoAdminPage({ user }) {
         ) : list.length === 0 ? (
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Unidad</th>
-                  <th>Conductor</th>
-                  <th>Enviado</th>
-                  <th>Estado</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((item) => {
-                  const estadoNormalized = item.estado === "APROBADO" ? "aprobada" : item.estado === "RECHAZADO" ? "rechazada" : "pendiente_aprobacion";
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Folio</th>
+                    <th>Unidad</th>
+                    <th>Conductor</th>
+                    <th>Enviado</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedList.map((item) => {
+                    const estadoNormalized = item.estado === "APROBADO" ? "aprobada" : item.estado === "RECHAZADO" ? "rechazada" : "pendiente_aprobacion";
 
-                  return (
-                    <tr key={item.id_gerenciamiento}>
-                      <td>
-                        <strong>{item.folio_documento} #{item.id_gerenciamiento}</strong>
-                        <small style={{ display: "block", color: "#64748b" }}>
-                          Ruta: {item.origen_nombre || item.origen_texto || "Origen"} ➔ {item.destino_nombre || item.destino_texto || "Destino"}
-                        </small>
-                      </td>
-                      <td>
-                        {item.tipo_vehiculo || "Vehículo"}
-                        <small style={{ display: "block" }}>{item.numero_unidad || item.placa || "N/A"}</small>
-                      </td>
-                      <td>{item.nombre_conductor || item.conductor_nombre}</td>
-                      <td>{formatDate(item.creado_en || item.fecha_emision)}</td>
-                      <td>
-                        <span className={`inspection-status inspection-status-${estadoNormalized}`}>
-                          {item.estado === "APROBADO" ? "APROBADO" : item.estado === "RECHAZADO" ? "RECHAZADO" : "PENDIENTE"}
-                        </span>
-                        <small style={{ display: "block", fontSize: "0.72rem", color: "#475569", marginTop: "2px" }}>
-                          {item.nivel_riesgo} ({item.puntaje_total} pts)
-                        </small>
-                      </td>
-                      <td style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <button className="secondary-button" onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || ""); setAutorizadorNombre(item.nombre_autorizador_firma || user?.nombre || user?.username || ""); }}>
-                          Ver revisión
-                        </button>
-                        <button className="secondary-button" onClick={() => openGerenciamientoPdfPreview(item, true)}>
-                          PDF
-                        </button>
-                        {item.sharepoint_web_url && (
-                          <a
-                            href={item.sharepoint_web_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="secondary-button"
-                            style={{ textDecoration: "none", color: "#0284c7", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "3px" }}
-                          >
-                            📂 SharePoint
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    return (
+                      <tr key={item.id_gerenciamiento}>
+                        <td>
+                          <strong>{item.folio_documento} #{item.id_gerenciamiento}</strong>
+                          <small style={{ display: "block", color: "#64748b" }}>
+                            Ruta: {item.origen_nombre || item.origen_texto || "Origen"} ➔ {item.destino_nombre || item.destino_texto || "Destino"}
+                          </small>
+                        </td>
+                        <td>
+                          {item.tipo_vehiculo || "Vehículo"}
+                          <small style={{ display: "block" }}>{item.numero_unidad || item.placa || "N/A"}</small>
+                        </td>
+                        <td>{item.nombre_conductor || item.conductor_nombre}</td>
+                        <td>{formatDate(item.creado_en || item.fecha_emision)}</td>
+                        <td>
+                          <span className={`inspection-status inspection-status-${estadoNormalized}`}>
+                            {item.estado === "APROBADO" ? "APROBADO" : item.estado === "RECHAZADO" ? "RECHAZADO" : "PENDIENTE"}
+                          </span>
+                          <small style={{ display: "block", fontSize: "0.72rem", color: "#475569", marginTop: "2px" }}>
+                            {item.nivel_riesgo} ({item.puntaje_total} pts)
+                          </small>
+                        </td>
+                        <td style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <button className="secondary-button" onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || ""); setAutorizadorNombre(item.nombre_autorizador_firma || user?.nombre || user?.username || ""); }}>
+                            Ver revisión
+                          </button>
+                          <button className="secondary-button" onClick={() => openGerenciamientoPdfPreview(item, true)}>
+                            PDF
+                          </button>
+                          {item.sharepoint_web_url && (
+                            <a
+                              href={item.sharepoint_web_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="secondary-button"
+                              style={{ textDecoration: "none", color: "#0284c7", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                            >
+                              <IconDocumento size={14} /> SharePoint
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {totalFiltered > 0 && (
+              <div className="table-pagination">
+                <span className="pagination-info">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} documentos
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="pagination-page-indicator">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 

@@ -350,11 +350,24 @@ export async function updateAdminVehicleMaintenanceController(request, response)
   try {
     const idVehiculo = parseVehicleId(request.params.idVehiculo);
     const enMantenimiento = request.body?.enMantenimiento;
+    const motivo = request.body?.motivo;
+    const fechaInicio = request.body?.fechaInicio;
+
     if (!idVehiculo || typeof enMantenimiento !== "boolean") {
       return response.status(400).json({ success: false, message: "El vehículo y el estado de mantenimiento son obligatorios." });
     }
 
-    const updatedVehicle = await updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento });
+    if (enMantenimiento && (!motivo || !String(motivo).trim())) {
+      return response.status(400).json({ success: false, message: "Es obligatorio especificar el motivo por el cual la unidad se envía a mantenimiento." });
+    }
+
+    const updatedVehicle = await updateAdminVehicleMaintenance({
+      idVehiculo,
+      enMantenimiento,
+      motivo: motivo ? String(motivo).trim() : null,
+      fechaInicio: fechaInicio || null
+    });
+
     if (!updatedVehicle) {
       return response.status(409).json({ success: false, message: "No se encontró el vehículo o está en un viaje en curso." });
     }
@@ -362,7 +375,7 @@ export async function updateAdminVehicleMaintenanceController(request, response)
     return response.status(200).json({
       success: true,
       data: updatedVehicle,
-      message: enMantenimiento ? "Vehículo enviado a mantenimiento." : "Vehículo retirado de mantenimiento."
+      message: enMantenimiento ? "Vehículo enviado a mantenimiento." : "Vehículo reparado y reintegrado a unidades disponibles."
     });
   } catch (error) {
     console.error("Error actualizando mantenimiento de vehículo:", error.message);

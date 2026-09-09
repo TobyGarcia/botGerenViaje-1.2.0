@@ -67,6 +67,9 @@ function ConductoresPage({ user }) {
   const [status, setStatus] =
     useState("TODOS");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const [loading, setLoading] =
     useState(true);
 
@@ -122,6 +125,7 @@ function ConductoresPage({ user }) {
       setConductores(
         response.data ?? []
       );
+      setCurrentPage(1);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -357,6 +361,13 @@ function ConductoresPage({ user }) {
     }
   }
 
+  const totalFiltered = conductores.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedConductores = conductores.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -393,11 +404,10 @@ function ConductoresPage({ user }) {
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Nombre, licencia o teléfono"
           />
         </label>
@@ -407,11 +417,10 @@ function ConductoresPage({ user }) {
 
           <select
             value={status}
-            onChange={(event) =>
-              setStatus(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="TODOS">
               Todos
@@ -631,7 +640,8 @@ function ConductoresPage({ user }) {
             No se encontraron conductores.
           </p>
         ) : (
-          <div className="table-wrapper">
+          <>
+            <div className="table-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -652,7 +662,7 @@ function ConductoresPage({ user }) {
               </thead>
 
               <tbody>
-                {conductores.map(
+                {paginatedConductores.map(
                   (conductor) => (
                     <tr
                       key={
@@ -831,8 +841,37 @@ function ConductoresPage({ user }) {
                 )}
               </tbody>
             </table>
-
           </div>
+
+            {totalFiltered > 0 && (
+              <div className="table-pagination">
+                <span className="pagination-info">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} conductores
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="pagination-page-indicator">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 

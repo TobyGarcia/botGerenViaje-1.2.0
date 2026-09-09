@@ -250,6 +250,8 @@ export default function AnaliticaCombustiblePage() {
   const [presetFilter, setPresetFilter] = useState("30d");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -303,6 +305,7 @@ export default function AnaliticaCombustiblePage() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchAnalytics();
   }, [selectedVehicle, dateFrom, dateTo]);
 
@@ -312,6 +315,14 @@ export default function AnaliticaCombustiblePage() {
     promedio_combustible_inicial: 0,
     total_vehiculos_analizados: 0
   };
+
+  const lecturas = data?.lecturas_lineales || [];
+  const totalFilteredLecturas = lecturas.length;
+  const totalPagesLecturas = Math.max(1, Math.ceil(totalFilteredLecturas / itemsPerPage));
+  const paginatedLecturas = lecturas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <section className="module-page analytics-page">
@@ -453,7 +464,7 @@ export default function AnaliticaCombustiblePage() {
         <section className="ranking-card analytics-chart-card">
           <div className="ranking-header">
             <div>
-              <h2>⛽ Gráfica 1: Combustible (%)</h2>
+              <h2>Gráfica 1: Nivel de Combustible (%)</h2>
               <p>Variación del nivel de combustible en las inspecciones al iniciar viajes.</p>
             </div>
           </div>
@@ -469,7 +480,7 @@ export default function AnaliticaCombustiblePage() {
         <section className="ranking-card analytics-chart-card">
           <div className="ranking-header">
             <div>
-              <h2>🛣️ Gráfica 2: Kilometraje (Km)</h2>
+              <h2>Gráfica 2: Kilometraje Acumulado (Km)</h2>
               <p>Evolución del odiómetro e incremento del kilometraje acumulado.</p>
             </div>
           </div>
@@ -487,7 +498,7 @@ export default function AnaliticaCombustiblePage() {
         <section className="ranking-card">
           <div className="ranking-header">
             <div>
-              <h2>🚚 Desempeño Consolidado por Unidad</h2>
+              <h2>Desempeño Consolidado por Unidad</h2>
               <p>Resumen de inspecciones, kilometraje acumulado y rendimiento por vehículo.</p>
             </div>
           </div>
@@ -536,7 +547,7 @@ export default function AnaliticaCombustiblePage() {
       <section className="ranking-card">
         <div className="ranking-header">
           <div>
-            <h2>📋 Registro Detallado de Inspecciones y Kilometraje</h2>
+            <h2>Registro Detallado de Inspecciones y Kilometraje</h2>
             <p>Historial individual de viajes, lecturas de odiómetro y nivel de combustible reportado.</p>
           </div>
         </div>
@@ -548,45 +559,76 @@ export default function AnaliticaCombustiblePage() {
             <p>No se encontraron registros de inspecciones vehiculares para el período seleccionado.</p>
           </div>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Folio Viaje</th>
-                  <th>Fecha Operativa</th>
-                  <th>Vehículo</th>
-                  <th>Conductor</th>
-                  <th style={{ textAlign: "center" }}>Combustible Inicial</th>
-                  <th style={{ textAlign: "right" }}>KM Inicial</th>
-                  <th style={{ textAlign: "right" }}>KM Recorridos</th>
-                  <th style={{ textAlign: "center" }}>Estado Viaje</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.lecturas_lineales.map((item) => {
-                  const badgeClass = FUEL_BADGE_CLASS[item.combustible] || "na";
-                  return (
-                    <tr key={`${item.id_inspeccion}-${item.id_viajes}`}>
-                      <td><strong>{item.folio}</strong></td>
-                      <td>{formatDate(item.fecha_operativa)}</td>
-                      <td>{item.vehiculo}</td>
-                      <td>{item.conductor}</td>
-                      <td style={{ textAlign: "center" }}>
-                        <span className={`checklist-badge checklist-badge-${badgeClass}`}>
-                          {item.combustible} ({item.combustible_porcentaje}%)
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>{formatKm(item.kilometraje_inicial)}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <strong>{formatKm(item.kilometros_recorridos)}</strong>
-                      </td>
-                      <td style={{ textAlign: "center" }}>{item.estado_viaje}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Folio Viaje</th>
+                    <th>Fecha Operativa</th>
+                    <th>Vehículo</th>
+                    <th>Conductor</th>
+                    <th style={{ textAlign: "center" }}>Combustible Inicial</th>
+                    <th style={{ textAlign: "right" }}>KM Inicial</th>
+                    <th style={{ textAlign: "right" }}>KM Recorridos</th>
+                    <th style={{ textAlign: "center" }}>Estado Viaje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedLecturas.map((item) => {
+                    const badgeClass = FUEL_BADGE_CLASS[item.combustible] || "na";
+                    return (
+                      <tr key={`${item.id_inspeccion}-${item.id_viajes}`}>
+                        <td><strong>{item.folio}</strong></td>
+                        <td>{formatDate(item.fecha_operativa)}</td>
+                        <td>{item.vehiculo}</td>
+                        <td>{item.conductor}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className={`checklist-badge checklist-badge-${badgeClass}`}>
+                            {item.combustible} ({item.combustible_porcentaje}%)
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "right" }}>{formatKm(item.kilometraje_inicial)}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <strong>{formatKm(item.kilometros_recorridos)}</strong>
+                        </td>
+                        <td style={{ textAlign: "center" }}>{item.estado_viaje}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {totalFilteredLecturas > 0 && (
+              <div className="table-pagination">
+                <span className="pagination-info">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFilteredLecturas)} - {Math.min(currentPage * itemsPerPage, totalFilteredLecturas)} de {totalFilteredLecturas} registros
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="pagination-page-indicator">
+                    Página {currentPage} de {totalPagesLecturas}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPagesLecturas, p + 1))}
+                    disabled={currentPage === totalPagesLecturas}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
     </section>

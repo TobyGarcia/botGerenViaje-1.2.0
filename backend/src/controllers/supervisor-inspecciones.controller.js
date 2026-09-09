@@ -8,6 +8,7 @@ import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
 import { listAdminDrivers, assignVehicleToDriver } from "../services/admin-conductores.service.js";
 import { getVehiculos } from "../services/catalogos.service.js";
+import { databasePool } from "../database/pool.js";
 
 async function requireSupervisor(request) {
   const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
@@ -108,6 +109,96 @@ export async function assignSupervisorVehicleController(request, response) {
     });
   } catch (error) {
     return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible asignar el vehículo." });
+  }
+}
+
+export async function listPendingSupervisorDriversController(request, response) {
+  try {
+    await requireSupervisor(request);
+    const result = await databasePool.query(
+      `
+        SELECT
+          c.id_conductores,
+          c.nombre,
+          c.telefono,
+          c.empresa,
+          c.licencia_numero,
+          c.tipo_licencia,
+          c.licencia_vencimiento,
+          c.licencia_vigente,
+          c.fecha_manejo_comentado,
+          c.licencia_url,
+          c.licencia_reverso_url,
+          c.aprobado_por_admin,
+          c.activo,
+          c.creado_en,
+          ut.telegram_user_id,
+          ut.telegram_username,
+          ut.estado_registro
+        FROM conductores c
+        LEFT JOIN usuarios_telegram ut ON ut.id_conductores = c.id_conductores
+        WHERE c.aprobado_por_admin = FALSE
+        ORDER BY c.creado_en DESC
+      `
+    );
+    return response.json({ success: true, data: result.rows });
+  } catch (error) {
+    return response.status(error.statusCode || 500).json({ success: false, message: error.message || "Error al listar conductores pendientes." });
+  }
+}
+
+export async function decideSupervisorDriverController(request, response) {
+  try {
+    await requireSupervisor(request);
+    const idConductor = Number(request.params.idConductor);
+    const approved = Boolean(request.body?.aprobada ?? request.body?.approved);
+
+    const client = await databasePool.connect();
+    try {
+      await client.query("BEGIN");
+      const conductorRes = await client.query(
+        `UPDATE conductores
+         SET aprobado_por_admin = $1, fecha_aprobacion = CURRENT_TIMESTAMP, actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $2
+         RETURNING id_conductores, nombre, aprobado_por_admin`,
+        [approved, idConductor]
+      );
+      if (!conductorRes.rows[0]) {
+        await client.query("ROLLBACK");
+        return response.status(404).json({ success: false, message: "Conductor no encontrado." });
+      }
+
+      await client.query(
+        `UPDATE usuarios_telegram
+         SET estado_registro = $1, actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $2`,
+        [approved ? "COMPLETO" : "RECHAZADO", idConductor]
+      );
+
+      await client.query("COMMIT");
+
+      const tgUser = await findTelegramUserByConductorId(idConductor);
+      if (tgUser?.telegram_user_id) {
+        const { sendDriverApprovalNotification } = await import("../bot/bot.js");
+        await sendDriverApprovalNotification({
+          telegramUserId: tgUser.telegram_user_id,
+          approved
+        });
+      }
+
+      return response.json({
+        success: true,
+        data: conductorRes.rows[0],
+        message: approved ? "Conductor validado y aprobado exitosamente." : "Conductor rechazado."
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return response.status(error.statusCode || 500).json({ success: false, message: error.message || "Error al procesar la decisión del conductor." });
   }
 }
 

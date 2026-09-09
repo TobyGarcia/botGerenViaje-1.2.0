@@ -95,7 +95,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
 
       {viajesActivos.length === 0 ? (
         <div className="active-trips-empty-text">
-          <small>🟢 No hay viajes en curso ni pendientes</small>
+          <small>No hay viajes en curso ni pendientes</small>
         </div>
       ) : (
         <ul className="active-trips-mini-list">
@@ -111,7 +111,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
                   </span>
                 </div>
                 <div className="active-trips-mini-details">
-                  <span>📍 {item.origen} ➔ 🏁 {item.destino}</span>
+                  <span>{item.origen} ➔ {item.destino}</span>
                   <span className="active-trips-mini-unit">
                     {item.vehiculo} {item.numero_economico !== "N/A" ? `(${item.numero_economico})` : ""}
                   </span>
@@ -272,7 +272,7 @@ function ActivityHeatmapCard({ actividad = [] }) {
     <section className="activity-heatmap-card">
       <div className="activity-heatmap-header">
         <div>
-          <h2>📊 Actividad de Viajes</h2>
+          <h2>Actividad de Viajes</h2>
           <p>
             {rangeFilter === "semanal" && "Frecuencia de viajes registrados en las últimas 2 semanas."}
             {rangeFilter === "mensual" && "Frecuencia de viajes registrados durante el último mes."}
@@ -287,21 +287,21 @@ function ActivityHeatmapCard({ actividad = [] }) {
             className={`ranking-tab-btn ${rangeFilter === "semanal" ? "active" : ""}`}
             onClick={() => setRangeFilter("semanal")}
           >
-            📅 Semanal
+            Semanal
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${rangeFilter === "mensual" ? "active" : ""}`}
             onClick={() => setRangeFilter("mensual")}
           >
-            📆 Mensual
+            Mensual
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${rangeFilter === "anual" ? "active" : ""}`}
             onClick={() => setRangeFilter("anual")}
           >
-            🗓️ Anual
+            Anual
           </button>
         </div>
       </div>
@@ -395,7 +395,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
     <section className="ranking-card">
       <div className="ranking-header">
         <div>
-          <h2>🏆 Ranking de Viajes</h2>
+          <h2>Ranking de Viajes</h2>
           <p>Métricas acumuladas por vehículos más utilizados, destinos con mayor frecuencia y top conductores (viajes finalizados).</p>
         </div>
 
@@ -405,21 +405,21 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
             className={`ranking-tab-btn ${isUnidades ? "active" : ""}`}
             onClick={() => setRankingTab("unidades")}
           >
-            🚚 Unidades más usadas
+            Unidades más usadas
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${isDestinos ? "active" : ""}`}
             onClick={() => setRankingTab("destinos")}
           >
-            📍 Destinos más visitados
+            Destinos más visitados
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${isConductores ? "active" : ""}`}
             onClick={() => setRankingTab("conductores")}
           >
-            👤 Top Conductores
+            Top Conductores
           </button>
         </div>
       </div>
@@ -444,10 +444,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
             return (
               <div key={itemKey} className="ranking-row">
                 <div className={`ranking-badge rank-${rank <= 3 ? rank : "other"}`}>
-                  {rank === 1 && "🥇"}
-                  {rank === 2 && "🥈"}
-                  {rank === 3 && "🥉"}
-                  {rank > 3 && `#${rank}`}
+                  #{rank}
                 </div>
 
                 <div className="ranking-info">

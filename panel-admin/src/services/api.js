@@ -279,10 +279,10 @@ export function getAdminVehiculoDetalle(idVehiculo) {
   return request(`/admin/vehiculos/${idVehiculo}`);
 }
 
-export function updateAdminVehiculoMantenimiento(idVehiculo, enMantenimiento) {
+export function updateAdminVehiculoMantenimiento(idVehiculo, enMantenimiento, motivo = null) {
   return request(`/admin/vehiculos/${idVehiculo}/mantenimiento`, {
     method: "PATCH",
-    body: JSON.stringify({ enMantenimiento })
+    body: JSON.stringify({ enMantenimiento, motivo })
   });
 }
 

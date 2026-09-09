@@ -304,3 +304,66 @@ export async function uploadEvidenceImageToSharePoint({ filename, buffer, imageB
   }
 }
 
+/**
+ * Sube una fotografía o documento de licencia de conducir a SharePoint en la carpeta "Licencias"
+ * con el nombre del conductor.
+ */
+export async function uploadDriverLicenseToSharePoint({ driverName, fileBuffer, mimeType = "image/jpeg", side = "frente", extension = "jpg" }) {
+  if (!fileBuffer) {
+    return { success: false, message: "No se proporcionó el buffer del archivo de la licencia." };
+  }
+  const tenantId = process.env.AZURE_TENANT_ID;
+  const clientId = process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
+
+  if (!tenantId || !clientId || !clientSecret) {
+    return { success: false, reason: "NOT_CONFIGURED", message: "Credenciales de Azure AD no configuradas." };
+  }
+
+  try {
+    const accessToken = await getAzureAccessToken({ clientId, clientSecret });
+    const { siteIdentifier } = parseSharePointTarget();
+    const targetSiteId = await resolveSharePointSiteId(siteIdentifier, accessToken);
+
+    const baseFolder = (process.env.SHAREPOINT_FOLDER_LICENCIAS || "Licencias").replace(/^\/+|\/+$/g, "");
+    const safeDriverName = String(driverName || "conductor")
+      .trim()
+      .replace(/[\s]+/g, "_")
+      .replace(/[/\\?%*:|"<>]/g, "");
+
+    const cleanFilename = `${safeDriverName}_licencia_${side}.${extension}`.replace(/[/\\?%*:|"<>]/g, "-");
+    const encodedFilename = encodeURIComponent(cleanFilename);
+
+    const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${targetSiteId}/drive/root:/${encodeURIComponent(baseFolder)}/${encodedFilename}:/content`;
+
+    console.log(`[SharePoint] Subiendo licencia de "${driverName}" (${side}) a carpeta "${baseFolder}": ${cleanFilename}...`);
+
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": mimeType
+      },
+      body: fileBuffer
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`[SharePoint] Fallo al subir licencia (${response.status}):`, errorText);
+      return { success: false, statusCode: response.status, message: errorText };
+    }
+
+    const data = await response.json();
+    console.log(`[SharePoint] Licencia subida con éxito: ${data.webUrl}`);
+    return {
+      success: true,
+      webUrl: data.webUrl || null,
+      itemId: data.id || null,
+      name: data.name || cleanFilename
+    };
+  } catch (error) {
+    console.error("[SharePoint] Error al subir licencia:", error.message);
+    return { success: false, message: error.message };
+  }
+}
+

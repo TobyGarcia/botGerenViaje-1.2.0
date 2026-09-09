@@ -7,7 +7,14 @@ import {
   getAdminUsers,
   updateAdminUser
 } from "../services/api.js";
-import { IconEditar, IconEliminar } from "../components/Icons.jsx";
+import {
+  IconEditar,
+  IconEliminar,
+  IconKey,
+  IconAlerta,
+  IconCheck,
+  IconCross
+} from "../components/Icons.jsx";
 
 const empty = {
   nombre: "",
@@ -25,6 +32,9 @@ export default function UsuariosAdminPage({ currentUser }) {
   const [form, setForm] = useState(empty);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const [pinUser, setPinUser] = useState(null);
   const [newPin, setNewPin] = useState("");
@@ -108,6 +118,24 @@ export default function UsuariosAdminPage({ currentUser }) {
     }
   }
 
+  const filteredUsers = users.filter((u) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    return (
+      (u.nombre || "").toLowerCase().includes(term) ||
+      (u.username || "").toLowerCase().includes(term) ||
+      (u.correo || "").toLowerCase().includes(term) ||
+      (u.rol || "").toLowerCase().includes(term)
+    );
+  });
+
+  const totalFiltered = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <section className="module-page">
       <header className="module-header">
@@ -117,9 +145,24 @@ export default function UsuariosAdminPage({ currentUser }) {
           <p>Gestiona jerarquías, accesos, asignación de PIN de 4 dígitos y vínculo de conductores.</p>
         </div>
         <button type="button" className="primary-button" onClick={create}>
-          ＋ Añadir usuario
+          <span style={{ marginRight: "6px", fontWeight: "bold" }}>+</span> Añadir usuario
         </button>
       </header>
+
+      <section className="filter-panel">
+        <label className="search-filter">
+          <span>Buscar usuario</span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Buscar por nombre, usuario, correo o rol..."
+          />
+        </label>
+      </section>
 
       {message && <p className="module-message module-message-success">{message}</p>}
 
@@ -138,91 +181,135 @@ export default function UsuariosAdminPage({ currentUser }) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id_usuarios_admin}>
-                  <td>
-                    <strong>{user.nombre}</strong>
-                    <small>@{user.username}</small>
-                  </td>
-                  <td>{user.correo || "—"}</td>
-                  <td>
-                    <span style={{
-                      padding: "4px 10px",
-                      borderRadius: "12px",
-                      fontWeight: "bold",
-                      fontSize: "0.78rem",
-                      background: user.rol === "GERENTE" ? "#fee2e2" : user.rol === "COORDINADOR" ? "#fef9c3" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#dcfce7" : user.rol === "INSTRUCTOR" ? "#e0f2fe" : "#f1f5f9",
-                      color: user.rol === "GERENTE" ? "#991b1b" : user.rol === "COORDINADOR" ? "#854d0e" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#166534" : user.rol === "INSTRUCTOR" ? "#0369a1" : "#334155"
-                    }}>
-                      {user.rol === "GERENTE" ? "🔴 GERENTE" : user.rol === "COORDINADOR" ? "🟡 COORDINADOR" : user.rol === "SUPERVISOR" ? "🟢 SUPERVISOR" : user.rol === "QHSE" ? "🛡️ QHSE" : user.rol === "INSTRUCTOR" ? "🎓 INSTRUCTOR" : user.rol}
-                    </span>
-                  </td>
-                  <td>{user.conductor || "—"}</td>
-                  <td>
-                    <span style={{
-                      padding: "3px 8px",
-                      borderRadius: "8px",
-                      fontSize: "0.78rem",
-                      fontWeight: "bold",
-                      background: user.tiene_pin ? "#dcfce7" : "#fef3c7",
-                      color: user.tiene_pin ? "#166534" : "#92400e"
-                    }}>
-                      {user.tiene_pin ? "🔑 Con PIN" : "⚠️ Sin PIN"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${user.activo ? "status-active" : "status-inactive"}`}>
-                      {user.activo ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="table-action-icons">
-                      <button
-                        type="button"
-                        className="action-icon-btn"
-                        onClick={() => openPinModal(user)}
-                        title="Asignar o cambiar PIN de 4 dígitos"
-                        aria-label="Asignar PIN"
-                        style={{ fontSize: "1.05rem" }}
-                      >
-                        🔑
-                      </button>
-                      <button
-                        type="button"
-                        className="action-icon-btn action-icon-edit"
-                        onClick={() => edit(user)}
-                        title="Editar usuario"
-                        aria-label="Editar usuario"
-                      >
-                        <IconEditar size={16} />
-                      </button>
-                      {user.id_usuarios_admin !== currentUser?.idUsuarioAdmin && (
-                        <button
-                          type="button"
-                          className="action-icon-btn action-icon-delete"
-                          onClick={async () => {
-                            if (window.confirm("¿Eliminar este usuario?")) {
-                              try {
-                                await deleteAdminUser(user.id_usuarios_admin);
-                                load();
-                              } catch (error) {
-                                setMessage(error.message);
-                              }
-                            }
-                          }}
-                          title="Eliminar usuario"
-                          aria-label="Eliminar usuario"
-                        >
-                          <IconEliminar size={16} />
-                        </button>
-                      )}
-                    </div>
+              {paginatedUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "28px", color: "#64748b" }}>
+                    No se encontraron usuarios.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedUsers.map((user) => (
+                  <tr key={user.id_usuarios_admin}>
+                    <td>
+                      <strong>{user.nombre}</strong>
+                      <small>@{user.username}</small>
+                    </td>
+                    <td>{user.correo || "—"}</td>
+                    <td>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "4px 10px",
+                        borderRadius: "12px",
+                        fontWeight: "bold",
+                        fontSize: "0.78rem",
+                        background: user.rol === "GERENTE" ? "#fee2e2" : user.rol === "COORDINADOR" ? "#fef9c3" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#dcfce7" : user.rol === "INSTRUCTOR" ? "#e0f2fe" : "#f1f5f9",
+                        color: user.rol === "GERENTE" ? "#991b1b" : user.rol === "COORDINADOR" ? "#854d0e" : user.rol === "SUPERVISOR" || user.rol === "QHSE" ? "#166534" : user.rol === "INSTRUCTOR" ? "#0369a1" : "#334155"
+                      }}>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "currentColor" }} />
+                        {user.rol}
+                      </span>
+                    </td>
+                    <td>{user.conductor || "—"}</td>
+                    <td>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "3px 8px",
+                        borderRadius: "8px",
+                        fontSize: "0.78rem",
+                        fontWeight: "bold",
+                        background: user.tiene_pin ? "#dcfce7" : "#fef3c7",
+                        color: user.tiene_pin ? "#166534" : "#92400e"
+                      }}>
+                        {user.tiene_pin ? <IconKey size={13} /> : <IconAlerta size={13} />}
+                        {user.tiene_pin ? "Con PIN" : "Sin PIN"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${user.activo ? "status-active" : "status-inactive"}`}>
+                        {user.activo ? "Activo" : "Inactivo"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="table-action-icons">
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          onClick={() => openPinModal(user)}
+                          title="Asignar o cambiar PIN de 4 dígitos"
+                          aria-label="Asignar PIN"
+                        >
+                          <IconKey size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="action-icon-btn action-icon-edit"
+                          onClick={() => edit(user)}
+                          title="Editar usuario"
+                          aria-label="Editar usuario"
+                        >
+                          <IconEditar size={16} />
+                        </button>
+                        {user.id_usuarios_admin !== currentUser?.idUsuarioAdmin && (
+                          <button
+                            type="button"
+                            className="action-icon-btn action-icon-delete"
+                            onClick={async () => {
+                              if (window.confirm("¿Eliminar este usuario?")) {
+                                try {
+                                  await deleteAdminUser(user.id_usuarios_admin);
+                                  load();
+                                } catch (error) {
+                                  setMessage(error.message);
+                                }
+                              }
+                            }}
+                            title="Eliminar usuario"
+                            aria-label="Eliminar usuario"
+                          >
+                            <IconEliminar size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {totalFiltered > 0 && (
+          <div className="table-pagination">
+            <span className="pagination-info">
+              Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalFiltered)} - {Math.min(currentPage * itemsPerPage, totalFiltered)} de {totalFiltered} usuarios
+            </span>
+            <div className="pagination-controls">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                ← Anterior
+              </button>
+              <span className="pagination-page-indicator">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Modal para Asignar PIN de 4 dígitos */}
@@ -237,7 +324,10 @@ export default function UsuariosAdminPage({ currentUser }) {
           >
             <div className="form-panel-header">
               <div>
-                <h2>🔑 Asignar PIN de Acceso</h2>
+                <h2>
+                  <IconKey size={20} style={{ verticalAlign: "middle", marginRight: 8, color: "#2e81ab" }} />
+                  Asignar PIN de Acceso
+                </h2>
                 <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "0.88rem" }}>
                   Establece un PIN de 4 dígitos para <strong>{pinUser.nombre}</strong>.
                 </p>
@@ -351,14 +441,14 @@ export default function UsuariosAdminPage({ currentUser }) {
                   onChange={(e) => setForm({ ...form, rol: e.target.value })}
                   style={{ width: "100%", padding: "12px 14px", borderRadius: "9px", border: "1px solid #cadde6", background: "#ffffff", fontSize: "0.9rem" }}
                 >
-                  <option value="ADMINISTRADOR">👑 ADMINISTRADOR — Acceso Total a Todos los Módulos</option>
-                  <option value="GERENTE">🔴 GERENTE — Aprueba Viajes de Riesgo ALTO (&gt; 23 pts)</option>
-                  <option value="COORDINADOR">🟡 COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)</option>
-                  <option value="SUPERVISOR">🟢 SUPERVISOR DIRECTO — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
-                  <option value="QHSE">🛡️ QHSE — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
-                  <option value="INSTRUCTOR">🎓 INSTRUCTOR — Manejo Comentado y Capacitación Vial</option>
-                  <option value="OPERADOR">🚛 OPERADOR — Módulo de Operaciones Diarias</option>
-                  <option value="CONSULTA">👁️ CONSULTA — Solo Lectura</option>
+                  <option value="ADMINISTRADOR">ADMINISTRADOR — Acceso Total a Todos los Módulos</option>
+                  <option value="GERENTE">GERENTE — Aprueba Viajes de Riesgo ALTO (&gt; 23 pts)</option>
+                  <option value="COORDINADOR">COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)</option>
+                  <option value="SUPERVISOR">SUPERVISOR DIRECTO — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
+                  <option value="QHSE">QHSE — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
+                  <option value="INSTRUCTOR">INSTRUCTOR — Manejo Comentado y Capacitación Vial</option>
+                  <option value="OPERADOR">OPERADOR — Módulo de Operaciones Diarias</option>
+                  <option value="CONSULTA">CONSULTA — Solo Lectura</option>
                 </select>
               </label>
 

@@ -44,7 +44,9 @@ export async function listAdminVehicles({
     `);
   }
 
-  if (
+  if (normalizedStatus === "MANTENIMIENTO") {
+    conditions.push("v.en_mantenimiento = TRUE");
+  } else if (
     normalizedStatus === "ACTIVOS" ||
     normalizedStatus === "INACTIVOS"
   ) {
@@ -82,6 +84,13 @@ export async function listAdminVehicles({
           c_asig.nombre AS conductor_asignado_nombre,
           s_asig.nombre AS supervisor_asignado_nombre,
           v.en_mantenimiento,
+          v.fecha_inicio_mantenimiento,
+          v.motivo_mantenimiento,
+          CASE
+            WHEN v.en_mantenimiento AND v.fecha_inicio_mantenimiento IS NOT NULL
+            THEN GREATEST(0, (CURRENT_DATE - v.fecha_inicio_mantenimiento::date))
+            ELSE 0
+          END AS dias_en_mantenimiento,
           v.activo,
           COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
           ultima_lectura.fecha_lectura AS fecha_ultima_lectura,
@@ -285,8 +294,15 @@ export async function getAdminVehicleDetail(idVehiculo) {
         v.id_conductor_asignado, v.id_supervisor_asignado, v.personal_asignado_nombre,
         COALESCE(c_asig.nombre, s_asig.nombre, v.personal_asignado_nombre) AS personal_asignado,
         c_asig.nombre AS conductor_asignado_nombre,
-        s_asig.nombre AS supervisor_asignado_nombre,
-        v.en_mantenimiento, v.activo,
+        v.en_mantenimiento,
+        v.fecha_inicio_mantenimiento,
+        v.motivo_mantenimiento,
+        CASE
+          WHEN v.en_mantenimiento AND v.fecha_inicio_mantenimiento IS NOT NULL
+          THEN GREATEST(0, (CURRENT_DATE - v.fecha_inicio_mantenimiento::date))
+          ELSE 0
+        END AS dias_en_mantenimiento,
+        v.activo,
         COALESCE(ultima_lectura.kilometraje, v.kilometraje_actual) AS kilometraje_actual,
         ultima_lectura.fecha_lectura AS fecha_ultima_lectura,
         viaje_en_curso.id_viajes AS id_viaje_en_curso,
@@ -404,11 +420,21 @@ export async function updateAdminVehicleStatus({
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
-export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento }) {
+export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento, motivo = null, fechaInicio = null }) {
   const result = await databasePool.query(
     `
       UPDATE vehiculos
-      SET en_mantenimiento = $1, actualizado_en = CURRENT_TIMESTAMP
+      SET
+        en_mantenimiento = $1,
+        fecha_inicio_mantenimiento = CASE
+          WHEN $1 = TRUE THEN COALESCE($3::timestamptz, CURRENT_TIMESTAMP)
+          ELSE NULL
+        END,
+        motivo_mantenimiento = CASE
+          WHEN $1 = TRUE THEN COALESCE($4, motivo_mantenimiento, 'Mantenimiento preventivo/correctivo')
+          ELSE NULL
+        END,
+        actualizado_en = CURRENT_TIMESTAMP
       WHERE id_vehiculos = $2
         AND NOT EXISTS (
           SELECT 1
@@ -417,9 +443,18 @@ export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimient
           WHERE viaje.id_vehiculos = vehiculos.id_vehiculos
             AND estado.nombre = 'EN_CURSO'
         )
-      RETURNING id_vehiculos, en_mantenimiento, activo
+      RETURNING
+        id_vehiculos,
+        en_mantenimiento,
+        fecha_inicio_mantenimiento,
+        motivo_mantenimiento,
+        activo,
+        CASE
+          WHEN $1 = TRUE THEN GREATEST(0, (CURRENT_DATE - COALESCE($3::date, CURRENT_DATE)))
+          ELSE 0
+        END AS dias_en_mantenimiento
     `,
-    [enMantenimiento, idVehiculo]
+    [Boolean(enMantenimiento), idVehiculo, fechaInicio || null, motivo ? String(motivo).trim() : null]
   );
 
   return result.rows[0] ?? null;

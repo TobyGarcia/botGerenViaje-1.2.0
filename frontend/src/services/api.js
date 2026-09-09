@@ -1,4 +1,4 @@
-const API_BASE_URL =
+﻿const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "";
 
 async function request(path, options = {}) {
@@ -84,6 +84,7 @@ export function createViaje(payload) {
     body: JSON.stringify(payload)
   });
 }
+
 export function iniciarViaje(idViaje) {
   return request(
     `/api/viajes/${idViaje}/iniciar`,
@@ -130,6 +131,7 @@ export function registrarPuntoIntermedio(idViaje, data) {
     body: JSON.stringify(data)
   });
 }
+
 export function finalizarViaje(
   idViaje,
   kilometrajeFinal
@@ -170,7 +172,6 @@ export function autenticarTelegram(
     "/api/telegram/autenticar",
     {
       method: "POST",
-
       body: JSON.stringify({
         initData
       })
@@ -228,6 +229,8 @@ export function getSupervisorInspeccion(idInspeccion) { return request(`/api/sup
 export function decidirSupervisorInspeccion(idInspeccion, data) { return request(`/api/supervisor/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify(data) }); }
 export function getSupervisorAsignaciones() { return request("/api/supervisor/inspecciones/asignaciones"); }
 export function asignarVehiculoSupervisor({ idConductor, idVehiculo }) { return request("/api/supervisor/inspecciones/asignaciones", { method: "POST", body: JSON.stringify({ idConductor, idVehiculo }) }); }
+export function getSupervisorConductoresPendientes() { return request("/api/supervisor/inspecciones/conductores-pendientes"); }
+export function decidirSupervisorConductor(idConductor, data) { return request(`/api/supervisor/inspecciones/conductores/${idConductor}/aprobar`, { method: "PATCH", body: JSON.stringify(data) }); }
 
 export function crearGerenciamientoViaje(payload) {
   return request("/api/gerenciamiento-viajes", {
@@ -294,7 +297,3 @@ export function loginUsuarioConPin(pin) {
     body: JSON.stringify({ pin })
   });
 }
-
-
-
-

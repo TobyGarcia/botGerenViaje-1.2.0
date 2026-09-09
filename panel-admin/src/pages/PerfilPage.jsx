@@ -78,7 +78,7 @@ export default function PerfilPage({ user, onUpdated }) {
             className="secondary-button profile-photo-btn"
             onClick={() => fileRef.current?.click()}
           >
-            📷 Cambiar foto de perfil
+            Cambiar foto de perfil
           </button>
           <input
             ref={fileRef}
@@ -144,7 +144,7 @@ export default function PerfilPage({ user, onUpdated }) {
 
           <div className="profile-form-footer">
             <button type="submit" className="primary-button profile-submit-btn">
-              💾 Guardar cambios de perfil
+              Guardar cambios de perfil
             </button>
           </div>
         </section>
