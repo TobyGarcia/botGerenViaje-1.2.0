@@ -39,6 +39,8 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [pendingResult, setPendingResult] = useState(null);
+  const [copiedPin, setCopiedPin] = useState(false);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -133,7 +135,15 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         licenciaReversoNombre: licenciaReverso.name || null
       };
       const response = await registrarConductorTelegram(initData, payload);
-      onRegistered(response.data);
+      if (response?.data) {
+        setPendingResult({
+          pinGenerado: response.data.pinGenerado,
+          conductor: response.data.conductor,
+          rawResponse: response.data
+        });
+      } else {
+        onRegistered(response.data);
+      }
     } catch (requestError) {
       setError(requestError.message || "No fue posible completar el registro.");
     } finally {
@@ -143,6 +153,138 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
   }
 
   const anioActual = new Date().getFullYear();
+
+  if (pendingResult) {
+    return (
+      <main className="container" style={{ padding: "24px 16px", maxWidth: "520px", margin: "0 auto" }}>
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            padding: "28px 20px",
+            textAlign: "center"
+          }}
+        >
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              background: "#fef3c7",
+              color: "#d97706",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "32px",
+              margin: "0 auto 16px auto"
+            }}
+          >
+            ⏳
+          </div>
+
+          <h2 style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>
+            Registro en Espera de Aprobación
+          </h2>
+
+          <p style={{ color: "#475569", fontSize: "0.95rem", lineHeight: "1.5", margin: "0 0 20px 0" }}>
+            Tu registro de conductor fue recibido exitosamente. Tu cuenta se encuentra <strong>en espera de aprobación por el administrador</strong>.
+          </p>
+
+          {pendingResult.pinGenerado && (
+            <div
+              style={{
+                background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+                border: "2px dashed #3b82f6",
+                borderRadius: "12px",
+                padding: "16px",
+                marginBottom: "20px"
+              }}
+            >
+              <span style={{ display: "block", fontSize: "0.82rem", fontWeight: "600", color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                🔑 Tu PIN de Acceso de 4 Dígitos Asignado:
+              </span>
+              <div
+                style={{
+                  fontSize: "2.2rem",
+                  fontWeight: "800",
+                  fontFamily: "monospace",
+                  letterSpacing: "8px",
+                  color: "#1e40af",
+                  margin: "6px 0"
+                }}
+              >
+                {pendingResult.pinGenerado}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(pendingResult.pinGenerado);
+                  }
+                  setCopiedPin(true);
+                  setTimeout(() => setCopiedPin(false), 2500);
+                }}
+                style={{
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "6px 14px",
+                  fontSize: "0.82rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  marginTop: "6px"
+                }}
+              >
+                {copiedPin ? "✓ PIN Copiado" : "📋 Copiar PIN"}
+              </button>
+            </div>
+          )}
+
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fef3c7",
+              borderRadius: "8px",
+              padding: "12px 14px",
+              textAlign: "left",
+              fontSize: "0.88rem",
+              color: "#92400e",
+              lineHeight: "1.4",
+              marginBottom: "24px"
+            }}
+          >
+            <strong>📌 Importante:</strong>
+            <ul style={{ margin: "6px 0 0 0", paddingLeft: "20px" }}>
+              <li>Guarda este PIN de 4 dígitos para ingresar al sistema.</li>
+              <li>Solo podrás acceder a la aplicación y realizar viajes una vez que tu cuenta sea aprobada por la administración.</li>
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onRegistered(pendingResult.rawResponse)}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              background: "#0284c7",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "1rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              boxShadow: "0 4px 6px -1px rgba(2, 132, 199, 0.2)"
+            }}
+          >
+            Entendido / Ir al Inicio
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="container">

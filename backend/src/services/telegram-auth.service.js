@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import {
   databasePool
 } from "../database/pool.js";
@@ -192,15 +193,18 @@ export async function registerTelegramDriver({
     }
 
     const licenciaVigente = licenciaVencimiento >= new Date().toISOString().slice(0, 10);
+    const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+    const pinHash = await bcrypt.hash(generatedPin, 10);
+
     const conductorResult = await client.query(
       `
         INSERT INTO conductores (
-          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin
+          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE, $11)
         RETURNING ${conductorColumns}
       `,
-      [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null]
+      [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
     );
     const conductor = conductorResult.rows[0];
 
@@ -215,6 +219,7 @@ export async function registerTelegramDriver({
     return {
       telegramUser: telegramUser ? { ...telegramUser, id_conductores: conductor.id_conductores, estado_registro: "PENDIENTE_APROBACION" } : { estado_registro: "PENDIENTE_APROBACION" },
       conductor,
+      pinGenerado: generatedPin,
       created: true
     };
   } catch (error) {

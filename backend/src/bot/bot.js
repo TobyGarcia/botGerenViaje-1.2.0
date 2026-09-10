@@ -214,7 +214,7 @@ export async function sendDriverInspectionNotification({
   }
 }
 
-export async function sendDriverRegistrationSupervisorAlert({ conductor }) {
+export async function sendDriverRegistrationSupervisorAlert({ conductor, pinGenerado = null }) {
   const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_ID;
 
   if (!supervisorGroupId) {
@@ -229,6 +229,7 @@ export async function sendDriverRegistrationSupervisorAlert({ conductor }) {
     `Empresa: ${conductor.empresa || "No registrada"}`,
     `Licencia: ${conductor.licencia_numero} (${conductor.tipo_licencia || "General"})`,
     `Vencimiento Licencia: ${conductor.licencia_vencimiento || "No especificado"}`,
+    `PIN Generado: ${pinGenerado ? `🔑 ${pinGenerado}` : "No disponible"}`,
     "---------------------------------",
     "⚠️ Se requiere aprobación manual desde el Panel Administrativo para habilitar la operación del conductor."
   ].join("\n");

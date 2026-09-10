@@ -379,8 +379,17 @@ const [cancelledTrip, setCancelledTrip] =
       autenticarTelegram(telegramInitData)
         .then((response) => {
           if (!active) return;
-          if (response?.data?.authenticated && response?.data?.registered && response?.data?.conductor) {
+          if (response?.data?.authenticated && response?.data?.registered && response?.data?.conductor && response?.data?.conductor?.aprobado_por_admin !== false) {
             handlePinLoginSuccess(response.data.conductor, response.data.token);
+          } else if (response?.data?.authenticated && (response?.data?.estadoRegistro === "PENDIENTE_APROBACION" || response?.data?.conductor?.aprobado_por_admin === false)) {
+            setTelegramAuth({
+              authenticated: true,
+              registered: false,
+              estadoRegistro: "PENDIENTE_APROBACION",
+              conductor: response.data.conductor
+            });
+            setShowPinLogin(false);
+            setShowConductorRegister(false);
           } else if (response?.data?.authenticated && !response?.data?.registered) {
             setShowConductorRegister(true);
             setShowPinLogin(false);
@@ -1280,7 +1289,8 @@ function isOutsideOperatingHours() {
               telegramAuth={telegramAuth}
               onRegistered={(data) => {
                 setShowConductorRegister(false);
-                if (data?.conductor) {
+                setShowPinLogin(true);
+                if (data?.conductor && data?.conductor?.aprobado_por_admin) {
                   handlePinLoginSuccess(data.conductor);
                 }
               }}
@@ -1298,6 +1308,57 @@ function isOutsideOperatingHours() {
             onSuccess={handlePinLoginSuccess}
             onRegisterClick={() => setShowConductorRegister(true)}
           />
+        </main>
+      </div>
+    );
+  }
+
+  if (telegramAuth.estadoRegistro === "PENDIENTE_APROBACION" || (telegramAuth.conductor && telegramAuth.conductor.aprobado_por_admin === false)) {
+    return (
+      <div className="app-shell">
+        <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+        <main className="container" style={{ padding: "40px 16px", maxWidth: "520px", margin: "0 auto", textAlign: "center" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "28px 20px", border: "1px solid #e2e8f0", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}>
+            <div style={{ fontSize: "42px", marginBottom: "12px" }}>⏳</div>
+            <h2 style={{ color: "#d97706", fontSize: "1.35rem", fontWeight: "700", margin: "0 0 10px 0" }}>Registro En Espera de Aprobación</h2>
+            <p style={{ color: "#475569", fontSize: "0.95rem", lineHeight: "1.5", marginBottom: "16px" }}>
+              Hola <strong>{telegramAuth.conductor?.nombre || "Conductor"}</strong>. Tu solicitud de registro fue recibida exitosamente.
+            </p>
+            <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "8px", padding: "12px 14px", color: "#92400e", fontSize: "0.88rem", marginBottom: "20px", textAlign: "left" }}>
+              ⚠️ Tu cuenta se encuentra <strong>en espera de aprobación por la administración</strong>. No podrás acceder a la plataforma ni crear viajes hasta que un administrador apruebe tu registro.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const token = safeStorage.getItem("driver_token");
+                if (token) {
+                  getDriverSession()
+                    .then((res) => {
+                      if (res?.data?.conductor?.aprobado_por_admin) {
+                        handlePinLoginSuccess(res.data.conductor);
+                      } else {
+                        alert("Tu cuenta aún sigue en espera de aprobación por parte del administrador.");
+                      }
+                    })
+                    .catch(() => {
+                      alert("No fue posible verificar el estado en este momento.");
+                    });
+                } else {
+                  handleLogout();
+                }
+              }}
+              style={{ padding: "10px 20px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}
+            >
+              🔄 Verificar Estado de Aprobación
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{ display: "block", margin: "14px auto 0 auto", background: "none", border: "none", color: "#64748b", fontSize: "0.85rem", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Cerrar Sesión / Volver
+            </button>
+          </div>
         </main>
       </div>
     );

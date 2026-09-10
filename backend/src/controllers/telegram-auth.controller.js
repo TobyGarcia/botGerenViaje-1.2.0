@@ -292,18 +292,20 @@ export async function registerTelegramDriverController(request, response) {
         }
       })();
 
-      sendDriverRegistrationSupervisorAlert({ conductor: result.conductor }).catch((err) => {
+      sendDriverRegistrationSupervisorAlert({ conductor: result.conductor, pinGenerado: result.pinGenerado }).catch((err) => {
         console.warn("Fallo al enviar alerta de registro a supervisores:", err.message);
       });
     }
 
     return response.status(result.created ? 201 : 200).json({
       success: true,
-      message: "Registro completado con éxito.",
+      message: "Registro recibido con éxito. Tu cuenta se encuentra en espera de aprobación.",
       data: {
         authenticated: true,
-        registered: true,
+        registered: Boolean(result.conductor?.aprobado_por_admin),
         estadoRegistro: result.telegramUser?.estado_registro || "PENDIENTE_APROBACION",
+        pinGenerado: result.pinGenerado || null,
+        aprobado: Boolean(result.conductor?.aprobado_por_admin),
         usuario: {
           firstName: result.telegramUser?.telegram_first_name || null,
           lastName: result.telegramUser?.telegram_last_name || null,
