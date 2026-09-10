@@ -18,6 +18,7 @@ services:
       - ./database/migrations:/database/migrations:ro
       - ./database/seeds:/database/seeds:ro
       - ./database/scripts:/database/scripts:ro
+      - ./database/scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
 
     healthcheck:
       test:

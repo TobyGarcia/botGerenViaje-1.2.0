@@ -23,6 +23,7 @@
 \ir ../migrations/021_reportes_vehiculares.sql
 \ir ../migrations/022_licencia_imagen.sql
 \ir ../migrations/023_gerenciamiento_sharepoint_and_pdf.sql
+\ir ../migrations/024_mantenimiento_dias_y_motivo.sql
 
 
 

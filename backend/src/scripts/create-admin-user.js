@@ -172,177 +172,132 @@ async function createAdminUser({
   return result.rows[0];
 }
 
+async function checkTableExists() {
+  try {
+    const result = await databasePool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'usuarios_admin'
+      );
+    `);
+    return result.rows[0]?.exists === true;
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
-  const readlineInterface =
-    readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+  let readlineInterface = null;
 
   try {
-    console.log("");
-    console.log(
-      "Creación de usuario administrativo"
-    );
-    console.log(
-      "----------------------------------"
-    );
-
-    const name =
-      (
-        await readlineInterface.question(
-          "Nombre completo: "
-        )
-      ).trim();
-
-    const username =
-      normalizeUsername(
-        await readlineInterface.question(
-          "Nombre de usuario: "
-        )
+    const tableExists = await checkTableExists();
+    if (!tableExists) {
+      throw new Error(
+        "La tabla 'usuarios_admin' no existe en la base de datos. Asegúrate de ejecutar las migraciones SQL antes de crear un usuario administrativo."
       );
-
-    const email =
-      normalizeEmail(
-        await readlineInterface.question(
-          "Correo electrónico (opcional): "
-        )
-      );
+    }
 
     console.log("");
-    console.log(
-      `Roles disponibles: ${VALID_ROLES.join(", ")}`
-    );
+    console.log("Creación de usuario administrativo");
+    console.log("----------------------------------");
 
-    const selectedRole =
-      (
-        await readlineInterface.question(
-          "Rol [ADMINISTRADOR]: "
-        )
-      )
-        .trim()
-        .toUpperCase();
+    let name, username, email, role, password, passwordConfirmation;
 
-    const role =
-      selectedRole || "ADMINISTRADOR";
+    const envUsername = process.env.ADMIN_CREATE_USERNAME;
+    const envPassword = process.env.ADMIN_CREATE_PASSWORD;
 
-    const password =
-      await readlineInterface.question(
-        "Contraseña: "
-      );
+    if (envUsername && envPassword) {
+      console.log("Modo no interactivo detectado (variables de entorno ADMIN_CREATE_*).");
+      name = (process.env.ADMIN_CREATE_NAME || envUsername).trim();
+      username = normalizeUsername(envUsername);
+      email = normalizeEmail(process.env.ADMIN_CREATE_EMAIL || "");
+      role = (process.env.ADMIN_CREATE_ROLE || "ADMINISTRADOR").trim().toUpperCase();
+      password = envPassword;
+      passwordConfirmation = envPassword;
+    } else {
+      readlineInterface = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
 
-    const passwordConfirmation =
-      await readlineInterface.question(
-        "Confirma la contraseña: "
-      );
+      name = (await readlineInterface.question("Nombre completo: ")).trim();
+      username = normalizeUsername(await readlineInterface.question("Nombre de usuario: "));
+      email = normalizeEmail(await readlineInterface.question("Correo electrónico (opcional): "));
+
+      console.log("");
+      console.log(`Roles disponibles: ${VALID_ROLES.join(", ")}`);
+
+      const selectedRole = (await readlineInterface.question("Rol [ADMINISTRADOR]: ")).trim().toUpperCase();
+      role = selectedRole || "ADMINISTRADOR";
+      password = await readlineInterface.question("Contraseña: ");
+      passwordConfirmation = await readlineInterface.question("Confirma la contraseña: ");
+    }
 
     if (!name) {
-      throw new Error(
-        "El nombre completo es obligatorio."
-      );
+      throw new Error("El nombre completo es obligatorio.");
     }
 
     if (name.length < 3) {
-      throw new Error(
-        "El nombre completo debe tener al menos 3 caracteres."
-      );
+      throw new Error("El nombre completo debe tener al menos 3 caracteres.");
     }
 
     if (!username) {
-      throw new Error(
-        "El nombre de usuario es obligatorio."
-      );
+      throw new Error("El nombre de usuario es obligatorio.");
     }
 
-    if (
-      !/^[a-z0-9._-]{4,100}$/.test(
-        username
-      )
-    ) {
+    if (!/^[a-z0-9._-]{4,100}$/.test(username)) {
       throw new Error(
         "El username debe tener entre 4 y 100 caracteres y usar solamente letras, números, punto, guion o guion bajo."
       );
     }
 
     if (!validateEmail(email)) {
-      throw new Error(
-        "El correo electrónico no tiene un formato válido."
-      );
+      throw new Error("El correo electrónico no tiene un formato válido.");
     }
 
-    if (
-      !VALID_ROLES.includes(role)
-    ) {
+    if (!VALID_ROLES.includes(role)) {
       throw new Error(
         `El rol debe ser uno de los siguientes: ${VALID_ROLES.join(", ")}.`
       );
     }
 
-    const passwordValidation =
-      validatePassword(password);
-
+    const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
-      throw new Error(
-        passwordValidation.message
-      );
+      throw new Error(passwordValidation.message);
     }
 
-    if (
-      password !==
-      passwordConfirmation
-    ) {
-      throw new Error(
-        "Las contraseñas no coinciden."
-      );
+    if (password !== passwordConfirmation) {
+      throw new Error("Las contraseñas no coinciden.");
     }
 
-    const createdUser =
-      await createAdminUser({
-        name,
-        username,
-        email,
-        password,
-        role
-      });
+    const createdUser = await createAdminUser({
+      name,
+      username,
+      email,
+      password,
+      role
+    });
 
     console.log("");
-    console.log(
-      "Usuario administrativo creado correctamente."
-    );
-
+    console.log("Usuario administrativo creado correctamente.");
     console.log({
-      idUsuarioAdmin:
-        createdUser.id_usuarios_admin,
-
-      nombre:
-        createdUser.nombre,
-
-      username:
-        createdUser.username,
-
-      correo:
-        createdUser.correo,
-
-      rol:
-        createdUser.rol,
-
-      activo:
-        createdUser.activo
+      idUsuarioAdmin: createdUser.id_usuarios_admin,
+      nombre: createdUser.nombre,
+      username: createdUser.username,
+      correo: createdUser.correo,
+      rol: createdUser.rol,
+      activo: createdUser.activo
     });
   } catch (error) {
     console.error("");
-    console.error(
-      "No fue posible crear el usuario:"
-    );
-
-    console.error(
-      error.message
-    );
-
+    console.error("No fue posible crear el usuario:");
+    console.error(error.message);
     process.exitCode = 1;
   } finally {
-    readlineInterface.close();
-
+    if (readlineInterface) {
+      readlineInterface.close();
+    }
     await databasePool.end();
   }
 }
