@@ -3,6 +3,7 @@ import { loginConductorConPin } from "../services/api";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 import PwaInstallPrompt from "./PwaInstallPrompt";
 import safeStorage from "../utils/safeStorage";
+import { IconAlert, IconFileText } from "./Icons.jsx";
 
 export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [pin, setPin] = useState("");
@@ -119,7 +120,7 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         {/* Mensaje de Error compacto */}
         {error && (
           <div className="pin-error-banner" role="alert">
-            <span>⚠️ {error}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={16} color="#ef4444" /> {error}</span>
           </div>
         )}
 
@@ -217,12 +218,15 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
               fontWeight: 600,
               cursor: "pointer",
               textDecoration: "underline",
-              display: "block",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
               width: "100%",
               textAlign: "center"
             }}
           >
-            📝 ¿Eres un conductor nuevo? Regístrate aquí
+            <IconFileText size={16} color="#0284c7" /> ¿Eres un conductor nuevo? Regístrate aquí
           </button>
         )}
       </div>

@@ -8,6 +8,17 @@ import {
 } from "../services/api.js";
 import { compressImageToMaxKb } from "../utils/imageCompressor.js";
 import CameraModal from "./CameraModal.jsx";
+import {
+  IconCamera,
+  IconFolder,
+  IconClock,
+  IconKey,
+  IconClipboard,
+  IconCheck,
+  IconDocument,
+  IconRefresh,
+  IconPin
+} from "./Icons.jsx";
 
 function getInitialName(usuario) {
   return [usuario?.firstName, usuario?.lastName]
@@ -177,11 +188,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "32px",
               margin: "0 auto 16px auto"
             }}
           >
-            ⏳
+            <IconClock size={32} color="#d97706" />
           </div>
 
           <h2 style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>
@@ -203,7 +213,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
               }}
             >
               <span style={{ display: "block", fontSize: "0.82rem", fontWeight: "600", color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-                🔑 Tu PIN de Acceso de 4 Dígitos Asignado:
+                <IconKey size={16} color="#1d4ed8" style={{ marginRight: "4px" }} /> Tu PIN de Acceso de 4 Dígitos Asignado:
               </span>
               <div
                 style={{
@@ -235,10 +245,13 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
                   fontSize: "0.82rem",
                   fontWeight: "600",
                   cursor: "pointer",
-                  marginTop: "6px"
+                  marginTop: "6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
                 }}
               >
-                {copiedPin ? "✓ PIN Copiado" : "📋 Copiar PIN"}
+                {copiedPin ? <><IconCheck size={14} /> PIN Copiado</> : <><IconClipboard size={14} /> Copiar PIN</>}
               </button>
             </div>
           )}
@@ -256,7 +269,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
               marginBottom: "24px"
             }}
           >
-            <strong>📌 Importante:</strong>
+            <strong><IconPin size={16} color="#92400e" style={{ marginRight: "4px" }} /> Importante:</strong>
             <ul style={{ margin: "6px 0 0 0", paddingLeft: "20px" }}>
               <li>Guarda este PIN de 4 dígitos para ingresar al sistema.</li>
               <li>Solo podrás acceder a la aplicación y realizar viajes una vez que tu cuenta sea aprobada por la administración.</li>
@@ -314,30 +327,30 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
 
         {/* Sección Licencia Frente */}
         <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
-          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Frente) *</legend>
+          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconCamera size={16} color="#1e293b" /> Licencia de Conducir (Frente) *</legend>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
             <button
               type="button"
               onClick={() => setActiveCameraSide("frente")}
-              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600" }}
+              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
             >
-              📷 Visor Cámara Directa
+              <IconCamera size={16} /> Visor Cámara Directa
             </button>
-            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
-              📁 Elegir archivo
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <IconFolder size={16} /> Elegir archivo
               <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("frente", e)} style={{ display: "none" }} />
             </label>
           </div>
 
-          {licenciaFrente.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7" }}>⏳ Comprimiendo imagen (objetivo &le; 77KB)...</p>}
+          {licenciaFrente.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconRefresh size={14} className="spin" /> Comprimiendo imagen (objetivo &le; 77KB)...</p>}
 
           {licenciaFrente.base64 && !licenciaFrente.compressing && (
             <div style={{ marginTop: "8px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-              <p style={{ fontSize: "0.82rem", color: "#15803d", fontWeight: "600", margin: "0 0 4px 0" }}>
-                ✓ Foto Frente procesada ({licenciaFrente.sizeKb} KB)
+              <p style={{ fontSize: "0.82rem", color: "#15803d", fontWeight: "600", margin: "0 0 4px 0", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <IconCheck size={14} color="#15803d" /> Foto Frente procesada ({licenciaFrente.sizeKb} KB)
               </p>
               {licenciaFrente.isPdf ? (
-                <p style={{ fontSize: "0.85rem", color: "#2563eb" }}>📄 {licenciaFrente.name}</p>
+                <p style={{ fontSize: "0.85rem", color: "#2563eb", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconDocument size={16} /> {licenciaFrente.name}</p>
               ) : (
                 <img src={licenciaFrente.preview} alt="Vista previa frente" style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "4px", objectFit: "contain", border: "1px solid #e2e8f0" }} />
               )}
@@ -347,22 +360,22 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
 
         {/* Sección Licencia Reverso */}
         <fieldset style={{ border: "1px solid #cbd5e1", borderRadius: "8px", padding: "12px 14px", marginBottom: "16px", background: "#f8fafc" }}>
-          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px" }}>📷 Licencia de Conducir (Reverso / Trasero)</legend>
+          <legend style={{ fontWeight: "600", fontSize: "0.95rem", color: "#1e293b", padding: "0 6px", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconCamera size={16} color="#1e293b" /> Licencia de Conducir (Reverso / Trasero)</legend>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "8px 0" }}>
             <button
               type="button"
               onClick={() => setActiveCameraSide("reverso")}
-              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600" }}
+              style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#2563eb", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
             >
-              📷 Visor Cámara Directa
+              <IconCamera size={16} /> Visor Cámara Directa
             </button>
-            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-block" }}>
-              📁 Elegir archivo
+            <label style={{ flex: "1", minWidth: "140px", cursor: "pointer", background: "#475569", color: "#fff", padding: "10px 12px", borderRadius: "6px", textAlign: "center", fontSize: "0.88rem", fontWeight: "600", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <IconFolder size={16} /> Elegir archivo
               <input type="file" accept="image/*,application/pdf" onChange={(e) => handleLicenseFileChange("reverso", e)} style={{ display: "none" }} />
             </label>
           </div>
 
-          {licenciaReverso.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7" }}>⏳ Comprimiendo imagen (objetivo &le; 77KB)...</p>}
+          {licenciaReverso.compressing && <p style={{ fontSize: "0.85rem", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconRefresh size={14} className="spin" /> Comprimiendo imagen (objetivo &le; 77KB)...</p>}
 
           {licenciaReverso.base64 && !licenciaReverso.compressing && (
             <div style={{ marginTop: "8px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>

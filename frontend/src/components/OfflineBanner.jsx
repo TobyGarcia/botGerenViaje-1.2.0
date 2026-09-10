@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { countPendingLocations } from '../services/tracking-storage';
 import { syncPendingLocations } from '../services/tracking-service';
+import { IconRefresh, IconAlert } from './Icons.jsx';
 
 export default function OfflineBanner({ idViaje }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -82,7 +83,7 @@ export default function OfflineBanner({ idViaje }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '1.1rem' }}>{!isOnline ? '📡' : '🔄'}</span>
+        <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>{!isOnline ? <IconAlert size={18} color="#ffffff" /> : <IconRefresh size={18} color="#ffffff" className="spin" />}</span>
         <div>
           {!isOnline ? (
             <div>

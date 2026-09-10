@@ -31,6 +31,18 @@ import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
+import {
+  IconCar,
+  IconMap,
+  IconClock,
+  IconAlert,
+  IconRefresh,
+  IconCheck,
+  IconSend,
+  IconPin,
+  IconPlus,
+  IconMapPin
+} from "./components/Icons.jsx";
 
 import {
   captureAndQueueLocation,
@@ -1319,13 +1331,16 @@ function isOutsideOperatingHours() {
         <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
         <main className="container" style={{ padding: "40px 16px", maxWidth: "520px", margin: "0 auto", textAlign: "center" }}>
           <div style={{ background: "#ffffff", borderRadius: "16px", padding: "28px 20px", border: "1px solid #e2e8f0", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}>
-            <div style={{ fontSize: "42px", marginBottom: "12px" }}>⏳</div>
+            <div style={{ width: "64px", height: "64px", background: "#fef3c7", color: "#d97706", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto" }}>
+              <IconClock size={32} color="#d97706" />
+            </div>
             <h2 style={{ color: "#d97706", fontSize: "1.35rem", fontWeight: "700", margin: "0 0 10px 0" }}>Registro En Espera de Aprobación</h2>
             <p style={{ color: "#475569", fontSize: "0.95rem", lineHeight: "1.5", marginBottom: "16px" }}>
               Hola <strong>{telegramAuth.conductor?.nombre || "Conductor"}</strong>. Tu solicitud de registro fue recibida exitosamente.
             </p>
-            <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "8px", padding: "12px 14px", color: "#92400e", fontSize: "0.88rem", marginBottom: "20px", textAlign: "left" }}>
-              ⚠️ Tu cuenta se encuentra <strong>en espera de aprobación por la administración</strong>. No podrás acceder a la plataforma ni crear viajes hasta que un administrador apruebe tu registro.
+            <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "8px", padding: "12px 14px", color: "#92400e", fontSize: "0.88rem", marginBottom: "20px", textAlign: "left", display: "inline-flex", alignItems: "flex-start", gap: "8px" }}>
+              <IconAlert size={18} color="#d97706" style={{ flexShrink: 0, marginTop: "2px" }} />
+              <span>Tu cuenta se encuentra <strong>en espera de aprobación por la administración</strong>. No podrás acceder a la plataforma ni crear viajes hasta que un administrador apruebe tu registro.</span>
             </div>
             <button
               type="button"
@@ -1347,9 +1362,9 @@ function isOutsideOperatingHours() {
                   handleLogout();
                 }
               }}
-              style={{ padding: "10px 20px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}
+              style={{ padding: "10px 20px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              🔄 Verificar Estado de Aprobación
+              <IconRefresh size={16} /> Verificar Estado de Aprobación
             </button>
             <button
               type="button"
@@ -1431,10 +1446,14 @@ function isOutsideOperatingHours() {
               background: activeTabMode === "urban" ? "#ffffff" : "transparent",
               color: activeTabMode === "urban" ? "#0f172a" : "#64748b",
               boxShadow: activeTabMode === "urban" ? "0 2px 6px rgba(0,0,0,0.1)" : "none",
-              cursor: "pointer"
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px"
             }}
           >
-            🚗 Viaje Urbano / Local
+            <IconCar size={18} /> Viaje Urbano / Local
           </button>
           <button
             type="button"
@@ -1449,10 +1468,14 @@ function isOutsideOperatingHours() {
               background: activeTabMode === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "transparent",
               color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
               boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
-              cursor: "pointer"
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px"
             }}
           >
-            🗺️ Gerenciamiento Fuera de Ciudad
+            <IconMap size={18} /> Gerenciamiento Fuera de Ciudad
           </button>
         </div>
       )}
@@ -1508,7 +1531,7 @@ function isOutsideOperatingHours() {
               setCreatedTrip(pendingTrip);
               safeStorage.setJSON("cached_active_trip", pendingTrip);
             }
-            setMessage("✅ Gerenciamiento de Viaje registrado exitosamente. En espera de aprobación por supervisión.");
+            setMessage("Gerenciamiento de Viaje registrado exitosamente. En espera de aprobación por supervisión.");
             setMessageType("success");
           }}
         />
@@ -1518,16 +1541,16 @@ function isOutsideOperatingHours() {
         <>
           {isOutsideOperatingHours() && (
             <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.88rem" }}>
-              <strong>⚠️ Fuera de Horario Operativo Urbano (6:30 AM - 6:00 PM)</strong>
+              <strong style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={16} color="#ea580c" /> Fuera de Horario Operativo Urbano (6:30 AM - 6:00 PM)</strong>
               <p style={{ margin: "4px 0 8px 0", fontSize: "0.82rem", color: "#475569" }}>
                 Los viajes locales solo pueden registrarse de 6:30 AM a 6:00 PM. Después de este horario se debe realizar un Gerenciamiento de Viaje.
               </p>
               <button
                 type="button"
                 onClick={() => setActiveTabMode("gerenciamiento")}
-                style={{ background: "#ea580c", color: "#ffffff", border: 0, padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.82rem" }}
+                style={{ background: "#ea580c", color: "#ffffff", border: 0, padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                🗺️ Ir a Gerenciamiento de Viajes
+                <IconMap size={16} /> Ir a Gerenciamiento de Viajes
               </button>
             </div>
           )}
@@ -1576,8 +1599,8 @@ function isOutsideOperatingHours() {
           return (
             <>
               {assignedVehicle && (
-                <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold" }}>
-                  📌 Unidad pre-asignada por tu supervisor: {assignedVehicle.nombre} ({assignedVehicle.numero_economico})
+                <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <IconPin size={18} color="#0369a1" /> Unidad pre-asignada por tu supervisor: {assignedVehicle.nombre} ({assignedVehicle.numero_economico})
                 </div>
               )}
 
@@ -1648,7 +1671,7 @@ function isOutsideOperatingHours() {
                 {lugar.nombre}
               </option>
             ))}
-            <option value="NUEVO_DESTINO">➕ Agregar nuevo destino...</option>
+            <option value="NUEVO_DESTINO">+ Agregar nuevo destino...</option>
           </select>
           <div style={{ marginTop: "4px", textAlign: "right" }}>
             <button
@@ -1663,10 +1686,13 @@ function isOutsideOperatingHours() {
                 fontWeight: "700",
                 cursor: "pointer",
                 padding: "2px 0",
-                textDecoration: "underline"
+                textDecoration: "underline",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px"
               }}
             >
-              ➕ ¿No encuentras tu destino? Agrégalo aquí
+              <IconPlus size={14} color="#2e81ab" /> ¿No encuentras tu destino? Agrégalo aquí
             </button>
           </div>
         </label>
@@ -1814,7 +1840,9 @@ function isOutsideOperatingHours() {
 {gerenciamientoPendiente && (
   <section className="result-card" style={{ background: "#fff7ed", border: "1.5px solid #fdba74", marginBottom: "16px" }}>
     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-      <span style={{ fontSize: "2rem" }}>⏳</span>
+      <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#ffedd5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <IconClock size={24} color="#c2410c" />
+      </div>
       <div>
         <h2 style={{ margin: 0, color: "#c2410c", fontSize: "1.15rem" }}>
           GERENCIAMIENTO PENDIENTE DE APROBACIÓN
@@ -1832,8 +1860,8 @@ function isOutsideOperatingHours() {
       <div><strong>Estado Actual:</strong> <span style={{ padding: "3px 10px", borderRadius: "10px", background: "#ea580c", color: "#ffffff", fontWeight: "bold" }}>PENDIENTE DE APROBACIÓN POR SUPERVISOR</span></div>
     </div>
 
-    <div style={{ background: "#eff6ff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bfdbfe", fontSize: "0.83rem", color: "#1e40af" }}>
-      📲 <strong>Notificación Enviada:</strong> Se envió la alerta automática al grupo de supervisores en Telegram. Tan pronto como autoricen tu Gerenciamiento e Inspección Vehicular, podrás iniciar el recorrido.
+    <div style={{ background: "#eff6ff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bfdbfe", fontSize: "0.83rem", color: "#1e40af", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+      <IconSend size={16} color="#1e40af" /> <span><strong>Notificación Enviada:</strong> Se envió la alerta automática al grupo de supervisores en Telegram. Tan pronto como autoricen tu Gerenciamiento e Inspección Vehicular, podrás iniciar el recorrido.</span>
     </div>
   </section>
 )}
@@ -1947,9 +1975,9 @@ function isOutsideOperatingHours() {
           type="button"
           className="start-trip-button inspection-required-button"
           disabled
-          style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c" }}
+          style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
         >
-          ⏳ Esperando Autorización de Gerenciamiento...
+          <IconClock size={18} color="#ffffff" className="spin" /> Esperando Autorización de Gerenciamiento...
         </button>
       ) : inspectionStatus === "loading" || inspectionStatus === "idle" ? <button
         type="button"
@@ -2022,15 +2050,15 @@ function isOutsideOperatingHours() {
       onClick={handleAddIntermediatePoint}
       disabled={savingIntermediatePoint}
     >
-      {savingIntermediatePoint ? "Guardando punto..." : "📍 Añadir Punto Intermedio"}
+      {savingIntermediatePoint ? "Guardando punto..." : <><IconMapPin size={16} color="#ffffff" style={{ marginRight: "4px" }} /> Añadir Punto Intermedio</>}
     </button>
   </div>
 
   {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
   {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
     <div style={{ background: "#ffffff", padding: "14px", borderRadius: "8px", border: "1px solid #cbd5e1", margin: "14px 0" }}>
-      <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "0.95rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px" }}>
-        📌 Sitios de Reporte de la Ruta
+      <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "0.95rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+        <IconPin size={18} color="#1e3a8a" /> Sitios de Reporte de la Ruta
       </h4>
       <div style={{ display: "grid", gap: "8px" }}>
         {gerenciamientoDoc.sitios_reporte.map((sitio, index) => (
@@ -2039,8 +2067,8 @@ function isOutsideOperatingHours() {
               <strong style={{ color: "#0f172a" }}>Punto {index + 1}:</strong> {sitio.punto}
             </div>
             {sitio.horaReportada ? (
-              <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "12px", fontSize: "0.82rem", fontWeight: "bold" }}>
-                ✅ Reportado: {sitio.horaReportada}
+              <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "12px", fontSize: "0.82rem", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <IconCheck size={14} color="#166534" /> Reportado: {sitio.horaReportada}
               </span>
             ) : (
               <button
@@ -2057,9 +2085,9 @@ function isOutsideOperatingHours() {
                     setMessageType("error");
                   }
                 }}
-                style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer" }}
+                style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
               >
-                ⏱️ Marcar Hora ({new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })})
+                <IconClock size={14} color="#ffffff" /> Marcar Hora ({new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })})
               </button>
             )}
           </div>
@@ -2161,7 +2189,7 @@ function isOutsideOperatingHours() {
       {showAddDestinoModal && (
         <div className="modal-overlay" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "grid", placeItems: "center", background: "rgba(8, 25, 34, 0.65)", backdropFilter: "blur(3px)", padding: "16px" }}>
           <div className="modal-card" style={{ width: "min(480px, 100%)", background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h2 style={{ margin: "0 0 8px", fontSize: "1.3rem", color: "#000000" }}>➕ Registrar Nuevo Destino</h2>
+            <h2 style={{ margin: "0 0 8px", fontSize: "1.3rem", color: "#000000", display: "flex", alignItems: "center", gap: "8px" }}><IconPlus size={22} color="#000000" /> Registrar Nuevo Destino</h2>
             <p style={{ margin: "0 0 18px", fontSize: "0.88rem", color: "#5b7b8a" }}>
               Escribe el nombre del nuevo destino si no aparece en el catálogo. Se seleccionará automáticamente para tu viaje.
             </p>

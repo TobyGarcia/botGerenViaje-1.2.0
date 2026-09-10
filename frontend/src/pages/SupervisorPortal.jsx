@@ -23,7 +23,10 @@ import {
   IconMoon,
   IconIdCard,
   IconEdit,
-  IconRefresh
+  IconRefresh,
+  IconWrench,
+  IconScale,
+  IconShield
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import logoAQR from "../assets/logoAQR.webp";
@@ -814,9 +817,12 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                           fontSize: "0.82rem",
                           fontWeight: "bold",
                           background: gerenciamientoDetail.estado === "APROBADO" ? "#dcfce7" : gerenciamientoDetail.estado === "RECHAZADO" ? "#fee2e2" : "#fef9c3",
-                          color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : gerenciamientoDetail.estado === "RECHAZADO" ? "#991b1b" : "#854d0e"
+                          color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : gerenciamientoDetail.estado === "RECHAZADO" ? "#991b1b" : "#854d0e",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px"
                         }}>
-                          {gerenciamientoDetail.estado === "APROBADO" ? "✅ APROBADO" : gerenciamientoDetail.estado === "RECHAZADO" ? "❌ RECHAZADO" : "⏳ PENDIENTE DE AUTORIZACIÓN"}
+                          {gerenciamientoDetail.estado === "APROBADO" ? <><IconCheck size={14} /> APROBADO</> : gerenciamientoDetail.estado === "RECHAZADO" ? <><IconCross size={14} /> RECHAZADO</> : <><IconClock size={14} /> PENDIENTE DE AUTORIZACIÓN</>}
                         </span>
                       </div>
                     </div>
@@ -830,15 +836,15 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     </div>
 
                     {/* 2. Conductor y Acompañantes */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      👤 Conductor y Pasajeros
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconUser size={16} /> Conductor y Pasajeros
                     </h3>
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gap: "5px", marginBottom: "12px" }}>
                       <div><strong>Nombre Conductor:</strong> {gerenciamientoDetail.nombre_conductor}</div>
                       <div><strong>Licencia:</strong> No. {gerenciamientoDetail.licencia_numero || "N/A"} · Tipo: {gerenciamientoDetail.licencia_tipo || "Chofer"} · Vigencia: {gerenciamientoDetail.licencia_vencimiento ? String(gerenciamientoDetail.licencia_vencimiento).split("T")[0] : "Vigente"}</div>
                       <div><strong>Teléfono de contacto:</strong> {gerenciamientoDetail.telefono_conductor || "No registrado"}</div>
                       <div><strong>Tiempo estimado de viaje:</strong> {gerenciamientoDetail.tiempo_viaje_horas || 1} hora(s)</div>
-                      <div><strong>Ruta declarada:</strong> 📍 <strong>{gerenciamientoDetail.origen_nombre || gerenciamientoDetail.origen_texto}</strong> ➔ 🏁 <strong>{gerenciamientoDetail.destino_nombre || gerenciamientoDetail.destino_texto}</strong></div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}><strong>Ruta declarada:</strong> <IconMapPin size={14} color="#0284c7" /> <strong>{gerenciamientoDetail.origen_nombre || gerenciamientoDetail.origen_texto}</strong> &rarr; <strong>{gerenciamientoDetail.destino_nombre || gerenciamientoDetail.destino_texto}</strong></div>
                       {acompanantesList.length > 0 ? (
                         <div>
                           <strong>Acompañantes registrados:</strong>
@@ -859,8 +865,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                               const puntoName = typeof s === 'object' && s !== null ? (s.punto || s.nombre || JSON.stringify(s)) : String(s);
                               const hora = typeof s === 'object' && s !== null ? s.horaReportada : null;
                               return (
-                                <span key={idx} style={{ padding: "2px 8px", borderRadius: "6px", background: hora ? "#dcfce7" : "#f1f5f9", fontSize: "0.78rem", border: "1px solid #cbd5e1" }}>
-                                  📍 {puntoName} {hora ? `(Reportado: ${hora})` : "(Pendiente)"}
+                                <span key={idx} style={{ padding: "2px 8px", borderRadius: "6px", background: hora ? "#dcfce7" : "#f1f5f9", fontSize: "0.78rem", border: "1px solid #cbd5e1", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                  <IconMapPin size={12} color="#0284c7" /> {puntoName} {hora ? `(Reportado: ${hora})` : "(Pendiente)"}
                                 </span>
                               );
                             })}
@@ -870,8 +876,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     </div>
 
                     {/* 3. Datos del Vehículo */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      🚗 Unidad y Vehículo
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconCar size={16} /> Unidad y Vehículo
                     </h3>
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "6px", marginBottom: "12px" }}>
                       <div><strong>No. Económico:</strong> {gerenciamientoDetail.numero_unidad || "S/N"}</div>
@@ -883,8 +889,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     </div>
 
                     {/* 4. Valoración Médica Preliminar */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      🩺 Aptitud y Valoración Médica
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconClipboard size={16} /> Aptitud y Valoración Médica
                     </h3>
                     <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.85rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "6px", marginBottom: "12px" }}>
                       <div><strong>Presión arterial:</strong> {gerenciamientoDetail.presion_arterial || "120/80"}</div>
@@ -895,27 +901,27 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                       <div>
                         <strong>Alcoholímetro:</strong>{" "}
                         {gerenciamientoDetail.alcoholimetro ? (
-                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b", fontWeight: "bold" }}>⚠️ POSITIVO (ALTO RIESGO)</span>
+                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}><IconAlert size={12} color="#991b1b" /> POSITIVO (ALTO RIESGO)</span>
                         ) : (
-                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#dcfce7", color: "#166534", fontWeight: "bold" }}>✅ 0.00 Negativo</span>
+                          <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#dcfce7", color: "#166534", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}><IconCheck size={12} color="#166534" /> 0.00 Negativo</span>
                         )}
                       </div>
                     </div>
 
                     {/* 5. Preguntas de Verificación Operativa */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      📋 Verificación de Procedimientos y Reglas
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconClipboard size={16} /> Verificación de Procedimientos y Reglas
                     </h3>
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.82rem", display: "grid", gap: "6px", marginBottom: "12px" }}>
-                      <div>1. ¿Conocimiento de riesgos locales de la ruta? <strong>{gerenciamientoDetail.conocimiento_riesgos_locales !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                      <div>2. ¿Prohibido subir personal ajeno a la empresa? <strong>{gerenciamientoDetail.prohibido_personal_ajeno !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                      <div>3. ¿Inspección previa del vehículo realizada? <strong>{gerenciamientoDetail.inspeccion_vehiculo_realizada !== false ? "✅ SÍ" : "❌ NO"}</strong></div>
-                      <div>4. ¿Reunión previa de caravana realizada? <strong>{gerenciamientoDetail.reunion_pre_caravana_realizada ? "✅ SÍ" : "⚪ NO APLICA / NO"}</strong></div>
+                      <div>1. ¿Conocimiento de riesgos locales de la ruta? <strong>{gerenciamientoDetail.conocimiento_riesgos_locales !== false ? "SÍ" : "NO"}</strong></div>
+                      <div>2. ¿Prohibido subir personal ajeno a la empresa? <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>{gerenciamientoDetail.prohibido_personal_ajeno !== false ? <><IconCheck color="#166534" size={14} /> SÍ</> : <><IconCross color="#dc2626" size={14} /> NO</>}</strong></div>
+                      <div>3. ¿Inspección previa del vehículo realizada? <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>{gerenciamientoDetail.inspeccion_vehiculo_realizada !== false ? <><IconCheck color="#166534" size={14} /> SÍ</> : <><IconCross color="#dc2626" size={14} /> NO</>}</strong></div>
+                      <div>4. ¿Reunión previa de caravana realizada? <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>{gerenciamientoDetail.reunion_pre_caravana_realizada ? <><IconCheck color="#166534" size={14} /> SÍ</> : "NO APLICA / NO"}</strong></div>
                     </div>
 
                     {/* 6. Inspección Vehicular Integrada */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      🔧 Inspección Vehicular Integrada
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconWrench size={16} /> Inspección Vehicular Integrada
                     </h3>
                     <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", padding: "10px 12px", borderRadius: "8px", marginBottom: "12px", fontSize: "0.85rem", color: "#0369a1" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
@@ -950,8 +956,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     </div>
 
                     {/* 7. Matriz de Riesgo y Tabuladores A a G */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      ⚖️ Evaluación de Riesgo y Factores (Tabuladores A - G)
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconScale size={16} /> Evaluación de Riesgo y Factores (Tabuladores A - G)
                     </h3>
                     <div style={{
                       background: gerenciamientoDetail.nivel_riesgo === 'ALTO' ? '#fef2f2' : gerenciamientoDetail.nivel_riesgo === 'MEDIO' ? '#fefce8' : '#f0fdf4',
@@ -980,20 +986,20 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                       </div>
 
                       {gerenciamientoDetail.es_bloqueante_horas && (
-                        <div style={{ marginTop: "8px", background: "#fee2e2", color: "#991b1b", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                          ⚠️ Alerta Crítica: Conductor con jornada excesiva previa al viaje. Requiere descanso obligatorio.
+                        <div style={{ marginTop: "8px", background: "#fee2e2", color: "#991b1b", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <IconAlert size={16} color="#dc2626" /> Alerta Crítica: Conductor con jornada excesiva previa al viaje. Requiere descanso obligatorio.
                         </div>
                       )}
                       {gerenciamientoDetail.requiere_aprobacion_nocturna && (
-                        <div style={{ marginTop: "6px", background: "#eff6ff", color: "#1e40af", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                          🌙 Traslado programado en horario nocturno. Requiere autorización estricta.
+                        <div style={{ marginTop: "6px", background: "#eff6ff", color: "#1e40af", padding: "6px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <IconMoon size={16} color="#1e40af" /> Traslado programado en horario nocturno. Requiere autorización estricta.
                         </div>
                       )}
                     </div>
 
                     {/* 8. Firma del Conductor */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      ✍️ Firma del Conductor
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconEdit size={16} /> Firma del Conductor
                     </h3>
                     <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
                       {gerenciamientoDetail.firma_conductor ? (
@@ -1013,15 +1019,15 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     </div>
 
                     {/* 9. Dictamen de Aprobación según Rol */}
-                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px" }}>
-                      🛡️ Dictamen de Autorización (Rol: {currentUserRole})
+                    <h3 style={{ fontSize: "0.95rem", color: "#1e3a8a", margin: "14px 0 6px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconShield size={16} /> Dictamen de Autorización (Rol: {currentUserRole})
                     </h3>
 
                     {gerenciamientoDetail.estado !== "PENDIENTE" ? (
                       /* Detalle de Gerenciamiento ya procesado */
                       <div style={{ background: gerenciamientoDetail.estado === "APROBADO" ? "#f0fdf4" : "#fef2f2", border: `1px solid ${gerenciamientoDetail.estado === "APROBADO" ? "#86efac" : "#f87171"}`, padding: "14px", borderRadius: "10px", marginBottom: "12px" }}>
-                        <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : "#991b1b", marginBottom: "6px" }}>
-                          {gerenciamientoDetail.estado === "APROBADO" ? "✅ VIAJE Y GERENCIAMIENTO AUTORIZADO" : "❌ VIAJE RECHAZADO"}
+                        <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: gerenciamientoDetail.estado === "APROBADO" ? "#166534" : "#991b1b", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {gerenciamientoDetail.estado === "APROBADO" ? <><IconCheck color="#166534" size={18} /> VIAJE Y GERENCIAMIENTO AUTORIZADO</> : <><IconCross color="#991b1b" size={18} /> VIAJE RECHAZADO</>}
                         </div>
                         <div style={{ fontSize: "0.85rem" }}>
                           <div><strong>Autorizado por:</strong> {gerenciamientoDetail.nombre_autorizador_firma || "Supervisor"}</div>
@@ -1045,7 +1051,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                         {/* Validación de Rol */}
                         {!canAuthorizeGerenciamiento && (
                           <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.85rem" }}>
-                            <strong>⚠️ Facultades de Autorización Insuficientes:</strong>
+                            <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}><IconAlert size={16} color="#c2410c" /> Facultades de Autorización Insuficientes:</strong>
                             <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
                               Tu rol actual es <strong>{currentUserRole}</strong>. Este viaje clasificado como <strong>RIESGO {gerenciamientoDetail.nivel_riesgo}</strong> requiere la aprobación de: <strong>{gerenciamientoDetail.autorizacion_requerida || "COORDINACIÓN / GERENCIA"}</strong>.
                             </p>
@@ -1077,13 +1083,13 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                         {signature ? (
                           <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "14px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                              <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem" }}>✅ Tu firma digital está lista</span>
+                              <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.88rem", display: "flex", alignItems: "center", gap: "6px" }}><IconCheck size={16} color="#166534" /> Tu firma digital está lista</span>
                               <button
                                 type="button"
                                 onClick={() => setShowSignatureModal(true)}
-                                style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer" }}
+                                style={{ background: "#e2e8f0", border: 0, padding: "4px 10px", borderRadius: "6px", fontSize: "0.78rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
                               >
-                                🔄 Modificar Firma
+                                <IconRefresh size={14} /> Modificar Firma
                               </button>
                             </div>
                             <img
@@ -1113,7 +1119,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                                 gap: "8px"
                               }}
                             >
-                              ✍️ Abrir Captura de Firma Digital
+                              <IconEdit size={18} color="#ffffff" /> Abrir Captura de Firma Digital
                             </button>
                           </div>
                         )}
@@ -1122,11 +1128,11 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                         <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
                           <button
                             type="button"
-                            style={{ flex: 1, background: "#ef4444", color: "#fff", padding: "10px", borderRadius: "8px", border: 0, fontWeight: "bold", cursor: signature ? "pointer" : "not-allowed", opacity: signature ? 1 : 0.6 }}
+                            style={{ flex: 1, background: "#ef4444", color: "#fff", padding: "10px", borderRadius: "8px", border: 0, fontWeight: "bold", cursor: signature ? "pointer" : "not-allowed", opacity: signature ? 1 : 0.6, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                             disabled={!signature}
                             onClick={() => decideGerenciamiento("RECHAZADO")}
                           >
-                            ❌ Rechazar Gerenciamiento
+                            <IconCross size={16} color="#fff" /> Rechazar Gerenciamiento
                           </button>
                           <button
                             type="button"
@@ -1138,12 +1144,16 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                               borderRadius: "8px",
                               border: 0,
                               fontWeight: "bold",
-                              cursor: (canAuthorizeGerenciamiento && signature) ? "pointer" : "not-allowed"
+                              cursor: (canAuthorizeGerenciamiento && signature) ? "pointer" : "not-allowed",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "6px"
                             }}
                             disabled={!canAuthorizeGerenciamiento || !signature}
                             onClick={() => decideGerenciamiento("APROBADO")}
                           >
-                            ✅ Aprobar Gerenciamiento e Inspección
+                            <IconCheck size={16} color="#fff" /> Aprobar Gerenciamiento e Inspección
                           </button>
                         </div>
                         {!canAuthorizeGerenciamiento && (

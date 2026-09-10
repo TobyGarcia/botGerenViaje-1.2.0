@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
 import logoAQR from "../assets/logoAQR.webp";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
+import { IconMapPin, IconStethoscope, IconClipboard, IconSearch, IconAlert, IconEdit, IconCheck, IconCross, IconCar, IconLock, IconRocket, IconMoon, IconRefresh, IconBan } from "./Icons.jsx";
+
 
 const defaultChecklistItems = {
   "Luces": "B",
@@ -493,14 +495,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       </header>
 
       {errorMessage && (
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
-          ⚠️ {errorMessage}
+        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}>
+          <IconAlert size={20} color="#dc2626" /> {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px 16px", borderRadius: "10px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem" }}>
-          {successMessage}
+        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px 16px", borderRadius: "10px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}>
+          <IconCheck size={20} color="#166534" /> {successMessage}
         </div>
       )}
 
@@ -508,7 +510,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         
         {/* Datos Básicos de Viaje */}
         <section className="geren-card">
-          <h4 className="geren-card-title">📍 Origen y Destino del Traslado</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconMapPin size={20} color="#0284c7" /> Origen y Destino del Traslado</h4>
 
           <div className="geren-grid-2" style={{ marginBottom: "14px" }}>
             <div className="geren-field">
@@ -589,7 +591,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 1. Valoración Médica Pre-viaje */}
         <section className="geren-card">
-          <h4 className="geren-card-title">🩺 1. Valoración Médica Pre-viaje</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconStethoscope size={20} color="#0284c7" /> 1. Valoración Médica Pre-viaje</h4>
 
           <div className="geren-grid-3" style={{ marginBottom: "14px" }}>
             <div className="geren-field">
@@ -630,7 +632,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 2. Información General del Vehículo y Ruta */}
         <section className="geren-card">
-          <h4 className="geren-card-title">📋 2. Información General del Traslado</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconClipboard size={20} color="#0284c7" /> 2. Información General del Traslado</h4>
           
           <div style={{ display: "grid", gap: "14px" }}>
             {/* Tiempo Estimado de Viaje */}
@@ -771,18 +773,18 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 3. Lista de Verificación e INSPECCIÓN VEHICULAR INTEGRADA CON MODAL */}
         <section className="geren-card">
-          <h4 className="geren-card-title">🔍 3. Lista de Verificación Previaje (Preguntas de Control 1-6)</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconSearch size={20} color="#0284c7" /> 3. Lista de Verificación Previaje (Preguntas de Control 1-6)</h4>
           
           {/* BANNER / BOTÓN PARA ACTIVAR LA VENTANA INTERACTIVA DE INSPECCIÓN VEHICULAR */}
           <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px 16px", borderRadius: "10px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
               <div>
-                <strong style={{ color: inspeccionCompleted ? "#166534" : "#c2410c", fontSize: "0.95rem" }}>
-                  {inspeccionCompleted ? "✅ Inspección Vehicular Diaria Realizada" : "⚠️ Inspección Vehicular Obligatoria Integrada"}
+                <strong style={{ color: inspeccionCompleted ? "#166534" : "#c2410c", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  {inspeccionCompleted ? <><IconCheck size={18} color="#166534" /> Inspección Vehicular Diaria Realizada</> : <><IconAlert size={18} color="#ea580c" /> Inspección Vehicular Obligatoria Integrada</>}
                 </strong>
                 <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
                   {inspeccionCompleted
-                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK ${inspeccionData?.esDiaSiguiente ? " | 🌙 Programado Día Siguiente (24h anticipación)" : ""}`
+                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK ${inspeccionData?.esDiaSiguiente ? " | Programado Día Siguiente (24h anticipación)" : ""}`
                     : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
                 </p>
               </div>
@@ -804,17 +806,20 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   fontWeight: "bold",
                   fontSize: "0.88rem",
                   cursor: "pointer",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.12)"
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
                 }}
               >
-                {inspeccionCompleted ? "🔄 Ver / Editar Inspección" : "🚗 Abrir Inspección Vehicular Interactiva"}
+                {inspeccionCompleted ? <><IconRefresh size={16} /> Ver / Editar Inspección</> : <><IconCar size={16} /> Abrir Inspección Vehicular Interactiva</>}
               </button>
             </div>
           </div>
 
           {!inspeccionCompleted && (
-            <div style={{ background: "#eff6ff", color: "#1d4ed8", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "14px", fontSize: "0.85rem", fontWeight: "bold" }}>
-              🔒 Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
+            <div style={{ background: "#eff6ff", color: "#1d4ed8", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "14px", fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
+              <IconLock size={16} color="#1d4ed8" /> Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
             </div>
           )}
 
@@ -871,7 +876,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 4. Tabuladores de Riesgo (COMPLETOS A, B, C, D, E, F, G) */}
         <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
-          <h4 className="geren-card-title">⚠️ 4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconAlert size={20} color="#ea580c" /> 4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h4>
 
           <div className="geren-grid-2">
             <div className="geren-field">
@@ -952,8 +957,8 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               </div>
             </div>
             {esBloqueante && (
-              <span style={{ background: "#dc2626", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                ⛔ BLOQUEANTE
+              <span style={{ background: "#dc2626", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <IconBan size={14} color="#fff" /> BLOQUEANTE
               </span>
             )}
           </div>
@@ -961,7 +966,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
         {/* 5. Firma Digital Conductor */}
         <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
-          <h4 className="geren-card-title">✍️ 5. Firma Digital del Conductor *</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconEdit size={20} color="#0284c7" /> 5. Firma Digital del Conductor *</h4>
           <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "#64748b" }}>
             Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás en condiciones óptimas para conducir.
           </p>
@@ -973,7 +978,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   <img src={firmaConductor} alt="Firma capturada" style={{ height: "60px", maxWidth: "160px", objectFit: "contain", display: "block" }} />
                 </div>
                 <div>
-                  <strong style={{ color: "#166534", fontSize: "0.92rem", display: "block" }}>✓ Firma Digital Capturada</strong>
+                  <strong style={{ color: "#166534", fontSize: "0.92rem", display: "flex", alignItems: "center", gap: "4px" }}><IconCheck size={18} color="#166534" /> Firma Digital Capturada</strong>
                   <span style={{ fontSize: "0.8rem", color: "#475569" }}>{selectedDriver.nombre || form.nombreConductor || "Conductor"}</span>
                 </div>
               </div>
@@ -981,9 +986,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               <button
                 type="button"
                 onClick={() => setShowSignatureModal(true)}
-                style={{ background: "#ffffff", border: "1px solid #86efac", color: "#15803d", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer" }}
+                style={{ background: "#ffffff", border: "1px solid #86efac", color: "#15803d", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                🔄 Modificar Firma
+                <IconRefresh size={16} /> Modificar Firma
               </button>
             </div>
           ) : (
@@ -1010,7 +1015,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   boxShadow: !inspeccionCompleted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.25)"
                 }}
               >
-                ✍️ Abrir Captura de Firma Digital
+                <IconEdit size={18} color="#ffffff" /> Abrir Captura de Firma Digital
               </button>
             </div>
           )}
@@ -1041,10 +1046,13 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               fontWeight: "bold",
               fontSize: "0.98rem",
               cursor: (esBloqueante || !inspeccionCompleted) ? "not-allowed" : "pointer",
-              boxShadow: (esBloqueante || !inspeccionCompleted) ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)"
+              boxShadow: (esBloqueante || !inspeccionCompleted) ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px"
             }}
           >
-            {submitting ? "Enviando Solicitud..." : "🚀 Registrar Gerenciamiento e Inspección"}
+            {submitting ? "Enviando Solicitud..." : <><IconRocket size={18} color="#ffffff" /> Registrar Gerenciamiento e Inspección</>}
           </button>
         </div>
 

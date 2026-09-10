@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import SupervisorApp from './SupervisorApp.jsx'
 import EvaluacionApp from './pages/EvaluacionApp.jsx'
+import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/Icons.jsx'
 
 // Inicializar y expandir Telegram WebApp tan pronto como sea posible
 if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -142,10 +143,14 @@ class RootErrorBoundary extends Component {
                   borderRadius: '10px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                🔄 Reintentar / Recargar
+                <IconRefresh size={18} /> Reintentar / Recargar
               </button>
 
               <button
@@ -159,10 +164,14 @@ class RootErrorBoundary extends Component {
                   borderRadius: '10px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  fontSize: '0.82rem'
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                🧹 Limpiar Caché y Reiniciar
+                <IconTrash size={16} /> Limpiar Caché y Reiniciar
               </button>
 
               <button
@@ -176,10 +185,14 @@ class RootErrorBoundary extends Component {
                   fontWeight: 600,
                   cursor: 'pointer',
                   textDecoration: 'underline',
-                  padding: '4px'
+                  padding: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px'
                 }}
               >
-                {this.state.copied ? "✓ Diagnóstico copiado al portapapeles" : "📋 Copiar reporte de error"}
+                {this.state.copied ? <><IconCheck size={14} color="#166534" /> Diagnóstico copiado al portapapeles</> : <><IconClipboard size={14} /> Copiar reporte de error</>}
               </button>
             </div>
           </div>

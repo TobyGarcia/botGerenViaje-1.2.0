@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IconCamera, IconRotate, IconAlert } from "./Icons.jsx";
 
 export default function CameraModal({ onCapture, onClose }) {
   const videoRef = useRef(null);
@@ -144,8 +145,8 @@ export default function CameraModal({ onCapture, onClose }) {
             background: "#0f172a"
           }}
         >
-          <span style={{ color: "#f8fafc", fontWeight: "600", fontSize: "0.95rem" }}>
-            📷 Visor de Cámara
+          <span style={{ color: "#f8fafc", fontWeight: "600", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
+            <IconCamera size={18} color="#38bdf8" /> Visor de Cámara
           </span>
           <button
             type="button"
@@ -184,7 +185,7 @@ export default function CameraModal({ onCapture, onClose }) {
 
           {cameraError ? (
             <div style={{ padding: "20px", textAlign: "center", color: "#fca5a5" }}>
-              <p style={{ fontSize: "1.8rem", margin: "0 0 8px 0" }}>⚠️</p>
+              <div style={{ marginBottom: "8px" }}><IconAlert size={32} color="#fca5a5" /></div>
               <p style={{ fontSize: "0.88rem", margin: 0 }}>{cameraError}</p>
             </div>
           ) : (
@@ -209,7 +210,7 @@ export default function CameraModal({ onCapture, onClose }) {
             padding: "14px 16px",
             display: "flex",
             gap: "10px",
-            justify: "center",
+            justifyContent: "center",
             alignItems: "center",
             flexWrap: "wrap",
             background: "#0f172a"
@@ -231,10 +232,10 @@ export default function CameraModal({ onCapture, onClose }) {
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "4px"
+                  gap: "6px"
                 }}
               >
-                🔄 Voltear
+                <IconRotate size={16} /> Voltear
               </button>
 
               <button
@@ -255,7 +256,7 @@ export default function CameraModal({ onCapture, onClose }) {
                   gap: "6px"
                 }}
               >
-                📸 Capturar Foto
+                <IconCamera size={18} /> Capturar Foto
               </button>
             </>
           )}
