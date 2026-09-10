@@ -19,6 +19,7 @@ import {
 
 import {
   calculateBearing,
+  calculateDistanceMeters,
   fetchSnappedRoadGeometry
 } from "../services/osrm-road-matching.js";
 
@@ -280,7 +281,30 @@ function TripMap({ locations = [] }) {
     deltaSec = Math.max(0, Math.round((tCurrent - tPrev) / 1000));
   }
 
-  const speedKmh = Number(currentLoc?.velocidad) || 0;
+  const rawDbSpeed = Number(currentLoc?.velocidad);
+  let speedKmh = 0;
+
+  if (Number.isFinite(rawDbSpeed) && rawDbSpeed > 0.5) {
+    speedKmh = rawDbSpeed;
+  } else {
+    // Si en BD la velocidad es 0, null o cercana a cero (ej. 0.01 de ruido GPS),
+    // calcular dinámicamente la velocidad con la distancia Haversine y el tiempo transcurrido
+    const refLoc = (prevLoc && prevLoc !== currentLoc) ? prevLoc : validLocations[Math.min(validLocations.length - 1, nearestLocIdx + 1)];
+    if (refLoc && refLoc !== currentLoc) {
+      const tCurrent = new Date(currentLoc.fechaGps ?? currentLoc.fecha_gps ?? 0).getTime();
+      const tRef = new Date(refLoc.fechaGps ?? refLoc.fecha_gps ?? 0).getTime();
+      const dtSec = Math.abs(Math.round((tCurrent - tRef) / 1000));
+      const distM = calculateDistanceMeters(
+        Number(refLoc.latitud),
+        Number(refLoc.longitud),
+        Number(currentLoc.latitud),
+        Number(currentLoc.longitud)
+      );
+      if (dtSec > 0 && distM > 1.5) {
+        speedKmh = (distM / dtSec) * 3.6;
+      }
+    }
+  }
 
   // Tiempos formateados (mm:ss)
   const startMs = validLocations[0]

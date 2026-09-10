@@ -86,10 +86,14 @@ services:
       SHAREPOINT_URL: ${SHAREPOINT_URL:-https://itzamnaoilandgas.sharepoint.com/sites/GerenciamientoViajes/Documentos%20compartidos/Forms/AllItems.aspx}
       SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID}
       SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-inspecciones}
+      SHAREPOINT_FOLDER_LICENCIAS: ${SHAREPOINT_FOLDER_LICENCIAS:-Licencias}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL}
 
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+
+    volumes:
+      - backend_uploads:/app/uploads
 
     depends_on:
       postgres:
@@ -172,6 +176,8 @@ services:
 volumes:
   postgres_data:
     name: viajes_postgres_data_prod
+  backend_uploads:
+    name: viajes_backend_uploads_prod
 
 networks:
   viajes_network:

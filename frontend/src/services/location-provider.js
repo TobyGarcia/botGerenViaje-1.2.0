@@ -10,11 +10,17 @@ function normalizeLocation(location) {
     throw new Error("La ubicación recibida no contiene coordenadas válidas.");
   }
 
+  let velocidad = null;
+  if (location.speed !== null && location.speed !== undefined && Number.isFinite(Number(location.speed)) && Number(location.speed) >= 0) {
+    // position.coords.speed viene de la API de HTML5 Geolocation en m/s. Convertir a km/h (* 3.6).
+    velocidad = Math.round(Number(location.speed) * 3.6 * 100) / 100;
+  }
+
   return {
     latitud,
     longitud,
     precisionMetros: location.accuracy ?? null,
-    velocidad: location.speed ?? null,
+    velocidad,
     direccion: location.heading ?? null,
     fechaGps: new Date(location.timestamp ?? Date.now()).toISOString()
   };

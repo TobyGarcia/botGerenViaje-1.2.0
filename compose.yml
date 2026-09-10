@@ -102,6 +102,7 @@ services:
       SHAREPOINT_URL: ${SHAREPOINT_URL:-https://itzamnaoilandgas.sharepoint.com/sites/GerenciamientoViajes/Documentos%20compartidos/Forms/AllItems.aspx}
       SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID}
       SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-inspecciones}
+      SHAREPOINT_FOLDER_LICENCIAS: ${SHAREPOINT_FOLDER_LICENCIAS:-Licencias}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL}
       CORS_ORIGINS: ${CORS_ORIGINS}
 
@@ -111,6 +112,7 @@ services:
 
     volumes:
       - ./backend/src:/app/src
+      - backend_uploads:/app/uploads
     
     depends_on:
       postgres:
@@ -195,6 +197,9 @@ volumes:
 
   backend_node_modules:
     name: viajes_backend_node_modules
+
+  backend_uploads:
+    name: viajes_backend_uploads
 
   
 networks:
