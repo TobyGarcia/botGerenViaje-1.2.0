@@ -1,11 +1,12 @@
 /**
- * Servicio de Audio Sintetizado en Hardware para PWA Móvil (25Hz Subsónico)
- * Genera una onda senoidal de 25Hz mediante Web Audio API con amplitud infinitesimal (0.001)
- * sin archivos de audio ni etiquetas externas.
- * Mantiene activo el hilo de JavaScript y la sesión multimedia en dispositivos móviles
- * para evitar que Android Doze Mode / iOS WebKit Process Suspension duerman el GPS.
+ * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA Móvil
+ * Combina un elemento de audio HTML5 (<audio loop>), un sintetizador Web Audio a 25Hz,
+ * MediaSession API y WakeLock para máxima resistencia en dispositivos con capas agresivas
+ * de gestión de batería (Xiaomi MIUI/HyperOS, Samsung, Huawei).
  */
 
+let audioElement = null;
+let audioBlobUrl = null;
 let audioCtx = null;
 let audioOscillator = null;
 let audioGain = null;
@@ -29,7 +30,52 @@ export function isMobileDevice() {
 }
 
 /**
- * Solicita Wake Lock de pantalla si está disponible en el navegador.
+ * Genera un Blob de audio WAV de silencio puro (PCM 8-bit mono a 8kHz, 2 segundos).
+ */
+function getOrCreateSilentAudioUrl() {
+  if (audioBlobUrl) return audioBlobUrl;
+
+  try {
+    const sampleRate = 8000;
+    const durationSeconds = 2;
+    const numSamples = sampleRate * durationSeconds;
+    const dataSize = numSamples;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeString(offset, string) {
+      for (let i = 0; i < string.length; i += 1) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate, true);
+    view.setUint16(32, 1, true);
+    view.setUint16(34, 8, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    new Uint8Array(buffer, 44).fill(128);
+
+    const blob = new Blob([buffer], { type: "audio/wav" });
+    audioBlobUrl = URL.createObjectURL(blob);
+    return audioBlobUrl;
+  } catch (error) {
+    console.warn("[BackgroundAudio] Fallback a Data URI para audio silencioso:", error);
+    return "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+  }
+}
+
+/**
+ * Solicita Wake Lock de pantalla si está disponible.
  */
 async function acquireWakeLock() {
   if (typeof navigator !== "undefined" && "wakeLock" in navigator && !wakeLockSentinel) {
@@ -45,7 +91,7 @@ async function acquireWakeLock() {
 }
 
 /**
- * Libera el Wake Lock de pantalla.
+ * Libera el Wake Lock.
  */
 function releaseWakeLock() {
   if (wakeLockSentinel) {
@@ -59,7 +105,7 @@ function releaseWakeLock() {
 }
 
 /**
- * Configura la sesión multimedia (MediaSession API) en navegadores móviles compatibles.
+ * Configura la sesión multimedia (MediaSession API) en la barra de Android.
  */
 function setupMediaSession() {
   if (typeof navigator !== "undefined" && "mediaSession" in navigator && window.MediaMetadata) {
@@ -72,15 +118,16 @@ function setupMediaSession() {
       navigator.mediaSession.playbackState = "playing";
 
       navigator.mediaSession.setActionHandler("play", () => {
-        if (isAudioActive && audioCtx && audioCtx.state === "suspended") {
-          audioCtx.resume().catch(() => {});
+        if (isAudioActive) {
+          if (audioElement && audioElement.paused) audioElement.play().catch(() => {});
+          if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
           navigator.mediaSession.playbackState = "playing";
         }
       });
       navigator.mediaSession.setActionHandler("pause", () => {
-        // Al pausar desde notificación, si el viaje sigue activo, reactivar
-        if (isAudioActive && audioCtx && audioCtx.state === "suspended") {
-          audioCtx.resume().catch(() => {});
+        if (isAudioActive) {
+          if (audioElement && audioElement.paused) audioElement.play().catch(() => {});
+          if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
           navigator.mediaSession.playbackState = "playing";
         }
       });
@@ -91,61 +138,80 @@ function setupMediaSession() {
 }
 
 /**
- * Inicia el sintetizador de hardware de 25Hz y el soporte de segundo plano.
- * Solo se ejecuta en dispositivos móviles.
+ * Inicia la reproducción híbrida: HTML5 Audio + Web Audio 25Hz.
  */
 export async function startSilentAudioKeepAlive() {
-  // Estrictamente solo para dispositivos móviles / PWA móvil
   if (!isMobileDevice()) {
     return false;
   }
 
   isAudioActive = true;
 
+  // 1. Iniciar HTML5 Audio Element (Requerido por Xiaomi/MIUI para notificaciones de medios)
+  try {
+    if (!audioElement) {
+      const src = getOrCreateSilentAudioUrl();
+      audioElement = new Audio(src);
+      audioElement.loop = true;
+      audioElement.preload = "auto";
+      audioElement.volume = 0.05;
+
+      audioElement.addEventListener("ended", () => {
+        if (isAudioActive && audioElement) {
+          audioElement.play().catch(() => {});
+        }
+      });
+    }
+    await audioElement.play();
+  } catch (errHtml) {
+    console.warn("[BackgroundAudio] HTML5 Audio warning:", errHtml);
+  }
+
+  // 2. Iniciar Web Audio API (Oscilador subsónico 25Hz)
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return false;
-
-    if (!audioCtx || audioCtx.state === "closed") {
-      audioCtx = new AudioContextClass();
+    if (AudioContextClass) {
+      if (!audioCtx || audioCtx.state === "closed") {
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
+      if (!audioOscillator) {
+        audioOscillator = audioCtx.createOscillator();
+        audioGain = audioCtx.createGain();
+        audioOscillator.type = "sine";
+        audioOscillator.frequency.setValueAtTime(25, audioCtx.currentTime);
+        audioGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        audioOscillator.connect(audioGain);
+        audioGain.connect(audioCtx.destination);
+        audioOscillator.start();
+      }
     }
-
-    if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
-    }
-
-    if (!audioOscillator) {
-      audioOscillator = audioCtx.createOscillator();
-      audioGain = audioCtx.createGain();
-
-      // Onda senoidal a 25Hz (frecuencia subsónica inaudible para el oído humano)
-      audioOscillator.type = "sine";
-      audioOscillator.frequency.setValueAtTime(25, audioCtx.currentTime);
-
-      // Ganancia prácticamente nula (amplitud infinitesimal 0.001) para 0 consumo de batería
-      audioGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-
-      // Conectar oscilador -> ganancia -> salida de audio de hardware
-      audioOscillator.connect(audioGain);
-      audioGain.connect(audioCtx.destination);
-      audioOscillator.start();
-    }
-
-    setupMediaSession();
-    await acquireWakeLock();
-
-    return true;
-  } catch (error) {
-    console.warn("[BackgroundAudio] No se pudo iniciar el sintetizador Web Audio 25Hz:", error);
-    return false;
+  } catch (errWeb) {
+    console.warn("[BackgroundAudio] Web Audio warning:", errWeb);
   }
+
+  setupMediaSession();
+  await acquireWakeLock();
+
+  return true;
 }
 
 /**
- * Detiene y libera completamente el sintetizador Web Audio y el estado de segundo plano.
+ * Detiene y libera completamente todos los recursos de audio.
  */
 export function stopSilentAudioKeepAlive() {
   isAudioActive = false;
+
+  if (audioElement) {
+    try {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    } catch {
+      // Ignorar error al pausar
+    }
+  }
 
   try {
     if (audioOscillator) {
@@ -161,7 +227,7 @@ export function stopSilentAudioKeepAlive() {
       audioCtx.close().catch(() => {});
       audioCtx = null;
     }
-  } catch (e) {
+  } catch {
     // Ignorar errores de cierre
   }
 
@@ -177,16 +243,19 @@ export function stopSilentAudioKeepAlive() {
 }
 
 /**
- * Retorna true si el sintetizador de fondo está actualmente activo.
+ * Retorna true si el mantenimiento de segundo plano está activo.
  */
 export function isSilentAudioActive() {
-  return isAudioActive && audioCtx !== null && audioCtx.state === "running";
+  return isAudioActive;
 }
 
-// Escuchar cambios de visibilidad para reanudar el audio si el SO intentó suspenderlo
+// Escuchar cambios de visibilidad para reanudar si el SO intenta pausar
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && isAudioActive) {
+      if (audioElement && audioElement.paused) {
+        audioElement.play().catch(() => {});
+      }
       if (audioCtx && audioCtx.state === "suspended") {
         audioCtx.resume().catch(() => {});
       }

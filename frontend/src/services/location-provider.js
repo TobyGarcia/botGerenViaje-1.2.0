@@ -19,21 +19,44 @@ function normalizeLocation(location) {
     fechaGps: new Date(location.timestamp ?? Date.now()).toISOString()
   };
 }
+
 function getBrowserLocation() {
   if (!navigator.geolocation) return Promise.reject(new Error("Este dispositivo no admite geolocalización."));
-  return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(
-    (position) => resolve(normalizeLocation({
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy,
-      speed: position.coords.speed,
-      heading: position.coords.heading,
-      timestamp: position.timestamp
-    })),
-    (error) => reject(new Error(({ 1: "El permiso de ubicación fue rechazado.", 2: "La ubicación no está disponible.", 3: "Se agotó el tiempo para obtener la ubicación." })[error.code] || "No fue posible obtener la ubicación.")),
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
-  ));
+  return new Promise((resolve, reject) => {
+    // Intento 1: Alta precisión con timeout de 12 segundos
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(normalizeLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        speed: position.coords.speed,
+        heading: position.coords.heading,
+        timestamp: position.timestamp
+      })),
+      (error) => {
+        // Fallback para Xiaomi/MIUI y ahorro de energía: Intentar con precisión estándar (red/celular)
+        navigator.geolocation.getCurrentPosition(
+          (posFallback) => resolve(normalizeLocation({
+            latitude: posFallback.coords.latitude,
+            longitude: posFallback.coords.longitude,
+            accuracy: posFallback.coords.accuracy,
+            speed: posFallback.coords.speed,
+            heading: posFallback.coords.heading,
+            timestamp: posFallback.timestamp
+          })),
+          (errFallback) => reject(new Error(({
+            1: "El permiso de ubicación fue rechazado.",
+            2: "Ubicación no disponible (revisar configuración de ahorro de batería en Xiaomi).",
+            3: "Se agotó el tiempo para obtener la señal GPS."
+          })[errFallback.code || error.code] || "No fue posible obtener la ubicación.")),
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }
+    );
+  });
 }
+
 async function getTelegramLocation() {
   const manager = window.Telegram?.WebApp?.LocationManager;
   if (!manager) throw new Error("Telegram LocationManager no está disponible.");
@@ -65,9 +88,8 @@ async function getTelegramLocation() {
     });
   });
 }
+
 export async function getCurrentLocation() {
-  // El SDK también puede existir en una PWA instalada porque index.html lo carga.
-  // initData distingue el WebView real de Telegram de una ejecución standalone.
   const isTelegramMiniApp = Boolean(window.Telegram?.WebApp?.initData);
   if (!isTelegramMiniApp) return getBrowserLocation();
   try { return await getTelegramLocation(); }
