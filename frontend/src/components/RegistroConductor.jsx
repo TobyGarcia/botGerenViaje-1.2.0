@@ -17,8 +17,10 @@ import {
   IconCheck,
   IconDocument,
   IconRefresh,
-  IconPin
+  IconPin,
+  IconDownload
 } from "./Icons.jsx";
+import { downloadPinCardImage } from "../utils/downloadPinCard.js";
 
 function getInitialName(usuario) {
   return [usuario?.firstName, usuario?.lastName]
@@ -227,33 +229,61 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
               >
                 {pendingResult.pinGenerado}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (navigator.clipboard?.writeText) {
-                    navigator.clipboard.writeText(pendingResult.pinGenerado);
-                  }
-                  setCopiedPin(true);
-                  setTimeout(() => setCopiedPin(false), 2500);
-                }}
-                style={{
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "6px 14px",
-                  fontSize: "0.82rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  marginTop: "6px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                {copiedPin ? <IconCheck size={16} /> : <IconClipboard size={16} />}
-                {copiedPin ? "¡PIN Copiado!" : "Copiar PIN"}
-              </button>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginTop: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.clipboard?.writeText) {
+                      navigator.clipboard.writeText(pendingResult.pinGenerado);
+                    }
+                    setCopiedPin(true);
+                    setTimeout(() => setCopiedPin(false), 2500);
+                  }}
+                  style={{
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                >
+                  {copiedPin ? <IconCheck size={16} /> : <IconClipboard size={16} />}
+                  {copiedPin ? "¡PIN Copiado!" : "Copiar PIN"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadPinCardImage({
+                      nombre: pendingResult.conductor?.nombre || form.nombre || "Conductor",
+                      pin: pendingResult.pinGenerado,
+                      empresa: form.empresa || pendingResult.conductor?.empresa
+                    });
+                  }}
+                  style={{
+                    background: "#059669",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                  title="Descargar imagen digital con tu nombre y PIN"
+                >
+                  <IconDownload size={16} /> Guardar Imagen
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ background: "#eff6ff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "20px", color: "#1e40af", fontSize: "0.85rem" }}>

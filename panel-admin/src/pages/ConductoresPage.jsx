@@ -11,8 +11,10 @@ import {
   getAdminVehiculos,
   updateAdminConductorStatus,
   approveAdminConductor,
-  setAdminConductorPin
+  setAdminConductorPin,
+  toggleAdminConductorActive
 } from "../services/api.js";
+import { downloadPinCardImage } from "../utils/downloadPinCard.js";
 
 
 const initialForm = {
@@ -100,6 +102,19 @@ function ConductoresPage({ user }) {
   const [approveModalConductor, setApproveModalConductor] =
     useState(null);
 
+  // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
+  const [pinModalConductor, setPinModalConductor] = useState(null);
+  const [pinMode, setPinMode] = useState("auto"); // 'auto' | 'manual'
+  const [manualPin, setManualPin] = useState("");
+  const [pinModalError, setPinModalError] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
+
+  const [pinSuccessData, setPinSuccessData] = useState(null);
+  const [copiedSuccessPin, setCopiedSuccessPin] = useState(false);
+
+  const [toggleActiveConductor, setToggleActiveConductor] = useState(null);
+  const [deleteConfirmConductor, setDeleteConfirmConductor] = useState(null);
+
   const submitRef =
     useRef(false);
 
@@ -155,7 +170,12 @@ function ConductoresPage({ user }) {
       setUpdatingId(idConductor);
       const res = await approveAdminConductor(idConductor, aprobado);
       if (res.data?.pinGenerado) {
-        window.alert(`✅ Conductor aprobado correctamente.\n\n🔑 Se le asignó el PIN de acceso: ${res.data.pinGenerado}`);
+        const cond = conductores.find((c) => c.id_conductores === idConductor) || approveModalConductor;
+        setPinSuccessData({
+          conductorNombre: cond?.nombre || "Conductor",
+          pin: res.data.pinGenerado,
+          isApproval: true
+        });
       }
       setMessage(res.message || "Estado de aprobación actualizado.");
       setMessageType("success");
@@ -168,42 +188,88 @@ function ConductoresPage({ user }) {
     }
   }
 
-  async function handleSetPin(conductor) {
-    const opcionAuto = window.confirm(
-      `¿Deseas generar automáticamente un nuevo PIN de 4 dígitos para ${conductor.nombre}?\n\n- Clic en [Aceptar] para generar un PIN aleatorio automáticamente.\n- Clic en [Cancelar] si prefieres escribir un PIN manual.`
-    );
+  function handleOpenPinModal(conductor) {
+    setPinModalConductor(conductor);
+    setPinMode("auto");
+    setManualPin("");
+    setPinModalError("");
+  }
 
-    let pinToSend = null;
-    let auto = false;
-
-    if (opcionAuto) {
-      auto = true;
-    } else {
-      const inputPin = window.prompt(`Ingresa el nuevo PIN de 4 dígitos para ${conductor.nombre}:`);
-      if (!inputPin) return;
-      const cleanPin = inputPin.trim();
-      if (!/^\d{4}$/.test(cleanPin)) {
-        alert("El PIN debe constar de exactamente 4 dígitos numéricos.");
+  async function handleSavePin() {
+    if (!pinModalConductor) return;
+    if (pinMode === "manual") {
+      const clean = manualPin.trim();
+      if (!/^\d{4}$/.test(clean)) {
+        setPinModalError("El PIN debe constar de exactamente 4 dígitos numéricos.");
         return;
       }
-      pinToSend = cleanPin;
     }
 
+    setSavingPin(true);
+    setPinModalError("");
     try {
-      setUpdatingId(conductor.id_conductores);
-      const res = await setAdminConductorPin(conductor.id_conductores, pinToSend, auto);
-      const pinFinal = res.data?.pinGenerado || pinToSend;
-      window.alert(`✅ ¡Nuevo PIN asignado con éxito a ${conductor.nombre}!\n\n🔑 PIN: ${pinFinal}\n\nPor favor compárteselo al conductor.`);
-      setMessage(res.message || `PIN asignado correctamente a ${conductor.nombre}: ${pinFinal}`);
+      setUpdatingId(pinModalConductor.id_conductores);
+      const res = await setAdminConductorPin(
+        pinModalConductor.id_conductores,
+        pinMode === "manual" ? manualPin.trim() : null,
+        pinMode === "auto"
+      );
+      const pinFinal = res.data?.pinGenerado || manualPin.trim();
+      const conductorTarget = pinModalConductor;
+      setPinModalConductor(null);
+      setPinSuccessData({
+        conductorNombre: conductorTarget.nombre,
+        pin: pinFinal,
+        isApproval: false
+      });
+      setMessage(res.message || `PIN asignado correctamente a ${conductorTarget.nombre}: ${pinFinal}`);
       setMessageType("success");
       await loadConductores();
     } catch (err) {
-      setMessage(err.message || "Error al asignar el PIN.");
+      setPinModalError(err.message || "Error al asignar el PIN.");
+    } finally {
+      setSavingPin(false);
+      setUpdatingId(null);
+    }
+  }
+
+  const canToggleActive = !user || [
+    "ADMINISTRADOR",
+    "GERENTE",
+    "GERENTE_GENERAL",
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE"
+  ].includes(user?.rol);
+
+  function handleOpenToggleActive(conductor) {
+    setToggleActiveConductor(conductor);
+  }
+
+  async function confirmToggleActive() {
+    if (!toggleActiveConductor) return;
+    const conductor = toggleActiveConductor;
+    const nuevoEstado = !conductor.activo;
+    const accionTexto = nuevoEstado ? "reactivar" : "desactivar";
+
+    try {
+      setUpdatingId(conductor.id_conductores);
+      const res = await toggleAdminConductorActive(conductor.id_conductores, nuevoEstado);
+      setMessage(res.message || `Conductor ${nuevoEstado ? "reactivado" : "desactivado"} correctamente.`);
+      setMessageType("success");
+      await loadConductores();
+      if (approveModalConductor && approveModalConductor.id_conductores === conductor.id_conductores) {
+        setApproveModalConductor((prev) => (prev ? { ...prev, activo: nuevoEstado } : null));
+      }
+      setToggleActiveConductor(null);
+    } catch (err) {
+      setMessage(err.message || `Error al ${accionTexto} al conductor.`);
       setMessageType("error");
     } finally {
       setUpdatingId(null);
     }
   }
+
 
 
   useEffect(() => {
@@ -333,42 +399,31 @@ function ConductoresPage({ user }) {
     }
   }
 
-  async function handleStatusChange(
-    conductor
-  ) {
-    const confirmed =
-      window.confirm(
-        `¿Eliminar permanentemente a ${conductor.nombre}? También se eliminará su usuario de Telegram. Sus viajes históricos se conservarán.`
-      );
+  function handleOpenDelete(conductor) {
+    setDeleteConfirmConductor(conductor);
+  }
 
-    if (!confirmed) {
-      return;
-    }
+  async function confirmDeleteDriver() {
+    if (!deleteConfirmConductor) return;
+    const conductor = deleteConfirmConductor;
 
-    setUpdatingId(
-      conductor.id_conductores
-    );
-
+    setUpdatingId(conductor.id_conductores);
     setMessage("");
 
     try {
-      const response =
-        await updateAdminConductorStatus(
-          conductor.id_conductores,
-          false
-        );
+      const response = await updateAdminConductorStatus(
+        conductor.id_conductores,
+        false
+      );
 
       setConductores((current) =>
         current.filter((item) => item.id_conductores !== conductor.id_conductores)
       );
       await loadConductores();
 
-      setMessage(
-        response.message
-      );
-
+      setMessage(response.message || "Conductor eliminado permanentemente.");
       setMessageType("success");
-
+      setDeleteConfirmConductor(null);
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -657,7 +712,7 @@ function ConductoresPage({ user }) {
           </p>
         ) : (
           <>
-            <div className="table-wrapper">
+            <div className="table-wrapper admin-table-desktop">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -832,27 +887,39 @@ function ConductoresPage({ user }) {
                               className="secondary-button"
                               style={{ padding: "4px 8px", fontSize: "0.8rem" }}
                               disabled={updatingId === conductor.id_conductores}
-                              onClick={() => handleSetPin(conductor)}
+                              onClick={() => handleOpenPinModal(conductor)}
                               title="Generar automáticamente o cambiar PIN"
                             >
                               {conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                             </button>
 
+                            {canToggleActive && (
+                              <button
+                                type="button"
+                                className={conductor.activo ? "danger-button" : "reactivate-button"}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "0.8rem",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleOpenToggleActive(conductor)}
+                                title={conductor.activo ? "Desactivar conductor (impedirá acceso y viajes)" : "Reactivar conductor"}
+                              >
+                                {conductor.activo ? "Desactivar" : "✓ Reactivar"}
+                              </button>
+                            )}
+
                             {(!user || user.rol === "ADMINISTRADOR") && (
                               <button
                                 type="button"
-                                className={
-                                  conductor.activo
-                                    ? "danger-button"
-                                    : "reactivate-button"
-                                }
-                                style={{ padding: "4px 8px", fontSize: "0.8rem" }}
-                                disabled={
-                                  updatingId === conductor.id_conductores
-                                }
-                                onClick={() =>
-                                  handleStatusChange(conductor)
-                                }
+                                className="secondary-button"
+                                style={{ padding: "4px 8px", fontSize: "0.8rem", color: "#991b1b", border: "1px solid #fecaca" }}
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleOpenDelete(conductor)}
+                                title="Eliminar permanentemente de la base de datos"
                               >
                                 Eliminar
                               </button>
@@ -865,6 +932,157 @@ function ConductoresPage({ user }) {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Vista móvil en tarjetas responsivas (pantallas <= 900px) */}
+          <div className="conductores-cards-mobile">
+            {paginatedConductores.map((conductor) => (
+              <article key={conductor.id_conductores} className="conductor-mobile-card">
+                <header className="conductor-mobile-header">
+                  <div>
+                    <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
+                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                      {conductor.empresa || "Sin empresa"}
+                    </span>
+                  </div>
+                  <div className="conductor-mobile-badges">
+                    <span className={`status-badge ${conductor.activo ? "status-active" : "status-inactive"}`}>
+                      {conductor.activo ? "Activo" : "Inactivo"}
+                    </span>
+                    <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
+                      {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.74rem",
+                        padding: "3px 7px",
+                        borderRadius: "999px",
+                        fontWeight: "700",
+                        background: conductor.tiene_pin ? "#e4f7ed" : "#fae8e8",
+                        color: conductor.tiene_pin ? "#12643e" : "#8a3030"
+                      }}
+                    >
+                      {conductor.tiene_pin ? "✓ PIN Activo" : "Sin PIN"}
+                    </span>
+                  </div>
+                </header>
+
+                <div className="conductor-mobile-grid">
+                  <div className="conductor-mobile-field">
+                    <span className="conductor-mobile-label">Teléfono</span>
+                    <span className="conductor-mobile-value">{conductor.telefono || "No registrado"}</span>
+                  </div>
+
+                  <div className="conductor-mobile-field">
+                    <span className="conductor-mobile-label">Licencia</span>
+                    <span className="conductor-mobile-value">
+                      {conductor.licencia_numero || "N/A"}{" "}
+                      <small className={conductor.licencia_vigente ? "license-valid" : "license-expired"}>
+                        ({conductor.licencia_vigente ? "Vigente" : "Vencida"})
+                      </small>
+                    </span>
+                  </div>
+
+                  <div className="conductor-mobile-field">
+                    <span className="conductor-mobile-label">Vencimiento</span>
+                    <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
+                  </div>
+
+                  <div className="conductor-mobile-field">
+                    <span className="conductor-mobile-label">Manejo Comentado</span>
+                    <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
+                  </div>
+
+                  <div className="conductor-mobile-field">
+                    <span className="conductor-mobile-label">Telegram</span>
+                    <span className={`conductor-mobile-value ${conductor.telegram_id ? "telegram-linked" : "telegram-unlinked"}`}>
+                      {conductor.telegram_id ? "Vinculado" : "Sin vínculo"}
+                    </span>
+                  </div>
+
+                  <div className="conductor-mobile-field full-width">
+                    <span className="conductor-mobile-label">Unidad Asignada</span>
+                    <select
+                      value={conductor.id_vehiculo_asignado || ""}
+                      onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
+                      disabled={assigningId === conductor.id_conductores || !conductor.activo}
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        borderRadius: "6px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "0.85rem",
+                        background: "#ffffff"
+                      }}
+                    >
+                      <option value="">-- Sin asignar --</option>
+                      {vehiculosOptions.map((v) => (
+                        <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                          {v.nombre} — {v.numero_economico}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
+                  <footer className="conductor-mobile-actions">
+                    {!conductor.aprobado_por_admin ? (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        style={{ backgroundColor: "#16a34a" }}
+                        disabled={updatingId === conductor.id_conductores}
+                        onClick={() => setApproveModalConductor(conductor)}
+                      >
+                        Aprobar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setApproveModalConductor(conductor)}
+                      >
+                        Ver Licencia
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={updatingId === conductor.id_conductores}
+                      onClick={() => handleOpenPinModal(conductor)}
+                      title="Generar automáticamente o cambiar PIN"
+                    >
+                      {conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}
+                    </button>
+
+                    {canToggleActive && (
+                      <button
+                        type="button"
+                        className={conductor.activo ? "danger-button" : "reactivate-button"}
+                        disabled={updatingId === conductor.id_conductores}
+                        onClick={() => handleOpenToggleActive(conductor)}
+                      >
+                        {conductor.activo ? "Desactivar" : "✓ Reactivar"}
+                      </button>
+                    )}
+
+                    {(!user || user.rol === "ADMINISTRADOR") && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ color: "#991b1b", border: "1px solid #fecaca" }}
+                        disabled={updatingId === conductor.id_conductores}
+                        onClick={() => handleOpenDelete(conductor)}
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </footer>
+                )}
+              </article>
+            ))}
           </div>
 
             {totalFiltered > 0 && (
@@ -1012,7 +1230,7 @@ function ConductoresPage({ user }) {
               </div>
             </div>
 
-            <div className="form-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "12px" }}>
+            <div className="form-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "12px", display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="secondary-button"
@@ -1021,6 +1239,18 @@ function ConductoresPage({ user }) {
               >
                 Cerrar
               </button>
+
+              {canToggleActive && (
+                <button
+                  type="button"
+                  className={approveModalConductor.activo ? "danger-button" : "reactivate-button"}
+                  style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+                  disabled={updatingId === approveModalConductor.id_conductores}
+                  onClick={() => handleOpenToggleActive(approveModalConductor)}
+                >
+                  {approveModalConductor.activo ? "Desactivar Conductor" : "✓ Reactivar Conductor"}
+                </button>
+              )}
 
               {!approveModalConductor.aprobado_por_admin && (
                 <>
@@ -1052,6 +1282,399 @@ function ConductoresPage({ user }) {
               )}
             </div>
           </section>
+        </div>
+      )}
+
+      {/* Modal 1: Asignar / Cambiar PIN */}
+      {pinModalConductor && (
+        <div className="modal-overlay" onClick={() => !savingPin && setPinModalConductor(null)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: "440px", width: "100%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2>{pinModalConductor.tiene_pin ? "Cambiar PIN de Acceso" : "Asignar PIN de Acceso"}</h2>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.85rem" }}>
+                  Conductor: <strong>{pinModalConductor.nombre}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                disabled={savingPin}
+                onClick={() => setPinModalConductor(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px 0" }}>
+              <p style={{ fontSize: "0.88rem", color: "#475569", margin: 0 }}>
+                Elige cómo deseas establecer el PIN de 4 dígitos para este conductor:
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: pinMode === "auto" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                    background: pinMode === "auto" ? "#eff6ff" : "#f8fafc",
+                    cursor: "pointer"
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="pinMode"
+                    value="auto"
+                    checked={pinMode === "auto"}
+                    onChange={() => {
+                      setPinMode("auto");
+                      setPinModalError("");
+                    }}
+                    style={{ marginTop: "2px" }}
+                  />
+                  <div>
+                    <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
+                      🎲 Generar automáticamente
+                    </strong>
+                    <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                      El sistema creará un PIN aleatorio y seguro de 4 dígitos.
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: pinMode === "manual" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                    background: pinMode === "manual" ? "#eff6ff" : "#f8fafc",
+                    cursor: "pointer"
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="pinMode"
+                    value="manual"
+                    checked={pinMode === "manual"}
+                    onChange={() => {
+                      setPinMode("manual");
+                      setPinModalError("");
+                    }}
+                    style={{ marginTop: "2px" }}
+                  />
+                  <div style={{ width: "100%" }}>
+                    <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
+                      ✏️ Ingresar PIN manual
+                    </strong>
+                    <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                      Escribe un código numérico de exactamente 4 dígitos.
+                    </span>
+
+                    {pinMode === "manual" && (
+                      <div style={{ marginTop: "10px" }}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          placeholder="Ej. 4829"
+                          value={manualPin}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            setManualPin(val);
+                            if (pinModalError) setPinModalError("");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            fontSize: "1.2rem",
+                            letterSpacing: "4px",
+                            textAlign: "center",
+                            fontFamily: "monospace",
+                            fontWeight: "bold",
+                            borderRadius: "6px",
+                            border: "1px solid #cbd5e1"
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              {pinModalError && (
+                <div style={{ padding: "8px 12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontSize: "0.82rem" }}>
+                  ⚠️ {pinModalError}
+                </div>
+              )}
+            </div>
+
+            <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={savingPin}
+                onClick={() => setPinModalConductor(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={savingPin || (pinMode === "manual" && manualPin.length !== 4)}
+                onClick={handleSavePin}
+              >
+                {savingPin ? "Guardando..." : "Asignar PIN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: PIN Asignado con Éxito */}
+      {pinSuccessData && (
+        <div className="modal-overlay" onClick={() => setPinSuccessData(null)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: "420px", width: "100%", textAlign: "center" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: "3rem", margin: "10px 0 6px 0" }}>🎉</div>
+            <h2 style={{ fontSize: "1.25rem", color: "#1e293b", margin: "0 0 6px 0" }}>
+              {pinSuccessData.isApproval ? "¡Conductor Aprobado!" : "¡PIN Asignado con Éxito!"}
+            </h2>
+            <p style={{ fontSize: "0.88rem", color: "#64748b", margin: "0 0 16px 0" }}>
+              {pinSuccessData.isApproval
+                ? `El conductor ${pinSuccessData.conductorNombre} ha sido aprobado. Se le generó el siguiente PIN para el bot:`
+                : `Se asignó el nuevo PIN de acceso para ${pinSuccessData.conductorNombre}:`}
+            </p>
+
+            <div
+              style={{
+                background: "#f1f5f9",
+                border: "2px dashed #94a3b8",
+                borderRadius: "10px",
+                padding: "16px",
+                margin: "0 0 16px 0",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "10px"
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "2.4rem",
+                  fontWeight: "bold",
+                  letterSpacing: "8px",
+                  fontFamily: "monospace",
+                  color: "#0f172a"
+                }}
+              >
+                {pinSuccessData.pin}
+              </span>
+
+              <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{
+                    fontSize: "0.85rem",
+                    padding: "6px 14px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(pinSuccessData.pin);
+                    setCopiedSuccessPin(true);
+                    setTimeout(() => setCopiedSuccessPin(false), 2000);
+                  }}
+                >
+                  {copiedSuccessPin ? "✓ ¡Copiado!" : "📋 Copiar PIN"}
+                </button>
+
+                <button
+                  type="button"
+                  className="primary-button"
+                  style={{
+                    backgroundColor: "#059669",
+                    fontSize: "0.85rem",
+                    padding: "6px 14px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                  onClick={() => {
+                    downloadPinCardImage({
+                      nombre: pinSuccessData.conductorNombre,
+                      pin: pinSuccessData.pin
+                    });
+                  }}
+                  title="Descargar imagen digital con el PIN y nombre del conductor"
+                >
+                  📥 Guardar Imagen
+                </button>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "0.8rem", color: "#475569", margin: "0 0 20px 0" }}>
+              💡 Entrégale este PIN al conductor para que pueda iniciar sesión en el bot de Telegram de la empresa.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <button
+                type="button"
+                className="primary-button"
+                style={{ width: "100%", padding: "10px" }}
+                onClick={() => setPinSuccessData(null)}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Confirmación Activar / Desactivar */}
+      {toggleActiveConductor && (
+        <div className="modal-overlay" onClick={() => updatingId !== toggleActiveConductor.id_conductores && setToggleActiveConductor(null)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: "440px", width: "100%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2>{toggleActiveConductor.activo ? "¿Desactivar Conductor?" : "¿Reactivar Conductor?"}</h2>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.85rem" }}>
+                  Conductor: <strong>{toggleActiveConductor.nombre}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                disabled={updatingId === toggleActiveConductor.id_conductores}
+                onClick={() => setToggleActiveConductor(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 0", fontSize: "0.9rem", color: "#334155", lineHeight: "1.5" }}>
+              {toggleActiveConductor.activo ? (
+                <>
+                  <p style={{ margin: "0 0 10px 0" }}>
+                    ¿Estás seguro de que deseas <strong>desactivar</strong> a este conductor?
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: "20px", color: "#64748b", fontSize: "0.85rem" }}>
+                    <li>No podrá iniciar sesión en el bot de Telegram.</li>
+                    <li>No podrá iniciar nuevos viajes.</li>
+                    <li>Si tiene un viaje actualmente en curso, el sistema rechazará la desactivación.</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p style={{ margin: "0 0 10px 0" }}>
+                    ¿Estás seguro de que deseas <strong>reactivar</strong> a este conductor?
+                  </p>
+                  <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>
+                    El conductor podrá volver a acceder al bot de Telegram y comenzar viajes con normalidad.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={updatingId === toggleActiveConductor.id_conductores}
+                onClick={() => setToggleActiveConductor(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={toggleActiveConductor.activo ? "danger-button" : "primary-button"}
+                style={!toggleActiveConductor.activo ? { backgroundColor: "#16a34a" } : {}}
+                disabled={updatingId === toggleActiveConductor.id_conductores}
+                onClick={confirmToggleActive}
+              >
+                {updatingId === toggleActiveConductor.id_conductores
+                  ? "Procesando..."
+                  : toggleActiveConductor.activo
+                  ? "Sí, desactivar"
+                  : "✓ Sí, reactivar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Confirmación Eliminar */}
+      {deleteConfirmConductor && (
+        <div className="modal-overlay" onClick={() => updatingId !== deleteConfirmConductor.id_conductores && setDeleteConfirmConductor(null)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: "440px", width: "100%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2 style={{ color: "#b91c1c" }}>¿Eliminar Conductor?</h2>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.85rem" }}>
+                  Conductor: <strong>{deleteConfirmConductor.nombre}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                disabled={updatingId === deleteConfirmConductor.id_conductores}
+                onClick={() => setDeleteConfirmConductor(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 0", fontSize: "0.9rem", color: "#334155", lineHeight: "1.5" }}>
+              <p style={{ margin: "0 0 10px 0" }}>
+                ¿Estás seguro de que deseas eliminar permanentemente a <strong>{deleteConfirmConductor.nombre}</strong>?
+              </p>
+              <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b" }}>
+                ⚠️ <strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.
+              </div>
+            </div>
+
+            <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={updatingId === deleteConfirmConductor.id_conductores}
+                onClick={() => setDeleteConfirmConductor(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={updatingId === deleteConfirmConductor.id_conductores}
+                onClick={confirmDeleteDriver}
+              >
+                {updatingId === deleteConfirmConductor.id_conductores ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

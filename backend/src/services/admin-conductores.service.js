@@ -359,3 +359,57 @@ export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
   }
 }
 
+export async function toggleAdminDriverActive({ idConductor, activo }) {
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Si se intenta desactivar, verificar que no tenga un viaje activo en curso
+    if (!activo) {
+      const inProgress = await client.query(
+        `SELECT 1 
+         FROM viajes v 
+         INNER JOIN estados_viaje e ON e.id_estado_viaje = v.id_estado_viaje 
+         WHERE v.id_conductores = $1 AND e.nombre = 'EN_CURSO' 
+         LIMIT 1`,
+        [idConductor]
+      );
+      if (inProgress.rows[0]) {
+        const error = new Error("No se puede desactivar un conductor con un viaje actualmente en curso.");
+        error.code = "TRIP_IN_PROGRESS";
+        throw error;
+      }
+    }
+
+    const result = await client.query(
+      `UPDATE conductores
+       SET activo = $1, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_conductores = $2
+       RETURNING id_conductores, nombre, activo, aprobado_por_admin, (pin_hash IS NOT NULL) AS tiene_pin`,
+      [Boolean(activo), idConductor]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    // Sincronizar estado activo en usuarios_telegram asociados a este conductor
+    await client.query(
+      `UPDATE usuarios_telegram
+       SET activo = $1, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_conductores = $2`,
+      [Boolean(activo), idConductor]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+

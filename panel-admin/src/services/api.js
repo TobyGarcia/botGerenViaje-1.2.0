@@ -175,6 +175,18 @@ export function updateAdminConductorStatus(
   );
 }
 
+export function toggleAdminConductorActive(idConductor, activo) {
+  return request(
+    `/admin/conductores/${idConductor}/activo`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        activo: Boolean(activo)
+      })
+    }
+  );
+}
+
 export function assignAdminConductorVehicle(idConductor, idVehiculo) {
   return request(
     `/admin/conductores/${idConductor}/asignar-vehiculo`,

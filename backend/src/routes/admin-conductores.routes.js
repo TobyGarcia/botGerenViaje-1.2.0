@@ -8,7 +8,8 @@ import {
   listAdminDriversController,
   updateAdminDriverStatusController,
   approveAdminDriverController,
-  setDriverPinAdminController
+  setDriverPinAdminController,
+  toggleAdminDriverActiveController
 } from "../controllers/admin-conductores.controller.js";
 
 import {
@@ -16,6 +17,15 @@ import {
   requireAdminRoles,
   ROLES_SUPERVISOR_Y_SUPERIOR
 } from "../middlewares/admin-auth.middleware.js";
+
+const ROLES_ADMIN_GERENTE_COORDINADOR = [
+  "ADMINISTRADOR",
+  "GERENTE",
+  "GERENTE_GENERAL",
+  "COORDINADOR",
+  "COORDINADOR_AREA",
+  "COORDINADOR_QHSE"
+];
 
 const router = Router();
 
@@ -33,6 +43,12 @@ router.post(
   "/",
   requireAdminRoles("ADMINISTRADOR"),
   createAdminDriverController
+);
+
+router.patch(
+  "/:idConductor/activo",
+  requireAdminRoles(ROLES_ADMIN_GERENTE_COORDINADOR),
+  toggleAdminDriverActiveController
 );
 
 router.patch(

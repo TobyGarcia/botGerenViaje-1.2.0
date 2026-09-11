@@ -106,9 +106,13 @@ sequenceDiagram
 - **Acción "Generar nuevo PIN":**
   - Al pulsar el botón, una ventana de diálogo pregunta al supervisor si desea **generar automáticamente** un PIN aleatorio o **ingresar uno manual**.
   - Si elige automático, el backend genera el código y el panel muestra un `alert` con el PIN resultante para compartirlo con el conductor.
-- **Aprobación:**
-  - El supervisor hace clic en el interruptor o botón de aprobación.
-  - Si el conductor no tenía PIN (caso legado), una alerta emergente notifica al supervisor el PIN que el sistema le asignó automáticamente.
+- **Acción "Desactivar / Reactivar" (Admin, Gerente y Coordinador):**
+  - **Permisos:** Habilitado para `ADMINISTRADOR`, `GERENTE`, `GERENTE_GENERAL`, `COORDINADOR`, `COORDINADOR_AREA` y `COORDINADOR_QHSE`.
+  - **Acción en Tabla y Modal:** Si el conductor está activo, muestra botón `.danger-button` ("Desactivar"). Si está inactivo, muestra `.reactivate-button` ("✓ Reactivar").
+  - **Protección:** No permite desactivar si el conductor tiene un viaje `EN_CURSO`.
+  - **Efecto Inmediato:** Sincroniza `conductores.activo = false` y `usuarios_telegram.activo = false`. Bloquea inicios de sesión y viajes de inmediato sin eliminar su historial de viajes.
+- **Acción "Eliminar":**
+  - Exclusivo para el rol `ADMINISTRADOR`, eliminando permanentemente el registro tras confirmación.
 
 ---
 

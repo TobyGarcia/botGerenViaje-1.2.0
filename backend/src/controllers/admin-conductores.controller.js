@@ -3,7 +3,8 @@ import {
   createAdminDriver,
   listAdminDrivers,
   updateAdminDriverStatus,
-  approveAdminDriver
+  approveAdminDriver,
+  toggleAdminDriverActive
 } from "../services/admin-conductores.service.js";
 import { setDriverPin } from "../services/driver-auth.service.js";
 import { saveLicenseFileBase64 } from "../utils/file-storage.js";
@@ -393,5 +394,50 @@ export async function assignAdminConductorVehicleController(request, response) {
   }
 }
 
+export async function toggleAdminDriverActiveController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    const { activo } = request.body || {};
 
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
 
+    if (typeof activo !== "boolean") {
+      return response.status(400).json({
+        success: false,
+        message: "El estado activo debe ser un valor booleano (true o false)."
+      });
+    }
+
+    const updated = await toggleAdminDriverActive({ idConductor, activo });
+    if (!updated) {
+      return response.status(404).json({
+        success: false,
+        message: "No se encontró el conductor especificado."
+      });
+    }
+
+    const statusText = activo ? "reactivado" : "desactivado";
+    return response.status(200).json({
+      success: true,
+      data: updated,
+      message: `Conductor ${statusText} correctamente.`
+    });
+  } catch (error) {
+    if (error.code === "TRIP_IN_PROGRESS") {
+      return response.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
+    console.error("Error en toggleAdminDriverActiveController:", error);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "Ocurrió un error al actualizar el estado del conductor."
+    });
+  }
+}

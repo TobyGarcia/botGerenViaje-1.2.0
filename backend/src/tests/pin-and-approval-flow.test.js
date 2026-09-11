@@ -8,7 +8,8 @@ import {
 } from "../services/telegram-auth.service.js";
 import {
   approveAdminDriver,
-  createAdminDriver
+  createAdminDriver,
+  toggleAdminDriverActive
 } from "../services/admin-conductores.service.js";
 import {
   setDriverPin,
@@ -332,4 +333,58 @@ describe("🧪 Simulación y Pruebas Unitarias del Flujo Unificado de PIN y Apro
       /Conductor no encontrado/
     );
   });
+
+  test("Caso 8: Desactivar y Reactivar conductor -> Bloqueo de acceso y recuperación", async () => {
+    // 1. Crear y aprobar un nuevo conductor con su PIN
+    const testLicencia = `LIC-ACTIVO-${Date.now()}`;
+    const conductor = await createAdminDriver({
+      nombre: "Conductor Toggle Activo Test",
+      telefono: "5551239999",
+      licenciaNumero: testLicencia,
+      tipoLicencia: "B",
+      empresa: "ASPROMEX",
+      licenciaVencimiento: "2030-01-01"
+    });
+    createdConductorIds.push(conductor.id_conductores);
+
+    // Validar login exitoso inicial
+    const loginInicial = await authenticateDriverWithPin({
+      idConductor: conductor.id_conductores,
+      pin: conductor.pinGenerado
+    });
+    assert.equal(loginInicial.authenticated, true, "Debe autenticarse inicialmente");
+
+    // 2. Desactivar al conductor (activo = false)
+    const desactivado = await toggleAdminDriverActive({
+      idConductor: conductor.id_conductores,
+      activo: false
+    });
+    assert.ok(desactivado);
+    assert.equal(desactivado.activo, false, "El conductor debe quedar inactivo");
+
+    // 3. Intento de login mientras está desactivado -> Debe fallar con CONDUCTOR_INACTIVE
+    const loginInactivo = await authenticateDriverWithPin({
+      idConductor: conductor.id_conductores,
+      pin: conductor.pinGenerado
+    });
+    assert.equal(loginInactivo.authenticated, false);
+    assert.equal(loginInactivo.reason, "CONDUCTOR_INACTIVE", "Debe rechazar el login por conductor inactivo");
+
+    // 4. Reactivar al conductor (activo = true)
+    const reactivado = await toggleAdminDriverActive({
+      idConductor: conductor.id_conductores,
+      activo: true
+    });
+    assert.ok(reactivado);
+    assert.equal(reactivado.activo, true, "El conductor debe quedar activo nuevamente");
+
+    // 5. Intento de login tras reactivar -> Debe autenticarse exitosamente de nuevo
+    const loginReactivado = await authenticateDriverWithPin({
+      idConductor: conductor.id_conductores,
+      pin: conductor.pinGenerado
+    });
+    assert.equal(loginReactivado.authenticated, true, "Debe volver a autenticarse exitosamente");
+    assert.ok(loginReactivado.token, "Debe recibir token de sesión");
+  });
 });
+
