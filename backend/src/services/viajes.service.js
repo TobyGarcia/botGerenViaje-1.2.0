@@ -353,12 +353,30 @@ export async function startTrip({
       );
     }
 
-    const evaluationDate = trip.fecha_manejo_comentado
-      ? new Date(`${String(trip.fecha_manejo_comentado).slice(0, 10)}T00:00:00`)
-      : null;
-    const validUntil = evaluationDate ? new Date(evaluationDate) : null;
+    let evaluationDate = null;
+    if (trip.fecha_manejo_comentado) {
+      if (trip.fecha_manejo_comentado instanceof Date) {
+        evaluationDate = new Date(trip.fecha_manejo_comentado.getTime());
+      } else {
+        const rawStr = String(trip.fecha_manejo_comentado).trim();
+        const dateMatch = rawStr.match(/^\d{4}-\d{2}-\d{2}/);
+        if (dateMatch) {
+          const [y, m, d] = dateMatch[0].split("-").map(Number);
+          evaluationDate = new Date(y, m - 1, d);
+        } else {
+          evaluationDate = new Date(rawStr);
+        }
+      }
+    }
+
+    const isInvalid = !evaluationDate || Number.isNaN(evaluationDate.getTime());
+    const validUntil = !isInvalid ? new Date(evaluationDate.getTime()) : null;
     if (validUntil) validUntil.setMonth(validUntil.getMonth() + 6);
-    const manejoComentadoVencido = !validUntil || validUntil < new Date();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const manejoComentadoVencido = isInvalid || !validUntil || validUntil < today;
 
     if (manejoComentadoVencido) {
       const approvalResult = await client.query(
