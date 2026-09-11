@@ -20,8 +20,121 @@ import {
   IconKey,
   IconPower,
   IconReactivar,
-  IconEliminar
+  IconEliminar,
+  IconUsuarios,
+  IconAlerta,
+  IconSwap,
+  IconCoche,
+  IconReset
 } from "../components/Icons.jsx";
+
+function getLicenciaStatus(conductor) {
+  if (!conductor?.licencia_vencimiento) {
+    return {
+      status: "sin_fecha",
+      label: "Sin fecha de vencimiento",
+      color: "#64748b"
+    };
+  }
+
+  const normalized =
+    typeof conductor.licencia_vencimiento === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(conductor.licencia_vencimiento)
+      ? `${conductor.licencia_vencimiento}T23:59:59`
+      : conductor.licencia_vencimiento;
+
+  const expirationDate = new Date(normalized);
+  if (Number.isNaN(expirationDate.getTime())) {
+    return {
+      status: "invalida",
+      label: "Fecha inválida",
+      color: "#64748b"
+    };
+  }
+
+  const now = new Date();
+  const diffTime = expirationDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: "vencida",
+      label: `Licencia vencida (${Math.abs(diffDays)} días atrás)`,
+      days: diffDays,
+      color: "#dc2626"
+    };
+  }
+
+  if (diffDays <= 30) {
+    return {
+      status: "por_vencer",
+      label: `Licencia por vencer (quedan ${diffDays} día${diffDays === 1 ? "" : "s"})`,
+      days: diffDays,
+      color: "#d97706"
+    };
+  }
+
+  return {
+    status: "vigente",
+    label: `Licencia vigente (${diffDays} días restantes)`,
+    days: diffDays,
+    color: "#16a34a"
+  };
+}
+
+function getManejoComentadoStatus(conductor) {
+  if (!conductor?.fecha_manejo_comentado) {
+    return {
+      status: "no_registrado",
+      label: "Manejo comentado no registrado",
+      color: "#dc2626"
+    };
+  }
+
+  const normalized =
+    typeof conductor.fecha_manejo_comentado === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(conductor.fecha_manejo_comentado)
+      ? `${conductor.fecha_manejo_comentado}T00:00:00`
+      : conductor.fecha_manejo_comentado;
+
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return {
+      status: "no_registrado",
+      label: "Fecha de manejo comentado no válida",
+      color: "#dc2626"
+    };
+  }
+
+  // Vigencia estándar de 1 año (365 días) desde la fecha realizada
+  const vencimiento = new Date(date);
+  vencimiento.setFullYear(vencimiento.getFullYear() + 1);
+
+  const now = new Date();
+  const diffDays = Math.ceil((vencimiento.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: "vencido",
+      label: `Manejo comentado vencido (${Math.abs(diffDays)} días atrás)`,
+      color: "#dc2626"
+    };
+  }
+
+  if (diffDays <= 30) {
+    return {
+      status: "por_vencer",
+      label: `Manejo comentado por vencer (quedan ${diffDays} días)`,
+      color: "#d97706"
+    };
+  }
+
+  return {
+    status: "vigente",
+    label: `Manejo comentado vigente (quedan ${diffDays} días)`,
+    color: "#16a34a"
+  };
+}
 
 function formatDate(value) {
   if (!value) {
@@ -84,6 +197,10 @@ function ConductoresPage({ user }) {
 
   const [approveModalConductor, setApproveModalConductor] =
     useState(null);
+
+  const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
+  const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
+  const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
 
   // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
   const [pinModalConductor, setPinModalConductor] = useState(null);
@@ -185,42 +302,46 @@ function ConductoresPage({ user }) {
       }
     }
 
-    setSavingPin(true);
-    setPinModalError("");
     try {
-      setUpdatingId(pinModalConductor.id_conductores);
+      setSavingPin(true);
+      setPinModalError("");
       const res = await setAdminConductorPin(
         pinModalConductor.id_conductores,
-        pinMode === "manual" ? manualPin.trim() : null,
-        pinMode === "auto"
+        pinMode === "manual" ? manualPin.trim() : null
       );
-      const pinFinal = res.data?.pinGenerado || manualPin.trim();
-      const conductorTarget = pinModalConductor;
+
+      const generatedPin = res.data?.pin;
       setPinModalConductor(null);
       setPinSuccessData({
-        conductorNombre: conductorTarget.nombre,
-        pin: pinFinal,
+        conductorNombre: pinModalConductor.nombre,
+        pin: generatedPin,
         isApproval: false
       });
-      setMessage(res.message || `PIN asignado correctamente a ${conductorTarget.nombre}: ${pinFinal}`);
+      setMessage(res.message || "PIN asignado exitosamente.");
       setMessageType("success");
       await loadConductores();
     } catch (err) {
-      setPinModalError(err.message || "Error al asignar el PIN.");
+      setPinModalError(err.message || "Error al asignar PIN.");
     } finally {
       setSavingPin(false);
-      setUpdatingId(null);
     }
   }
 
-  const canToggleActive = !user || [
-    "ADMINISTRADOR",
-    "GERENTE",
-    "GERENTE_GENERAL",
-    "COORDINADOR",
-    "COORDINADOR_AREA",
-    "COORDINADOR_QHSE"
-  ].includes(user?.rol);
+  function handleDownloadPinCard() {
+    if (!pinSuccessData) return;
+    downloadPinCardImage(pinSuccessData.conductorNombre, pinSuccessData.pin);
+  }
+
+  function handleCopyPin() {
+    if (!pinSuccessData?.pin) return;
+    navigator.clipboard.writeText(pinSuccessData.pin);
+    setCopiedSuccessPin(true);
+    setTimeout(() => setCopiedSuccessPin(false), 2000);
+  }
+
+  const canToggleActive =
+    !user ||
+    ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user.rol);
 
   function handleOpenToggleActive(conductor) {
     setToggleActiveConductor(conductor);
@@ -232,13 +353,19 @@ function ConductoresPage({ user }) {
     const nuevoEstado = !conductor.activo;
     const accionTexto = nuevoEstado ? "reactivar" : "desactivar";
 
+    setUpdatingId(conductor.id_conductores);
+    setMessage("");
+
     try {
-      setUpdatingId(conductor.id_conductores);
       const res = await toggleAdminConductorActive(conductor.id_conductores, nuevoEstado);
       setMessage(res.message || `Conductor ${nuevoEstado ? "reactivado" : "desactivado"} correctamente.`);
       setMessageType("success");
-      await loadConductores();
-      if (approveModalConductor && approveModalConductor.id_conductores === conductor.id_conductores) {
+
+      setConductores((prev) =>
+        prev.map((c) => (c.id_conductores === conductor.id_conductores ? { ...c, activo: nuevoEstado } : c))
+      );
+
+      if (approveModalConductor?.id_conductores === conductor.id_conductores) {
         setApproveModalConductor((prev) => (prev ? { ...prev, activo: nuevoEstado } : null));
       }
       setToggleActiveConductor(null);
@@ -249,8 +376,6 @@ function ConductoresPage({ user }) {
       setUpdatingId(null);
     }
   }
-
-
 
   useEffect(() => {
     loadVehiculos();
@@ -268,8 +393,6 @@ function ConductoresPage({ user }) {
       );
     };
   }, [search, status]);
-
-
 
   function handleOpenDelete(conductor) {
     setDeleteConfirmConductor(conductor);
@@ -304,9 +427,54 @@ function ConductoresPage({ user }) {
     }
   }
 
-  const totalFiltered = conductores.length;
+  // Lista única de empresas para el filtro
+  const empresasList = Array.from(
+    new Set(conductores.map((c) => c.empresa).filter(Boolean))
+  ).sort();
+
+  // Filtrado compuesto en cliente
+  const filteredConductores = conductores.filter((conductor) => {
+    if (selectedEmpresa !== "TODAS" && conductor.empresa !== selectedEmpresa) {
+      return false;
+    }
+    if (selectedUnidadFilter === "CON_UNIDAD" && !conductor.id_vehiculo_asignado) {
+      return false;
+    }
+    if (selectedUnidadFilter === "SIN_UNIDAD" && conductor.id_vehiculo_asignado) {
+      return false;
+    }
+    if (onlyExpiringLicenses) {
+      const licStatus = getLicenciaStatus(conductor);
+      if (licStatus.status !== "por_vencer" && licStatus.status !== "vencida") {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Métricas para KPI Cards
+  const totalConductoresCount = conductores.length;
+  const activosCount = conductores.filter((c) => c.activo).length;
+  const disponibilidadPct = totalConductoresCount > 0 ? ((activosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
+  const unidadesAsignadasCount = conductores.filter((c) => c.id_vehiculo_asignado).length;
+  const unidadesSinAsignarCount = Math.max(0, totalConductoresCount - unidadesAsignadasCount);
+  const licenciasPorVencerCount = conductores.filter((c) => {
+    const s = getLicenciaStatus(c).status;
+    return s === "por_vencer" || s === "vencida";
+  }).length;
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setStatus("TODOS");
+    setSelectedEmpresa("TODAS");
+    setSelectedUnidadFilter("TODAS");
+    setOnlyExpiringLicenses(false);
+    setCurrentPage(1);
+  };
+
+  const totalFiltered = filteredConductores.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
-  const paginatedConductores = conductores.slice(
+  const paginatedConductores = filteredConductores.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -322,17 +490,85 @@ function ConductoresPage({ user }) {
           <h1>Conductores</h1>
 
           <p>
-            Consulta, registra y controla
-            el acceso de los conductores.
+            Consulta, registra y controla el acceso y la vigencia operativa de los conductores.
           </p>
         </div>
-
       </header>
 
-      <section className="module-toolbar">
+      {/* KPI Cards Grid */}
+      <section className="conductores-kpis-grid" aria-label="Métricas de conductores">
+        <div className="conductor-kpi-card">
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Total Conductores</span>
+            <div className="kpi-icon-wrapper kpi-icon-blue">
+              <IconUsuarios size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{totalConductoresCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-blue">Registrados</span> en plataforma
+          </div>
+        </div>
+
+        <div className="conductor-kpi-card">
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Activos Operativos</span>
+            <div className="kpi-icon-wrapper kpi-icon-green">
+              <IconCheck size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{activosCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-green">{disponibilidadPct}%</span> de disponibilidad
+          </div>
+        </div>
+
+        <div className="conductor-kpi-card">
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Unidades Asignadas</span>
+            <div className="kpi-icon-wrapper kpi-icon-indigo">
+              <IconSwap size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{unidadesAsignadasCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-gray">{unidadesSinAsignarCount} sin asignar</span>
+          </div>
+        </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyExpiringLicenses ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyExpiringLicenses(!onlyExpiringLicenses);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyExpiringLicenses(!onlyExpiringLicenses);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyExpiringLicenses ? "Click para mostrar todos los conductores" : "Click para filtrar solo conductores con licencia por vencer o vencida"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Licencias por Vencer</span>
+            <div className="kpi-icon-wrapper kpi-icon-amber">
+              <IconAlerta size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value kpi-val-amber">{licenciasPorVencerCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-amber">Plazo &lt; 30 días</span> {onlyExpiringLicenses ? "(Filtro activo)" : "requieren atención"}
+          </div>
+        </div>
+      </section>
+
+      {/* Toolbar con filtros completos y botón de reset */}
+      <section className="module-toolbar conductores-filter-toolbar">
         <label className="search-field">
           <span>Buscar</span>
-
           <input
             type="search"
             value={search}
@@ -340,13 +576,12 @@ function ConductoresPage({ user }) {
               setSearch(event.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Nombre, licencia o teléfono"
+            placeholder="Buscar por nombre, licencia..."
           />
         </label>
 
         <label className="status-filter">
           <span>Estado</span>
-
           <select
             value={status}
             onChange={(event) => {
@@ -354,19 +589,56 @@ function ConductoresPage({ user }) {
               setCurrentPage(1);
             }}
           >
-            <option value="TODOS">
-              Todos
-            </option>
-
-            <option value="ACTIVOS">
-              Activos
-            </option>
-
-            <option value="INACTIVOS">
-              Inactivos
-            </option>
+            <option value="TODOS">Todos</option>
+            <option value="ACTIVOS">Activos</option>
+            <option value="INACTIVOS">Inactivos</option>
           </select>
         </label>
+
+        <label className="status-filter">
+          <span>Empresa</span>
+          <select
+            value={selectedEmpresa}
+            onChange={(event) => {
+              setSelectedEmpresa(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODAS">Empresa: Todas</option>
+            {empresasList.map((emp) => (
+              <option key={emp} value={emp}>
+                {emp}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="status-filter">
+          <span>Unidades</span>
+          <select
+            value={selectedUnidadFilter}
+            onChange={(event) => {
+              setSelectedUnidadFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODAS">Unidades: Todas</option>
+            <option value="CON_UNIDAD">Con unidad</option>
+            <option value="SIN_UNIDAD">Sin unidad</option>
+          </select>
+        </label>
+
+        <div className="toolbar-reset-wrapper">
+          <button
+            type="button"
+            className="filter-reset-btn"
+            onClick={handleResetFilters}
+            data-tooltip="Restablecer filtros"
+            aria-label="Restablecer filtros"
+          >
+            <IconReset size={16} />
+          </button>
+        </div>
       </section>
 
       {message && (
@@ -382,16 +654,24 @@ function ConductoresPage({ user }) {
         </p>
       )}
 
-
+      {onlyExpiringLicenses && (
+        <div className="filter-active-notice">
+          <IconAlerta size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con licencia vencida o por vencer en los próximos 30 días ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyExpiringLicenses(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
       <section className="table-panel">
         {loading ? (
           <p className="table-status">
             Cargando conductores...
           </p>
-        ) : conductores.length === 0 ? (
+        ) : filteredConductores.length === 0 ? (
           <p className="table-status">
-            No se encontraron conductores.
+            No se encontraron conductores con los criterios seleccionados.
           </p>
         ) : (
           <>
@@ -414,87 +694,135 @@ function ConductoresPage({ user }) {
               </thead>
 
               <tbody>
-                {paginatedConductores.map(
-                  (conductor) => (
-                    <tr
-                      key={
-                        conductor.id_conductores
-                      }
-                    >
+                {paginatedConductores.map((conductor) => {
+                  const licStatus = getLicenciaStatus(conductor);
+                  const mcStatus = getManejoComentadoStatus(conductor);
+                  const vehiculoAsignado = vehiculosOptions.find((v) => v.id_vehiculos === conductor.id_vehiculo_asignado);
+
+                  return (
+                    <tr key={conductor.id_conductores}>
                       <td className="col-conductor">
-                        <strong className="conductor-name-cell">
-                          {conductor.nombre}
-                        </strong>
+                        <div className="conductor-name-group">
+                          <strong className="conductor-name-cell">
+                            {conductor.nombre}
+                          </strong>
+                          <span className="conductor-id-badge">
+                            ID: CON-{String(conductor.id_conductores).padStart(4, "0")}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-empresa">
-                        <span className="conductor-empresa-cell" title={conductor.empresa || "No registrada"}>
-                          {conductor.empresa || "No registrada"}
+                        <span className="empresa-pill-badge" title={conductor.empresa || "No registrada"}>
+                          {conductor.empresa || "Sin registrar"}
                         </span>
                       </td>
 
                       <td className="col-unidad">
-                        <select
-                          className="conductor-unit-select"
-                          value={conductor.id_vehiculo_asignado || ""}
-                          onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                          disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                          title={conductor.id_vehiculo_asignado ? "Cambiar unidad asignada" : "Asignar unidad"}
-                        >
-                          <option value="">-- Sin asignar --</option>
-                          {vehiculosOptions.map((v) => (
-                            <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                              {v.nombre} — {v.numero_economico}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="conductor-unit-cell">
+                          {conductor.id_vehiculo_asignado && vehiculoAsignado ? (
+                            <div className="assigned-unit-chip" title={`${vehiculoAsignado.nombre} — ${vehiculoAsignado.numero_economico}`}>
+                              <IconCoche size={14} />
+                              <span>{vehiculoAsignado.numero_economico || vehiculoAsignado.nombre}</span>
+                            </div>
+                          ) : (
+                            <span className="unassigned-unit-text">Sin asignar</span>
+                          )}
+                          <select
+                            className="conductor-unit-select"
+                            value={conductor.id_vehiculo_asignado || ""}
+                            onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
+                            disabled={assigningId === conductor.id_conductores || !conductor.activo}
+                            title="Cambiar asignación vehicular"
+                          >
+                            <option value="">-- Sin unidad --</option>
+                            {vehiculosOptions.map((v) => (
+                              <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                                {v.numero_economico} ({v.nombre})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
 
                       <td className="col-licencia">
                         <div className="conductor-licencia-cell">
                           <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
-                          <small
-                            className={
-                              conductor.licencia_vigente
-                                ? "license-valid"
-                                : "license-expired"
-                            }
-                          >
-                            {conductor.licencia_vigente
-                              ? "Vigente"
-                              : "Vencida"}
-                          </small>
+                          <div className="licencia-status-row">
+                            <span
+                              className={`status-pop-indicator status-pop-${licStatus.status}`}
+                              data-tooltip={licStatus.label}
+                              aria-label={licStatus.label}
+                            >
+                              {licStatus.status === "vigente" ? (
+                                <IconCheck size={13} />
+                              ) : licStatus.status === "por_vencer" ? (
+                                <IconAlerta size={13} />
+                              ) : (
+                                <IconCross size={13} />
+                              )}
+                            </span>
+                            <span className={`licencia-label-text status-text-${licStatus.status}`}>
+                              {licStatus.status === "vigente"
+                                ? "Vigente"
+                                : licStatus.status === "por_vencer"
+                                ? "Por vencer"
+                                : "Vencida"}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
                       <td className="col-vencimiento">
-                        <span className="date-cell">
-                          {formatDate(conductor.licencia_vencimiento)}
-                        </span>
+                        <div className="date-with-pop-cell">
+                          <span className="date-cell">
+                            {formatDate(conductor.licencia_vencimiento)}
+                          </span>
+                          <span
+                            className={`date-icon-indicator status-pop-${licStatus.status}`}
+                            data-tooltip={licStatus.label}
+                            aria-label={licStatus.label}
+                          >
+                            {licStatus.status === "vigente" ? (
+                              <IconCheck size={12} />
+                            ) : licStatus.status === "por_vencer" ? (
+                              <IconAlerta size={12} />
+                            ) : (
+                              <IconCross size={12} />
+                            )}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-mc">
-                        <span className="date-cell">
-                          {formatDate(conductor.fecha_manejo_comentado)}
-                        </span>
+                        <div className="date-with-pop-cell">
+                          <span className="date-cell">
+                            {formatDate(conductor.fecha_manejo_comentado)}
+                          </span>
+                          <span
+                            className={`date-icon-indicator status-pop-${mcStatus.status}`}
+                            data-tooltip={mcStatus.label}
+                            aria-label={mcStatus.label}
+                          >
+                            {mcStatus.status === "vigente" ? (
+                              <IconCheck size={12} />
+                            ) : mcStatus.status === "por_vencer" ? (
+                              <IconAlerta size={12} />
+                            ) : (
+                              <IconCross size={12} />
+                            )}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-aprobacion">
                         <div className="conductor-aprobacion-cell">
                           <span
-                            className={
-                              conductor.aprobado_por_admin
-                                ? "status-badge status-active"
-                                : "status-badge status-inactive"
-                            }
-                            style={{
-                              backgroundColor: conductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
-                              color: conductor.aprobado_por_admin ? "#166534" : "#92400e"
-                            }}
+                            className={`status-badge ${
+                              conductor.aprobado_por_admin ? "status-active" : "status-pending"
+                            }`}
                           >
-                            {conductor.aprobado_por_admin
-                              ? "Aprobado"
-                              : "Pendiente"}
+                            {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
                           </span>
 
                           {!conductor.aprobado_por_admin && (!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
@@ -525,17 +853,10 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td className="col-estado">
-                        <span
-                          className={
-                            conductor.activo
-                              ? "status-badge status-active"
-                              : "status-badge status-inactive"
-                          }
-                        >
-                          {conductor.activo
-                            ? "Activo"
-                            : "Inactivo"}
-                        </span>
+                        <div className="conductor-estado-indicator">
+                          <span className={`estado-dot ${conductor.activo ? "dot-active" : "dot-inactive"}`} />
+                          <span className="estado-text">{conductor.activo ? "Activo" : "Inactivo"}</span>
+                        </div>
                       </td>
 
                       {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
@@ -591,78 +912,137 @@ function ConductoresPage({ user }) {
                         </td>
                       )}
                     </tr>
-                  )
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Vista móvil en tarjetas responsivas (pantallas <= 900px) */}
           <div className="conductores-cards-mobile">
-            {paginatedConductores.map((conductor) => (
-              <article key={conductor.id_conductores} className="conductor-mobile-card">
-                <header className="conductor-mobile-header">
-                  <div>
-                    <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
-                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                      {conductor.empresa || "Sin empresa"}
-                    </span>
-                  </div>
-                  <div className="conductor-mobile-badges">
-                    <span className={`status-badge ${conductor.activo ? "status-active" : "status-inactive"}`}>
-                      {conductor.activo ? "Activo" : "Inactivo"}
-                    </span>
-                    <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
-                      {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
-                    </span>
-                  </div>
-                </header>
+            {paginatedConductores.map((conductor) => {
+              const licStatus = getLicenciaStatus(conductor);
+              const mcStatus = getManejoComentadoStatus(conductor);
+              const vehiculoAsignado = vehiculosOptions.find((v) => v.id_vehiculos === conductor.id_vehiculo_asignado);
 
-                <div className="conductor-mobile-grid">
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Licencia</span>
-                    <span className="conductor-mobile-value">
-                      {conductor.licencia_numero || "N/A"}{" "}
-                      <small className={conductor.licencia_vigente ? "license-valid" : "license-expired"}>
-                        ({conductor.licencia_vigente ? "Vigente" : "Vencida"})
-                      </small>
-                    </span>
-                  </div>
+              return (
+                <article key={conductor.id_conductores} className="conductor-mobile-card">
+                  <header className="conductor-mobile-header">
+                    <div>
+                      <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
+                        <span className="conductor-id-badge">
+                          CON-{String(conductor.id_conductores).padStart(4, "0")}
+                        </span>
+                        <span className="empresa-pill-badge">
+                          {conductor.empresa || "Sin empresa"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="conductor-mobile-badges">
+                      <div className="conductor-estado-indicator">
+                        <span className={`estado-dot ${conductor.activo ? "dot-active" : "dot-inactive"}`} />
+                        <span className="estado-text">{conductor.activo ? "Activo" : "Inactivo"}</span>
+                      </div>
+                      <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
+                        {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
+                      </span>
+                    </div>
+                  </header>
 
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Vencimiento</span>
-                    <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
-                  </div>
+                  <div className="conductor-mobile-grid">
+                    <div className="conductor-mobile-field">
+                      <span className="conductor-mobile-label">Licencia</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="conductor-mobile-value" style={{ fontWeight: 600 }}>
+                          {conductor.licencia_numero || "N/A"}
+                        </span>
+                        <span
+                          className={`status-pop-indicator status-pop-${licStatus.status}`}
+                          data-tooltip={licStatus.label}
+                          aria-label={licStatus.label}
+                        >
+                          {licStatus.status === "vigente" ? (
+                            <IconCheck size={12} />
+                          ) : licStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} />
+                          ) : (
+                            <IconCross size={12} />
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="conductor-mobile-field full-width">
-                    <span className="conductor-mobile-label">Manejo Comentado</span>
-                    <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
-                  </div>
+                    <div className="conductor-mobile-field">
+                      <span className="conductor-mobile-label">Vencimiento</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
+                        <span
+                          className={`date-icon-indicator status-pop-${licStatus.status}`}
+                          data-tooltip={licStatus.label}
+                          aria-label={licStatus.label}
+                        >
+                          {licStatus.status === "vigente" ? (
+                            <IconCheck size={11} />
+                          ) : licStatus.status === "por_vencer" ? (
+                            <IconAlerta size={11} />
+                          ) : (
+                            <IconCross size={11} />
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="conductor-mobile-field full-width">
-                    <span className="conductor-mobile-label">Unidad Asignada</span>
-                    <select
-                      value={conductor.id_vehiculo_asignado || ""}
-                      onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                      disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
-                        fontSize: "0.85rem",
-                        background: "#ffffff"
-                      }}
-                    >
-                      <option value="">-- Sin asignar --</option>
-                      {vehiculosOptions.map((v) => (
-                        <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                          {v.nombre} — {v.numero_economico}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="conductor-mobile-field full-width">
+                      <span className="conductor-mobile-label">Manejo Comentado</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
+                        <span
+                          className={`date-icon-indicator status-pop-${mcStatus.status}`}
+                          data-tooltip={mcStatus.label}
+                          aria-label={mcStatus.label}
+                        >
+                          {mcStatus.status === "vigente" ? (
+                            <IconCheck size={11} />
+                          ) : mcStatus.status === "por_vencer" ? (
+                            <IconAlerta size={11} />
+                          ) : (
+                            <IconCross size={11} />
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="conductor-mobile-field full-width">
+                      <span className="conductor-mobile-label">Unidad Asignada</span>
+                      {conductor.id_vehiculo_asignado && vehiculoAsignado && (
+                        <div className="assigned-unit-chip" style={{ marginBottom: "6px" }}>
+                          <IconCoche size={14} />
+                          <span>{vehiculoAsignado.numero_economico || vehiculoAsignado.nombre}</span>
+                        </div>
+                      )}
+                      <select
+                        value={conductor.id_vehiculo_asignado || ""}
+                        onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
+                        disabled={assigningId === conductor.id_conductores || !conductor.activo}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid #cbd5e1",
+                          fontSize: "0.85rem",
+                          background: "#ffffff"
+                        }}
+                      >
+                        <option value="">-- Sin asignar --</option>
+                        {vehiculosOptions.map((v) => (
+                          <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                            {v.nombre} — {v.numero_economico}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
 
                 {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                   <footer className="conductor-mobile-actions">
@@ -731,8 +1111,9 @@ function ConductoresPage({ user }) {
                   </footer>
                 )}
               </article>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
             {totalFiltered > 0 && (
               <div className="table-pagination">

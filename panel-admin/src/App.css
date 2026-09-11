@@ -2108,6 +2108,454 @@
   box-shadow: 0 2px 5px rgba(220, 38, 38, 0.25);
 }
 
+/* =========================================================
+   CONDUCTORES DASHBOARD UI/UX (KPIs, Toolbar, Chips, Pops)
+   ========================================================= */
+
+/* Grid de Tarjetas KPI */
+.conductores-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1100px) {
+  .conductores-kpis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .conductores-kpis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.conductor-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.conductor-kpi-card.kpi-card-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.conductor-kpi-card.kpi-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(217, 119, 6, 0.15);
+  border-color: #f59e0b;
+}
+
+.conductor-kpi-card.kpi-card-active {
+  border-color: #d97706;
+  background: #fffbeb;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.25);
+}
+
+.kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.kpi-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon-blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.kpi-icon-green {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.kpi-icon-indigo {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.kpi-icon-amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.kpi-card-value {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.kpi-card-value.kpi-val-amber {
+  color: #b45309;
+}
+
+.kpi-card-subtext {
+  font-size: 0.78rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kpi-sub-pill {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.kpi-pill-blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.kpi-pill-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.kpi-pill-gray {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.kpi-pill-amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* Toolbar extendida para conductores */
+.conductores-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  background: #ffffff;
+  padding: 14px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+.conductores-filter-toolbar .search-field {
+  flex: 2 1 240px;
+  min-width: 200px;
+}
+
+.conductores-filter-toolbar .status-filter {
+  flex: 1 1 140px;
+  min-width: 130px;
+}
+
+.toolbar-reset-wrapper {
+  display: flex;
+  align-items: flex-end;
+}
+
+.filter-reset-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.filter-reset-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* Banner de filtro activo de licencias por vencer */
+.filter-active-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.filter-active-notice .notice-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.filter-active-notice .notice-clear-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #d97706;
+  color: #b45309;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.filter-active-notice .notice-clear-btn:hover {
+  background: #fef3c7;
+}
+
+/* Elementos de filas en tabla */
+.conductor-name-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conductor-id-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.empresa-pill-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid #e2e8f0;
+}
+
+.conductor-unit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assigned-unit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #bfdbfe;
+  max-width: fit-content;
+}
+
+.unassigned-unit-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Indicadores Pop y Tooltips para iconos de estatus */
+.status-pop-indicator,
+.date-icon-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.status-pop-indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.status-pop-indicator.status-pop-vigente {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-pop-indicator.status-pop-por_vencer {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-pop-indicator.status-pop-vencida,
+.status-pop-indicator.status-pop-no_registrado {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.date-icon-indicator {
+  color: #64748b;
+}
+
+.date-icon-indicator.status-pop-vigente {
+  color: #16a34a;
+}
+
+.date-icon-indicator.status-pop-por_vencer {
+  color: #d97706;
+}
+
+.date-icon-indicator.status-pop-vencida,
+.date-icon-indicator.status-pop-vencido,
+.date-icon-indicator.status-pop-no_registrado {
+  color: #dc2626;
+}
+
+.licencia-status-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.licencia-label-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.status-text-vigente {
+  color: #16a34a;
+}
+
+.status-text-por_vencer {
+  color: #d97706;
+}
+
+.status-text-vencida {
+  color: #dc2626;
+}
+
+.date-with-pop-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Viñeta o Pop genérica para cualquier elemento con [data-tooltip] */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 999;
+}
+
+[data-tooltip]::after {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 999;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Indicador de estado activo con punto */
+.conductor-estado-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conductor-estado-indicator .estado-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.conductor-estado-indicator .estado-dot.dot-active {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.conductor-estado-indicator .estado-dot.dot-inactive {
+  background: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+.conductor-estado-indicator .estado-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+}
+
 @media (max-width: 900px) {
   .module-header {
     flex-direction: column;
