@@ -1758,6 +1758,288 @@
   display: none;
 }
 
+/* Tabla Conductores UIUX Pro Max */
+.conductores-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.conductores-table th,
+.conductores-table td {
+  padding: 10px 8px !important;
+  font-size: 0.81rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.conductores-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.conductores-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.conductores-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Column widths for conductores-table */
+.conductores-table .col-conductor {
+  width: 16%;
+  min-width: 140px;
+}
+
+.conductores-table .col-telefono {
+  width: 10%;
+  min-width: 100px;
+}
+
+.conductores-table .col-empresa {
+  width: 9%;
+  min-width: 85px;
+}
+
+.conductores-table .col-unidad {
+  width: 14%;
+  min-width: 125px;
+}
+
+.conductores-table .col-licencia {
+  width: 10%;
+  min-width: 95px;
+}
+
+.conductores-table .col-vencimiento {
+  width: 8.5%;
+  min-width: 85px;
+}
+
+.conductores-table .col-mc {
+  width: 8.5%;
+  min-width: 85px;
+}
+
+.conductores-table .col-telegram {
+  width: 8%;
+  min-width: 80px;
+}
+
+.conductores-table .col-aprobacion {
+  width: 8%;
+  min-width: 80px;
+}
+
+.conductores-table .col-estado {
+  width: 7%;
+  min-width: 65px;
+}
+
+.conductores-table .col-acciones {
+  width: 12%;
+  min-width: 130px;
+  text-align: center;
+}
+
+/* Celdas con tipografía limpia y truncamiento */
+.conductor-name-cell {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.conductor-tel-cell {
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conductor-empresa-cell {
+  display: block;
+  color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conductor-licencia-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conductor-licencia-cell .licencia-num {
+  font-weight: 600;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.conductor-licencia-cell small {
+  margin-top: 0 !important;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.date-cell {
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.79rem;
+}
+
+/* Select de unidad asignada */
+.conductor-unit-select {
+  width: 100%;
+  max-width: 140px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.conductor-unit-select:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.18);
+}
+
+/* Contenedor de acciones */
+.conductor-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* Botones de acción con iconos SVG */
+.conductor-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.conductor-action-btn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 1px;
+}
+
+.conductor-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Estilos individuales de botones */
+.conductor-action-btn.btn-approve {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.conductor-action-btn.btn-approve:hover:not(:disabled) {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);
+}
+
+.conductor-action-btn.btn-view-license {
+  background: #f0f9ff;
+  color: #0284c7;
+  border-color: #bae6fd;
+}
+
+.conductor-action-btn.btn-view-license:hover:not(:disabled) {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);
+}
+
+.conductor-action-btn.btn-pin {
+  background: #fefce8;
+  color: #ca8a04;
+  border-color: #fef08a;
+}
+
+.conductor-action-btn.btn-pin:hover:not(:disabled) {
+  background: #eab308;
+  color: #ffffff;
+  border-color: #ca8a04;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(202, 138, 4, 0.25);
+}
+
+.conductor-action-btn.btn-deactivate {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+
+.conductor-action-btn.btn-deactivate:hover:not(:disabled) {
+  background: #e11d48;
+  color: #ffffff;
+  border-color: #e11d48;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(225, 29, 72, 0.25);
+}
+
+.conductor-action-btn.btn-reactivate {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.conductor-action-btn.btn-reactivate:hover:not(:disabled) {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(22, 163, 74, 0.25);
+}
+
+.conductor-action-btn.btn-delete {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.conductor-action-btn.btn-delete:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.25);
+}
+
 @media (max-width: 900px) {
   .module-header {
     flex-direction: column;

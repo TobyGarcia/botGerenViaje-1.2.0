@@ -13,6 +13,14 @@ import {
   toggleAdminConductorActive
 } from "../services/api.js";
 import { downloadPinCardImage } from "../utils/downloadPinCard.js";
+import {
+  IconVerDetalle,
+  IconCheck,
+  IconKey,
+  IconPower,
+  IconReactivar,
+  IconEliminar
+} from "../components/Icons.jsx";
 
 function formatDate(value) {
   if (!value) {
@@ -387,21 +395,22 @@ function ConductoresPage({ user }) {
         ) : (
           <>
             <div className="table-wrapper admin-table-desktop">
-            <table className="admin-table">
+            <table className="admin-table conductores-table">
               <thead>
                 <tr>
-
-                  <th>Conductor</th>
-                  <th>Teléfono</th>
-                  <th>Empresa</th>
-                  <th>Unidad Asignada</th>
-                  <th>Licencia</th>
-                  <th>Vencimiento Licencia</th>
-                  <th>Manejo Comentado</th>
-                  <th>Telegram</th>
-                  <th>Aprobación Admin</th>
-                  <th>Estado</th>
-                  {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && <th>Acciones</th>}
+                  <th className="col-conductor">Conductor</th>
+                  <th className="col-telefono">Teléfono</th>
+                  <th className="col-empresa">Empresa</th>
+                  <th className="col-unidad">Unidad Asignada</th>
+                  <th className="col-licencia">Licencia</th>
+                  <th className="col-vencimiento">Vencimiento</th>
+                  <th className="col-mc">Manejo Comentado</th>
+                  <th className="col-telegram">Telegram</th>
+                  <th className="col-aprobacion">Aprobación</th>
+                  <th className="col-estado">Estado</th>
+                  {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
+                    <th className="col-acciones">Acciones</th>
+                  )}
                 </tr>
               </thead>
 
@@ -413,25 +422,31 @@ function ConductoresPage({ user }) {
                         conductor.id_conductores
                       }
                     >
-                      <td>
-                        <strong>
+                      <td className="col-conductor">
+                        <strong className="conductor-name-cell">
                           {conductor.nombre}
                         </strong>
                       </td>
 
-                      <td>
-                        {conductor.telefono ||
-                          "No registrado"}
+                      <td className="col-telefono">
+                        <span className="conductor-tel-cell">
+                          {conductor.telefono || "No registrado"}
+                        </span>
                       </td>
 
-                      <td>{conductor.empresa || "No registrada"}</td>
+                      <td className="col-empresa">
+                        <span className="conductor-empresa-cell" title={conductor.empresa || "No registrada"}>
+                          {conductor.empresa || "No registrada"}
+                        </span>
+                      </td>
 
-                      <td>
+                      <td className="col-unidad">
                         <select
+                          className="conductor-unit-select"
                           value={conductor.id_vehiculo_asignado || ""}
                           onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
                           disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                          style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "0.85rem" }}
+                          title={conductor.id_vehiculo_asignado ? "Cambiar unidad asignada" : "Asignar unidad"}
                         >
                           <option value="">-- Sin asignar --</option>
                           {vehiculosOptions.map((v) => (
@@ -442,37 +457,36 @@ function ConductoresPage({ user }) {
                         </select>
                       </td>
 
-                      <td>
-                        <span>
-                          {
-                            conductor.licencia_numero
-                          }
+                      <td className="col-licencia">
+                        <div className="conductor-licencia-cell">
+                          <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
+                          <small
+                            className={
+                              conductor.licencia_vigente
+                                ? "license-valid"
+                                : "license-expired"
+                            }
+                          >
+                            {conductor.licencia_vigente
+                              ? "Vigente"
+                              : "Vencida"}
+                          </small>
+                        </div>
+                      </td>
+
+                      <td className="col-vencimiento">
+                        <span className="date-cell">
+                          {formatDate(conductor.licencia_vencimiento)}
                         </span>
-
-                        <small
-                          className={
-                            conductor.licencia_vigente
-                              ? "license-valid"
-                              : "license-expired"
-                          }
-                        >
-                          {conductor.licencia_vigente
-                            ? "Vigente"
-                            : "Vencida"}
-                        </small>
                       </td>
 
-                      <td>
-                        {formatDate(
-                          conductor.licencia_vencimiento
-                        )}
+                      <td className="col-mc">
+                        <span className="date-cell">
+                          {formatDate(conductor.fecha_manejo_comentado)}
+                        </span>
                       </td>
 
-                      <td>
-                        {formatDate(conductor.fecha_manejo_comentado)}
-                      </td>
-
-                      <td>
+                      <td className="col-telegram">
                         {conductor.telegram_user_id
                           ? (
                               <span className="telegram-linked">
@@ -486,7 +500,7 @@ function ConductoresPage({ user }) {
                             )}
                       </td>
 
-                      <td>
+                      <td className="col-aprobacion">
                         <span
                           className={
                             conductor.aprobado_por_admin
@@ -504,7 +518,7 @@ function ConductoresPage({ user }) {
                         </span>
                       </td>
 
-                      <td>
+                      <td className="col-estado">
                         <span
                           className={
                             conductor.activo
@@ -519,69 +533,65 @@ function ConductoresPage({ user }) {
                       </td>
 
                       {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
-                        <td>
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        <td className="col-acciones">
+                          <div className="conductor-actions-cell">
                             {!conductor.aprobado_por_admin ? (
                               <button
                                 type="button"
-                                className="primary-button"
-                                style={{ padding: "4px 8px", fontSize: "0.8rem", backgroundColor: "#16a34a" }}
+                                className="conductor-action-btn btn-approve"
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => setApproveModalConductor(conductor)}
+                                title="Aprobar conductor"
+                                aria-label="Aprobar conductor"
                               >
-                                Aprobar
+                                <IconCheck size={16} />
                               </button>
                             ) : (
                               <button
                                 type="button"
-                                className="secondary-button"
-                                style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                                className="conductor-action-btn btn-view-license"
                                 onClick={() => setApproveModalConductor(conductor)}
+                                title="Ver Licencia"
+                                aria-label="Ver Licencia"
                               >
-                                Ver Licencia
+                                <IconVerDetalle size={16} />
                               </button>
                             )}
 
                             <button
                               type="button"
-                              className="secondary-button"
-                              style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                              className="conductor-action-btn btn-pin"
                               disabled={updatingId === conductor.id_conductores}
                               onClick={() => handleOpenPinModal(conductor)}
-                              title="Generar automáticamente o cambiar PIN"
+                              title={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              aria-label={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                             >
-                              {conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              <IconKey size={16} />
                             </button>
 
                             {canToggleActive && (
                               <button
                                 type="button"
-                                className={conductor.activo ? "danger-button" : "reactivate-button"}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "0.8rem",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px"
-                                }}
+                                className={`conductor-action-btn ${conductor.activo ? "btn-deactivate" : "btn-reactivate"}`}
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => handleOpenToggleActive(conductor)}
-                                title={conductor.activo ? "Desactivar conductor (impedirá acceso y viajes)" : "Reactivar conductor"}
+                                title={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
+                                aria-label={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
                               >
-                                {conductor.activo ? "Desactivar" : "✓ Reactivar"}
+                                {conductor.activo ? <IconPower size={16} /> : <IconReactivar size={16} />}
                               </button>
                             )}
 
-                            {(!user || user.rol === "ADMINISTRADOR") && (
+                            {(!user || ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(user.rol)) && (
                               <button
                                 type="button"
-                                className="secondary-button"
-                                style={{ padding: "4px 8px", fontSize: "0.8rem", color: "#991b1b", border: "1px solid #fecaca" }}
+                                className="conductor-action-btn btn-delete"
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => handleOpenDelete(conductor)}
-                                title="Eliminar permanentemente de la base de datos"
+                                title="Eliminar conductor permanentemente"
+                                aria-label="Eliminar conductor permanentemente"
                               >
-                                Eliminar
+                                <IconEliminar size={16} />
                               </button>
                             )}
                           </div>
@@ -712,7 +722,7 @@ function ConductoresPage({ user }) {
                         disabled={updatingId === conductor.id_conductores}
                         onClick={() => handleOpenToggleActive(conductor)}
                       >
-                        {conductor.activo ? "Desactivar" : "✓ Reactivar"}
+                        {conductor.activo ? "Desactivar" : "Reactivar"}
                       </button>
                     )}
 
