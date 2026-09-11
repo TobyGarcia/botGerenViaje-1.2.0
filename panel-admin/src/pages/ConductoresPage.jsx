@@ -24,9 +24,9 @@ import {
   IconUsuarios,
   IconAlerta,
   IconSwap,
-  IconCoche,
   IconReset
 } from "../components/Icons.jsx";
+import VehicleSelectDropdown from "../components/VehicleSelectDropdown.jsx";
 
 function getLicenciaStatus(conductor) {
   if (!conductor?.licencia_vencimiento) {
@@ -201,6 +201,7 @@ function ConductoresPage({ user }) {
   const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
   const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
   const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
+  const [onlyPendingApproval, setOnlyPendingApproval] = useState(false);
 
   // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
   const [pinModalConductor, setPinModalConductor] = useState(null);
@@ -443,6 +444,9 @@ function ConductoresPage({ user }) {
     if (selectedUnidadFilter === "SIN_UNIDAD" && conductor.id_vehiculo_asignado) {
       return false;
     }
+    if (onlyPendingApproval && conductor.aprobado_por_admin) {
+      return false;
+    }
     if (onlyExpiringLicenses) {
       const licStatus = getLicenciaStatus(conductor);
       if (licStatus.status !== "por_vencer" && licStatus.status !== "vencida") {
@@ -454,8 +458,9 @@ function ConductoresPage({ user }) {
 
   // Métricas para KPI Cards
   const totalConductoresCount = conductores.length;
-  const activosCount = conductores.filter((c) => c.activo).length;
-  const disponibilidadPct = totalConductoresCount > 0 ? ((activosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
+  const pendientesAprobacionCount = conductores.filter((c) => !c.aprobado_por_admin).length;
+  const aprobadosCount = conductores.filter((c) => c.aprobado_por_admin).length;
+  const aprobadosPct = totalConductoresCount > 0 ? ((aprobadosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
   const unidadesAsignadasCount = conductores.filter((c) => c.id_vehiculo_asignado).length;
   const unidadesSinAsignarCount = Math.max(0, totalConductoresCount - unidadesAsignadasCount);
   const licenciasPorVencerCount = conductores.filter((c) => {
@@ -469,6 +474,7 @@ function ConductoresPage({ user }) {
     setSelectedEmpresa("TODAS");
     setSelectedUnidadFilter("TODAS");
     setOnlyExpiringLicenses(false);
+    setOnlyPendingApproval(false);
     setCurrentPage(1);
   };
 
@@ -510,20 +516,55 @@ function ConductoresPage({ user }) {
           </div>
         </div>
 
-        <div className="conductor-kpi-card">
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyPendingApproval ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyPendingApproval(!onlyPendingApproval);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyPendingApproval(!onlyPendingApproval);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyPendingApproval ? "Click para ver todos" : "Click para filtrar solo pendientes por aprobar"}
+        >
           <div className="kpi-card-header">
-            <span className="kpi-card-title">Activos Operativos</span>
-            <div className="kpi-icon-wrapper kpi-icon-green">
-              <IconCheck size={20} />
+            <span className="kpi-card-title">Pendientes por Aprobar</span>
+            <div className="kpi-icon-wrapper kpi-icon-amber">
+              <IconAlerta size={20} />
             </div>
           </div>
-          <div className="kpi-card-value">{activosCount}</div>
+          <div className={`kpi-card-value ${pendientesAprobacionCount > 0 ? "kpi-val-amber" : ""}`}>
+            {pendientesAprobacionCount}
+          </div>
           <div className="kpi-card-subtext">
-            <span className="kpi-sub-pill kpi-pill-green">{disponibilidadPct}%</span> de disponibilidad
+            <span className={`kpi-sub-pill ${pendientesAprobacionCount > 0 ? "kpi-pill-amber" : "kpi-pill-green"}`}>
+              {pendientesAprobacionCount > 0 ? "Por revisar" : "Al día"}
+            </span>{" "}
+            {onlyPendingApproval ? "(Filtro activo)" : `${aprobadosPct}% aprobados`}
           </div>
         </div>
 
-        <div className="conductor-kpi-card">
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${selectedUnidadFilter === "CON_UNIDAD" ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setSelectedUnidadFilter((prev) => (prev === "CON_UNIDAD" ? "TODAS" : "CON_UNIDAD"));
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setSelectedUnidadFilter((prev) => (prev === "CON_UNIDAD" ? "TODAS" : "CON_UNIDAD"));
+              setCurrentPage(1);
+            }
+          }}
+          title={selectedUnidadFilter === "CON_UNIDAD" ? "Click para mostrar todas las unidades" : "Click para filtrar conductores con unidad asignada"}
+        >
           <div className="kpi-card-header">
             <span className="kpi-card-title">Unidades Asignadas</span>
             <div className="kpi-icon-wrapper kpi-icon-indigo">
@@ -532,7 +573,8 @@ function ConductoresPage({ user }) {
           </div>
           <div className="kpi-card-value">{unidadesAsignadasCount}</div>
           <div className="kpi-card-subtext">
-            <span className="kpi-sub-pill kpi-pill-gray">{unidadesSinAsignarCount} sin asignar</span>
+            <span className="kpi-sub-pill kpi-pill-gray">{unidadesSinAsignarCount} sin asignar</span>{" "}
+            {selectedUnidadFilter === "CON_UNIDAD" ? "(Filtro activo)" : ""}
           </div>
         </div>
 
@@ -654,6 +696,26 @@ function ConductoresPage({ user }) {
         </p>
       )}
 
+      {onlyPendingApproval && (
+        <div className="filter-active-notice">
+          <IconAlerta size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores pendientes de aprobación ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyPendingApproval(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
+
+      {selectedUnidadFilter === "CON_UNIDAD" && (
+        <div className="filter-active-notice">
+          <IconSwap size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con unidad vehicular asignada ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setSelectedUnidadFilter("TODAS")}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
+
       {onlyExpiringLicenses && (
         <div className="filter-active-notice">
           <IconAlerta size={16} className="notice-icon" />
@@ -697,7 +759,6 @@ function ConductoresPage({ user }) {
                 {paginatedConductores.map((conductor) => {
                   const licStatus = getLicenciaStatus(conductor);
                   const mcStatus = getManejoComentadoStatus(conductor);
-                  const vehiculoAsignado = vehiculosOptions.find((v) => v.id_vehiculos === conductor.id_vehiculo_asignado);
 
                   return (
                     <tr key={conductor.id_conductores}>
@@ -719,30 +780,13 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td className="col-unidad">
-                        <div className="conductor-unit-cell">
-                          {conductor.id_vehiculo_asignado && vehiculoAsignado ? (
-                            <div className="assigned-unit-chip" title={`${vehiculoAsignado.nombre} — ${vehiculoAsignado.numero_economico}`}>
-                              <IconCoche size={14} />
-                              <span>{vehiculoAsignado.numero_economico || vehiculoAsignado.nombre}</span>
-                            </div>
-                          ) : (
-                            <span className="unassigned-unit-text">Sin asignar</span>
-                          )}
-                          <select
-                            className="conductor-unit-select"
-                            value={conductor.id_vehiculo_asignado || ""}
-                            onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                            disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                            title="Cambiar asignación vehicular"
-                          >
-                            <option value="">-- Sin unidad --</option>
-                            {vehiculosOptions.map((v) => (
-                              <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                                {v.numero_economico} ({v.nombre})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <VehicleSelectDropdown
+                          value={conductor.id_vehiculo_asignado || ""}
+                          options={vehiculosOptions}
+                          onChange={(newVehiculoId) => handleAssignVehicle(conductor.id_conductores, newVehiculoId)}
+                          disabled={!conductor.activo}
+                          loading={assigningId === conductor.id_conductores}
+                        />
                       </td>
 
                       <td className="col-licencia">
@@ -907,7 +951,6 @@ function ConductoresPage({ user }) {
             {paginatedConductores.map((conductor) => {
               const licStatus = getLicenciaStatus(conductor);
               const mcStatus = getManejoComentadoStatus(conductor);
-              const vehiculoAsignado = vehiculosOptions.find((v) => v.id_vehiculos === conductor.id_vehiculo_asignado);
 
               return (
                 <article key={conductor.id_conductores} className="conductor-mobile-card">
@@ -999,32 +1042,16 @@ function ConductoresPage({ user }) {
 
                     <div className="conductor-mobile-field full-width">
                       <span className="conductor-mobile-label">Unidad Asignada</span>
-                      {conductor.id_vehiculo_asignado && vehiculoAsignado && (
-                        <div className="assigned-unit-chip" style={{ marginBottom: "6px" }}>
-                          <IconCoche size={14} />
-                          <span>{vehiculoAsignado.numero_economico || vehiculoAsignado.nombre}</span>
-                        </div>
-                      )}
-                      <select
-                        value={conductor.id_vehiculo_asignado || ""}
-                        onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                        disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                        style={{
-                          width: "100%",
-                          padding: "8px 10px",
-                          borderRadius: "6px",
-                          border: "1px solid #cbd5e1",
-                          fontSize: "0.85rem",
-                          background: "#ffffff"
-                        }}
-                      >
-                        <option value="">-- Sin asignar --</option>
-                        {vehiculosOptions.map((v) => (
-                          <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                            {v.nombre} — {v.numero_economico}
-                          </option>
-                        ))}
-                      </select>
+                      <div style={{ marginTop: "4px", width: "100%" }}>
+                        <VehicleSelectDropdown
+                          value={conductor.id_vehiculo_asignado || ""}
+                          options={vehiculosOptions}
+                          onChange={(newVehiculoId) => handleAssignVehicle(conductor.id_conductores, newVehiculoId)}
+                          disabled={!conductor.activo}
+                          loading={assigningId === conductor.id_conductores}
+                          className="vehicle-select-mobile-full"
+                        />
+                      </div>
                     </div>
                   </div>
 
