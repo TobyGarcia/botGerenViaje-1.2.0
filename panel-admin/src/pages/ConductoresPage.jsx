@@ -746,83 +746,62 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td className="col-licencia">
-                        <div className="conductor-licencia-cell">
+                        <div className="status-cell-center">
                           <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
-                          <div className="licencia-status-row">
-                            <span
-                              className={`status-pop-indicator status-pop-${licStatus.status}`}
-                              data-tooltip={licStatus.label}
-                              aria-label={licStatus.label}
-                            >
-                              {licStatus.status === "vigente" ? (
-                                <IconCheck size={13} />
-                              ) : licStatus.status === "por_vencer" ? (
-                                <IconAlerta size={13} />
-                              ) : (
-                                <IconCross size={13} />
-                              )}
-                            </span>
-                            <span className={`licencia-label-text status-text-${licStatus.status}`}>
-                              {licStatus.status === "vigente"
-                                ? "Vigente"
-                                : licStatus.status === "por_vencer"
-                                ? "Por vencer"
-                                : "Vencida"}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="col-vencimiento">
-                        <div className="date-with-pop-cell">
-                          <span className="date-cell">
-                            {formatDate(conductor.licencia_vencimiento)}
-                          </span>
                           <span
-                            className={`date-icon-indicator status-pop-${licStatus.status}`}
+                            className={`status-circle-icon status-circle-${licStatus.status}`}
                             data-tooltip={licStatus.label}
                             aria-label={licStatus.label}
                           >
                             {licStatus.status === "vigente" ? (
-                              <IconCheck size={12} />
+                              <IconCheck size={13} strokeWidth={2.8} />
                             ) : licStatus.status === "por_vencer" ? (
-                              <IconAlerta size={12} />
+                              <IconAlerta size={13} strokeWidth={2.2} />
                             ) : (
-                              <IconCross size={12} />
+                              <IconCross size={13} strokeWidth={2.8} />
                             )}
                           </span>
                         </div>
                       </td>
 
+                      <td className="col-vencimiento">
+                        <span className="date-cell">
+                          {formatDate(conductor.licencia_vencimiento)}
+                        </span>
+                      </td>
+
                       <td className="col-mc">
-                        <div className="date-with-pop-cell">
-                          <span className="date-cell">
-                            {formatDate(conductor.fecha_manejo_comentado)}
-                          </span>
+                        <div className="status-cell-center">
                           <span
-                            className={`date-icon-indicator status-pop-${mcStatus.status}`}
+                            className={`status-circle-icon status-circle-${mcStatus.status}`}
                             data-tooltip={mcStatus.label}
                             aria-label={mcStatus.label}
                           >
                             {mcStatus.status === "vigente" ? (
-                              <IconCheck size={12} />
+                              <IconCheck size={13} strokeWidth={2.8} />
                             ) : mcStatus.status === "por_vencer" ? (
-                              <IconAlerta size={12} />
+                              <IconAlerta size={13} strokeWidth={2.2} />
                             ) : (
-                              <IconCross size={12} />
+                              <IconCross size={13} strokeWidth={2.8} />
                             )}
                           </span>
                         </div>
                       </td>
 
                       <td className="col-aprobacion">
-                        <div className="conductor-aprobacion-cell">
+                        <div className="status-cell-center">
                           <span
-                            className={`status-badge ${
-                              conductor.aprobado_por_admin ? "status-active" : "status-pending"
+                            className={`status-circle-icon ${
+                              conductor.aprobado_por_admin ? "status-circle-vigente" : "status-circle-por_vencer"
                             }`}
+                            data-tooltip={conductor.aprobado_por_admin ? "Aprobado por administración" : "Pendiente de aprobación"}
+                            aria-label={conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
                           >
-                            {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
+                            {conductor.aprobado_por_admin ? (
+                              <IconCheck size={13} strokeWidth={2.8} />
+                            ) : (
+                              <IconAlerta size={13} strokeWidth={2.2} />
+                            )}
                           </span>
 
                           {!conductor.aprobado_por_admin && (!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
@@ -853,9 +832,14 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td className="col-estado">
-                        <div className="conductor-estado-indicator">
-                          <span className={`estado-dot ${conductor.activo ? "dot-active" : "dot-inactive"}`} />
-                          <span className="estado-text">{conductor.activo ? "Activo" : "Inactivo"}</span>
+                        <div className="status-cell-center">
+                          <span
+                            className={`estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                            data-tooltip={conductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                            aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                          >
+                            <span className="estado-inner-dot" />
+                          </span>
                         </div>
                       </td>
 
@@ -940,12 +924,25 @@ function ConductoresPage({ user }) {
                       </div>
                     </div>
                     <div className="conductor-mobile-badges">
-                      <div className="conductor-estado-indicator">
-                        <span className={`estado-dot ${conductor.activo ? "dot-active" : "dot-inactive"}`} />
-                        <span className="estado-text">{conductor.activo ? "Activo" : "Inactivo"}</span>
-                      </div>
-                      <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
-                        {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
+                      <span
+                        className={`estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                        data-tooltip={conductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                        aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                      >
+                        <span className="estado-inner-dot" />
+                      </span>
+                      <span
+                        className={`status-circle-icon ${
+                          conductor.aprobado_por_admin ? "status-circle-vigente" : "status-circle-por_vencer"
+                        }`}
+                        data-tooltip={conductor.aprobado_por_admin ? "Aprobado por administración" : "Pendiente de aprobación"}
+                        aria-label={conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
+                      >
+                        {conductor.aprobado_por_admin ? (
+                          <IconCheck size={12} strokeWidth={2.8} />
+                        ) : (
+                          <IconAlerta size={12} strokeWidth={2.2} />
+                        )}
                       </span>
                     </div>
                   </header>
@@ -958,16 +955,16 @@ function ConductoresPage({ user }) {
                           {conductor.licencia_numero || "N/A"}
                         </span>
                         <span
-                          className={`status-pop-indicator status-pop-${licStatus.status}`}
+                          className={`status-circle-icon status-circle-${licStatus.status}`}
                           data-tooltip={licStatus.label}
                           aria-label={licStatus.label}
                         >
                           {licStatus.status === "vigente" ? (
-                            <IconCheck size={12} />
+                            <IconCheck size={12} strokeWidth={2.8} />
                           ) : licStatus.status === "por_vencer" ? (
-                            <IconAlerta size={12} />
+                            <IconAlerta size={12} strokeWidth={2.2} />
                           ) : (
-                            <IconCross size={12} />
+                            <IconCross size={12} strokeWidth={2.8} />
                           )}
                         </span>
                       </div>
@@ -977,37 +974,24 @@ function ConductoresPage({ user }) {
                       <span className="conductor-mobile-label">Vencimiento</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
-                        <span
-                          className={`date-icon-indicator status-pop-${licStatus.status}`}
-                          data-tooltip={licStatus.label}
-                          aria-label={licStatus.label}
-                        >
-                          {licStatus.status === "vigente" ? (
-                            <IconCheck size={11} />
-                          ) : licStatus.status === "por_vencer" ? (
-                            <IconAlerta size={11} />
-                          ) : (
-                            <IconCross size={11} />
-                          )}
-                        </span>
                       </div>
                     </div>
 
                     <div className="conductor-mobile-field full-width">
                       <span className="conductor-mobile-label">Manejo Comentado</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
                         <span
-                          className={`date-icon-indicator status-pop-${mcStatus.status}`}
+                          className={`status-circle-icon status-circle-${mcStatus.status}`}
                           data-tooltip={mcStatus.label}
                           aria-label={mcStatus.label}
                         >
                           {mcStatus.status === "vigente" ? (
-                            <IconCheck size={11} />
+                            <IconCheck size={12} strokeWidth={2.8} />
                           ) : mcStatus.status === "por_vencer" ? (
-                            <IconAlerta size={11} />
+                            <IconAlerta size={12} strokeWidth={2.2} />
                           ) : (
-                            <IconCross size={11} />
+                            <IconCross size={12} strokeWidth={2.8} />
                           )}
                         </span>
                       </div>

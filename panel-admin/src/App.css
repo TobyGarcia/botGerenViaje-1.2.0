@@ -2397,6 +2397,100 @@
   font-style: italic;
 }
 
+/* Contenedor centrado para columnas de iconos */
+.status-cell-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.col-licencia .status-cell-center {
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+/* Círculos con icono SVG (Check verde, Alerta ámbar, Cruz roja) idénticos a la imagen */
+.status-circle-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  flex-shrink: 0;
+  cursor: help;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.status-circle-icon:hover {
+  transform: scale(1.1);
+}
+
+/* Verde: Vigente / Aprobado (#10b981 / #059669 / fondo suave #ecfdf5 / borde #a7f3d0) */
+.status-circle-icon.status-circle-vigente {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #059669;
+}
+
+/* Ámbar: Por vencer / Pendiente (#f59e0b / fondo suave #fffbeb / borde #fde68a) */
+.status-circle-icon.status-circle-por_vencer {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #d97706;
+}
+
+/* Rojo: Vencida / No registrado (#ef4444 / fondo suave #fef2f2 / borde #fecaca) */
+.status-circle-icon.status-circle-vencida,
+.status-circle-icon.status-circle-vencido,
+.status-circle-icon.status-circle-no_registrado {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Indicador Halo de Estado (Pastilla circular con halo suave idéntica a la imagen) */
+.estado-pill-halo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: help;
+  transition: transform 0.15s ease;
+}
+
+.estado-pill-halo:hover {
+  transform: scale(1.1);
+}
+
+.estado-pill-halo.halo-active {
+  background: #d1fae5;
+}
+
+.estado-pill-halo.halo-active .estado-inner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #059669;
+}
+
+.estado-pill-halo.halo-inactive {
+  background: #fee2e2;
+}
+
+.estado-pill-halo.halo-inactive .estado-inner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dc2626;
+}
+
 /* Indicadores Pop y Tooltips para iconos de estatus */
 .status-pop-indicator,
 .date-icon-indicator {
