@@ -40,10 +40,9 @@ export async function findTelegramUserById(
 export async function findTelegramUserByConductorId(idConductor) {
   const result = await databasePool.query(
     `
-      SELECT telegram_user_id, id_conductores
+      SELECT telegram_user_id, id_conductores, activo
       FROM usuarios_telegram
       WHERE id_conductores = $1
-        AND activo = TRUE
       ORDER BY id_usuario_telegram DESC
       LIMIT 1
     `,

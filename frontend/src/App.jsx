@@ -375,14 +375,70 @@ const [cancelledTrip, setCancelledTrip] =
       if (!token) {
         safeStorage.setItem("driver_token", `driver_session_${cachedDriver.id_conductores || "active"}`);
       }
+
+      if (cachedDriver.activo === false) {
+        setTelegramAuth({
+          authenticated: true,
+          registered: true,
+          isDeactivated: true,
+          conductor: cachedDriver
+        });
+        setTelegramAuthLoading(false);
+        setShowPinLogin(false);
+        return () => { active = false; clearTimeout(authTimeout); };
+      }
+
       setTelegramAuth({
         authenticated: true,
         registered: true,
+        isDeactivated: false,
         estadoRegistro: "COMPLETO",
         conductor: cachedDriver
       });
       setTelegramAuthLoading(false);
       setShowPinLogin(false);
+
+      // Si hay conexión, validar en segundo plano que el conductor siga activo
+      if (navigator.onLine) {
+        getDriverSession()
+          .then((res) => {
+            if (!active) return;
+            const liveConductor = res?.data?.conductor;
+            if (liveConductor) {
+              if (liveConductor.activo === false) {
+                safeStorage.removeItem("cached_driver");
+                safeStorage.removeItem("driver_token");
+                setTelegramAuth({
+                  authenticated: true,
+                  registered: true,
+                  isDeactivated: true,
+                  conductor: liveConductor
+                });
+              } else {
+                safeStorage.setJSON("cached_driver", liveConductor);
+                setTelegramAuth((prev) => ({
+                  ...prev,
+                  isDeactivated: false,
+                  conductor: liveConductor
+                }));
+              }
+            }
+          })
+          .catch((err) => {
+            if (!active) return;
+            if (err.code === "CONDUCTOR_INACTIVE" || err.status === 403 || err.message?.includes("restringido") || err.message?.includes("inactiv") || err.message?.includes("no está vinculado a un conductor activo")) {
+              safeStorage.removeItem("cached_driver");
+              safeStorage.removeItem("driver_token");
+              setTelegramAuth({
+                authenticated: true,
+                registered: true,
+                isDeactivated: true,
+                conductor: { ...cachedDriver, activo: false }
+              });
+            }
+          });
+      }
+
       return () => { active = false; clearTimeout(authTimeout); };
     }
 
@@ -392,6 +448,18 @@ const [cancelledTrip, setCancelledTrip] =
         .then((response) => {
           if (!active) return;
           if (response?.data?.authenticated && response?.data?.registered && response?.data?.conductor && response?.data?.conductor?.aprobado_por_admin !== false) {
+            if (response.data.conductor.activo === false) {
+              safeStorage.removeItem("cached_driver");
+              safeStorage.removeItem("driver_token");
+              setTelegramAuth({
+                authenticated: true,
+                registered: true,
+                isDeactivated: true,
+                conductor: response.data.conductor
+              });
+              setShowPinLogin(false);
+              return;
+            }
             handlePinLoginSuccess(response.data.conductor, response.data.token);
           } else if (response?.data?.authenticated && (response?.data?.estadoRegistro === "PENDIENTE_APROBACION" || response?.data?.conductor?.aprobado_por_admin === false)) {
             setTelegramAuth({
@@ -409,8 +477,19 @@ const [cancelledTrip, setCancelledTrip] =
             setShowPinLogin(true);
           }
         })
-        .catch(() => {
-          if (active) setShowPinLogin(true);
+        .catch((err) => {
+          if (!active) return;
+          if (err.code === "CONDUCTOR_INACTIVE" || err.status === 403 || err.message?.includes("restringido") || err.message?.includes("inactiv") || err.message?.includes("no está vinculado a un conductor activo")) {
+            setTelegramAuth({
+              authenticated: true,
+              registered: true,
+              isDeactivated: true,
+              conductor: null
+            });
+            setShowPinLogin(false);
+          } else {
+            setShowPinLogin(true);
+          }
         })
         .finally(() => {
           clearTimeout(authTimeout);
@@ -425,10 +504,33 @@ const [cancelledTrip, setCancelledTrip] =
       getDriverSession()
         .then((response) => {
           if (!active || !response?.data?.conductor) return;
+          if (response.data.conductor.activo === false) {
+            safeStorage.removeItem("cached_driver");
+            safeStorage.removeItem("driver_token");
+            setTelegramAuth({
+              authenticated: true,
+              registered: true,
+              isDeactivated: true,
+              conductor: response.data.conductor
+            });
+            setShowPinLogin(false);
+            return;
+          }
           handlePinLoginSuccess(response.data.conductor);
         })
-        .catch(() => {
-          if (active) setShowPinLogin(true);
+        .catch((err) => {
+          if (!active) return;
+          if (err.code === "CONDUCTOR_INACTIVE" || err.status === 403 || err.message?.includes("restringido") || err.message?.includes("inactiv") || err.message?.includes("no está vinculado a un conductor activo")) {
+            setTelegramAuth({
+              authenticated: true,
+              registered: true,
+              isDeactivated: true,
+              conductor: null
+            });
+            setShowPinLogin(false);
+          } else {
+            setShowPinLogin(true);
+          }
         })
         .finally(() => {
           clearTimeout(authTimeout);
@@ -637,6 +739,16 @@ const [cancelledTrip, setCancelledTrip] =
         setMessageType("success");
       } catch (error) {
         console.warn("Error cargando catálogos iniciales, usando datos locales:", error.message);
+        if (error.code === "CONDUCTOR_INACTIVE" || error.status === 403 || error.message?.includes("restringido") || error.message?.includes("inactiv") || error.message?.includes("no está vinculado a un conductor activo")) {
+          safeStorage.removeItem("cached_driver");
+          safeStorage.removeItem("driver_token");
+          setTelegramAuth((prev) => ({
+            ...prev,
+            isDeactivated: true,
+            conductor: prev?.conductor ? { ...prev.conductor, activo: false } : null
+          }));
+          return;
+        }
         if (!navigator.onLine) {
           setMessage("Modo sin conexión: mostrando datos de viaje guardados en este dispositivo.");
           setMessageType("success");
@@ -1078,6 +1190,16 @@ function isOutsideOperatingHours() {
           : ""
       });
     } catch (error) {
+      if (error.code === "CONDUCTOR_INACTIVE" || error.status === 403 || error.message?.includes("restringido") || error.message?.includes("inactiv") || error.message?.includes("no está vinculado a un conductor activo")) {
+        safeStorage.removeItem("cached_driver");
+        safeStorage.removeItem("driver_token");
+        setTelegramAuth((prev) => ({
+          ...prev,
+          isDeactivated: true,
+          conductor: prev?.conductor ? { ...prev.conductor, activo: false } : null
+        }));
+        return;
+      }
       triggerModalError(error.message);
     } finally {
       savingRef.current = false;
@@ -1379,11 +1501,72 @@ function isOutsideOperatingHours() {
     );
   }
 
-  if (telegramAuth.estadoRegistro === "BLOQUEADO" || (telegramAuth.conductor && !telegramAuth.conductor.activo)) {
+  if (telegramAuth.isDeactivated || telegramAuth.estadoRegistro === "BLOQUEADO" || (telegramAuth.conductor && telegramAuth.conductor.activo === false)) {
     return (
       <div className="app-shell">
         <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
-        <p className="loading-message">Tu acceso de conductor está inactivo o restringido.</p>
+        <main className="container" style={{ padding: "40px 16px", maxWidth: "520px", margin: "0 auto", textAlign: "center" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px 22px", border: "1px solid #fecaca", boxShadow: "0 10px 25px -5px rgba(239, 68, 68, 0.12)" }}>
+            <div style={{ width: "68px", height: "68px", background: "#fee2e2", color: "#dc2626", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" }}>
+              <IconAlert size={36} color="#dc2626" />
+            </div>
+            <h2 style={{ color: "#dc2626", fontSize: "1.35rem", fontWeight: "800", margin: "0 0 10px 0" }}>
+              Acceso Restringido o Deshabilitado
+            </h2>
+            <p style={{ color: "#475569", fontSize: "0.95rem", lineHeight: "1.55", marginBottom: "16px" }}>
+              Hola <strong>{telegramAuth.conductor?.nombre || "Conductor"}</strong>. Tu cuenta de conductor o acceso al sistema ha sido restringido por la administración.
+            </p>
+            <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "10px", padding: "14px 16px", color: "#9f1239", fontSize: "0.88rem", marginBottom: "22px", textAlign: "left", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+              <IconAlert size={20} color="#e11d48" style={{ flexShrink: 0, marginTop: "2px" }} />
+              <span style={{ lineHeight: "1.5" }}>
+                No tienes permitido registrar viajes ni operar en el sistema en este momento. Si consideras que se trata de un error o requieres reactivación, contacta a tu supervisor o administración.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const token = safeStorage.getItem("driver_token");
+                if (token && navigator.onLine) {
+                  getDriverSession()
+                    .then((res) => {
+                      if (res?.data?.conductor?.activo) {
+                        handlePinLoginSuccess(res.data.conductor);
+                      } else {
+                        triggerModalError("Tu cuenta de conductor continúa deshabilitada.");
+                      }
+                    })
+                    .catch(() => {
+                      triggerModalError("Tu cuenta de conductor continúa deshabilitada.");
+                    });
+                } else if (window.Telegram?.WebApp?.initData && navigator.onLine) {
+                  autenticarTelegram(window.Telegram.WebApp.initData)
+                    .then((res) => {
+                      if (res?.data?.conductor?.activo) {
+                        handlePinLoginSuccess(res.data.conductor, res.data.token);
+                      } else {
+                        triggerModalError("Tu cuenta de conductor continúa deshabilitada.");
+                      }
+                    })
+                    .catch(() => {
+                      triggerModalError("Tu cuenta de conductor continúa deshabilitada.");
+                    });
+                } else {
+                  handleLogout();
+                }
+              }}
+              style={{ padding: "11px 22px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.92rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <IconRefresh size={16} /> Verificar Estado
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{ display: "block", margin: "16px auto 0 auto", background: "none", border: "none", color: "#64748b", fontSize: "0.88rem", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Cerrar Sesión / Salir
+            </button>
+          </div>
+        </main>
       </div>
     );
   }

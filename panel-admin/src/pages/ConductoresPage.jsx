@@ -400,7 +400,6 @@ function ConductoresPage({ user }) {
                   <th>Manejo Comentado</th>
                   <th>Telegram</th>
                   <th>Aprobación Admin</th>
-                  <th>PIN Web</th>
                   <th>Estado</th>
                   {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && <th>Acciones</th>}
                 </tr>
@@ -502,19 +501,6 @@ function ConductoresPage({ user }) {
                           {conductor.aprobado_por_admin
                             ? "Aprobado"
                             : "Pendiente"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span style={{
-                          fontSize: "0.82rem",
-                          fontWeight: "600",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          background: conductor.tiene_pin ? "#dcfce7" : "#fee2e2",
-                          color: conductor.tiene_pin ? "#15803d" : "#b91c1c"
-                        }}>
-                          {conductor.tiene_pin ? "✓ PIN Activo" : "Sin PIN"}
                         </span>
                       </td>
 
@@ -625,18 +611,6 @@ function ConductoresPage({ user }) {
                     </span>
                     <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
                       {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "0.74rem",
-                        padding: "3px 7px",
-                        borderRadius: "999px",
-                        fontWeight: "700",
-                        background: conductor.tiene_pin ? "#e4f7ed" : "#fae8e8",
-                        color: conductor.tiene_pin ? "#12643e" : "#8a3030"
-                      }}
-                    >
-                      {conductor.tiene_pin ? "✓ PIN Activo" : "Sin PIN"}
                     </span>
                   </div>
                 </header>

@@ -8,6 +8,12 @@ import {
 } from "../services/admin-conductores.service.js";
 import { setDriverPin } from "../services/driver-auth.service.js";
 import { saveLicenseFileBase64 } from "../utils/file-storage.js";
+import {
+  sendDriverApprovalNotification,
+  sendDriverPinNotification,
+  sendDriverDeactivationNotification
+} from "../bot/bot.js";
+import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 
 
 function normalizeDriverInput(body) {
@@ -309,6 +315,35 @@ export async function approveAdminDriverController(request, response) {
       });
     }
 
+    // Notificar al conductor por Telegram
+    try {
+      const telegramUser = await findTelegramUserByConductorId(idConductor);
+      if (telegramUser?.telegram_user_id) {
+        if (aprobado) {
+          if (updated.pinGenerado) {
+            await sendDriverPinNotification({
+              telegramUserId: telegramUser.telegram_user_id,
+              pin: updated.pinGenerado,
+              conductorNombre: updated.nombre,
+              motivo: "APROBACION"
+            });
+          } else {
+            await sendDriverApprovalNotification({
+              telegramUserId: telegramUser.telegram_user_id,
+              approved: true
+            });
+          }
+        } else {
+          await sendDriverApprovalNotification({
+            telegramUserId: telegramUser.telegram_user_id,
+            approved: false
+          });
+        }
+      }
+    } catch (telegramErr) {
+      console.warn("No fue posible enviar notificación de aprobación por Telegram:", telegramErr.message);
+    }
+
     return response.status(200).json({
       success: true,
       message: aprobado ? "Conductor aprobado correctamente." : "Conductor rechazado.",
@@ -349,6 +384,21 @@ export async function setDriverPinAdminController(request, response) {
       idConductor,
       pin: finalPin
     });
+
+    // Notificar al conductor por Telegram con el PIN generado/asignado
+    try {
+      const telegramUser = await findTelegramUserByConductorId(idConductor);
+      if (telegramUser?.telegram_user_id) {
+        await sendDriverPinNotification({
+          telegramUserId: telegramUser.telegram_user_id,
+          pin: finalPin,
+          conductorNombre: updated.nombre,
+          motivo: "ACTUALIZACION"
+        });
+      }
+    } catch (telegramErr) {
+      console.warn("No fue posible enviar notificación de PIN por Telegram:", telegramErr.message);
+    }
 
     return response.status(200).json({
       success: true,
@@ -419,6 +469,20 @@ export async function toggleAdminDriverActiveController(request, response) {
         success: false,
         message: "No se encontró el conductor especificado."
       });
+    }
+
+    // Notificar al conductor por Telegram sobre el cambio de estado (activo/desactivado)
+    try {
+      const telegramUser = await findTelegramUserByConductorId(idConductor);
+      if (telegramUser?.telegram_user_id) {
+        await sendDriverDeactivationNotification({
+          telegramUserId: telegramUser.telegram_user_id,
+          conductorNombre: updated.nombre,
+          activo
+        });
+      }
+    } catch (telegramErr) {
+      console.warn("No fue posible enviar notificación de estado por Telegram:", telegramErr.message);
     }
 
     const statusText = activo ? "reactivado" : "desactivado";

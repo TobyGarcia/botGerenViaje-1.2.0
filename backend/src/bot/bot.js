@@ -267,3 +267,79 @@ export async function sendDriverApprovalNotification({ telegramUserId, approved 
   }
 }
 
+export async function sendDriverPinNotification({
+  telegramUserId,
+  pin,
+  conductorNombre,
+  motivo = "ASIGNADO"
+}) {
+  if (!telegramUserId || !pin) return;
+
+  const greeting = conductorNombre ? `Hola *${conductorNombre}*,` : "Hola,";
+
+  let header = "🔑 *Tu PIN de acceso ha sido asignado*";
+  let context = "Se ha asignado tu PIN de 4 dígitos para acceder al sistema de viajes:";
+  if (motivo === "APROBACION") {
+    header = "🎉 *¡Cuenta Aprobada! Tu PIN de acceso*";
+    context = "Tu cuenta ha sido aprobada por la administración. Tu PIN de 4 dígitos para ingresar a la aplicación es:";
+  } else if (motivo === "REGISTRO") {
+    header = "📋 *Registro recibido - Tu PIN de acceso*";
+    context = "Hemos recibido tu solicitud de registro. Tu PIN de 4 dígitos asignado es:";
+  } else if (motivo === "ACTUALIZACION") {
+    header = "🔑 *PIN de acceso actualizado*";
+    context = "La administración ha actualizado tu PIN de acceso para el sistema de viajes:";
+  }
+
+  const message = [
+    header,
+    "",
+    greeting,
+    context,
+    "",
+    `👉  \`${pin}\`  👈`,
+    "",
+    "⚠️ *Importante:*",
+    "• Puedes tocar el número para copiar tu PIN.",
+    "• Guarda este PIN en un lugar seguro y no lo compartas con nadie.",
+    "• Puedes ingresar a la aplicación introduciendo este PIN de 4 dígitos."
+  ].join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(String(telegramUserId), message, {
+      parse_mode: "Markdown"
+    });
+  } catch (error) {
+    console.error("No fue posible enviar el PIN al conductor por Telegram:", error.message);
+  }
+}
+
+export async function sendDriverDeactivationNotification({ telegramUserId, conductorNombre, activo }) {
+  if (!telegramUserId) return;
+
+  const greeting = conductorNombre ? `Hola *${conductorNombre}*,` : "Hola,";
+  const message = activo
+    ? [
+        "✅ *Cuenta Reactivada*",
+        "",
+        greeting,
+        "Tu cuenta de conductor ha sido reactivada por la administración. Ya puedes ingresar al sistema de viajes con tu PIN habitual."
+      ].join("\n")
+    : [
+        "⛔ *Acceso Restringido*",
+        "",
+        greeting,
+        "Tu acceso al sistema de viajes ha sido temporalmente deshabilitado o restringido por la administración.",
+        "",
+        "Si consideras que se trata de un error o necesitas información, contacta a tu supervisor."
+      ].join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(String(telegramUserId), message, {
+      parse_mode: "Markdown"
+    });
+  } catch (error) {
+    console.error("No fue posible enviar la notificación de estado al conductor por Telegram:", error.message);
+  }
+}
+
+

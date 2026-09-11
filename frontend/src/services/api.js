@@ -46,9 +46,13 @@ async function request(path, options = {}) {
       : null;
 
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         data?.message || "Ocurrió un error en la solicitud."
       );
+      error.status = response.status;
+      error.code = data?.code;
+      error.data = data;
+      throw error;
     }
 
     return data;

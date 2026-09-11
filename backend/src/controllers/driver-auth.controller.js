@@ -1,4 +1,4 @@
-import { authenticateDriverWithPin, findActiveDriverById } from "../services/driver-auth.service.js";
+import { authenticateDriverWithPin, findActiveDriverById, findDriverById } from "../services/driver-auth.service.js";
 import { getDriverCookieName, getDriverCookieOptions, verifyDriverSessionToken } from "../utils/driver-session.js";
 
 export async function loginDriverWithPinController(request, response) {
@@ -22,16 +22,17 @@ export async function loginDriverWithPinController(request, response) {
         MISSING_FIELDS: "Todos los campos son obligatorios.",
         INVALID_PIN_FORMAT: "El PIN debe constar de 4 dígitos numéricos.",
         CONDUCTOR_NOT_FOUND: "Conductor no encontrado.",
-        CONDUCTOR_INACTIVE: "Tu cuenta de conductor está inactiva.",
+        CONDUCTOR_INACTIVE: "Tu acceso ha sido restringido o deshabilitado por la administración. Contacta a tu supervisor.",
         PENDING_APPROVAL: "Tu cuenta está pendiente de aprobación por el administrador.",
         PIN_NOT_SET: "Este conductor no tiene un PIN configurado. Contacta al administrador.",
         INVALID_PIN: "PIN incorrecto. Verifica e intenta de nuevo."
       };
 
-      const statusCode = authResult.reason === "PENDING_APPROVAL" ? 403 : 401;
+      const statusCode = (authResult.reason === "PENDING_APPROVAL" || authResult.reason === "CONDUCTOR_INACTIVE") ? 403 : 401;
 
       return response.status(statusCode).json({
         success: false,
+        code: authResult.reason,
         message: messages[authResult.reason] || "No fue posible iniciar sesión con el PIN."
       });
     }
@@ -75,12 +76,29 @@ export async function getDriverSessionController(request, response) {
     }
 
     const payload = verifyDriverSessionToken(token);
-    const conductor = await findActiveDriverById(Number(payload.sub));
+    const conductor = await findDriverById(Number(payload.sub));
 
     if (!conductor) {
       return response.status(401).json({
         success: false,
-        message: "Conductor no encontrado o inactivo."
+        code: "CONDUCTOR_NOT_FOUND",
+        message: "Conductor no encontrado."
+      });
+    }
+
+    if (!conductor.activo) {
+      return response.status(403).json({
+        success: false,
+        code: "CONDUCTOR_INACTIVE",
+        message: "Tu acceso ha sido restringido o deshabilitado por la administración. Contacta a tu supervisor."
+      });
+    }
+
+    if (conductor.aprobado_por_admin === false) {
+      return response.status(403).json({
+        success: false,
+        code: "PENDING_APPROVAL",
+        message: "Tu cuenta está pendiente de aprobación por el administrador."
       });
     }
 

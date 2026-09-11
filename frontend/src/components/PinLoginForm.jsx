@@ -90,6 +90,11 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         const savedPinDigest = safeStorage.getItem("offline_driver_pin_digest");
         const enteredPinDigest = await digestPin(pinToVerify);
         if (cachedDriver && savedPinDigest && enteredPinDigest === savedPinDigest) {
+          if (cachedDriver.activo === false) {
+            setError("Tu acceso ha sido restringido o deshabilitado por la administración. Contacta a tu supervisor.");
+            setPin("");
+            return;
+          }
           if (onSuccess) {
             onSuccess(cachedDriver);
             return;
@@ -97,6 +102,10 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         }
         setError("Sin conexión a internet. Para entrar sin red, debes haber iniciado sesión al menos una vez con internet en este celular.");
       } else {
+        if (err.code === "CONDUCTOR_INACTIVE") {
+          safeStorage.removeItem("cached_driver");
+          safeStorage.removeItem("driver_token");
+        }
         setError(err.message || "Error al iniciar sesión.");
       }
       setPin("");

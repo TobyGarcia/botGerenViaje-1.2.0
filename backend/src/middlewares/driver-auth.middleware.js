@@ -1,7 +1,7 @@
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { verifyDriverSessionToken, getDriverCookieName } from "../utils/driver-session.js";
-import { findActiveDriverById } from "../services/driver-auth.service.js";
+import { findActiveDriverById, findDriverById } from "../services/driver-auth.service.js";
 import { databasePool } from "../database/pool.js";
 
 export async function requireActiveDriver(request, response, next) {
@@ -25,7 +25,7 @@ export async function requireActiveDriver(request, response, next) {
     if (token) {
       try {
         const payload = verifyDriverSessionToken(token);
-        driver = await findActiveDriverById(Number(payload.sub));
+        driver = await findDriverById(Number(payload.sub));
         if (driver) {
           authSource = "WEB_PIN";
         }
@@ -47,18 +47,20 @@ export async function requireActiveDriver(request, response, next) {
         if (!telegramUser?.activo || !telegramUser.id_conductores) {
           return response.status(403).json({
             success: false,
-            message: "El usuario de Telegram no está vinculado a un conductor activo."
+            code: "CONDUCTOR_INACTIVE",
+            message: "Tu acceso ha sido restringido o deshabilitado por la administración. Contacta a tu supervisor."
           });
         }
 
         if (telegramUser.estado_registro === "PENDIENTE_APROBACION") {
           return response.status(403).json({
             success: false,
+            code: "PENDING_APPROVAL",
             message: "Tu registro de conductor está pendiente de aprobación por la administración."
           });
         }
 
-        driver = await findActiveDriverById(telegramUser.id_conductores);
+        driver = await findDriverById(telegramUser.id_conductores);
         authSource = "TELEGRAM";
       } catch (err) {
         console.warn("[DriverAuth] Falló verificación Telegram InitData:", err.message);
@@ -75,13 +77,15 @@ export async function requireActiveDriver(request, response, next) {
     if (!driver.activo) {
       return response.status(403).json({
         success: false,
-        message: "El conductor se encuentra inactivo."
+        code: "CONDUCTOR_INACTIVE",
+        message: "Tu acceso ha sido restringido o deshabilitado por la administración. Contacta a tu supervisor."
       });
     }
 
     if (driver.aprobado_por_admin === false) {
       return response.status(403).json({
         success: false,
+        code: "PENDING_APPROVAL",
         message: "El conductor aún no ha sido aprobado por la administración."
       });
     }

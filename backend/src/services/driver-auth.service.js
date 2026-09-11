@@ -39,14 +39,6 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
       return { authenticated: false, reason: "CONDUCTOR_NOT_FOUND" };
     }
 
-    if (!conductor.activo) {
-      return { authenticated: false, reason: "CONDUCTOR_INACTIVE" };
-    }
-
-    if (conductor.aprobado_por_admin === false) {
-      return { authenticated: false, reason: "PENDING_APPROVAL" };
-    }
-
     if (!conductor.pin_hash) {
       return { authenticated: false, reason: "PIN_NOT_SET" };
     }
@@ -55,8 +47,16 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
     if (!matches) {
       return { authenticated: false, reason: "INVALID_PIN" };
     }
+
+    if (!conductor.activo) {
+      return { authenticated: false, reason: "CONDUCTOR_INACTIVE", conductor };
+    }
+
+    if (conductor.aprobado_por_admin === false) {
+      return { authenticated: false, reason: "PENDING_APPROVAL", conductor };
+    }
   } else {
-    // Buscar entre todos los conductores activos que tienen PIN asignado
+    // Buscar entre todos los conductores que tienen PIN asignado
     const result = await databasePool.query(
       `SELECT 
          id_conductores,
@@ -71,9 +71,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          aprobado_por_admin,
          pin_hash
        FROM conductores
-       WHERE activo = TRUE 
-         AND aprobado_por_admin IS NOT FALSE 
-         AND pin_hash IS NOT NULL`
+       WHERE pin_hash IS NOT NULL`
     );
 
     for (const row of result.rows) {
@@ -86,6 +84,14 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
 
     if (!conductor) {
       return { authenticated: false, reason: "INVALID_PIN" };
+    }
+
+    if (!conductor.activo) {
+      return { authenticated: false, reason: "CONDUCTOR_INACTIVE", conductor };
+    }
+
+    if (conductor.aprobado_por_admin === false) {
+      return { authenticated: false, reason: "PENDING_APPROVAL", conductor };
     }
   }
 
@@ -155,3 +161,26 @@ export async function findActiveDriverById(idConductor) {
 
   return result.rows[0] ?? null;
 }
+
+export async function findDriverById(idConductor) {
+  const result = await databasePool.query(
+    `SELECT 
+       id_conductores,
+       nombre,
+       licencia_numero,
+       tipo_licencia,
+       empresa,
+       licencia_vigente,
+       licencia_vencimiento,
+       telefono,
+       activo,
+       aprobado_por_admin
+     FROM conductores
+     WHERE id_conductores = $1
+     LIMIT 1`,
+    [idConductor]
+  );
+
+  return result.rows[0] ?? null;
+}
+
