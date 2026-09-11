@@ -1,12 +1,10 @@
 import {
   useEffect,
-  useRef,
   useState
 } from "react";
 
 import {
   assignAdminConductorVehicle,
-  createAdminConductor,
   getAdminConductores,
   getAdminVehiculos,
   updateAdminConductorStatus,
@@ -15,21 +13,6 @@ import {
   toggleAdminConductorActive
 } from "../services/api.js";
 import { downloadPinCardImage } from "../utils/downloadPinCard.js";
-
-
-const initialForm = {
-  nombre: "",
-  telefono: "",
-  licenciaNumero: "",
-  tipoLicencia: "",
-  empresa: "",
-  licenciaVencimiento: ""
-};
-
-const empresas = ["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"];
-const dias = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
-const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const anios = Array.from({ length: 16 }, (_, index) => String(new Date().getFullYear() + index));
 
 function formatDate(value) {
   if (!value) {
@@ -81,15 +64,6 @@ function ConductoresPage({ user }) {
   const [messageType, setMessageType] =
     useState("success");
 
-  const [showForm, setShowForm] =
-    useState(false);
-
-  const [form, setForm] =
-    useState(initialForm);
-
-  const [saving, setSaving] =
-    useState(false);
-
   const [updatingId, setUpdatingId] =
     useState(null);
 
@@ -114,9 +88,6 @@ function ConductoresPage({ user }) {
 
   const [toggleActiveConductor, setToggleActiveConductor] = useState(null);
   const [deleteConfirmConductor, setDeleteConfirmConductor] = useState(null);
-
-  const submitRef =
-    useRef(false);
 
   async function loadVehiculos() {
     try {
@@ -289,115 +260,7 @@ function ConductoresPage({ user }) {
     };
   }, [search, status]);
 
-  useEffect(() => {
-    if (!showForm) {
-      return undefined;
-    }
 
-    function handleKeyDown(event) {
-      if (
-        event.key === "Escape" &&
-        !saving
-      ) {
-        closeForm();
-      }
-    }
-
-    const previousOverflow =
-      document.body.style.overflow;
-
-    document.body.style.overflow =
-      "hidden";
-
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
-
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-
-      document.body.style.overflow =
-        previousOverflow;
-    };
-  }, [showForm, saving]);
-
-  function handleChange(event) {
-    const {
-      name,
-      value
-    } = event.target;
-
-    setForm((current) => ({
-      ...current,
-      [name]: value
-    }));
-
-    setMessage("");
-  }
-
-  function updateExpiry(part, value) {
-    const [year = "", month = "", day = ""] = form.licenciaVencimiento.split("-");
-    const next = { year, month, day, [part]: value };
-    setForm((current) => ({ ...current, licenciaVencimiento: next.year && next.month && next.day ? `${next.year}-${next.month}-${next.day}` : "" }));
-  }
-
-  function closeForm() {
-    if (saving) {
-      return;
-    }
-
-    setShowForm(false);
-    setForm(initialForm);
-  }
-
-  function handleOverlayMouseDown(event) {
-    if (
-      event.target ===
-      event.currentTarget
-    ) {
-      closeForm();
-    }
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-
-    if (submitRef.current) {
-      return;
-    }
-
-    submitRef.current = true;
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const response =
-        await createAdminConductor(
-          form
-        );
-
-      setMessage(
-        response.message ||
-        "Conductor creado correctamente."
-      );
-
-      setMessageType("success");
-      setForm(initialForm);
-      setShowForm(false);
-
-      await loadConductores();
-    } catch (error) {
-      setMessage(error.message);
-      setMessageType("error");
-    } finally {
-      submitRef.current = false;
-      setSaving(false);
-    }
-  }
 
   function handleOpenDelete(conductor) {
     setDeleteConfirmConductor(conductor);
@@ -455,17 +318,6 @@ function ConductoresPage({ user }) {
           </p>
         </div>
 
-        {(!user || user.rol === "ADMINISTRADOR") && (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() =>
-              setShowForm(true)
-            }
-          >
-            + Nuevo conductor
-          </button>
-        )}
       </header>
 
       <section className="module-toolbar">
@@ -521,185 +373,7 @@ function ConductoresPage({ user }) {
         </p>
       )}
 
-      {showForm && (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onMouseDown={handleOverlayMouseDown}
-        >
-          <section
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="new-driver-title"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="form-panel-header">
-              <div>
-                <h2 id="new-driver-title">
-                  Nuevo conductor
-                </h2>
 
-                <p>
-                  Captura los datos del
-                  conductor.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeForm}
-                aria-label="Cerrar formulario"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              className="driver-form"
-              onSubmit={handleSubmit}
-            >
-              <label>
-                Nombre completo
-
-                <input
-                  name="nombre"
-                  value={form.nombre}
-                  onChange={handleChange}
-                  minLength="3"
-                  required
-                />
-              </label>
-
-              <label>
-                Teléfono
-
-                <input
-                  name="telefono"
-                  value={form.telefono}
-                  onChange={handleChange}
-                  inputMode="tel"
-                  required
-                />
-              </label>
-
-              <label>
-                Número de licencia
-
-                <input
-                  name="licenciaNumero"
-                  value={
-                    form.licenciaNumero
-                  }
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-
-              <label>
-                Empresa
-                <select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{empresas.map((empresa) => <option key={empresa} value={empresa}>{empresa}</option>)}</select>
-              </label>
-
-              <label>
-                Vencimiento de licencia
-                <span className="date-selects"><select value={form.licenciaVencimiento.split("-")[2] || ""} onChange={e=>updateExpiry("day",e.target.value)} required><option value="">Día</option>{dias.map(day=><option key={day}>{day}</option>)}</select><select value={form.licenciaVencimiento.split("-")[1] || ""} onChange={e=>updateExpiry("month",e.target.value)} required><option value="">Mes</option>{meses.map((month,index)=><option key={month} value={String(index+1).padStart(2,"0")}>{month}</option>)}</select><select value={form.licenciaVencimiento.split("-")[0] || ""} onChange={e=>updateExpiry("year",e.target.value)} required><option value="">Año</option>{anios.map(year=><option key={year}>{year}</option>)}</select></span>
-              </label>
-
-              <label>
-                Tipo de licencia
-                <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} placeholder="Ej. Federal B" required />
-              </label>
-
-              <label>
-                Última Evaluación de Manejo Comentado (dd/mm/aaaa)
-                <div className="date-picker-row">
-                  <select
-                    value={form.mcDia || ""}
-                    onChange={(e) => {
-                      const mcDia = e.target.value;
-                      setForm((prev) => {
-                        const mcMes = prev.mcMes || "";
-                        const mcAnio = prev.mcAnio || "";
-                        return {
-                          ...prev,
-                          mcDia,
-                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
-                        };
-                      });
-                    }}
-                  >
-                    <option value="">Día</option>
-                    {dias.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <select
-                    value={form.mcMes || ""}
-                    onChange={(e) => {
-                      const mcMes = e.target.value;
-                      setForm((prev) => {
-                        const mcDia = prev.mcDia || "";
-                        const mcAnio = prev.mcAnio || "";
-                        return {
-                          ...prev,
-                          mcMes,
-                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
-                        };
-                      });
-                    }}
-                  >
-                    <option value="">Mes</option>
-                    {meses.map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
-                  </select>
-                  <select
-                    value={form.mcAnio || ""}
-                    onChange={(e) => {
-                      const mcAnio = e.target.value;
-                      setForm((prev) => {
-                        const mcDia = prev.mcDia || "";
-                        const mcMes = prev.mcMes || "";
-                        return {
-                          ...prev,
-                          mcAnio,
-                          fechaManejoComentado: mcDia && mcMes && mcAnio ? `${mcAnio}-${mcMes}-${mcDia}` : ""
-                        };
-                      });
-                    }}
-                  >
-                    <option value="">Año</option>
-                    {Array.from({ length: 10 }, (_, index) => String(new Date().getFullYear() - 5 + index)).map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-              </label>
-
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={closeForm}
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={saving}
-                >
-                  {saving
-                    ? "Guardando..."
-                    : "Guardar conductor"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
 
       <section className="table-panel">
         {loading ? (
