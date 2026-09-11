@@ -6,9 +6,10 @@ import { sendDriverInspectionNotification } from "../bot/bot.js";
 import { getSupervisorAccess } from "../services/supervisor-telegram.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
-import { listAdminDrivers, assignVehicleToDriver } from "../services/admin-conductores.service.js";
+import { listAdminDrivers, assignVehicleToDriver, approveAdminDriver } from "../services/admin-conductores.service.js";
 import { getVehiculos } from "../services/catalogos.service.js";
 import { databasePool } from "../database/pool.js";
+import { sendDriverPinNotification, sendDriverApprovalNotification } from "../bot/bot.js";
 
 async function requireSupervisor(request) {
   const allowedRoles = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
@@ -151,52 +152,61 @@ export async function decideSupervisorDriverController(request, response) {
   try {
     await requireSupervisor(request);
     const idConductor = Number(request.params.idConductor);
-    const approved = Boolean(request.body?.aprobada ?? request.body?.approved);
+    const approved = Boolean(request.body?.aprobado ?? request.body?.aprobada ?? request.body?.approved);
 
-    const client = await databasePool.connect();
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    const updated = await approveAdminDriver({
+      idConductor,
+      aprobado: approved
+    });
+
+    if (!updated) {
+      return response.status(404).json({
+        success: false,
+        message: "Conductor no encontrado."
+      });
+    }
+
+    // Notificar al conductor por Telegram
     try {
-      await client.query("BEGIN");
-      const conductorRes = await client.query(
-        `UPDATE conductores
-         SET aprobado_por_admin = $1, fecha_aprobacion = CURRENT_TIMESTAMP, actualizado_en = CURRENT_TIMESTAMP
-         WHERE id_conductores = $2
-         RETURNING id_conductores, nombre, aprobado_por_admin`,
-        [approved, idConductor]
-      );
-      if (!conductorRes.rows[0]) {
-        await client.query("ROLLBACK");
-        return response.status(404).json({ success: false, message: "Conductor no encontrado." });
-      }
-
-      await client.query(
-        `UPDATE usuarios_telegram
-         SET estado_registro = $1, actualizado_en = CURRENT_TIMESTAMP
-         WHERE id_conductores = $2`,
-        [approved ? "COMPLETO" : "RECHAZADO", idConductor]
-      );
-
-      await client.query("COMMIT");
-
       const tgUser = await findTelegramUserByConductorId(idConductor);
       if (tgUser?.telegram_user_id) {
-        const { sendDriverApprovalNotification } = await import("../bot/bot.js");
-        await sendDriverApprovalNotification({
-          telegramUserId: tgUser.telegram_user_id,
-          approved
-        });
+        if (approved) {
+          if (updated.pinGenerado) {
+            await sendDriverPinNotification({
+              telegramUserId: tgUser.telegram_user_id,
+              pin: updated.pinGenerado,
+              conductorNombre: updated.nombre,
+              motivo: "APROBACION"
+            });
+          } else {
+            await sendDriverApprovalNotification({
+              telegramUserId: tgUser.telegram_user_id,
+              approved: true
+            });
+          }
+        } else {
+          await sendDriverApprovalNotification({
+            telegramUserId: tgUser.telegram_user_id,
+            approved: false
+          });
+        }
       }
-
-      return response.json({
-        success: true,
-        data: conductorRes.rows[0],
-        message: approved ? "Conductor validado y aprobado exitosamente." : "Conductor rechazado."
-      });
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    } finally {
-      client.release();
+    } catch (telegramErr) {
+      console.warn("No fue posible enviar notificación de aprobación por Telegram:", telegramErr.message);
     }
+
+    return response.json({
+      success: true,
+      data: updated,
+      message: approved ? "Conductor validado y aprobado exitosamente." : "Conductor rechazado."
+    });
   } catch (error) {
     return response.status(error.statusCode || 500).json({ success: false, message: error.message || "Error al procesar la decisión del conductor." });
   }

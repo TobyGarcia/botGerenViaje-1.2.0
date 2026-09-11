@@ -16,6 +16,7 @@ import { downloadPinCardImage } from "../utils/downloadPinCard.js";
 import {
   IconVerDetalle,
   IconCheck,
+  IconCross,
   IconKey,
   IconPower,
   IconReactivar,
@@ -399,13 +400,11 @@ function ConductoresPage({ user }) {
               <thead>
                 <tr>
                   <th className="col-conductor">Conductor</th>
-                  <th className="col-telefono">Teléfono</th>
                   <th className="col-empresa">Empresa</th>
                   <th className="col-unidad">Unidad Asignada</th>
                   <th className="col-licencia">Licencia</th>
                   <th className="col-vencimiento">Vencimiento</th>
                   <th className="col-mc">Manejo Comentado</th>
-                  <th className="col-telegram">Telegram</th>
                   <th className="col-aprobacion">Aprobación</th>
                   <th className="col-estado">Estado</th>
                   {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
@@ -426,12 +425,6 @@ function ConductoresPage({ user }) {
                         <strong className="conductor-name-cell">
                           {conductor.nombre}
                         </strong>
-                      </td>
-
-                      <td className="col-telefono">
-                        <span className="conductor-tel-cell">
-                          {conductor.telefono || "No registrado"}
-                        </span>
                       </td>
 
                       <td className="col-empresa">
@@ -486,36 +479,49 @@ function ConductoresPage({ user }) {
                         </span>
                       </td>
 
-                      <td className="col-telegram">
-                        {conductor.telegram_user_id
-                          ? (
-                              <span className="telegram-linked">
-                                Vinculado
-                              </span>
-                            )
-                          : (
-                              <span className="telegram-unlinked">
-                                Sin vínculo
-                              </span>
-                            )}
-                      </td>
-
                       <td className="col-aprobacion">
-                        <span
-                          className={
-                            conductor.aprobado_por_admin
-                              ? "status-badge status-active"
-                              : "status-badge status-inactive"
-                          }
-                          style={{
-                            backgroundColor: conductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
-                            color: conductor.aprobado_por_admin ? "#166534" : "#92400e"
-                          }}
-                        >
-                          {conductor.aprobado_por_admin
-                            ? "Aprobado"
-                            : "Pendiente"}
-                        </span>
+                        <div className="conductor-aprobacion-cell">
+                          <span
+                            className={
+                              conductor.aprobado_por_admin
+                                ? "status-badge status-active"
+                                : "status-badge status-inactive"
+                            }
+                            style={{
+                              backgroundColor: conductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
+                              color: conductor.aprobado_por_admin ? "#166534" : "#92400e"
+                            }}
+                          >
+                            {conductor.aprobado_por_admin
+                              ? "Aprobado"
+                              : "Pendiente"}
+                          </span>
+
+                          {!conductor.aprobado_por_admin && (!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
+                            <div className="aprobacion-actions-group">
+                              <button
+                                type="button"
+                                className="conductor-action-btn btn-approve"
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                                data-tooltip="Aprobar conductor"
+                                aria-label="Aprobar conductor"
+                              >
+                                <IconCheck size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="conductor-action-btn btn-reject"
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                                data-tooltip="Rechazar conductor"
+                                aria-label="Rechazar conductor"
+                              >
+                                <IconCross size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       <td className="col-estado">
@@ -535,35 +541,22 @@ function ConductoresPage({ user }) {
                       {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                         <td className="col-acciones">
                           <div className="conductor-actions-cell">
-                            {!conductor.aprobado_por_admin ? (
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-approve"
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => setApproveModalConductor(conductor)}
-                                title="Aprobar conductor"
-                                aria-label="Aprobar conductor"
-                              >
-                                <IconCheck size={16} />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-view-license"
-                                onClick={() => setApproveModalConductor(conductor)}
-                                title="Ver Licencia"
-                                aria-label="Ver Licencia"
-                              >
-                                <IconVerDetalle size={16} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-view-license"
+                              onClick={() => setApproveModalConductor(conductor)}
+                              data-tooltip="Ver Licencia"
+                              aria-label="Ver Licencia"
+                            >
+                              <IconVerDetalle size={16} />
+                            </button>
 
                             <button
                               type="button"
                               className="conductor-action-btn btn-pin"
                               disabled={updatingId === conductor.id_conductores}
                               onClick={() => handleOpenPinModal(conductor)}
-                              title={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              data-tooltip={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                               aria-label={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                             >
                               <IconKey size={16} />
@@ -575,7 +568,7 @@ function ConductoresPage({ user }) {
                                 className={`conductor-action-btn ${conductor.activo ? "btn-deactivate" : "btn-reactivate"}`}
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => handleOpenToggleActive(conductor)}
-                                title={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
+                                data-tooltip={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
                                 aria-label={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
                               >
                                 {conductor.activo ? <IconPower size={16} /> : <IconReactivar size={16} />}
@@ -588,8 +581,8 @@ function ConductoresPage({ user }) {
                                 className="conductor-action-btn btn-delete"
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => handleOpenDelete(conductor)}
-                                title="Eliminar conductor permanentemente"
-                                aria-label="Eliminar conductor permanentemente"
+                                data-tooltip="Eliminar permanentemente"
+                                aria-label="Eliminar permanentemente"
                               >
                                 <IconEliminar size={16} />
                               </button>
@@ -627,11 +620,6 @@ function ConductoresPage({ user }) {
 
                 <div className="conductor-mobile-grid">
                   <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Teléfono</span>
-                    <span className="conductor-mobile-value">{conductor.telefono || "No registrado"}</span>
-                  </div>
-
-                  <div className="conductor-mobile-field">
                     <span className="conductor-mobile-label">Licencia</span>
                     <span className="conductor-mobile-value">
                       {conductor.licencia_numero || "N/A"}{" "}
@@ -646,16 +634,9 @@ function ConductoresPage({ user }) {
                     <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
                   </div>
 
-                  <div className="conductor-mobile-field">
+                  <div className="conductor-mobile-field full-width">
                     <span className="conductor-mobile-label">Manejo Comentado</span>
                     <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
-                  </div>
-
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Telegram</span>
-                    <span className={`conductor-mobile-value ${conductor.telegram_id ? "telegram-linked" : "telegram-unlinked"}`}>
-                      {conductor.telegram_id ? "Vinculado" : "Sin vínculo"}
-                    </span>
                   </div>
 
                   <div className="conductor-mobile-field full-width">
@@ -685,24 +666,34 @@ function ConductoresPage({ user }) {
 
                 {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                   <footer className="conductor-mobile-actions">
-                    {!conductor.aprobado_por_admin ? (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        style={{ backgroundColor: "#16a34a" }}
-                        disabled={updatingId === conductor.id_conductores}
-                        onClick={() => setApproveModalConductor(conductor)}
-                      >
-                        Aprobar
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => setApproveModalConductor(conductor)}
-                      >
-                        Ver Licencia
-                      </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setApproveModalConductor(conductor)}
+                    >
+                      Ver Licencia
+                    </button>
+
+                    {!conductor.aprobado_por_admin && (
+                      <>
+                        <button
+                          type="button"
+                          className="primary-button"
+                          style={{ backgroundColor: "#16a34a" }}
+                          disabled={updatingId === conductor.id_conductores}
+                          onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                        >
+                          Aprobar
+                        </button>
+                        <button
+                          type="button"
+                          className="danger-button"
+                          disabled={updatingId === conductor.id_conductores}
+                          onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                        >
+                          Rechazar
+                        </button>
+                      </>
                     )}
 
                     <button

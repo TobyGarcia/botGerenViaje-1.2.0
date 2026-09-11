@@ -1793,60 +1793,52 @@
   background-color: #f1f5f9;
 }
 
-/* Column widths for conductores-table */
+/* Column widths for conductores-table (sin Teléfono ni Telegram) */
 .conductores-table .col-conductor {
+  width: 20%;
+  min-width: 170px;
+}
+
+.conductores-table .col-empresa {
+  width: 13%;
+  min-width: 110px;
+}
+
+.conductores-table .col-unidad {
   width: 16%;
   min-width: 140px;
 }
 
-.conductores-table .col-telefono {
-  width: 10%;
-  min-width: 100px;
-}
-
-.conductores-table .col-empresa {
-  width: 9%;
-  min-width: 85px;
-}
-
-.conductores-table .col-unidad {
-  width: 14%;
-  min-width: 125px;
-}
-
 .conductores-table .col-licencia {
+  width: 12%;
+  min-width: 110px;
+}
+
+.conductores-table .col-vencimiento {
   width: 10%;
   min-width: 95px;
 }
 
-.conductores-table .col-vencimiento {
-  width: 8.5%;
-  min-width: 85px;
-}
-
 .conductores-table .col-mc {
-  width: 8.5%;
-  min-width: 85px;
-}
-
-.conductores-table .col-telegram {
-  width: 8%;
-  min-width: 80px;
+  width: 10%;
+  min-width: 95px;
 }
 
 .conductores-table .col-aprobacion {
-  width: 8%;
-  min-width: 80px;
+  width: 11%;
+  min-width: 110px;
+  text-align: center;
 }
 
 .conductores-table .col-estado {
-  width: 7%;
-  min-width: 65px;
+  width: 8%;
+  min-width: 75px;
+  text-align: center;
 }
 
 .conductores-table .col-acciones {
-  width: 12%;
-  min-width: 130px;
+  width: 14%;
+  min-width: 140px;
   text-align: center;
 }
 
@@ -1857,12 +1849,6 @@
   color: #0f172a;
   line-height: 1.25;
   word-break: break-word;
-}
-
-.conductor-tel-cell {
-  color: #334155;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .conductor-empresa-cell {
@@ -1898,10 +1884,31 @@
   font-size: 0.79rem;
 }
 
+/* Celda de Aprobación */
+.conductor-aprobacion-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.aprobacion-actions-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.aprobacion-actions-group .conductor-action-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
 /* Select de unidad asignada */
 .conductor-unit-select {
   width: 100%;
-  max-width: 140px;
+  max-width: 150px;
   padding: 5px 6px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
@@ -1926,11 +1933,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
 }
 
-/* Botones de acción con iconos SVG */
+/* Botones de acción con iconos SVG y Viñeta Pop / Tooltip */
 .conductor-action-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1944,6 +1952,51 @@
   flex-shrink: 0;
 }
 
+/* Viñeta o Pop (Tooltip moderno flotante) */
+.conductor-action-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 999;
+}
+
+.conductor-action-btn[data-tooltip]::after {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 999;
+}
+
+.conductor-action-btn[data-tooltip]:hover::before,
+.conductor-action-btn[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
 .conductor-action-btn:focus-visible {
   outline: 2px solid #0284c7;
   outline-offset: 1px;
@@ -1953,6 +2006,7 @@
   opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
+  pointer-events: none;
 }
 
 /* Estilos individuales de botones */
@@ -1968,6 +2022,20 @@
   border-color: #059669;
   transform: translateY(-1px);
   box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);
+}
+
+.conductor-action-btn.btn-reject {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.conductor-action-btn.btn-reject:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.25);
 }
 
 .conductor-action-btn.btn-view-license {
