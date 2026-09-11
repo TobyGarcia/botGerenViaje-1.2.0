@@ -154,6 +154,9 @@ function ConductoresPage({ user }) {
     try {
       setUpdatingId(idConductor);
       const res = await approveAdminConductor(idConductor, aprobado);
+      if (res.data?.pinGenerado) {
+        window.alert(`✅ Conductor aprobado correctamente.\n\n🔑 Se le asignó el PIN de acceso: ${res.data.pinGenerado}`);
+      }
       setMessage(res.message || "Estado de aprobación actualizado.");
       setMessageType("success");
       await loadConductores();
@@ -166,19 +169,32 @@ function ConductoresPage({ user }) {
   }
 
   async function handleSetPin(conductor) {
-    const inputPin = window.prompt(`Ingresa el nuevo PIN de 4 dígitos para ${conductor.nombre}:`);
-    if (!inputPin) return;
+    const opcionAuto = window.confirm(
+      `¿Deseas generar automáticamente un nuevo PIN de 4 dígitos para ${conductor.nombre}?\n\n- Clic en [Aceptar] para generar un PIN aleatorio automáticamente.\n- Clic en [Cancelar] si prefieres escribir un PIN manual.`
+    );
 
-    const cleanPin = inputPin.trim();
-    if (!/^\d{4}$/.test(cleanPin)) {
-      alert("El PIN debe constar de exactamente 4 dígitos numéricos.");
-      return;
+    let pinToSend = null;
+    let auto = false;
+
+    if (opcionAuto) {
+      auto = true;
+    } else {
+      const inputPin = window.prompt(`Ingresa el nuevo PIN de 4 dígitos para ${conductor.nombre}:`);
+      if (!inputPin) return;
+      const cleanPin = inputPin.trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        alert("El PIN debe constar de exactamente 4 dígitos numéricos.");
+        return;
+      }
+      pinToSend = cleanPin;
     }
 
     try {
       setUpdatingId(conductor.id_conductores);
-      const res = await setAdminConductorPin(conductor.id_conductores, cleanPin);
-      setMessage(res.message || `PIN asignado correctamente a ${conductor.nombre}.`);
+      const res = await setAdminConductorPin(conductor.id_conductores, pinToSend, auto);
+      const pinFinal = res.data?.pinGenerado || pinToSend;
+      window.alert(`✅ ¡Nuevo PIN asignado con éxito a ${conductor.nombre}!\n\n🔑 PIN: ${pinFinal}\n\nPor favor compárteselo al conductor.`);
+      setMessage(res.message || `PIN asignado correctamente a ${conductor.nombre}: ${pinFinal}`);
       setMessageType("success");
       await loadConductores();
     } catch (err) {
@@ -761,8 +777,15 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td>
-                        <span style={{ fontSize: "0.85rem", color: conductor.tiene_pin ? "#15803d" : "#94a3b8" }}>
-                          {conductor.tiene_pin ? "Configurado" : "Sin PIN"}
+                        <span style={{
+                          fontSize: "0.82rem",
+                          fontWeight: "600",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          background: conductor.tiene_pin ? "#dcfce7" : "#fee2e2",
+                          color: conductor.tiene_pin ? "#15803d" : "#b91c1c"
+                        }}>
+                          {conductor.tiene_pin ? "✓ PIN Activo" : "Sin PIN"}
                         </span>
                       </td>
 
@@ -810,8 +833,9 @@ function ConductoresPage({ user }) {
                               style={{ padding: "4px 8px", fontSize: "0.8rem" }}
                               disabled={updatingId === conductor.id_conductores}
                               onClick={() => handleSetPin(conductor)}
+                              title="Generar automáticamente o cambiar PIN"
                             >
-                              {conductor.tiene_pin ? "Cambiar PIN" : "Asignar PIN"}
+                              {conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                             </button>
 
                             {(!user || user.rol === "ADMINISTRADOR") && (

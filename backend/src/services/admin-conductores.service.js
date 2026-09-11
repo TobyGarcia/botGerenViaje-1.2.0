@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import {
   databasePool
 } from "../database/pool.js";
@@ -102,11 +103,28 @@ export async function approveAdminDriver({ idConductor, aprobado }) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
+
+    let generatedPin = null;
+    if (Boolean(aprobado)) {
+      const pinCheck = await client.query(
+        `SELECT pin_hash FROM conductores WHERE id_conductores = $1`,
+        [idConductor]
+      );
+      if (!pinCheck.rows[0] || !pinCheck.rows[0].pin_hash) {
+        generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+        const pinHash = await bcrypt.hash(generatedPin, 10);
+        await client.query(
+          `UPDATE conductores SET pin_hash = $1 WHERE id_conductores = $2`,
+          [pinHash, idConductor]
+        );
+      }
+    }
+
     const result = await client.query(
       `UPDATE conductores
        SET aprobado_por_admin = $1, fecha_aprobacion = CURRENT_TIMESTAMP
        WHERE id_conductores = $2
-       RETURNING id_conductores, nombre, aprobado_por_admin`,
+       RETURNING id_conductores, nombre, aprobado_por_admin, (pin_hash IS NOT NULL) AS tiene_pin`,
       [Boolean(aprobado), idConductor]
     );
 
@@ -121,7 +139,7 @@ export async function approveAdminDriver({ idConductor, aprobado }) {
     }
 
     await client.query("COMMIT");
-    return driver;
+    return { ...driver, pinGenerado: generatedPin };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -184,6 +202,9 @@ export async function createAdminDriver({
       throw error;
     }
 
+    const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+    const pinHash = await bcrypt.hash(generatedPin, 10);
+
     const result =
       await client.query(
         `
@@ -198,7 +219,9 @@ export async function createAdminDriver({
             fecha_manejo_comentado,
             licencia_url,
             licencia_reverso_url,
-            activo
+            activo,
+            aprobado_por_admin,
+            pin_hash
           )
           VALUES (
             $1,
@@ -211,7 +234,9 @@ export async function createAdminDriver({
             $8,
             $9,
             $10,
-            TRUE
+            TRUE,
+            TRUE,
+            $11
           )
           RETURNING
             id_conductores,
@@ -225,7 +250,9 @@ export async function createAdminDriver({
             fecha_manejo_comentado,
             licencia_url,
             licencia_reverso_url,
-            activo
+            activo,
+            aprobado_por_admin,
+            (pin_hash IS NOT NULL) AS tiene_pin
         `,
         [
           nombre,
@@ -237,14 +264,17 @@ export async function createAdminDriver({
           licenciaVigente,
           fechaManejoComentado || null,
           licenciaUrl || null,
-          licenciaReversoUrl || null
+          licenciaReversoUrl || null,
+          pinHash
         ]
       );
 
-
     await client.query("COMMIT");
 
-    return result.rows[0];
+    return {
+      ...result.rows[0],
+      pinGenerado: generatedPin
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

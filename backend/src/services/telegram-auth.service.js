@@ -22,37 +22,11 @@ const conductorColumns = `
   fecha_manejo_comentado,
   telefono,
   activo,
+  aprobado_por_admin,
   licencia_url,
   licencia_reverso_url
 `;
 
-async function getConductorById(client, idConductor) {
-  const result = await client.query(
-    `SELECT 
-       c.id_conductores,
-       c.nombre,
-       c.licencia_numero,
-       c.tipo_licencia,
-       c.empresa,
-       c.licencia_vigente,
-       c.licencia_vencimiento,
-       c.fecha_manejo_comentado,
-       c.telefono,
-       c.activo,
-       c.licencia_url,
-       c.licencia_reverso_url,
-       v.id_vehiculos AS id_vehiculo_asignado,
-       v.nombre AS vehiculo_asignado_nombre,
-       v.numero_economico AS vehiculo_asignado_numero_economico
-     FROM conductores c
-     LEFT JOIN vehiculos v ON v.id_conductor_asignado = c.id_conductores
-     WHERE c.id_conductores = $1 
-     LIMIT 1`,
-    [idConductor]
-  );
-
-  return result.rows[0] ?? null;
-}
 
 export async function findOrCreateTelegramUser({
   telegramUser
@@ -182,31 +156,59 @@ export async function registerTelegramDriver({
       if (telegramUser && !telegramUser.activo) {
         throw new TelegramRegistrationError("Tu acceso está restringido.", 403);
       }
-
-      if (telegramUser && telegramUser.id_conductores && telegramUser.estado_registro === "COMPLETO") {
-        const conductor = await getConductorById(client, telegramUser.id_conductores);
-        if (conductor) {
-          await client.query("COMMIT");
-          return { telegramUser, conductor, created: false };
-        }
-      }
     }
 
     const licenciaVigente = licenciaVencimiento >= new Date().toISOString().slice(0, 10);
     const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
     const pinHash = await bcrypt.hash(generatedPin, 10);
 
-    const conductorResult = await client.query(
-      `
-        INSERT INTO conductores (
-          nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE, $11)
-        RETURNING ${conductorColumns}
-      `,
-      [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
-    );
-    const conductor = conductorResult.rows[0];
+    // 1. Verificar si ya existe el conductor vinculado a este usuario de Telegram o por número de licencia
+    let targetConductorId = telegramUser?.id_conductores || null;
+    if (!targetConductorId && licenciaNumero) {
+      const existingLicense = await client.query(
+        `SELECT id_conductores FROM conductores WHERE LOWER(licencia_numero) = LOWER($1) LIMIT 1`,
+        [licenciaNumero]
+      );
+      if (existingLicense.rows[0]) {
+        targetConductorId = existingLicense.rows[0].id_conductores;
+      }
+    }
+
+    let conductor = null;
+    if (targetConductorId) {
+      // Actualizar conductor existente con nuevos datos y asegurarle el PIN generado
+      const updateResult = await client.query(
+        `UPDATE conductores
+         SET nombre = $1,
+             telefono = $2,
+             tipo_licencia = $3,
+             empresa = $4,
+             licencia_vencimiento = $5,
+             licencia_vigente = $6,
+             fecha_manejo_comentado = COALESCE($7, fecha_manejo_comentado),
+             licencia_url = COALESCE($8, licencia_url),
+             licencia_reverso_url = COALESCE($9, licencia_reverso_url),
+             pin_hash = $10,
+             actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $11
+         RETURNING ${conductorColumns}`,
+        [nombre, telefono, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash, targetConductorId]
+      );
+      conductor = updateResult.rows[0];
+    } else {
+      // Insertar nuevo conductor con su PIN
+      const conductorResult = await client.query(
+        `
+          INSERT INTO conductores (
+            nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE, $11)
+          RETURNING ${conductorColumns}
+        `,
+        [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
+      );
+      conductor = conductorResult.rows[0];
+    }
 
     if (telegramUser) {
       await client.query(

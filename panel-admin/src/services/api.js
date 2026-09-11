@@ -199,13 +199,14 @@ export function approveAdminConductor(idConductor, aprobado) {
   );
 }
 
-export function setAdminConductorPin(idConductor, pin) {
+export function setAdminConductorPin(idConductor, pin = null, autoGenerate = false) {
   return request(
     `/admin/conductores/${idConductor}/pin`,
     {
       method: "PATCH",
       body: JSON.stringify({
-        pin
+        pin: pin || null,
+        autoGenerate
       })
     }
   );

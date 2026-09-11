@@ -202,7 +202,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
             Tu registro de conductor fue recibido exitosamente. Tu cuenta se encuentra <strong>en espera de aprobación por el administrador</strong>.
           </p>
 
-          {pendingResult.pinGenerado && (
+          {pendingResult.pinGenerado ? (
             <div
               style={{
                 background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
@@ -251,8 +251,13 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
                   gap: "6px"
                 }}
               >
-                {copiedPin ? <><IconCheck size={14} /> PIN Copiado</> : <><IconClipboard size={14} /> Copiar PIN</>}
+                {copiedPin ? <IconCheck size={16} /> : <IconClipboard size={16} />}
+                {copiedPin ? "¡PIN Copiado!" : "Copiar PIN"}
               </button>
+            </div>
+          ) : (
+            <div style={{ background: "#eff6ff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "20px", color: "#1e40af", fontSize: "0.85rem" }}>
+              🔑 Tu PIN de acceso se generará y asignará automáticamente al ser aprobado por el administrador.
             </div>
           )}
 

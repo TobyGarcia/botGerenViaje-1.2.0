@@ -325,7 +325,7 @@ export async function approveAdminDriverController(request, response) {
 export async function setDriverPinAdminController(request, response) {
   try {
     const idConductor = Number(request.params.idConductor);
-    const { pin } = request.body || {};
+    const { pin, autoGenerate } = request.body || {};
 
     if (!Number.isInteger(idConductor) || idConductor <= 0) {
       return response.status(400).json({
@@ -334,7 +334,10 @@ export async function setDriverPinAdminController(request, response) {
       });
     }
 
-    if (!pin || !/^\d{4}$/.test(String(pin).trim())) {
+    let finalPin = pin ? String(pin).trim() : null;
+    if (!finalPin || autoGenerate) {
+      finalPin = String(Math.floor(1000 + Math.random() * 9000));
+    } else if (!/^\d{4}$/.test(finalPin)) {
       return response.status(400).json({
         success: false,
         message: "El PIN debe ser un código de 4 dígitos numéricos."
@@ -343,13 +346,16 @@ export async function setDriverPinAdminController(request, response) {
 
     const updated = await setDriverPin({
       idConductor,
-      pin: String(pin).trim()
+      pin: finalPin
     });
 
     return response.status(200).json({
       success: true,
-      message: "PIN del conductor actualizado correctamente.",
-      data: updated
+      message: `PIN del conductor actualizado correctamente: ${finalPin}`,
+      data: {
+        ...updated,
+        pinGenerado: finalPin
+      }
     });
   } catch (error) {
     console.error("Error en setDriverPinAdminController:", error);

@@ -13,6 +13,8 @@ admin-cookies.txt
 # Dumps de base de datos y respaldos
 *.dump
 *.sql
+!database/migrations/*.sql
+!database/scripts/*.sql
 *.tar.gz
 
 # Archivos subidos dinámicamente
