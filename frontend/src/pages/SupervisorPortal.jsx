@@ -11,6 +11,8 @@ import {
   getGerenciamientoViaje,
   getSupervisorConductoresPendientes,
   decidirSupervisorConductor
+  ,getAutorizacionesManejoComentado
+  ,decidirAutorizacionManejoComentado
 } from "../services/api.js";
 import {
   IconCheck,
@@ -316,6 +318,10 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [driverActionLoading, setDriverActionLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
 
+  // Autorizaciones excepcionales por manejo comentado vencido/no registrado.
+  const [manejoAuthorizations, setManejoAuthorizations] = useState([]);
+  const [selectedManejoAuthorization, setSelectedManejoAuthorization] = useState(null);
+
   async function loadInspecciones() {
     try {
       setErrorMessage("");
@@ -356,6 +362,16 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     }
   }
 
+  async function loadManejoAuthorizations() {
+    try {
+      setErrorMessage("");
+      const res = await getAutorizacionesManejoComentado();
+      setManejoAuthorizations(res.data || []);
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
+
   async function handleDecideDriver(idConductor, aprobado) {
     const action = aprobado ? "aprobar" : "rechazar";
     if (!window.confirm(`¿Estás seguro de que deseas ${action} a este conductor?`)) return;
@@ -384,6 +400,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       else if (activeTab === "gerenciamiento") loadGerenciamientos();
       else if (activeTab === "asignaciones") loadAsignaciones();
       else if (activeTab === "conductores") loadPendingDrivers();
+      else if (activeTab === "manejo-comentado") loadManejoAuthorizations();
     }
   }, [access.confirmed, activeTab]);
 
@@ -469,6 +486,23 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       setComment("");
       loadGerenciamientos();
     } catch(error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function decideManejoComentado(aprobada) {
+    if (!signature) {
+      setErrorMessage("Captura y guarda tu firma digital antes de resolver la autorización.");
+      return;
+    }
+    try {
+      const result = await decidirAutorizacionManejoComentado(selectedManejoAuthorization.id_autorizacion, { aprobada, comentario: comment, firma: signature });
+      setMessage(result.message);
+      setSelectedManejoAuthorization(null);
+      setSignature("");
+      setComment("");
+      await loadManejoAuthorizations();
+    } catch (error) {
       setErrorMessage(error.message);
     }
   }
@@ -583,6 +617,15 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         >
           <IconIdCard size={16} /> Conductores {pendingDrivers.length > 0 ? `(${pendingDrivers.length})` : ""}
         </button>
+        {['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) && (
+          <button
+            type="button"
+            onClick={() => { setActiveTab("manejo-comentado"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setSelectedManejoAuthorization(null); setMessage(""); setErrorMessage(""); }}
+            style={{ padding: "8px 12px", border: "none", borderRadius: "6px", fontWeight: "bold", fontSize: "0.85rem", cursor: "pointer", background: activeTab === "manejo-comentado" ? "#b45309" : "#f1f5f9", color: activeTab === "manejo-comentado" ? "#ffffff" : "#475569", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <IconAlert size={16} /> Manejo vencido {manejoAuthorizations.length > 0 ? `(${manejoAuthorizations.length})` : ""}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => { setActiveTab("asignaciones"); setDetail(null); setGerenciamientoDetail(null); setSelectedDriver(null); setMessage(""); setErrorMessage(""); }}
@@ -672,6 +715,40 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
               <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                 <button type="button" style={{ background: "#ef4444", color: "#fff" }} disabled={!signature} onClick={() => decide(false)}>Rechazar</button>
                 <button type="button" style={{ background: "#16a34a", color: "#fff" }} disabled={!signature} onClick={() => decide(true)}>Aprobar y generar PDF</button>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {activeTab === "manejo-comentado" && (
+        <>
+          <h1>Autorizaciones de manejo comentado</h1>
+          <p style={{ color: "#64748b" }}>Solicitudes de inicio de viaje con manejo comentado vencido o no registrado. Sólo Gerente o Administrador puede autorizarlas.</p>
+          {!selectedManejoAuthorization ? (
+            <section>
+              {manejoAuthorizations.length ? manejoAuthorizations.map((item) => (
+                <button type="button" key={item.id_autorizacion} className="result-card" onClick={() => { setSelectedManejoAuthorization(item); setSignature(""); setComment(""); }}>
+                  <strong>{item.folio}</strong>
+                  <div>{item.conductor} · {item.vehiculo} ({item.numero_economico})</div>
+                  <small>Manejo comentado: {item.fecha_manejo_comentado ? new Date(item.fecha_manejo_comentado).toLocaleDateString("es-MX") : "No registrado"}</small>
+                </button>
+              )) : <p>No hay solicitudes pendientes.</p>}
+            </section>
+          ) : (
+            <section className="result-card">
+              <button type="button" onClick={() => setSelectedManejoAuthorization(null)}>← Volver</button>
+              <h2>{selectedManejoAuthorization.folio}</h2>
+              <p><strong>Conductor:</strong> {selectedManejoAuthorization.conductor}</p>
+              <p><strong>Unidad:</strong> {selectedManejoAuthorization.vehiculo} ({selectedManejoAuthorization.numero_economico})</p>
+              <p style={{ color: "#b45309" }}><strong>Motivo:</strong> {selectedManejoAuthorization.motivo_solicitud}</p>
+              <label>Comentario<textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Observaciones de la decisión" /></label>
+              <button type="button" onClick={() => setShowSignatureModal(true)} style={{ width: "100%", margin: "12px 0", padding: "12px", borderRadius: "8px", background: signature ? "#16a34a" : "#b45309", color: "#fff", border: 0, fontWeight: "bold" }}>
+                {signature ? "✓ Firma guardada — modificar" : "Capturar firma digital"}
+              </button>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" style={{ background: "#ef4444", color: "#fff" }} disabled={!signature} onClick={() => decideManejoComentado(false)}>Rechazar</button>
+                <button type="button" style={{ background: "#16a34a", color: "#fff" }} disabled={!signature} onClick={() => decideManejoComentado(true)}>Autorizar inicio</button>
               </div>
             </section>
           )}
@@ -1406,7 +1483,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       {/* Modal de Firma Digital Compartido */}
       {showSignatureModal && (
         <SignaturePadModal
-          title={activeTab === "gerenciamiento" ? "Firma Digital de Gerenciamiento" : "Firma Digital de Inspección"}
+          title={activeTab === "gerenciamiento" ? "Firma Digital de Gerenciamiento" : activeTab === "manejo-comentado" ? "Firma Digital de Autorización" : "Firma Digital de Inspección"}
           subtitle="Dibuja tu firma digital con tu dedo o ratón dentro del recuadro."
           onSave={(sigData) => {
             setSignature(sigData);

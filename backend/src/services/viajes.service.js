@@ -80,20 +80,8 @@ export async function createTrip({
       throw new Error("La licencia de conducir del conductor no está vigente.");
     }
 
-    if (!esGerenciamiento && !conductor.fecha_manejo_comentado) {
-      throw new Error("El conductor no cuenta con un Manejo Comentado registrado. Debe aprobar su evaluación de manejo comentado (requerida cada 6 meses) para poder operar una unidad.");
-    }
-
-    if (!esGerenciamiento && conductor.fecha_manejo_comentado) {
-      const evalDate = new Date(`${conductor.fecha_manejo_comentado}T00:00:00`);
-      const hace6Meses = new Date();
-      hace6Meses.setMonth(hace6Meses.getMonth() - 6);
-      hace6Meses.setHours(0, 0, 0, 0);
-
-      if (evalDate < hace6Meses) {
-        throw new Error("El Manejo Comentado del conductor ha vencido (requiere evaluación cada 6 meses). Debe agendar y aprobar su evaluación para poder operar una unidad.");
-      }
-    }
+    // La vigencia de manejo comentado no bloquea la creación ni la inspección.
+    // Se valida al iniciar el viaje, cuando puede existir una autorización gerencial.
 
 
     const vehicleResult = await client.query(
@@ -305,6 +293,7 @@ export async function startTrip({
           c.nombre AS conductor,
           c.activo AS conductor_activo,
           c.licencia_vigente AS licencia_actual_vigente,
+          c.fecha_manejo_comentado,
 
           vh.nombre AS vehiculo,
           vh.numero_economico,
@@ -362,6 +351,30 @@ export async function startTrip({
       throw new Error(
         "La licencia actual del conductor no está vigente."
       );
+    }
+
+    const evaluationDate = trip.fecha_manejo_comentado
+      ? new Date(`${String(trip.fecha_manejo_comentado).slice(0, 10)}T00:00:00`)
+      : null;
+    const validUntil = evaluationDate ? new Date(evaluationDate) : null;
+    if (validUntil) validUntil.setMonth(validUntil.getMonth() + 6);
+    const manejoComentadoVencido = !validUntil || validUntil < new Date();
+
+    if (manejoComentadoVencido) {
+      const approvalResult = await client.query(
+        `SELECT estado
+         FROM autorizaciones_manejo_comentado_viaje
+         WHERE id_viajes = $1
+         LIMIT 1`,
+        [idViaje]
+      );
+      const approval = approvalResult.rows[0];
+      if (approval?.estado !== "APROBADA") {
+        const status = approval?.estado === "RECHAZADA" ? "rechazada" : "pendiente";
+        throw new Error(
+          `El manejo comentado del conductor está vencido o no registrado. La autorización de Gerente o Administrador para este viaje está ${status}.`
+        );
+      }
     }
 
     if (!trip.vehiculo_activo) {

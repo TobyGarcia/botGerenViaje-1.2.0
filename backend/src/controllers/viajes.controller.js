@@ -10,6 +10,8 @@ import { sendTripGroupAlert } from "../bot/bot.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { getApprovalForStart } from "../services/inspecciones.service.js";
+import { getManejoComentadoAuthorizationTripData, requestManejoComentadoAuthorization } from "../services/autorizaciones-manejo-comentado.service.js";
+import { notifyManejoComentadoAuthorizationRequest } from "../bot/supervisor-bot.js";
 
 function parsePositiveInteger(value) {
   const parsedValue = Number(value);
@@ -300,9 +302,25 @@ export async function startTripController(
       error
     );
 
+    let manejoAuthorizationRequested = false;
+    if (error.message?.includes("manejo comentado")) {
+      try {
+        const driver = await requireTelegramDriver(request);
+        const created = await requestManejoComentadoAuthorization({ idViaje: Number(request.params.idViaje), idConductor: driver.id_conductores });
+        if (created) {
+          manejoAuthorizationRequested = true;
+          const authorization = await getManejoComentadoAuthorizationTripData(created.id_autorizacion);
+          await notifyManejoComentadoAuthorizationRequest(authorization);
+        }
+      } catch (notificationError) {
+        console.error("No fue posible registrar la solicitud de manejo comentado:", notificationError);
+      }
+    }
+
     const conflictMessages = [
       "no puede iniciarse",
       "no está vigente",
+      "manejo comentado",
       "está inactivo",
       "ya está asignado"
     ];
@@ -312,18 +330,19 @@ export async function startTripController(
         error.message.includes(message)
       );
 
-    const statusCode =
-      error.statusCode || error.message === "El viaje no existe."
+    const statusCode = error.statusCode || (
+      error.message === "El viaje no existe."
         ? 404
         : isConflict
           ? 409
-          : 500;
+          : 500
+    );
 
     return response.status(statusCode).json({
       success: false,
-      message:
-        error.message ||
-        "No fue posible iniciar el viaje."
+      message: manejoAuthorizationRequested
+        ? "El manejo comentado está vencido o no registrado. Se envió la solicitud de autorización a Gerente/Administrador; podrás iniciar cuando sea aprobada."
+        : error.message || "No fue posible iniciar el viaje."
     });
   }
 }

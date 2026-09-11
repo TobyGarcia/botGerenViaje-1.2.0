@@ -226,6 +226,26 @@ export async function notifyNewInspectionRequest({
   }
 }
 
+export async function notifyManejoComentadoAuthorizationRequest({ folio, conductor, vehiculo } = {}) {
+  const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+  const bot = getSupervisorBotInstance();
+  if (!groupId || !bot) return;
+  const message = [
+    "⚠️ AUTORIZACIÓN REQUERIDA: MANEJO COMENTADO",
+    `Folio: ${folio || "No disponible"}`,
+    `Conductor: ${conductor || "No disponible"}`,
+    `Unidad: ${vehiculo || "No disponible"}`,
+    "El manejo comentado está vencido o no registrado.",
+    "Sólo un Gerente o Administrador puede autorizar el inicio del viaje.",
+    "Abre la Mini App de supervisión para resolver la solicitud."
+  ].join("\n");
+  try {
+    await bot.telegram.sendMessage(groupId, message);
+  } catch (error) {
+    console.error("No fue posible enviar la alerta de manejo comentado:", error);
+  }
+}
+
 // Envía una alerta al grupo de supervisores cuando un conductor sube un
 // gerenciamiento de viaje nuevo (fuera de la ciudad) que queda pendiente de aprobación.
 export async function notifyNewGerenciamientoRequest({

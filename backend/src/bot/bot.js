@@ -214,6 +214,18 @@ export async function sendDriverInspectionNotification({
   }
 }
 
+export async function sendDriverManejoComentadoAuthorizationNotification({ telegramUserId, approved, trip, comment }) {
+  if (!telegramUserId) return;
+  const message = approved
+    ? ["✅ Autorización de manejo comentado aprobada", `Folio: ${trip?.folio || "No disponible"}`, "Ya puedes iniciar el viaje."].join("\n")
+    : ["❌ Autorización de manejo comentado rechazada", `Folio: ${trip?.folio || "No disponible"}`, `Motivo: ${comment || "No se proporcionó un comentario."}`].join("\n");
+  try {
+    await getTelegramBot().telegram.sendMessage(String(telegramUserId), message);
+  } catch (error) {
+    console.error("No fue posible notificar la autorización de manejo comentado:", error);
+  }
+}
+
 export async function sendDriverRegistrationSupervisorAlert({ conductor, pinGenerado = null }) {
   const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_ID;
 

@@ -239,6 +239,8 @@ export function getSupervisorAsignaciones() { return request("/api/supervisor/in
 export function asignarVehiculoSupervisor({ idConductor, idVehiculo }) { return request("/api/supervisor/inspecciones/asignaciones", { method: "POST", body: JSON.stringify({ idConductor, idVehiculo }) }); }
 export function getSupervisorConductoresPendientes() { return request("/api/supervisor/inspecciones/conductores-pendientes"); }
 export function decidirSupervisorConductor(idConductor, data) { return request(`/api/supervisor/inspecciones/conductores/${idConductor}/aprobar`, { method: "PATCH", body: JSON.stringify(data) }); }
+export function getAutorizacionesManejoComentado() { return request("/api/supervisor/inspecciones/autorizaciones-manejo-comentado"); }
+export function decidirAutorizacionManejoComentado(idAutorizacion, data) { return request(`/api/supervisor/inspecciones/autorizaciones-manejo-comentado/${idAutorizacion}/decision`, { method: "PATCH", body: JSON.stringify(data) }); }
 
 export function crearGerenciamientoViaje(payload) {
   return request("/api/gerenciamiento-viajes", {
