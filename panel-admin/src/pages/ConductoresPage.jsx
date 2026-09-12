@@ -922,6 +922,17 @@ function ConductoresPage({ user }) {
 
                             <button
                               type="button"
+                              className="conductor-action-btn btn-pin"
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleOpenPinModal(conductor)}
+                              data-tooltip={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              aria-label={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                            >
+                              <IconKey size={16} />
+                            </button>
+
+                            <button
+                              type="button"
                               className="conductor-action-btn btn-role"
                               data-tooltip="Asignar rol"
                               aria-label="Asignar rol"
@@ -1093,6 +1104,17 @@ function ConductoresPage({ user }) {
                       onClick={() => setApproveModalConductor(conductor)}
                     >
                       Ver Licencia
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={updatingId === conductor.id_conductores}
+                      onClick={() => handleOpenPinModal(conductor)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <IconKey size={15} />
+                      <span>{conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}</span>
                     </button>
 
                     <button
@@ -1346,6 +1368,16 @@ function ConductoresPage({ user }) {
                         </span>
                       </span>
                     </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">PIN de Acceso</span>
+                      <span className="driver-field-value">
+                        <IconKey size={14} style={{ color: "#64748b" }} />
+                        <span style={{ fontWeight: 600, color: approveModalConductor.tiene_pin ? "#059669" : "#64748b" }}>
+                          {approveModalConductor.tiene_pin ? "PIN Asignado" : "Sin PIN"}
+                        </span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1483,6 +1515,21 @@ function ConductoresPage({ user }) {
                     disabled={updatingId === approveModalConductor.id_conductores}
                   >
                     Cerrar
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    disabled={updatingId === approveModalConductor.id_conductores}
+                    onClick={() => {
+                      const cond = approveModalConductor;
+                      setApproveModalConductor(null);
+                      handleOpenPinModal(cond);
+                    }}
+                  >
+                    <IconKey size={15} />
+                    <span>{approveModalConductor.tiene_pin ? "Generar Nuevo PIN" : "Asignar PIN"}</span>
                   </button>
 
                   {canToggleActive && (
