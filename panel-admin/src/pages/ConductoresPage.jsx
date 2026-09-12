@@ -56,10 +56,12 @@ function getLicenciaStatus(conductor) {
   const diffTime = expirationDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+  const formattedExp = formatDate(conductor.licencia_vencimiento);
+
   if (diffDays < 0) {
     return {
       status: "vencida",
-      label: `Licencia vencida (${Math.abs(diffDays)} días atrás)`,
+      label: `Licencia vencida el ${formattedExp} (${Math.abs(diffDays)} días atrás)`,
       days: diffDays,
       color: "#dc2626"
     };
@@ -68,7 +70,7 @@ function getLicenciaStatus(conductor) {
   if (diffDays <= 30) {
     return {
       status: "por_vencer",
-      label: `Licencia por vencer (quedan ${diffDays} día${diffDays === 1 ? "" : "s"})`,
+      label: `Licencia por vencer el ${formattedExp} (${diffDays} día${diffDays === 1 ? "" : "s"} restantes)`,
       days: diffDays,
       color: "#d97706"
     };
@@ -76,7 +78,7 @@ function getLicenciaStatus(conductor) {
 
   return {
     status: "vigente",
-    label: `Licencia vigente (${diffDays} días restantes)`,
+    label: `Licencia vigente (Vence: ${formattedExp})`,
     days: diffDays,
     color: "#16a34a"
   };
@@ -790,8 +792,11 @@ function ConductoresPage({ user }) {
                       </td>
 
                       <td className="col-licencia">
+                        <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
+                      </td>
+
+                      <td className="col-vencimiento">
                         <div className="status-cell-center">
-                          <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
                           <span
                             className={`status-circle-icon status-circle-${licStatus.status}`}
                             data-tooltip={licStatus.label}
@@ -806,12 +811,6 @@ function ConductoresPage({ user }) {
                             )}
                           </span>
                         </div>
-                      </td>
-
-                      <td className="col-vencimiento">
-                        <span className="date-cell">
-                          {formatDate(conductor.licencia_vencimiento)}
-                        </span>
                       </td>
 
                       <td className="col-mc">
@@ -993,10 +992,14 @@ function ConductoresPage({ user }) {
                   <div className="conductor-mobile-grid">
                     <div className="conductor-mobile-field">
                       <span className="conductor-mobile-label">Licencia</span>
+                      <span className="conductor-mobile-value" style={{ fontWeight: 600 }}>
+                        {conductor.licencia_numero || "N/A"}
+                      </span>
+                    </div>
+
+                    <div className="conductor-mobile-field">
+                      <span className="conductor-mobile-label">Vencimiento</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span className="conductor-mobile-value" style={{ fontWeight: 600 }}>
-                          {conductor.licencia_numero || "N/A"}
-                        </span>
                         <span
                           className={`status-circle-icon status-circle-${licStatus.status}`}
                           data-tooltip={licStatus.label}
@@ -1010,13 +1013,9 @@ function ConductoresPage({ user }) {
                             <IconCross size={12} strokeWidth={2.8} />
                           )}
                         </span>
-                      </div>
-                    </div>
-
-                    <div className="conductor-mobile-field">
-                      <span className="conductor-mobile-label">Vencimiento</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
+                        <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                          {licStatus.status === "vigente" ? "Vigente" : licStatus.status === "por_vencer" ? "Por vencer" : "Vencida"}
+                        </span>
                       </div>
                     </div>
 

@@ -142,20 +142,43 @@ export default function VehicleSelectDropdown({
     setIsOpen(false);
   };
 
-  // Helper to split vehicle display name into primary and secondary
+  // Helper to split vehicle display name into primary (número económico) and secondary (modelo)
   const formatVehicleLabel = (veh) => {
-    if (!veh) return { primary: placeholder, secondary: "" };
-    const raw = veh.nombre || veh.numero_economico || `Vehículo #${veh.id_vehiculos}`;
-    const parenMatch = raw.match(/^(.*?)\s*\((.*?)\)$/);
-    if (parenMatch) {
-      return {
-        primary: parenMatch[1].trim(),
-        secondary: parenMatch[2].trim(),
-      };
+    if (!veh) return { primary: placeholder, secondary: "", full: placeholder };
+
+    let eco = (veh.numero_economico || "").trim();
+    let model = (veh.modelo || "").trim();
+
+    if (veh.marca && veh.marca.trim()) {
+      const marca = veh.marca.trim();
+      if (!model) {
+        model = marca;
+      } else if (!model.toLowerCase().includes(marca.toLowerCase())) {
+        model = `${marca} ${model}`;
+      }
     }
+
+    if (veh.nombre) {
+      const raw = veh.nombre.trim();
+      const parenMatch = raw.match(/^(.*?)\s*\((.*?)\)$/);
+      if (parenMatch) {
+        if (!eco) eco = parenMatch[1].trim();
+        if (!model) model = parenMatch[2].trim();
+      } else {
+        if (!eco) eco = raw;
+      }
+    }
+
+    if (!eco) {
+      eco = `Unidad #${veh.id_vehiculos}`;
+    }
+
+    const full = model ? `${eco} — ${model}` : eco;
+
     return {
-      primary: raw,
-      secondary: veh.placa || veh.placas || veh.numero_economico || "",
+      primary: eco,
+      secondary: model,
+      full
     };
   };
 
@@ -173,7 +196,7 @@ export default function VehicleSelectDropdown({
         disabled={disabled || loading}
         title={
           currentVehicle
-            ? `Unidad asignada: ${currentVehicle.nombre || currentVehicle.numero_economico}`
+            ? `Unidad asignada: ${currentLabel.full}`
             : "Seleccionar unidad vehicular"
         }
         aria-haspopup="listbox"
@@ -183,14 +206,14 @@ export default function VehicleSelectDropdown({
           <span className={`vehicle-trigger-icon ${currentVehicle ? "active" : "empty"}`}>
             {loading ? <IconSpinner size={13} /> : <IconCoche size={13} />}
           </span>
-          <span className="vehicle-trigger-label" title={currentVehicle?.nombre || placeholder}>
+          <span className="vehicle-trigger-label" title={currentVehicle ? currentLabel.full : placeholder}>
             {currentVehicle ? (
-              <>
+              <span className="vehicle-trigger-text">
                 <strong className="vehicle-trigger-main">{currentLabel.primary}</strong>
                 {currentLabel.secondary && (
                   <span className="vehicle-trigger-sub">({currentLabel.secondary})</span>
                 )}
-              </>
+              </span>
             ) : (
               <span className="vehicle-trigger-empty">{placeholder}</span>
             )}
@@ -274,7 +297,7 @@ export default function VehicleSelectDropdown({
                         type="button"
                         className={`vehicle-dropdown-item ${isSelected ? "selected" : ""}`}
                         onClick={() => handleSelect(veh.id_vehiculos)}
-                        title={veh.nombre}
+                        title={label.full}
                       >
                         <div className="vehicle-item-info">
                           <span className={`vehicle-item-dot ${isSelected ? "selected-dot" : ""}`} />
