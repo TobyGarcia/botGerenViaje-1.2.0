@@ -24,7 +24,14 @@ import {
   IconUsuarios,
   IconAlerta,
   IconSwap,
-  IconReset
+  IconReset,
+  IconRol,
+  IconPhone,
+  IconIdCard,
+  IconTelegram,
+  IconCalendar,
+  IconExternalLink,
+  IconFileText
 } from "../components/Icons.jsx";
 import VehicleSelectDropdown from "../components/VehicleSelectDropdown.jsx";
 
@@ -93,14 +100,21 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  const normalized =
-    typeof conductor.fecha_manejo_comentado === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(conductor.fecha_manejo_comentado)
-      ? `${conductor.fecha_manejo_comentado}T00:00:00`
-      : conductor.fecha_manejo_comentado;
+  let evalDate;
+  if (conductor.fecha_manejo_comentado instanceof Date) {
+    evalDate = new Date(conductor.fecha_manejo_comentado.getTime());
+  } else {
+    const rawStr = String(conductor.fecha_manejo_comentado).trim();
+    const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch.map(Number);
+      evalDate = new Date(y, m - 1, d);
+    } else {
+      evalDate = new Date(rawStr);
+    }
+  }
 
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(evalDate.getTime())) {
     return {
       status: "no_registrado",
       label: "Fecha de manejo comentado no válida",
@@ -108,17 +122,24 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  // Vigencia estándar de 1 año (365 días) desde la fecha realizada
-  const vencimiento = new Date(date);
-  vencimiento.setFullYear(vencimiento.getFullYear() + 1);
+  // Regla de vigencia semestral (6 meses = 180 días) según estándar operativo (consistente con backend)
+  const vencimiento = new Date(evalDate.getFullYear(), evalDate.getMonth() + 6, evalDate.getDate());
 
-  const now = new Date();
-  const diffDays = Math.ceil((vencimiento.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((vencimiento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const formattedExp = vencimiento.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
 
   if (diffDays < 0) {
     return {
       status: "vencido",
-      label: `Manejo comentado vencido (${Math.abs(diffDays)} días atrás)`,
+      label: `Manejo comentado vencido (${formattedExp} - hace ${Math.abs(diffDays)} días)`,
+      days: diffDays,
       color: "#dc2626"
     };
   }
@@ -126,14 +147,16 @@ function getManejoComentadoStatus(conductor) {
   if (diffDays <= 30) {
     return {
       status: "por_vencer",
-      label: `Manejo comentado por vencer (quedan ${diffDays} días)`,
+      label: `Manejo comentado por vencer (${formattedExp} - quedan ${diffDays} días)`,
+      days: diffDays,
       color: "#d97706"
     };
   }
 
   return {
     status: "vigente",
-    label: `Manejo comentado vigente (quedan ${diffDays} días)`,
+    label: `Manejo comentado vigente (Vence: ${formattedExp} - quedan ${diffDays} días)`,
+    days: diffDays,
     color: "#16a34a"
   };
 }
@@ -345,6 +368,10 @@ function ConductoresPage({ user }) {
   const canToggleActive =
     !user ||
     ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user.rol);
+
+  const canApprove =
+    !user ||
+    ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol);
 
   function handleOpenToggleActive(conductor) {
     setToggleActiveConductor(conductor);
@@ -749,7 +776,6 @@ function ConductoresPage({ user }) {
                   <th className="col-licencia">Licencia</th>
                   <th className="col-vencimiento">Vencimiento</th>
                   <th className="col-mc">Manejo Comentado</th>
-                  <th className="col-aprobacion">Aprobación</th>
                   <th className="col-estado">Estado</th>
                   {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                     <th className="col-acciones">Acciones</th>
@@ -831,58 +857,53 @@ function ConductoresPage({ user }) {
                         </div>
                       </td>
 
-                      <td className="col-aprobacion">
-                        <div className="status-cell-center">
-                          <span
-                            className={`status-circle-icon ${
-                              conductor.aprobado_por_admin ? "status-circle-vigente" : "status-circle-por_vencer"
-                            }`}
-                            data-tooltip={conductor.aprobado_por_admin ? "Aprobado por administración" : "Pendiente de aprobación"}
-                            aria-label={conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
-                          >
-                            {conductor.aprobado_por_admin ? (
-                              <IconCheck size={13} strokeWidth={2.8} />
-                            ) : (
-                              <IconAlerta size={13} strokeWidth={2.2} />
-                            )}
-                          </span>
-
-                          {!conductor.aprobado_por_admin && (!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
-                            <div className="aprobacion-actions-group">
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-approve"
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => handleApproveDriver(conductor.id_conductores, true)}
-                                data-tooltip="Aprobar conductor"
-                                aria-label="Aprobar conductor"
-                              >
-                                <IconCheck size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-reject"
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => handleApproveDriver(conductor.id_conductores, false)}
-                                data-tooltip="Rechazar conductor"
-                                aria-label="Rechazar conductor"
-                              >
-                                <IconCross size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
                       <td className="col-estado">
                         <div className="status-cell-center">
-                          <span
-                            className={`estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
-                            data-tooltip={conductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
-                            aria-label={conductor.activo ? "Activo" : "Inactivo"}
-                          >
-                            <span className="estado-inner-dot" />
-                          </span>
+                          {!conductor.aprobado_por_admin ? (
+                            canApprove ? (
+                              <div className="aprobacion-actions-group">
+                                <button
+                                  type="button"
+                                  className="conductor-action-btn btn-approve"
+                                  disabled={updatingId === conductor.id_conductores}
+                                  onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                                  data-tooltip="Aprobar conductor"
+                                  aria-label="Aprobar conductor"
+                                >
+                                  <IconCheck size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="conductor-action-btn btn-reject"
+                                  disabled={updatingId === conductor.id_conductores}
+                                  onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                                  data-tooltip="Rechazar conductor"
+                                  aria-label="Rechazar conductor"
+                                >
+                                  <IconCross size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span
+                                className="status-circle-icon status-circle-por_vencer"
+                                data-tooltip="Pendiente de aprobación"
+                                aria-label="Pendiente de aprobación"
+                              >
+                                <IconAlerta size={13} strokeWidth={2.2} />
+                              </span>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              className={`estado-toggle-btn estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                              onClick={() => handleOpenToggleActive(conductor)}
+                              disabled={updatingId === conductor.id_conductores}
+                              data-tooltip={conductor.activo ? "Activo (Clic para desactivar)" : "Inactivo (Clic para activar)"}
+                              aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                            >
+                              <span className="estado-inner-dot" />
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -901,27 +922,12 @@ function ConductoresPage({ user }) {
 
                             <button
                               type="button"
-                              className="conductor-action-btn btn-pin"
-                              disabled={updatingId === conductor.id_conductores}
-                              onClick={() => handleOpenPinModal(conductor)}
-                              data-tooltip={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
-                              aria-label={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              className="conductor-action-btn btn-role"
+                              data-tooltip="Asignar rol"
+                              aria-label="Asignar rol"
                             >
-                              <IconKey size={16} />
+                              <IconRol size={16} />
                             </button>
-
-                            {canToggleActive && (
-                              <button
-                                type="button"
-                                className={`conductor-action-btn ${conductor.activo ? "btn-deactivate" : "btn-reactivate"}`}
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => handleOpenToggleActive(conductor)}
-                                data-tooltip={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
-                                aria-label={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
-                              >
-                                {conductor.activo ? <IconPower size={16} /> : <IconReactivar size={16} />}
-                              </button>
-                            )}
 
                             {(!user || ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(user.rol)) && (
                               <button
@@ -966,26 +972,51 @@ function ConductoresPage({ user }) {
                       </div>
                     </div>
                     <div className="conductor-mobile-badges">
-                      <span
-                        className={`estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
-                        data-tooltip={conductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
-                        aria-label={conductor.activo ? "Activo" : "Inactivo"}
-                      >
-                        <span className="estado-inner-dot" />
-                      </span>
-                      <span
-                        className={`status-circle-icon ${
-                          conductor.aprobado_por_admin ? "status-circle-vigente" : "status-circle-por_vencer"
-                        }`}
-                        data-tooltip={conductor.aprobado_por_admin ? "Aprobado por administración" : "Pendiente de aprobación"}
-                        aria-label={conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
-                      >
-                        {conductor.aprobado_por_admin ? (
-                          <IconCheck size={12} strokeWidth={2.8} />
+                      {!conductor.aprobado_por_admin ? (
+                        canApprove ? (
+                          <div className="aprobacion-actions-group">
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-approve"
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                              data-tooltip="Aprobar conductor"
+                              aria-label="Aprobar conductor"
+                            >
+                              <IconCheck size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-reject"
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                              data-tooltip="Rechazar conductor"
+                              aria-label="Rechazar conductor"
+                            >
+                              <IconCross size={13} />
+                            </button>
+                          </div>
                         ) : (
-                          <IconAlerta size={12} strokeWidth={2.2} />
-                        )}
-                      </span>
+                          <span
+                            className="status-circle-icon status-circle-por_vencer"
+                            data-tooltip="Pendiente de aprobación"
+                            aria-label="Pendiente de aprobación"
+                          >
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          </span>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className={`estado-toggle-btn estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                          onClick={() => handleOpenToggleActive(conductor)}
+                          disabled={updatingId === conductor.id_conductores}
+                          data-tooltip={conductor.activo ? "Activo (Clic para desactivar)" : "Inactivo (Clic para activar)"}
+                          aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                        >
+                          <span className="estado-inner-dot" />
+                        </button>
+                      )}
                     </div>
                   </header>
 
@@ -1064,48 +1095,13 @@ function ConductoresPage({ user }) {
                       Ver Licencia
                     </button>
 
-                    {!conductor.aprobado_por_admin && (
-                      <>
-                        <button
-                          type="button"
-                          className="primary-button"
-                          style={{ backgroundColor: "#16a34a" }}
-                          disabled={updatingId === conductor.id_conductores}
-                          onClick={() => handleApproveDriver(conductor.id_conductores, true)}
-                        >
-                          Aprobar
-                        </button>
-                        <button
-                          type="button"
-                          className="danger-button"
-                          disabled={updatingId === conductor.id_conductores}
-                          onClick={() => handleApproveDriver(conductor.id_conductores, false)}
-                        >
-                          Rechazar
-                        </button>
-                      </>
-                    )}
-
                     <button
                       type="button"
-                      className="secondary-button"
-                      disabled={updatingId === conductor.id_conductores}
-                      onClick={() => handleOpenPinModal(conductor)}
-                      title="Generar automáticamente o cambiar PIN"
+                      className="secondary-button btn-role-mobile"
+                      style={{ color: "#7c3aed", borderColor: "#ddd6fe", background: "#f5f3ff", display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
-                      {conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}
+                      <IconRol size={15} /> Asignar rol
                     </button>
-
-                    {canToggleActive && (
-                      <button
-                        type="button"
-                        className={conductor.activo ? "danger-button" : "reactivate-button"}
-                        disabled={updatingId === conductor.id_conductores}
-                        onClick={() => handleOpenToggleActive(conductor)}
-                      >
-                        {conductor.activo ? "Desactivar" : "Reactivar"}
-                      </button>
-                    )}
 
                     {(!user || user.rol === "ADMINISTRADOR") && (
                       <button
@@ -1157,173 +1153,400 @@ function ConductoresPage({ user }) {
         )}
       </section>
 
-      {approveModalConductor && (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onMouseDown={() => setApproveModalConductor(null)}
-        >
-          <section
-            className="modal-card"
-            style={{ maxWidth: "720px", width: "95%", maxHeight: "90vh", overflowY: "auto" }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="approve-modal-title"
-            onMouseDown={(e) => e.stopPropagation()}
+      {approveModalConductor && (() => {
+        const modalLicStatus = getLicenciaStatus(approveModalConductor);
+        const modalMcStatus = getManejoComentadoStatus(approveModalConductor);
+
+        return (
+          <div
+            className="modal-overlay"
+            role="presentation"
+            onMouseDown={() => setApproveModalConductor(null)}
           >
-            <div className="form-panel-header">
-              <div>
-                <h2 id="approve-modal-title">Revisión de Conductor</h2>
-                <p>Verifica los datos personales y el documento de licencia antes de aprobar.</p>
-              </div>
-              <button
-                type="button"
-                className="close-button"
-                onClick={() => setApproveModalConductor(null)}
-                aria-label="Cerrar modal"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="driver-approval-body" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", padding: "16px 0" }}>
-              <div className="driver-info-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.9rem", lineHeight: "1.7" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0 0 12px 0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px" }}>
-                  📋 Información General
-                </h3>
-                <p style={{ margin: "4px 0" }}><strong>Nombre:</strong> {approveModalConductor.nombre}</p>
-                <p style={{ margin: "4px 0" }}><strong>Teléfono:</strong> {approveModalConductor.telefono || "No registrado"}</p>
-                <p style={{ margin: "4px 0" }}><strong>Empresa:</strong> <span className="status-badge" style={{ background: "#e0f2fe", color: "#0369a1" }}>{approveModalConductor.empresa || "Sin asignar"}</span></p>
-                <p style={{ margin: "4px 0" }}><strong>No. Licencia:</strong> {approveModalConductor.licencia_numero}</p>
-                <p style={{ margin: "4px 0" }}><strong>Tipo de Licencia:</strong> {approveModalConductor.tipo_licencia || "No especificado"}</p>
-                <p style={{ margin: "4px 0" }}>
-                  <strong>Vencimiento:</strong> {formatDate(approveModalConductor.licencia_vencimiento)}{" "}
-                  {approveModalConductor.licencia_vigente ? (
-                    <span style={{ color: "#16a34a", fontWeight: "600", fontSize: "0.8rem" }}>✓ Vigente</span>
-                  ) : (
-                    <span style={{ color: "#dc2626", fontWeight: "600", fontSize: "0.8rem" }}>⚠ Vencida</span>
-                  )}
-                </p>
-                <p style={{ margin: "4px 0" }}><strong>Manejo Comentado:</strong> {formatDate(approveModalConductor.fecha_manejo_comentado)}</p>
-                <p style={{ margin: "4px 0" }}><strong>Telegram:</strong> {approveModalConductor.telegram_user_id ? "✅ Vinculado" : "⚪ Sin vincular"}</p>
-                <p style={{ margin: "4px 0" }}>
-                  <strong>Estatus Aprobación:</strong>{" "}
-                  <span style={{ fontWeight: "600", color: approveModalConductor.aprobado_por_admin ? "#15803d" : "#b45309" }}>
-                    {approveModalConductor.aprobado_por_admin ? "Aprobado" : "Pendiente de Aprobación"}
-                  </span>
-                </p>
-              </div>
-
-              <div className="driver-license-panel" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px", width: "100%" }}>
-                  🪪 Documentos de Licencia
-                </h3>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", width: "100%" }}>
-                  {/* Licencia Frente */}
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
-                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Frente</p>
-                    {approveModalConductor.licencia_url ? (
-                      approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
-                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
-                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
-                          <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
-                        </div>
-                      ) : (
-                        <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" title="Ver Frente a tamaño completo">
-                          <img
-                            src={approveModalConductor.licencia_url}
-                            alt={`Licencia frente de ${approveModalConductor.nombre}`}
-                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
-                          />
-                        </a>
-                      )
-                    ) : (
-                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Frente</p>
-                    )}
+            <section
+              className="modal-card driver-review-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="approve-modal-title"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="driver-review-header">
+                <div className="driver-review-header-left">
+                  <div className="driver-review-icon-box">
+                    <IconIdCard size={22} />
                   </div>
-
-                  {/* Licencia Reverso */}
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
-                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Reverso / Trasero</p>
-                    {approveModalConductor.licencia_reverso_url ? (
-                      approveModalConductor.licencia_reverso_url.toLowerCase().endsWith(".pdf") ? (
-                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
-                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
-                          <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
-                        </div>
-                      ) : (
-                        <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" title="Ver Reverso a tamaño completo">
-                          <img
-                            src={approveModalConductor.licencia_reverso_url}
-                            alt={`Licencia reverso de ${approveModalConductor.nombre}`}
-                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
-                          />
-                        </a>
-                      )
-                    ) : (
-                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Reverso</p>
-                    )}
+                  <div className="driver-review-title-group">
+                    <h2 id="approve-modal-title">Revisión de Conductor</h2>
+                    <p>Verifica los datos personales y el documento de licencia antes de autorizar la operación.</p>
                   </div>
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "2px 0 0 0", textAlign: "center" }}>🔍 Haz clic en las imágenes para ampliarlas</p>
+
+                <div className="driver-review-header-right">
+                  <span className="conductor-id-badge">
+                    CON-{String(approveModalConductor.id_conductores).padStart(4, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    className="driver-review-close-btn"
+                    onClick={() => setApproveModalConductor(null)}
+                    aria-label="Cerrar modal"
+                  >
+                    <IconCross size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="form-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "12px", display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setApproveModalConductor(null)}
-                disabled={updatingId === approveModalConductor.id_conductores}
-              >
-                Cerrar
-              </button>
+              <div className="driver-review-content">
+                {/* Columna Izquierda: Información General */}
+                <div className="driver-review-card">
+                  <div className="driver-review-card-header">
+                    <div className="driver-review-card-title">
+                      <IconUsuarios size={18} className="card-title-icon" />
+                      <span>Información General</span>
+                    </div>
 
-              {canToggleActive && (
-                <button
-                  type="button"
-                  className={approveModalConductor.activo ? "danger-button" : "reactivate-button"}
-                  style={{ fontSize: "0.85rem", padding: "8px 16px" }}
-                  disabled={updatingId === approveModalConductor.id_conductores}
-                  onClick={() => handleOpenToggleActive(approveModalConductor)}
-                >
-                  {approveModalConductor.activo ? "Desactivar Conductor" : "✓ Reactivar Conductor"}
-                </button>
-              )}
+                    <span
+                      className={`estado-pill-halo ${approveModalConductor.activo ? "halo-active" : "halo-inactive"}`}
+                      data-tooltip={approveModalConductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                      aria-label={approveModalConductor.activo ? "Activo" : "Inactivo"}
+                    >
+                      <span className="estado-inner-dot" />
+                    </span>
+                  </div>
 
-              {!approveModalConductor.aprobado_por_admin && (
-                <>
+                  <div className="driver-review-fields-grid">
+                    <div className="driver-field-item driver-field-full">
+                      <span className="driver-field-label">Nombre Completo</span>
+                      <span className="driver-field-value driver-field-name">
+                        {approveModalConductor.nombre}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Teléfono</span>
+                      <span className="driver-field-value">
+                        <IconPhone size={14} style={{ color: "#64748b" }} />
+                        {approveModalConductor.telefono || "No registrado"}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Empresa</span>
+                      <span className="driver-field-value">
+                        <span className="empresa-pill-badge">
+                          {approveModalConductor.empresa || "Sin asignar"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">No. Licencia</span>
+                      <span className="driver-field-value">
+                        <span className="licencia-num">
+                          {approveModalConductor.licencia_numero || "N/A"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Tipo de Licencia</span>
+                      <span className="driver-field-value">
+                        {approveModalConductor.tipo_licencia || "No especificado"}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Vencimiento Licencia</span>
+                      <span className="driver-field-value">
+                        <span style={{ fontWeight: 600 }}>
+                          {formatDate(approveModalConductor.licencia_vencimiento)}
+                        </span>
+                        <span className={`driver-status-badge badge-${modalLicStatus.status}`}>
+                          {modalLicStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : modalLicStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                          <span>
+                            {modalLicStatus.status === "vigente"
+                              ? "Vigente"
+                              : modalLicStatus.status === "por_vencer"
+                              ? "Por vencer"
+                              : "Vencida"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Manejo Comentado</span>
+                      <span className="driver-field-value">
+                        <span style={{ fontWeight: 600 }}>
+                          {formatDate(approveModalConductor.fecha_manejo_comentado)}
+                        </span>
+                        <span className={`driver-status-badge badge-${modalMcStatus.status}`}>
+                          {modalMcStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : modalMcStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                          <span>
+                            {modalMcStatus.status === "vigente"
+                              ? "Vigente"
+                              : modalMcStatus.status === "por_vencer"
+                              ? "Por vencer"
+                              : "Vencido"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Telegram Bot</span>
+                      <span className="driver-field-value">
+                        <span
+                          className={`driver-status-badge ${
+                            approveModalConductor.telegram_user_id
+                              ? "badge-telegram-linked"
+                              : "badge-telegram-unlinked"
+                          }`}
+                        >
+                          <IconTelegram size={13} />
+                          <span>
+                            {approveModalConductor.telegram_user_id ? "Vinculado" : "Sin vincular"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Estatus Aprobación</span>
+                      <span className="driver-field-value">
+                        <span
+                          className={`driver-status-badge ${
+                            approveModalConductor.aprobado_por_admin
+                              ? "badge-vigente"
+                              : "badge-por_vencer"
+                          }`}
+                        >
+                          {approveModalConductor.aprobado_por_admin ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          )}
+                          <span>
+                            {approveModalConductor.aprobado_por_admin
+                              ? "Aprobado"
+                              : "Pendiente de Aprobación"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna Derecha: Documentos de Licencia */}
+                <div className="driver-review-card">
+                  <div className="driver-review-card-header">
+                    <div className="driver-review-card-title">
+                      <IconIdCard size={18} className="card-title-icon" />
+                      <span>Documentos de Licencia</span>
+                    </div>
+                    <span className="driver-status-badge badge-sin_fecha">
+                      2 Vistas
+                    </span>
+                  </div>
+
+                  <div className="driver-doc-grid">
+                    {/* Licencia Frente */}
+                    <div className="driver-doc-slot">
+                      <span className="driver-doc-slot-label">
+                        <IconIdCard size={13} /> Frente
+                      </span>
+                      <div className="driver-doc-preview-box">
+                        {approveModalConductor.licencia_url ? (
+                          approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
+                            <div className="driver-doc-pdf">
+                              <IconFileText size={28} style={{ color: "#0284c7" }} />
+                              <a
+                                href={approveModalConductor.licencia_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="driver-doc-pdf-link"
+                              >
+                                <span>Abrir PDF</span>
+                                <IconExternalLink size={13} />
+                              </a>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={approveModalConductor.licencia_url}
+                                alt={`Licencia frente de ${approveModalConductor.nombre}`}
+                                className="driver-doc-img"
+                              />
+                              <div className="driver-doc-overlay">
+                                <a
+                                  href={approveModalConductor.licencia_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="driver-doc-overlay-btn"
+                                >
+                                  <span>Ampliar</span>
+                                  <IconExternalLink size={13} />
+                                </a>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          <div className="driver-doc-empty">
+                            <IconIdCard size={28} />
+                            <span>Sin foto Frente</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Licencia Reverso */}
+                    <div className="driver-doc-slot">
+                      <span className="driver-doc-slot-label">
+                        <IconIdCard size={13} /> Reverso
+                      </span>
+                      <div className="driver-doc-preview-box">
+                        {approveModalConductor.licencia_reverso_url ? (
+                          approveModalConductor.licencia_reverso_url.toLowerCase().endsWith(".pdf") ? (
+                            <div className="driver-doc-pdf">
+                              <IconFileText size={28} style={{ color: "#0284c7" }} />
+                              <a
+                                href={approveModalConductor.licencia_reverso_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="driver-doc-pdf-link"
+                              >
+                                <span>Abrir PDF</span>
+                                <IconExternalLink size={13} />
+                              </a>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={approveModalConductor.licencia_reverso_url}
+                                alt={`Licencia reverso de ${approveModalConductor.nombre}`}
+                                className="driver-doc-img"
+                              />
+                              <div className="driver-doc-overlay">
+                                <a
+                                  href={approveModalConductor.licencia_reverso_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="driver-doc-overlay-btn"
+                                >
+                                  <span>Ampliar</span>
+                                  <IconExternalLink size={13} />
+                                </a>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          <div className="driver-doc-empty">
+                            <IconIdCard size={28} />
+                            <span>Sin foto Reverso</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="driver-doc-footer-hint">
+                    <IconVerDetalle size={14} style={{ color: "#0284c7", flexShrink: 0 }} />
+                    <span>Haz clic en una imagen para abrirla en resolución completa.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="driver-review-footer">
+                <div>
+                  <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                    Registro verificado en plataforma
+                  </span>
+                </div>
+
+                <div className="driver-review-footer-actions">
                   <button
                     type="button"
-                    className="danger-button"
-                    style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+                    className="secondary-button"
+                    onClick={() => setApproveModalConductor(null)}
                     disabled={updatingId === approveModalConductor.id_conductores}
-                    onClick={async () => {
-                      await handleApproveDriver(approveModalConductor.id_conductores, false);
-                      setApproveModalConductor(null);
-                    }}
                   >
-                    Rechazar
+                    Cerrar
                   </button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    style={{ backgroundColor: "#16a34a", fontSize: "0.85rem", padding: "8px 16px" }}
-                    disabled={updatingId === approveModalConductor.id_conductores}
-                    onClick={async () => {
-                      await handleApproveDriver(approveModalConductor.id_conductores, true);
-                      setApproveModalConductor(null);
-                    }}
-                  >
-                    {updatingId === approveModalConductor.id_conductores ? "Procesando..." : "✓ Aprobar Conductor"}
-                  </button>
-                </>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
+
+                  {canToggleActive && (
+                    <button
+                      type="button"
+                      className={approveModalConductor.activo ? "danger-button" : "reactivate-button"}
+                      style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      disabled={updatingId === approveModalConductor.id_conductores}
+                      onClick={() => handleOpenToggleActive(approveModalConductor)}
+                    >
+                      {approveModalConductor.activo ? (
+                        <>
+                          <IconPower size={15} />
+                          <span>Desactivar Conductor</span>
+                        </>
+                      ) : (
+                        <>
+                          <IconReactivar size={15} />
+                          <span>Reactivar Conductor</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {!approveModalConductor.aprobado_por_admin && (
+                    <>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        disabled={updatingId === approveModalConductor.id_conductores}
+                        onClick={async () => {
+                          await handleApproveDriver(approveModalConductor.id_conductores, false);
+                          setApproveModalConductor(null);
+                        }}
+                      >
+                        <IconCross size={15} />
+                        <span>Rechazar</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        style={{ backgroundColor: "#16a34a", fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        disabled={updatingId === approveModalConductor.id_conductores}
+                        onClick={async () => {
+                          await handleApproveDriver(approveModalConductor.id_conductores, true);
+                          setApproveModalConductor(null);
+                        }}
+                      >
+                        <IconCheck size={15} />
+                        <span>
+                          {updatingId === approveModalConductor.id_conductores
+                            ? "Procesando..."
+                            : "Aprobar Conductor"}
+                        </span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
 
       {/* Modal 1: Asignar / Cambiar PIN */}
       {pinModalConductor && (
@@ -1346,7 +1569,7 @@ function ConductoresPage({ user }) {
                 disabled={savingPin}
                 onClick={() => setPinModalConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -1381,7 +1604,7 @@ function ConductoresPage({ user }) {
                   />
                   <div>
                     <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
-                      🎲 Generar automáticamente
+                      Generar automáticamente
                     </strong>
                     <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
                       El sistema creará un PIN aleatorio y seguro de 4 dígitos.
@@ -1414,7 +1637,7 @@ function ConductoresPage({ user }) {
                   />
                   <div style={{ width: "100%" }}>
                     <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
-                      ✏️ Ingresar PIN manual
+                      Ingresar PIN manual
                     </strong>
                     <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
                       Escribe un código numérico de exactamente 4 dígitos.
@@ -1453,8 +1676,9 @@ function ConductoresPage({ user }) {
               </div>
 
               {pinModalError && (
-                <div style={{ padding: "8px 12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontSize: "0.82rem" }}>
-                  ⚠️ {pinModalError}
+                <div style={{ padding: "8px 12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <IconAlerta size={14} />
+                  <span>{pinModalError}</span>
                 </div>
               )}
             </div>
@@ -1489,7 +1713,22 @@ function ConductoresPage({ user }) {
             style={{ maxWidth: "420px", width: "100%", textAlign: "center" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: "3rem", margin: "10px 0 6px 0" }}>🎉</div>
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                background: "#ecfdf5",
+                border: "1px solid #a7f3d0",
+                color: "#059669",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "8px auto 14px auto"
+              }}
+            >
+              <IconCheck size={28} strokeWidth={2.8} />
+            </div>
             <h2 style={{ fontSize: "1.25rem", color: "#1e293b", margin: "0 0 6px 0" }}>
               {pinSuccessData.isApproval ? "¡Conductor Aprobado!" : "¡PIN Asignado con Éxito!"}
             </h2>
@@ -1541,7 +1780,7 @@ function ConductoresPage({ user }) {
                     setTimeout(() => setCopiedSuccessPin(false), 2000);
                   }}
                 >
-                  {copiedSuccessPin ? "✓ ¡Copiado!" : "📋 Copiar PIN"}
+                  {copiedSuccessPin ? "¡Copiado!" : "Copiar PIN"}
                 </button>
 
                 <button
@@ -1563,13 +1802,13 @@ function ConductoresPage({ user }) {
                   }}
                   title="Descargar imagen digital con el PIN y nombre del conductor"
                 >
-                  📥 Guardar Imagen
+                  Guardar Imagen
                 </button>
               </div>
             </div>
 
             <p style={{ fontSize: "0.8rem", color: "#475569", margin: "0 0 20px 0" }}>
-              💡 Entrégale este PIN al conductor para que pueda iniciar sesión en el bot de Telegram de la empresa.
+              Entrégale este PIN al conductor para que pueda iniciar sesión en el bot de Telegram de la empresa.
             </p>
 
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -1607,7 +1846,7 @@ function ConductoresPage({ user }) {
                 disabled={updatingId === toggleActiveConductor.id_conductores}
                 onClick={() => setToggleActiveConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -1655,7 +1894,7 @@ function ConductoresPage({ user }) {
                   ? "Procesando..."
                   : toggleActiveConductor.activo
                   ? "Sí, desactivar"
-                  : "✓ Sí, reactivar"}
+                  : "Sí, reactivar"}
               </button>
             </div>
           </div>
@@ -1683,7 +1922,7 @@ function ConductoresPage({ user }) {
                 disabled={updatingId === deleteConfirmConductor.id_conductores}
                 onClick={() => setDeleteConfirmConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -1691,8 +1930,9 @@ function ConductoresPage({ user }) {
               <p style={{ margin: "0 0 10px 0" }}>
                 ¿Estás seguro de que deseas eliminar permanentemente a <strong>{deleteConfirmConductor.nombre}</strong>?
               </p>
-              <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b" }}>
-                ⚠️ <strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.
+              <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                <IconAlerta size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.</span>
               </div>
             </div>
 
