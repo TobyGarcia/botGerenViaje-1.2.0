@@ -32,6 +32,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
   const savingRef = useRef(false);
   const [form, setForm] = useState({
     nombre: getInitialName(telegramAuth?.usuario),
+    correo: "",
     telefono: "",
     licenciaNumero: "",
     tipoLicencia: "",
@@ -142,6 +143,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
       const initData = window.Telegram?.WebApp?.initData || "";
       const payload = {
         ...form,
+        email: form.correo,
         licenciaArchivoBase64: licenciaFrente.base64,
         licenciaNombreArchivo: licenciaFrente.name,
         licenciaReversoBase64: licenciaReverso.base64 || null,
@@ -342,6 +344,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         <label>
           Nombre completo
           <input name="nombre" value={form.nombre} onChange={handleChange} maxLength="150" required />
+        </label>
+        <label>
+          Correo electrónico
+          <input name="correo" type="email" value={form.correo} onChange={handleChange} maxLength="150" placeholder="ejemplo@correo.com" required />
         </label>
         <label>
           Teléfono
