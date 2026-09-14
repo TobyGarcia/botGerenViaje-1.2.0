@@ -74,7 +74,13 @@ export async function listAdminDrivers({
           v.id_vehiculos AS id_vehiculo_asignado,
           v.nombre AS vehiculo_asignado_nombre,
           v.numero_economico AS vehiculo_asignado_numero_economico,
-          v.placas AS vehiculo_asignado_placas
+          v.placas AS vehiculo_asignado_placas,
+
+          ua.id_usuarios_admin,
+          ua.rol AS rol_administrativo,
+          ua.username AS admin_username,
+          ua.correo AS admin_correo,
+          ua.activo AS admin_activo
 
         FROM conductores c
 
@@ -85,6 +91,19 @@ export async function listAdminDrivers({
         LEFT JOIN vehiculos v
           ON v.id_conductor_asignado =
              c.id_conductores
+
+        LEFT JOIN (
+          SELECT DISTINCT ON (id_conductores)
+            id_usuarios_admin,
+            id_conductores,
+            rol,
+            username,
+            correo,
+            activo
+          FROM usuarios_admin
+          WHERE id_conductores IS NOT NULL
+          ORDER BY id_conductores, activo DESC, id_usuarios_admin DESC
+        ) ua ON ua.id_conductores = c.id_conductores
 
         ${whereClause}
 
@@ -404,6 +423,455 @@ export async function toggleAdminDriverActive({ idConductor, activo }) {
 
     await client.query("COMMIT");
     return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+const HIERARCHY_ROLES = {
+  ADMINISTRADOR: [
+    "ADMINISTRADOR",
+    "GERENTE",
+    "GERENTE_GENERAL",
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE",
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ],
+  GERENTE: [
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE",
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ],
+  GERENTE_GENERAL: [
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE",
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ],
+  COORDINADOR: [
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ],
+  COORDINADOR_AREA: [
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ],
+  COORDINADOR_QHSE: [
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR",
+    "OPERADOR",
+    "CONSULTA"
+  ]
+};
+
+function mapAdminRoleToTelegramRole(adminRole) {
+  const r = String(adminRole || "").toUpperCase();
+  if (["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL"].includes(r)) {
+    return "ADMINISTRADOR";
+  }
+  if (["SUPERVISOR", "QHSE", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(r)) {
+    return "SUPERVISOR";
+  }
+  return "CONDUCTOR";
+}
+
+export async function getAdminConductorRole({ idConductor }) {
+  const conductorResult = await databasePool.query(
+    `SELECT
+       c.id_conductores,
+       c.nombre,
+       c.telefono,
+       c.empresa,
+       c.aprobado_por_admin,
+       c.activo,
+       (c.pin_hash IS NOT NULL) AS tiene_pin,
+       ut.telegram_user_id,
+       ut.telegram_username,
+       ut.estado_registro
+     FROM conductores c
+     LEFT JOIN usuarios_telegram ut ON ut.id_conductores = c.id_conductores
+     WHERE c.id_conductores = $1
+     LIMIT 1`,
+    [idConductor]
+  );
+
+  const conductor = conductorResult.rows[0];
+  if (!conductor) return null;
+
+  const adminUserResult = await databasePool.query(
+    `SELECT
+       id_usuarios_admin,
+       nombre,
+       username,
+       correo,
+       telefono,
+       rol,
+       activo,
+       (pin_hash IS NOT NULL) AS tiene_pin,
+       telegram_user_id,
+       ultimo_acceso_en
+     FROM usuarios_admin
+     WHERE id_conductores = $1
+     ORDER BY activo DESC, id_usuarios_admin DESC
+     LIMIT 1`,
+    [idConductor]
+  );
+
+  const usuarioAdmin = adminUserResult.rows[0] || null;
+
+  const unlinkedUsersResult = await databasePool.query(
+    `SELECT
+       id_usuarios_admin,
+       nombre,
+       username,
+       correo,
+       rol,
+       activo
+     FROM usuarios_admin
+     WHERE id_conductores IS NULL
+     ORDER BY activo DESC, nombre ASC`
+  );
+
+  return {
+    conductor,
+    usuarioAdmin,
+    unlinkedUsers: unlinkedUsersResult.rows
+  };
+}
+
+export async function assignAdminConductorRole({
+  idConductor,
+  modo = "NUEVO",
+  data = {},
+  requestingUserRol = "ADMINISTRADOR"
+}) {
+  const client = await databasePool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Obtener datos actuales del conductor y su usuario telegram
+    const condCheck = await client.query(
+      `SELECT c.id_conductores, c.nombre, c.telefono, c.empresa, c.aprobado_por_admin, c.pin_hash,
+              ut.telegram_user_id, ut.telegram_username, ut.estado_registro
+       FROM conductores c
+       LEFT JOIN usuarios_telegram ut ON ut.id_conductores = c.id_conductores
+       WHERE c.id_conductores = $1
+       FOR UPDATE`,
+      [idConductor]
+    );
+
+    const conductor = condCheck.rows[0];
+    if (!conductor) {
+      throw new Error("No se encontró el conductor especificado.");
+    }
+
+    // 2. Obtener usuario admin actualmente vinculado (si existe)
+    const existingAdminCheck = await client.query(
+      `SELECT id_usuarios_admin, username, correo, rol, activo, pin_hash
+       FROM usuarios_admin
+       WHERE id_conductores = $1
+       ORDER BY activo DESC, id_usuarios_admin DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [idConductor]
+    );
+    const currentAdminUser = existingAdminCheck.rows[0] || null;
+
+    // 3. Validar permisos según jerarquía
+    const normalizedCallerRole = String(requestingUserRol || "").toUpperCase();
+    const allowedRoles = HIERARCHY_ROLES[normalizedCallerRole] || [];
+
+    if (allowedRoles.length === 0) {
+      throw new Error("No tienes permisos para asignar o gestionar roles.");
+    }
+
+    if (currentAdminUser && normalizedCallerRole !== "ADMINISTRADOR") {
+      if (!allowedRoles.includes(currentAdminUser.rol)) {
+        throw new Error(`Tu rol de ${normalizedCallerRole} no tiene permisos para modificar a un usuario con rol ${currentAdminUser.rol}.`);
+      }
+    }
+
+    let targetRol = data.rol ? String(data.rol).toUpperCase() : (currentAdminUser?.rol || "OPERADOR");
+
+    if (modo !== "REVOCAR") {
+      if (!allowedRoles.includes(targetRol)) {
+        throw new Error(`Tu rol de ${normalizedCallerRole} no tiene permisos para asignar el rol ${targetRol}.`);
+      }
+    }
+
+    // 4. Asegurar que el conductor quede APROBADO automáticamente al asignarle un rol
+    let generatedPin = null;
+    let finalPinHash = conductor.pin_hash;
+
+    if (!conductor.aprobado_por_admin) {
+      if (!finalPinHash) {
+        generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+        finalPinHash = await bcrypt.hash(generatedPin, 10);
+      }
+
+      await client.query(
+        `UPDATE conductores
+         SET aprobado_por_admin = TRUE,
+             fecha_aprobacion = CURRENT_TIMESTAMP,
+             pin_hash = COALESCE(pin_hash, $1),
+             actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $2`,
+        [finalPinHash, idConductor]
+      );
+
+      if (conductor.telegram_user_id) {
+        await client.query(
+          `UPDATE usuarios_telegram
+           SET estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $1`,
+          [idConductor]
+        );
+      }
+    }
+
+    let updatedAdmin = null;
+
+    if (modo === "REVOCAR") {
+      if (currentAdminUser) {
+        await client.query(
+          `UPDATE usuarios_admin
+           SET id_conductores = NULL,
+               actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $1`,
+          [idConductor]
+        );
+      }
+
+      if (conductor.telegram_user_id) {
+        await client.query(
+          `UPDATE usuarios_telegram
+           SET rol = 'CONDUCTOR', actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $1`,
+          [idConductor]
+        );
+      }
+
+      await client.query("COMMIT");
+      return {
+        conductor: { ...conductor, aprobado_por_admin: true },
+        usuarioAdmin: null,
+        revoked: true,
+        message: "Rol administrativo revocado. El usuario se conserva como conductor."
+      };
+    }
+
+    if (modo === "VINCULAR") {
+      const idUsuariosAdmin = Number(data.idUsuariosAdmin);
+      if (!Number.isInteger(idUsuariosAdmin) || idUsuariosAdmin <= 0) {
+        throw new Error("El usuario administrativo a vincular no es válido.");
+      }
+
+      const targetCheck = await client.query(
+        `SELECT id_usuarios_admin, nombre, username, correo, rol, id_conductores, pin_hash
+         FROM usuarios_admin WHERE id_usuarios_admin = $1 FOR UPDATE`,
+        [idUsuariosAdmin]
+      );
+
+      const targetAdmin = targetCheck.rows[0];
+      if (!targetAdmin) {
+        throw new Error("El usuario administrativo seleccionado no existe.");
+      }
+
+      if (targetAdmin.id_conductores && targetAdmin.id_conductores !== idConductor) {
+        throw new Error("El usuario administrativo ya se encuentra vinculado a otro conductor.");
+      }
+
+      const newRoleToApply = data.rol ? targetRol : targetAdmin.rol;
+      if (!allowedRoles.includes(newRoleToApply)) {
+        throw new Error(`No tienes permisos para vincular con rol ${newRoleToApply}.`);
+      }
+
+      // Sincronizar PIN si conductor ya lo tiene y admin no
+      const adminPinHash = targetAdmin.pin_hash || finalPinHash || null;
+
+      const vincularResult = await client.query(
+        `UPDATE usuarios_admin
+         SET id_conductores = $1,
+             rol = $2,
+             pin_hash = COALESCE(pin_hash, $3),
+             telegram_user_id = COALESCE(telegram_user_id, $4),
+             actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_usuarios_admin = $5
+         RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
+        [idConductor, newRoleToApply, adminPinHash, conductor.telegram_user_id || null, idUsuariosAdmin]
+      );
+      updatedAdmin = vincularResult.rows[0];
+
+      // Sincronizar PIN de vuelta a conductor si el admin tenía PIN y el conductor no
+      if (targetAdmin.pin_hash && !conductor.pin_hash) {
+        await client.query(
+          `UPDATE conductores SET pin_hash = $1 WHERE id_conductores = $2`,
+          [targetAdmin.pin_hash, idConductor]
+        );
+      }
+
+      // Sincronizar rol en usuarios_telegram
+      if (conductor.telegram_user_id) {
+        const tgRol = mapAdminRoleToTelegramRole(newRoleToApply);
+        await client.query(
+          `UPDATE usuarios_telegram
+           SET rol = $1, estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $2`,
+          [tgRol, idConductor]
+        );
+      }
+    } else if (modo === "ACTUALIZAR" && currentAdminUser) {
+      const username = String(data.username || currentAdminUser.username || "").trim().toLowerCase();
+      const correo = data.correo ? String(data.correo).trim().toLowerCase() : currentAdminUser.correo;
+      const activo = data.activo !== undefined ? Boolean(data.activo) : currentAdminUser.activo;
+
+      if (username.length < 3) {
+        throw new Error("El nombre de usuario debe tener al menos 3 caracteres.");
+      }
+
+      // Validar que username no esté en uso por otro
+      const dupCheck = await client.query(
+        `SELECT id_usuarios_admin FROM usuarios_admin WHERE LOWER(username) = LOWER($1) AND id_usuarios_admin != $2 LIMIT 1`,
+        [username, currentAdminUser.id_usuarios_admin]
+      );
+      if (dupCheck.rows[0]) {
+        throw new Error("El nombre de usuario ya está en uso por otra cuenta.");
+      }
+
+      let passwordClause = "";
+      const updateParams = [targetRol, username, correo || null, activo, conductor.telegram_user_id || null, currentAdminUser.id_usuarios_admin];
+
+      if (data.password && String(data.password).trim().length >= 8) {
+        const hash = await bcrypt.hash(String(data.password).trim(), 10);
+        updateParams.splice(4, 0, hash);
+        passwordClause = ", password_hash = $5";
+      }
+
+      const updateQuery = `
+        UPDATE usuarios_admin
+        SET rol = $1,
+            username = $2,
+            correo = $3,
+            activo = $4
+            ${passwordClause},
+            telegram_user_id = COALESCE(telegram_user_id, $${updateParams.length - 1}),
+            actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_usuarios_admin = $${updateParams.length}
+        RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin
+      `;
+
+      const updRes = await client.query(updateQuery, updateParams);
+      updatedAdmin = updRes.rows[0];
+
+      if (conductor.telegram_user_id) {
+        const tgRol = mapAdminRoleToTelegramRole(targetRol);
+        await client.query(
+          `UPDATE usuarios_telegram
+           SET rol = $1, estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $2`,
+          [tgRol, idConductor]
+        );
+      }
+    } else {
+      // modo === "NUEVO"
+      const rawUsername = data.username || conductor.nombre.toLowerCase().replace(/[^a-z0-9]/g, ".").replace(/\.+/g, ".").slice(0, 30);
+      const username = String(rawUsername).trim().toLowerCase();
+      const correo = data.correo ? String(data.correo).trim().toLowerCase() : null;
+      const activo = data.activo !== false;
+
+      if (username.length < 3) {
+        throw new Error("El nombre de usuario debe tener al menos 3 caracteres.");
+      }
+
+      // Validar si username ya existe
+      const dupCheck = await client.query(
+        `SELECT id_usuarios_admin FROM usuarios_admin WHERE LOWER(username) = LOWER($1) LIMIT 1`,
+        [username]
+      );
+      if (dupCheck.rows[0]) {
+        throw new Error(`El nombre de usuario "${username}" ya está registrado. Por favor ingresa uno diferente.`);
+      }
+
+      if (correo) {
+        const dupEmail = await client.query(
+          `SELECT id_usuarios_admin FROM usuarios_admin WHERE LOWER(correo) = LOWER($1) LIMIT 1`,
+          [correo]
+        );
+        if (dupEmail.rows[0]) {
+          throw new Error(`El correo corporativo "${correo}" ya está registrado en otra cuenta.`);
+        }
+      }
+
+      let passwordPlain = data.password ? String(data.password).trim() : null;
+      if (!passwordPlain || passwordPlain.length < 8) {
+        passwordPlain = Math.random().toString(36).slice(-10) + "Aa1!";
+      }
+      const passwordHash = await bcrypt.hash(passwordPlain, 10);
+
+      const insertResult = await client.query(
+        `INSERT INTO usuarios_admin (
+           nombre, username, correo, password_hash, rol, activo, id_conductores, pin_hash, telefono, telegram_user_id
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
+        [
+          conductor.nombre,
+          username,
+          correo || null,
+          passwordHash,
+          targetRol,
+          activo,
+          idConductor,
+          finalPinHash || null,
+          conductor.telefono || null,
+          conductor.telegram_user_id || null
+        ]
+      );
+      updatedAdmin = insertResult.rows[0];
+
+      if (conductor.telegram_user_id) {
+        const tgRol = mapAdminRoleToTelegramRole(targetRol);
+        await client.query(
+          `UPDATE usuarios_telegram
+           SET rol = $1, estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_conductores = $2`,
+          [tgRol, idConductor]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      conductor: { ...conductor, aprobado_por_admin: true, pinGenerado: generatedPin },
+      usuarioAdmin: updatedAdmin,
+      message: `Rol ${targetRol} asignado exitosamente a ${conductor.nombre}.`
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

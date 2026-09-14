@@ -660,18 +660,6 @@ function DashboardPage({ user, onLogout }) {
               );
             })}
 
-            {user.rol === "ADMINISTRADOR" && (
-              <button
-                type="button"
-                title="Administrador de usuarios"
-                className={activeModule === "usuarios" ? "sidebar-active" : ""}
-                onClick={() => handleSelectModule("usuarios")}
-              >
-                <span className="nav-icon"><IconUsuarios size={20} /></span>
-                <span className="sidebar-text">Administrador de usuarios</span>
-              </button>
-            )}
-
             <button
               type="button"
               title="Configuración"

@@ -224,6 +224,18 @@ export function setAdminConductorPin(idConductor, pin = null, autoGenerate = fal
   );
 }
 
+export function getAdminConductorRole(idConductor) {
+  return request(`/admin/conductores/${idConductor}/rol`);
+}
+
+export function assignAdminConductorRole(idConductor, { modo = "NUEVO", data = {} } = {}) {
+  return request(`/admin/conductores/${idConductor}/rol`, {
+    method: "POST",
+    body: JSON.stringify({ modo, data })
+  });
+}
+
+
 
 export function getAdminVehiculos({
   search = "",

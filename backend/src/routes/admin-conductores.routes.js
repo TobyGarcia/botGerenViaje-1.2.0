@@ -9,7 +9,9 @@ import {
   updateAdminDriverStatusController,
   approveAdminDriverController,
   setDriverPinAdminController,
-  toggleAdminDriverActiveController
+  toggleAdminDriverActiveController,
+  getAdminConductorRoleController,
+  assignAdminConductorRoleController
 } from "../controllers/admin-conductores.controller.js";
 
 import {
@@ -73,6 +75,18 @@ router.patch(
   "/:idConductor/pin",
   requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   setDriverPinAdminController
+);
+
+router.get(
+  "/:idConductor/rol",
+  requireAdminRoles(ROLES_ADMIN_GERENTE_COORDINADOR),
+  getAdminConductorRoleController
+);
+
+router.post(
+  "/:idConductor/rol",
+  requireAdminRoles(ROLES_ADMIN_GERENTE_COORDINADOR),
+  assignAdminConductorRoleController
 );
 
 export default router;
