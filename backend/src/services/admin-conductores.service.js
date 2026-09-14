@@ -581,7 +581,7 @@ export async function assignAdminConductorRole({
        FROM conductores c
        LEFT JOIN usuarios_telegram ut ON ut.id_conductores = c.id_conductores
        WHERE c.id_conductores = $1
-       FOR UPDATE`,
+       FOR UPDATE OF c`,
       [idConductor]
     );
 
