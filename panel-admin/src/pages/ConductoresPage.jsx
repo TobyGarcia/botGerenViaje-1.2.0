@@ -33,7 +33,8 @@ import {
   IconTelegram,
   IconCalendar,
   IconExternalLink,
-  IconFileText
+  IconFileText,
+  IconManejoComentado
 } from "../components/Icons.jsx";
 import VehicleSelectDropdown from "../components/VehicleSelectDropdown.jsx";
 
@@ -314,8 +315,10 @@ function ConductoresPage({ user }) {
     useState(null);
 
   const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState("TODAS");
   const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
   const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
+  const [onlyExpiringManejoComentado, setOnlyExpiringManejoComentado] = useState(false);
   const [onlyPendingApproval, setOnlyPendingApproval] = useState(false);
 
   // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
@@ -747,7 +750,7 @@ function ConductoresPage({ user }) {
       setConductores((current) =>
         current.filter((item) => item.id_conductores !== conductor.id_conductores)
       );
-      await loadConductores();
+      await Promise.all([loadConductores(), loadVehiculos()]);
 
       setMessage(response.message || "Conductor eliminado permanentemente.");
       setMessageType("success");
@@ -767,6 +770,18 @@ function ConductoresPage({ user }) {
 
   // Filtrado compuesto en cliente
   const filteredConductores = conductores.filter((conductor) => {
+    if (selectedRoleFilter !== "TODOS") {
+      const targetRol = conductor.rol_administrativo ? String(conductor.rol_administrativo).toUpperCase() : "";
+      if (selectedRoleFilter === "CONDUCTOR") {
+        if (targetRol) return false;
+      } else if (selectedRoleFilter === "GERENTE") {
+        if (!["GERENTE", "GERENTE_GENERAL"].includes(targetRol)) return false;
+      } else if (selectedRoleFilter === "COORDINADOR") {
+        if (!["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(targetRol)) return false;
+      } else {
+        if (targetRol !== selectedRoleFilter) return false;
+      }
+    }
     if (selectedEmpresa !== "TODAS" && conductor.empresa !== selectedEmpresa) {
       return false;
     }
@@ -785,6 +800,12 @@ function ConductoresPage({ user }) {
         return false;
       }
     }
+    if (onlyExpiringManejoComentado) {
+      const mcStatus = getManejoComentadoStatus(conductor);
+      if (mcStatus.status !== "por_vencer" && mcStatus.status !== "vencido") {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -794,18 +815,24 @@ function ConductoresPage({ user }) {
   const aprobadosCount = conductores.filter((c) => c.aprobado_por_admin).length;
   const aprobadosPct = totalConductoresCount > 0 ? ((aprobadosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
   const unidadesAsignadasCount = conductores.filter((c) => c.id_vehiculo_asignado).length;
-  const unidadesSinAsignarCount = Math.max(0, totalConductoresCount - unidadesAsignadasCount);
+  const unidadesSinAsignarCount = vehiculosOptions.filter((v) => !v.id_conductor_asignado).length;
   const licenciasPorVencerCount = conductores.filter((c) => {
     const s = getLicenciaStatus(c).status;
     return s === "por_vencer" || s === "vencida";
+  }).length;
+  const manejosPorVencerCount = conductores.filter((c) => {
+    const s = getManejoComentadoStatus(c).status;
+    return s === "por_vencer" || s === "vencido";
   }).length;
 
   const handleResetFilters = () => {
     setSearch("");
     setStatus("TODOS");
     setSelectedEmpresa("TODAS");
+    setSelectedRoleFilter("TODOS");
     setSelectedUnidadFilter("TODAS");
     setOnlyExpiringLicenses(false);
+    setOnlyExpiringManejoComentado(false);
     setOnlyPendingApproval(false);
     setCurrentPage(1);
   };
@@ -937,6 +964,37 @@ function ConductoresPage({ user }) {
             <span className="kpi-sub-pill kpi-pill-amber">Plazo &lt; 30 días</span> {onlyExpiringLicenses ? "(Filtro activo)" : "requieren atención"}
           </div>
         </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyExpiringManejoComentado ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyExpiringManejoComentado(!onlyExpiringManejoComentado);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyExpiringManejoComentado(!onlyExpiringManejoComentado);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyExpiringManejoComentado ? "Click para mostrar todos los conductores" : "Click para filtrar conductores con manejo comentado por vencer o vencido"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Manejo Comentado</span>
+            <div className="kpi-icon-wrapper kpi-icon-purple">
+              <IconManejoComentado size={20} />
+            </div>
+          </div>
+          <div className={`kpi-card-value ${manejosPorVencerCount > 0 ? "kpi-val-purple" : ""}`}>{manejosPorVencerCount}</div>
+          <div className="kpi-card-subtext">
+            <span className={`kpi-sub-pill ${manejosPorVencerCount > 0 ? "kpi-pill-purple" : "kpi-pill-green"}`}>
+              {manejosPorVencerCount > 0 ? "Plazo < 30 días" : "Al día"}
+            </span>{" "}
+            {onlyExpiringManejoComentado ? "(Filtro activo)" : "por vencer"}
+          </div>
+        </div>
       </section>
 
       {/* Toolbar con filtros completos y botón de reset */}
@@ -984,6 +1042,28 @@ function ConductoresPage({ user }) {
                 {emp}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className="status-filter">
+          <span>Rol</span>
+          <select
+            value={selectedRoleFilter}
+            onChange={(event) => {
+              setSelectedRoleFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODOS">Rol: Todos</option>
+            <option value="CONDUCTOR">Solo Conductor</option>
+            <option value="ADMINISTRADOR">Administrador</option>
+            <option value="GERENTE">Gerente</option>
+            <option value="COORDINADOR">Coordinador</option>
+            <option value="SUPERVISOR">Supervisor</option>
+            <option value="QHSE">QHSE</option>
+            <option value="INSTRUCTOR">Instructor</option>
+            <option value="OPERADOR">Operador</option>
+            <option value="CONSULTA">Consulta</option>
           </select>
         </label>
 
@@ -1053,6 +1133,16 @@ function ConductoresPage({ user }) {
           <IconAlerta size={16} className="notice-icon" />
           <span>Mostrando únicamente conductores con licencia vencida o por vencer en los próximos 30 días ({totalFiltered}).</span>
           <button type="button" className="notice-clear-btn" onClick={() => setOnlyExpiringLicenses(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
+
+      {onlyExpiringManejoComentado && (
+        <div className="filter-active-notice notice-purple">
+          <IconManejoComentado size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con manejo comentado vencido o por vencer en los próximos 30 días ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyExpiringManejoComentado(false)}>
             Quitar filtro
           </button>
         </div>

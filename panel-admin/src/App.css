@@ -2509,18 +2509,24 @@
 /* Grid de Tarjetas KPI */
 .conductores-kpis-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
   margin-bottom: 20px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1250px) {
+  .conductores-kpis-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
   .conductores-kpis-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .conductores-kpis-grid {
     grid-template-columns: 1fr;
   }
@@ -2599,6 +2605,11 @@
   color: #d97706;
 }
 
+.kpi-icon-purple {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
 .kpi-card-value {
   font-size: 1.85rem;
   font-weight: 800;
@@ -2609,6 +2620,10 @@
 
 .kpi-card-value.kpi-val-amber {
   color: #b45309;
+}
+
+.kpi-card-value.kpi-val-purple {
+  color: #6d28d9;
 }
 
 .kpi-card-subtext {
@@ -2646,6 +2661,11 @@
 .kpi-pill-amber {
   background: #fef3c7;
   color: #b45309;
+}
+
+.kpi-pill-purple {
+  background: #ede9fe;
+  color: #6d28d9;
 }
 
 /* Toolbar extendida para conductores */
@@ -2733,6 +2753,25 @@
 
 .filter-active-notice .notice-clear-btn:hover {
   background: #fef3c7;
+}
+
+.filter-active-notice.notice-purple {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #6b21a8;
+}
+
+.filter-active-notice.notice-purple .notice-icon {
+  color: #9333ea;
+}
+
+.filter-active-notice.notice-purple .notice-clear-btn {
+  border-color: #a855f7;
+  color: #7e22ce;
+}
+
+.filter-active-notice.notice-purple .notice-clear-btn:hover {
+  background: #f3e8ff;
 }
 
 /* Elementos de filas en tabla */
