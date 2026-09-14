@@ -249,8 +249,8 @@ export default function ManejoComentadoPage({ user }) {
           <span className="module-label">Capacitación Vial</span>
           <h1>Manejo Comentado</h1>
           <p>
-            Vigencia de evaluaciones semestrales (6 meses), programación de cursos teóricos
-            y registro de acreditaciones prácticas.
+            Vigencia de evaluaciones prácticas, programación de cursos teóricos
+            y registro de acreditaciones.
           </p>
         </div>
 
@@ -360,8 +360,7 @@ export default function ManejoComentadoPage({ user }) {
                         <th>Conductor</th>
                         <th>Empresa</th>
                         <th>Licencia</th>
-                        <th>Última Evaluación</th>
-                        <th>Vencimiento (6 Meses)</th>
+                        <th>Vencimiento</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                       </tr>
@@ -378,7 +377,6 @@ export default function ManejoComentadoPage({ user }) {
                             {conductor.licencia_numero}
                             <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
                           </td>
-                          <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
                           <td>{formatDate(conductor.fecha_vencimiento)}</td>
                           <td>
                             <span className={getBadgeClass(conductor.estado_vigencia)}>
