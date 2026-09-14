@@ -2421,18 +2421,6 @@ function ConductoresPage({ user }) {
                       </label>
                     </div>
 
-                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                      Cambiar Contraseña Web (Opcional)
-                      <input
-                        type="password"
-                        value={roleForm.password}
-                        onChange={(e) => setRoleForm({ ...roleForm, password: e.target.value })}
-                        placeholder="Dejar en blanco para conservar la actual"
-                        minLength="8"
-                        style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
-                      />
-                    </label>
-
                     <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.88rem", cursor: "pointer", marginTop: "4px" }}>
                       <input
                         type="checkbox"
@@ -2521,30 +2509,6 @@ function ConductoresPage({ user }) {
                         />
                       </label>
                     </div>
-
-                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                      Contraseña de Acceso Web (Opcional)
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <input
-                          type="text"
-                          value={roleForm.password}
-                          onChange={(e) => setRoleForm({ ...roleForm, password: e.target.value })}
-                          placeholder="Generada automáticamente si se omite"
-                          style={{ flex: 1, padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
-                        />
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => {
-                            const gen = Math.random().toString(36).slice(-8) + "Aa1!";
-                            setRoleForm({ ...roleForm, password: gen });
-                          }}
-                          style={{ whiteSpace: "nowrap", padding: "6px 12px", fontSize: "0.82rem" }}
-                        >
-                          Generar
-                        </button>
-                      </div>
-                    </label>
 
                     <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 12px", fontSize: "0.82rem", color: "#1e40af", display: "flex", alignItems: "center", gap: "8px" }}>
                       <IconKey size={16} style={{ flexShrink: 0 }} />

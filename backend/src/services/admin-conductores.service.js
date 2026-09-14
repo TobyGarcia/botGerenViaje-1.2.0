@@ -574,21 +574,30 @@ export async function assignAdminConductorRole({
   try {
     await client.query("BEGIN");
 
-    // 1. Obtener datos actuales del conductor y su usuario telegram
+    // 1. Bloquear y obtener datos del conductor
     const condCheck = await client.query(
-      `SELECT c.id_conductores, c.nombre, c.telefono, c.empresa, c.aprobado_por_admin, c.pin_hash,
-              ut.telegram_user_id, ut.telegram_username, ut.estado_registro
-       FROM conductores c
-       LEFT JOIN usuarios_telegram ut ON ut.id_conductores = c.id_conductores
-       WHERE c.id_conductores = $1
-       FOR UPDATE OF c`,
+      `SELECT id_conductores, nombre, telefono, empresa, aprobado_por_admin, pin_hash
+       FROM conductores
+       WHERE id_conductores = $1
+       FOR UPDATE`,
       [idConductor]
     );
 
-    const conductor = condCheck.rows[0];
-    if (!conductor) {
+    const conductorBase = condCheck.rows[0];
+    if (!conductorBase) {
       throw new Error("No se encontró el conductor especificado.");
     }
+
+    // Obtener datos de telegram asociados sin bloqueo outer join
+    const tgCheck = await client.query(
+      `SELECT telegram_user_id, telegram_username, estado_registro
+       FROM usuarios_telegram
+       WHERE id_conductores = $1
+       LIMIT 1`,
+      [idConductor]
+    );
+    const tgUser = tgCheck.rows[0] || {};
+    const conductor = { ...conductorBase, ...tgUser };
 
     // 2. Obtener usuario admin actualmente vinculado (si existe)
     const existingAdminCheck = await client.query(
