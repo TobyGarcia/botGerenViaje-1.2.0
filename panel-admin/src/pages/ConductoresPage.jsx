@@ -44,13 +44,20 @@ function getLicenciaStatus(conductor) {
     };
   }
 
-  const normalized =
-    typeof conductor.licencia_vencimiento === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(conductor.licencia_vencimiento)
-      ? `${conductor.licencia_vencimiento}T23:59:59`
-      : conductor.licencia_vencimiento;
+  const rawStr = String(conductor.licencia_vencimiento).trim();
+  const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let expirationDate;
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch.map(Number);
+    expirationDate = new Date(y, m - 1, d);
+  } else if (conductor.licencia_vencimiento instanceof Date) {
+    const d = conductor.licencia_vencimiento;
+    expirationDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  } else {
+    const d = new Date(rawStr);
+    expirationDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
 
-  const expirationDate = new Date(normalized);
   if (Number.isNaN(expirationDate.getTime())) {
     return {
       status: "invalida",
@@ -59,16 +66,18 @@ function getLicenciaStatus(conductor) {
     };
   }
 
-  const now = new Date();
-  const diffTime = expirationDate.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
+  const diffTime = expirationDate.getTime() - todayMidnight.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   const formattedExp = formatDate(conductor.licencia_vencimiento);
 
   if (diffDays < 0) {
+    const diasPasados = Math.abs(diffDays);
     return {
       status: "vencida",
-      label: `Licencia vencida el ${formattedExp} (${Math.abs(diffDays)} días atrás)`,
+      label: `Licencia vencida el ${formattedExp} (${diasPasados} ${diasPasados === 1 ? "día atrás" : "días atrás"})`,
       days: diffDays,
       color: "#dc2626"
     };
@@ -77,7 +86,10 @@ function getLicenciaStatus(conductor) {
   if (diffDays <= 30) {
     return {
       status: "por_vencer",
-      label: `Licencia por vencer el ${formattedExp} (${diffDays} día${diffDays === 1 ? "" : "s"} restantes)`,
+      label:
+        diffDays === 0
+          ? `Licencia por vencer el ${formattedExp} (vence hoy)`
+          : `Licencia por vencer el ${formattedExp} (${diffDays} ${diffDays === 1 ? "día restante" : "días restantes"})`,
       days: diffDays,
       color: "#d97706"
     };
@@ -85,7 +97,7 @@ function getLicenciaStatus(conductor) {
 
   return {
     status: "vigente",
-    label: `Licencia vigente (Vence: ${formattedExp})`,
+    label: `Licencia vigente (Vence: ${formattedExp} - quedan ${diffDays} días)`,
     days: diffDays,
     color: "#16a34a"
   };
@@ -100,21 +112,21 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  let evalDate;
-  if (conductor.fecha_manejo_comentado instanceof Date) {
-    evalDate = new Date(conductor.fecha_manejo_comentado.getTime());
+  const rawStr = String(conductor.fecha_manejo_comentado).trim();
+  const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let expDate;
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch.map(Number);
+    expDate = new Date(y, m - 1, d);
+  } else if (conductor.fecha_manejo_comentado instanceof Date) {
+    const d = conductor.fecha_manejo_comentado;
+    expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   } else {
-    const rawStr = String(conductor.fecha_manejo_comentado).trim();
-    const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (dateMatch) {
-      const [, y, m, d] = dateMatch.map(Number);
-      evalDate = new Date(y, m - 1, d);
-    } else {
-      evalDate = new Date(rawStr);
-    }
+    const d = new Date(rawStr);
+    expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
 
-  if (Number.isNaN(evalDate.getTime())) {
+  if (Number.isNaN(expDate.getTime())) {
     return {
       status: "no_registrado",
       label: "Fecha de manejo comentado no válida",
@@ -122,23 +134,20 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  // Regla de vigencia semestral (6 meses = 180 días) según estándar operativo (consistente con backend)
-  const vencimiento = new Date(evalDate.getFullYear(), evalDate.getMonth() + 6, evalDate.getDate());
-
+  // La fecha registrada ES la fecha de vigencia (no se agregan meses adicionales).
+  // El cálculo se realiza directamente desde la fecha actual hacia la fecha de vigencia.
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const diffDays = Math.ceil((vencimiento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  const formattedExp = vencimiento.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  });
+  const diffTime = expDate.getTime() - todayMidnight.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const formattedExp = formatDate(conductor.fecha_manejo_comentado);
 
   if (diffDays < 0) {
+    const diasPasados = Math.abs(diffDays);
     return {
       status: "vencido",
-      label: `Manejo comentado vencido (${formattedExp} - hace ${Math.abs(diffDays)} días)`,
+      label: `Manejo comentado vencido (${formattedExp} - hace ${diasPasados} ${diasPasados === 1 ? "día" : "días"})`,
       days: diffDays,
       color: "#dc2626"
     };
@@ -147,7 +156,10 @@ function getManejoComentadoStatus(conductor) {
   if (diffDays <= 30) {
     return {
       status: "por_vencer",
-      label: `Manejo comentado por vencer (${formattedExp} - quedan ${diffDays} días)`,
+      label:
+        diffDays === 0
+          ? `Manejo comentado por vencer (${formattedExp} - vence hoy)`
+          : `Manejo comentado por vencer (${formattedExp} - ${diffDays === 1 ? "queda 1 día" : `quedan ${diffDays} días`})`,
       days: diffDays,
       color: "#d97706"
     };
@@ -1321,7 +1333,9 @@ function ConductoresPage({ user }) {
                               ? "Vigente"
                               : modalMcStatus.status === "por_vencer"
                               ? "Por vencer"
-                              : "Vencido"}
+                              : modalMcStatus.status === "vencido"
+                              ? "Vencido"
+                              : "Sin registrar"}
                           </span>
                         </span>
                       </span>
