@@ -107,7 +107,25 @@ function getLicenciaStatus(conductor) {
 }
 
 function getManejoComentadoStatus(conductor) {
-  if (!conductor?.fecha_manejo_comentado) {
+  const fecha = conductor?.fecha_vencimiento_manejo_comentado || conductor?.fecha_manejo_comentado;
+
+  if (conductor?.estado_manejo_comentado === "PENDIENTE") {
+    return {
+      status: "pendiente",
+      label: "Manejo comentado: Cálculo pendiente",
+      color: "#d97706"
+    };
+  }
+
+  if (conductor?.estado_manejo_comentado === "REPROBADO") {
+    return {
+      status: "reprobado",
+      label: "Manejo comentado reprobado",
+      color: "#dc2626"
+    };
+  }
+
+  if (!fecha || conductor?.estado_manejo_comentado === "SIN_REGISTRO") {
     return {
       status: "no_registrado",
       label: "Manejo comentado no registrado",
@@ -115,14 +133,14 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  const rawStr = String(conductor.fecha_manejo_comentado).trim();
+  const rawStr = String(fecha).trim();
   const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   let expDate;
   if (dateMatch) {
     const [, y, m, d] = dateMatch.map(Number);
     expDate = new Date(y, m - 1, d);
-  } else if (conductor.fecha_manejo_comentado instanceof Date) {
-    const d = conductor.fecha_manejo_comentado;
+  } else if (fecha instanceof Date) {
+    const d = fecha;
     expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   } else {
     const d = new Date(rawStr);
@@ -137,14 +155,12 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  // La fecha registrada ES la fecha de vigencia (no se agregan meses adicionales).
-  // El cálculo se realiza directamente desde la fecha actual hacia la fecha de vigencia.
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const diffTime = expDate.getTime() - todayMidnight.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  const formattedExp = formatDate(conductor.fecha_manejo_comentado);
+  const formattedExp = formatDate(fecha);
 
   if (diffDays < 0) {
     const diasPasados = Math.abs(diffDays);
@@ -315,7 +331,7 @@ function ConductoresPage({ user }) {
     useState(null);
 
   const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState("TODAS");
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState("TODOS");
   const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
   const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
   const [onlyExpiringManejoComentado, setOnlyExpiringManejoComentado] = useState(false);

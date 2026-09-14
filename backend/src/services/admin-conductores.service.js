@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import {
   databasePool
 } from "../database/pool.js";
+import { calculateValidityStatus } from "./manejo-comentado.service.js";
 
 export async function listAdminDrivers({
   search = "",
@@ -60,7 +61,27 @@ export async function listAdminDrivers({
           c.tipo_licencia,
           c.licencia_vencimiento,
           c.licencia_vigente,
-          c.fecha_manejo_comentado,
+          COALESCE(
+            c.fecha_manejo_comentado,
+            (
+              SELECT DATE(e.fecha_evaluacion)
+              FROM evaluaciones_manejo_comentado e
+              WHERE e.id_conductores = c.id_conductores AND e.estado_evaluacion = 'APROBADO'
+              ORDER BY e.fecha_evaluacion DESC
+              LIMIT 1
+            )
+          ) AS fecha_manejo_comentado_raw,
+          (
+            SELECT json_build_object(
+              'calificacion', e.calificacion,
+              'fecha_evaluacion', e.fecha_evaluacion,
+              'estado_evaluacion', e.estado_evaluacion
+            )
+            FROM evaluaciones_manejo_comentado e
+            WHERE e.id_conductores = c.id_conductores
+            ORDER BY e.fecha_evaluacion DESC
+            LIMIT 1
+          ) AS ultima_evaluacion_mc,
           c.licencia_url,
           c.licencia_reverso_url,
           c.activo,
@@ -115,7 +136,21 @@ export async function listAdminDrivers({
       values
     );
 
-  return result.rows;
+  return result.rows.map((row) => {
+    const validity = calculateValidityStatus(
+      row.fecha_manejo_comentado_raw,
+      row.ultima_evaluacion_mc?.calificacion,
+      row.ultima_evaluacion_mc?.estado_evaluacion
+    );
+
+    return {
+      ...row,
+      fecha_manejo_comentado: validity.fechaVencimiento || row.fecha_manejo_comentado_raw,
+      fecha_vencimiento_manejo_comentado: validity.fechaVencimiento,
+      estado_manejo_comentado: validity.estado,
+      dias_para_vencer_mc: validity.diasParaVencer
+    };
+  });
 }
 
 export async function approveAdminDriver({ idConductor, aprobado }) {
