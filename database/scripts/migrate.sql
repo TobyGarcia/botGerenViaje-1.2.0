@@ -26,6 +26,7 @@
 \ir ../migrations/024_mantenimiento_dias_y_motivo.sql
 \ir ../migrations/025_autorizaciones_manejo_comentado.sql
 \ir ../migrations/026_expand_admin_roles_and_conductor_link.sql
+\ir ../migrations/027_fix_foreign_keys_usuarios_admin.sql
 
 
 

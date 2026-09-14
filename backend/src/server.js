@@ -172,6 +172,38 @@ async function initializeDependencies() {
       } catch (mErr) {
         console.warn("Aviso en auto-migración de rol usuarios_admin:", mErr.message);
       }
+
+      // Auto-migración 5: Claves foráneas con ON DELETE SET NULL para usuarios_admin
+      try {
+        await databasePool.query(`
+          ALTER TABLE gerenciamiento_viajes
+            DROP CONSTRAINT IF EXISTS gerenciamiento_viajes_id_usuario_autorizador_fkey;
+          ALTER TABLE gerenciamiento_viajes
+            ADD CONSTRAINT gerenciamiento_viajes_id_usuario_autorizador_fkey
+              FOREIGN KEY (id_usuario_autorizador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+
+          ALTER TABLE inspecciones_vehiculares
+            DROP CONSTRAINT IF EXISTS inspecciones_vehiculares_id_usuario_admin_aprobador_fkey;
+          ALTER TABLE inspecciones_vehiculares
+            ADD CONSTRAINT inspecciones_vehiculares_id_usuario_admin_aprobador_fkey
+              FOREIGN KEY (id_usuario_admin_aprobador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+
+          ALTER TABLE inspecciones_vehiculares
+            DROP CONSTRAINT IF EXISTS inspecciones_vehiculares_id_usuario_autorizador_fkey;
+          ALTER TABLE inspecciones_vehiculares
+            ADD CONSTRAINT inspecciones_vehiculares_id_usuario_autorizador_fkey
+              FOREIGN KEY (id_usuario_autorizador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+        `);
+      } catch (mErr) {
+        console.warn("Aviso en auto-migración de claves foráneas usuarios_admin:", mErr.message);
+      }
+
       console.log("Conexión inicial con PostgreSQL y esquema verificados.");
       await startBots();
       return;

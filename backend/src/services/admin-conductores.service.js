@@ -482,10 +482,63 @@ export async function updateAdminDriverStatus({
       [idConductor]
     );
 
-    // 6. Eliminar usuario administrativo vinculado (si existía) para no dejar registros huérfanos
+    // 6. Conservar gerenciamientos desvinculando conductor para evitar eliminación en cascada de documentos
+    await client.query(
+      `UPDATE gerenciamiento_viajes SET id_conductor = NULL WHERE id_conductor = $1`,
+      [idConductor]
+    );
+
+    // 7. Desvincular referencias históricas de usuarios administrativos antes de eliminarlos
+    await client.query(
+      `UPDATE gerenciamiento_viajes SET id_usuario_autorizador = NULL 
+       WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE inspecciones_vehiculares SET id_usuario_admin_aprobador = NULL 
+       WHERE id_usuario_admin_aprobador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE inspecciones_vehiculares SET id_usuario_autorizador = NULL 
+       WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL 
+       WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE vehiculos SET id_supervisor_asignado = NULL 
+       WHERE id_supervisor_asignado IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE historial_kilometraje_vehiculos SET id_usuarios_admin = NULL 
+       WHERE id_usuarios_admin IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE evaluaciones_manejo_comentado SET id_usuario_instructor = NULL 
+       WHERE id_usuario_instructor IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE evaluaciones_manejo_comentado SET id_usuario_programador = NULL 
+       WHERE id_usuario_programador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+    await client.query(
+      `UPDATE evaluaciones_manejo_comentado SET id_usuario_evaluador = NULL 
+       WHERE id_usuario_evaluador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+      [idConductor]
+    );
+
+    // 8. Eliminar usuario administrativo vinculado (si existía) para no dejar registros huérfanos
     await client.query(`DELETE FROM usuarios_admin WHERE id_conductores = $1`, [idConductor]);
 
-    // 7. Eliminar usuario de telegram vinculado
+    // 9. Eliminar usuario de telegram vinculado
     await client.query(`DELETE FROM usuarios_telegram WHERE id_conductores = $1`, [idConductor]);
 
     // 8. Eliminar registro del conductor
@@ -824,10 +877,21 @@ export async function assignAdminConductorRole({
 
     if (modo === "REVOCAR") {
       if (currentAdminUser) {
+        const adminId = currentAdminUser.id_usuarios_admin;
+        await client.query(`UPDATE gerenciamiento_viajes SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
+        await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_admin_aprobador = NULL WHERE id_usuario_admin_aprobador = $1`, [adminId]);
+        await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
+        await client.query(`UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
+        await client.query(`UPDATE vehiculos SET id_supervisor_asignado = NULL WHERE id_supervisor_asignado = $1`, [adminId]);
+        await client.query(`UPDATE historial_kilometraje_vehiculos SET id_usuarios_admin = NULL WHERE id_usuarios_admin = $1`, [adminId]);
+        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_instructor = NULL WHERE id_usuario_instructor = $1`, [adminId]);
+        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_programador = NULL WHERE id_usuario_programador = $1`, [adminId]);
+        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_evaluador = NULL WHERE id_usuario_evaluador = $1`, [adminId]);
+
         // Eliminar el registro administrativo vinculado para liberar el username y correo
         await client.query(
           `DELETE FROM usuarios_admin WHERE id_usuarios_admin = $1`,
-          [currentAdminUser.id_usuarios_admin]
+          [adminId]
         );
       }
 
