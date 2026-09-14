@@ -21,7 +21,7 @@ const empty = {
   username: "",
   correo: "",
   password: "",
-  rol: "OPERADOR",
+  rol: "ADMINISTRADOR",
   activo: true,
   idConductor: ""
 };
@@ -119,13 +119,14 @@ export default function UsuariosAdminPage({ currentUser }) {
   }
 
   const filteredUsers = users.filter((u) => {
+    // Filtro enfocado a cuentas con rol ADMINISTRADOR
+    if (u.rol !== "ADMINISTRADOR") return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
       (u.nombre || "").toLowerCase().includes(term) ||
       (u.username || "").toLowerCase().includes(term) ||
-      (u.correo || "").toLowerCase().includes(term) ||
-      (u.rol || "").toLowerCase().includes(term)
+      (u.correo || "").toLowerCase().includes(term)
     );
   });
 
@@ -140,12 +141,12 @@ export default function UsuariosAdminPage({ currentUser }) {
     <section className="module-page">
       <header className="module-header">
         <div>
-          <span className="module-label">Administración</span>
-          <h1>Administrador de usuarios</h1>
-          <p>Gestiona jerarquías, accesos, asignación de PIN de 4 dígitos y vínculo de conductores.</p>
+          <span className="module-label">Seguridad y Privilegios Raíz</span>
+          <h1>Administradores del Sistema</h1>
+          <p>Consulta, modifica, elimina y asigna privilegios de Administrador vinculados a conductores.</p>
         </div>
         <button type="button" className="primary-button" onClick={create}>
-          <span style={{ marginRight: "6px", fontWeight: "bold" }}>+</span> Añadir usuario
+          <span style={{ marginRight: "6px", fontWeight: "bold" }}>+</span> Añadir Administrador
         </button>
       </header>
 
@@ -381,9 +382,9 @@ export default function UsuariosAdminPage({ currentUser }) {
           >
             <div className="form-panel-header">
               <div>
-                <h2 id="user-form-title">{form.idUsuariosAdmin ? "Editar usuario" : "Nuevo usuario"}</h2>
+                <h2 id="user-form-title">{form.idUsuariosAdmin ? "Editar Administrador" : "Nuevo Administrador del Sistema"}</h2>
                 <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.88rem" }}>
-                  Define el nivel de acceso y los datos de la cuenta administrativa.
+                  Gestiona el acceso de control total y vincula o añade este permiso a un conductor.
                 </p>
               </div>
               <button type="button" className="close-button" onClick={() => setOpen(false)} aria-label="Cerrar">
@@ -434,32 +435,35 @@ export default function UsuariosAdminPage({ currentUser }) {
 
               <label style={{ gridColumn: "1 / -1" }}>
                 <span style={{ display: "block", marginBottom: "4px", fontWeight: "bold" }}>
-                  Rol Administrativo (Jerarquía de Aprobación de Gerenciamientos) *
+                  Rol en el Sistema
                 </span>
                 <select
                   value={form.rol}
                   onChange={(e) => setForm({ ...form, rol: e.target.value })}
                   style={{ width: "100%", padding: "12px 14px", borderRadius: "9px", border: "1px solid #cadde6", background: "#ffffff", fontSize: "0.9rem" }}
                 >
-                  <option value="ADMINISTRADOR">ADMINISTRADOR — Acceso Total a Todos los Módulos</option>
-                  <option value="GERENTE">GERENTE — Aprueba Viajes de Riesgo ALTO (&gt; 23 pts)</option>
-                  <option value="COORDINADOR">COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)</option>
-                  <option value="SUPERVISOR">SUPERVISOR DIRECTO — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
-                  <option value="QHSE">QHSE — Aprueba Viajes de Riesgo BAJO (0-15 pts)</option>
-                  <option value="INSTRUCTOR">INSTRUCTOR — Manejo Comentado y Capacitación Vial</option>
-                  <option value="OPERADOR">OPERADOR — Módulo de Operaciones Diarias</option>
-                  <option value="CONSULTA">CONSULTA — Solo Lectura</option>
+                  <option value="ADMINISTRADOR">👑 ADMINISTRADOR — Control y Acceso Total al Sistema</option>
                 </select>
               </label>
 
               <label style={{ gridColumn: "1 / -1" }}>
-                Conductor Vinculado (Opcional)
+                <span style={{ display: "block", marginBottom: "4px", fontWeight: "bold" }}>
+                  Añadir Permiso a Conductor (Opcional)
+                </span>
                 <select
                   value={form.idConductor || ""}
-                  onChange={(e) => setForm({ ...form, idConductor: e.target.value })}
+                  onChange={(e) => {
+                    const idSelected = e.target.value;
+                    const d = drivers.find((x) => String(x.id_conductores) === String(idSelected));
+                    setForm({
+                      ...form,
+                      idConductor: idSelected,
+                      nombre: !form.idUsuariosAdmin && d ? d.nombre : form.nombre
+                    });
+                  }}
                   style={{ width: "100%", padding: "12px 14px", borderRadius: "9px", border: "1px solid #cadde6", background: "#ffffff", fontSize: "0.9rem" }}
                 >
-                  <option value="">No vinculado a ningún conductor</option>
+                  <option value="">-- Seleccionar conductor existente para darle permiso de Administrador --</option>
                   {drivers.map((driver) => (
                     <option value={driver.id_conductores} key={driver.id_conductores}>
                       {driver.nombre} {driver.empresa ? `(${driver.empresa})` : ""}
