@@ -2857,24 +2857,34 @@
   transform: scale(1.1);
 }
 
-/* Verde: Vigente / Aprobado (#10b981 / #059669 / fondo suave #ecfdf5 / borde #a7f3d0) */
-.status-circle-icon.status-circle-vigente {
+/* Verde: Vigente / Aprobado / Disponible (#10b981 / #059669 / fondo suave #ecfdf5 / borde #a7f3d0) */
+.status-circle-icon.status-circle-vigente,
+.status-circle-icon.status-circle-disponible {
   background: #ecfdf5;
   border-color: #6ee7b7;
   color: #059669;
 }
 
-/* Ámbar: Por vencer / Pendiente (#f59e0b / fondo suave #fffbeb / borde #fde68a) */
-.status-circle-icon.status-circle-por_vencer {
+/* Ámbar: Por vencer / Pendiente / Mantenimiento (#f59e0b / fondo suave #fffbeb / borde #fde68a) */
+.status-circle-icon.status-circle-por_vencer,
+.status-circle-icon.status-circle-mantenimiento {
   background: #fffbeb;
   border-color: #fcd34d;
   color: #d97706;
 }
 
-/* Rojo: Vencida / No registrado (#ef4444 / fondo suave #fef2f2 / borde #fecaca) */
+/* Azul / Índigo: En Viaje (#4f46e5 / fondo suave #eef2ff / borde #a5b4fc) */
+.status-circle-icon.status-circle-viaje {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #4f46e5;
+}
+
+/* Rojo: Vencida / No registrado / Inactivo (#ef4444 / fondo suave #fef2f2 / borde #fecaca) */
 .status-circle-icon.status-circle-vencida,
 .status-circle-icon.status-circle-vencido,
-.status-circle-icon.status-circle-no_registrado {
+.status-circle-icon.status-circle-no_registrado,
+.status-circle-icon.status-circle-inactivo {
   background: #fef2f2;
   border-color: #fca5a5;
   color: #dc2626;

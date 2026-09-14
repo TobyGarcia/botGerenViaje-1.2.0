@@ -30,7 +30,8 @@ import {
   IconUnidades,
   IconCheck,
   IconViajes,
-  IconAlerta
+  IconAlerta,
+  IconCross
 } from "../components/Icons.jsx";
 
 const initialForm = {
@@ -62,6 +63,70 @@ function formatVehicleDate(value) {
   }
   const fallbackDate = new Date(value);
   return !isNaN(fallbackDate.getTime()) ? fallbackDate.toLocaleDateString("es-MX") : "Sin capturar";
+}
+
+function renderVehicleStatusCircle(vehiculo) {
+  if (vehiculo.en_mantenimiento) {
+    const dias = vehiculo.dias_en_mantenimiento ?? 0;
+    const motivo = vehiculo.motivo_mantenimiento ? `: ${vehiculo.motivo_mantenimiento}` : "";
+    const tooltip = `En mantenimiento (${dias} ${dias === 1 ? "día" : "días"})${motivo}`;
+    return (
+      <div className="status-cell-center">
+        <span
+          className="status-circle-icon status-circle-por_vencer"
+          title={tooltip}
+          aria-label={tooltip}
+        >
+          <IconMantenimiento size={13} />
+        </span>
+      </div>
+    );
+  }
+
+  if (!vehiculo.activo) {
+    const tooltip = "Inactivo / Fuera de servicio";
+    return (
+      <div className="status-cell-center">
+        <span
+          className="status-circle-icon status-circle-vencido"
+          title={tooltip}
+          aria-label={tooltip}
+        >
+          <IconCross size={13} strokeWidth={2.8} />
+        </span>
+      </div>
+    );
+  }
+
+  if (vehiculo.disponibilidad === "EN_VIAJE") {
+    const folio = vehiculo.folio_viaje_en_curso ? ` (Folio: ${vehiculo.folio_viaje_en_curso})` : "";
+    const tooltip = `En viaje${folio} - Operando`;
+    return (
+      <div className="status-cell-center">
+        <span
+          className="status-circle-icon status-circle-viaje"
+          title={tooltip}
+          aria-label={tooltip}
+        >
+          <IconViajes size={13} strokeWidth={2.2} />
+        </span>
+      </div>
+    );
+  }
+
+  // DISPONIBLE
+  const tooltip = "Disponible - Lista para operar";
+  return (
+    <div className="status-cell-center">
+      <span
+        className="status-circle-icon status-circle-vigente"
+        title={tooltip}
+        aria-label={tooltip}
+      >
+        <IconCheck size={13} strokeWidth={2.8} />
+      </span>
+    </div>
+  );
 }
 
 function VehiculosPage({ user }) {
@@ -661,70 +726,6 @@ function VehiculosPage({ user }) {
         </div>
       </section>
 
-      {/* Subpestañas de estado */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px", flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => { setStatus("TODOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: 0,
-            fontWeight: "bold",
-            cursor: "pointer",
-            background: status === "TODOS" && !onlyEnViaje ? "#0f172a" : "#f1f5f9",
-            color: status === "TODOS" && !onlyEnViaje ? "#ffffff" : "#475569"
-          }}
-        >
-          Todos los Vehículos
-        </button>
-        <button
-          type="button"
-          onClick={() => { setStatus("ACTIVOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: 0,
-            fontWeight: "bold",
-            cursor: "pointer",
-            background: status === "ACTIVOS" && !onlyEnViaje ? "#16a34a" : "#f1f5f9",
-            color: status === "ACTIVOS" && !onlyEnViaje ? "#ffffff" : "#475569"
-          }}
-        >
-          Disponibles
-        </button>
-        <button
-          type="button"
-          onClick={() => { setStatus("MANTENIMIENTO"); setOnlyEnViaje(false); setCurrentPage(1); }}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: 0,
-            fontWeight: "bold",
-            cursor: "pointer",
-            background: status === "MANTENIMIENTO" ? "#d97706" : "#f1f5f9",
-            color: status === "MANTENIMIENTO" ? "#ffffff" : "#475569"
-          }}
-        >
-          En Mantenimiento
-        </button>
-        <button
-          type="button"
-          onClick={() => { setStatus("INACTIVOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: 0,
-            fontWeight: "bold",
-            cursor: "pointer",
-            background: status === "INACTIVOS" && !onlyEnViaje ? "#64748b" : "#f1f5f9",
-            color: status === "INACTIVOS" && !onlyEnViaje ? "#ffffff" : "#475569"
-          }}
-        >
-          Inactivos
-        </button>
-      </div>
-
       <section className="module-toolbar">
         <label className="search-field">
           <span>Buscar</span>
@@ -744,11 +745,17 @@ function VehiculosPage({ user }) {
           <span>Estado</span>
 
           <select
-            value={status}
+            value={onlyEnViaje ? "EN_VIAJE" : status}
             onChange={(event) => {
-              setStatus(event.target.value);
-              setOnlyEnViaje(false);
+              const val = event.target.value;
               setCurrentPage(1);
+              if (val === "EN_VIAJE") {
+                setStatus("TODOS");
+                setOnlyEnViaje(true);
+              } else {
+                setOnlyEnViaje(false);
+                setStatus(val);
+              }
             }}
           >
             <option value="TODOS">
@@ -761,6 +768,10 @@ function VehiculosPage({ user }) {
 
             <option value="MANTENIMIENTO">
               En Mantenimiento
+            </option>
+
+            <option value="EN_VIAJE">
+              En Viaje
             </option>
 
             <option value="INACTIVOS">
@@ -815,7 +826,7 @@ function VehiculosPage({ user }) {
                       <th>Color</th>
                       <th>Personal asignado</th>
                       <th>Kilometraje actual</th>
-                      <th>Estado</th>
+                      <th style={{ textAlign: "center", width: "90px" }}>Estado</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
@@ -862,29 +873,7 @@ function VehiculosPage({ user }) {
                           <td>{vehiculo.personal_asignado || "—"}</td>
                           <td>{vehiculo.kilometraje_actual ?? 0} km</td>
                           <td>
-                            {vehiculo.en_mantenimiento ? (
-                              <div>
-                                <span className="status-badge" style={{ background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", display: "inline-block", marginBottom: "4px" }}>
-                                  Mantenimiento ({vehiculo.dias_en_mantenimiento ?? 0} {vehiculo.dias_en_mantenimiento === 1 ? "día" : "días"})
-                                </span>
-                                {vehiculo.motivo_mantenimiento && (
-                                  <small style={{ display: "block", color: "#64748b", fontSize: "0.75rem", maxWidth: "160px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={vehiculo.motivo_mantenimiento}>
-                                    {vehiculo.motivo_mantenimiento}
-                                  </small>
-                                )}
-                              </div>
-                            ) : (
-                              <span
-                                className={
-                                  vehiculo.disponibilidad === "DISPONIBLE"
-                                    ? "status-badge status-active"
-                                    : "status-badge status-inactive"
-                                }
-                              >
-                                {vehiculo.disponibilidad === "DISPONIBLE" ? "Disponible" :
-                                  vehiculo.disponibilidad === "EN_VIAJE" ? "No disponible: en viaje" : "Inactivo"}
-                              </span>
-                            )}
+                            {renderVehicleStatusCircle(vehiculo)}
                           </td>
                         </>
                       )}
