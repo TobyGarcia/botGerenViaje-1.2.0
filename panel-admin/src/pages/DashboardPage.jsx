@@ -7,7 +7,6 @@ import ViajesPage from "./ViajesPage.jsx";
 import InspeccionesPage from "./InspeccionesPage.jsx";
 import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
-import UsuariosAdminPage from "./UsuariosAdminPage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
@@ -23,7 +22,6 @@ import {
   IconDestinos,
   IconUbicaciones,
   IconViajes,
-  IconUsuarios,
   IconConfiguracion,
   IconCerrarSesion,
   IconToggleSidebar
@@ -733,7 +731,6 @@ function DashboardPage({ user, onLogout }) {
         {activeModule === "viajes" && <ViajesPage user={user} />}
         {activeModule === "gerenciamiento" && <GerenciamientoAdminPage user={user} />}
         {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
-        {activeModule === "usuarios" && user.rol === "ADMINISTRADOR" && <UsuariosAdminPage currentUser={user} />}
         {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
 
         {modules

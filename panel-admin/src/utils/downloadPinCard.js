@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Genera y descarga una imagen PNG en alta definición con el PIN de 4 dígitos y nombre del conductor.
  * Utiliza HTML5 Canvas 2D nativo sin librerías externas.
  *
@@ -7,7 +7,17 @@
  * @param {string} options.pin - Código PIN de 4 dígitos
  * @param {string} [options.empresa] - Empresa (opcional)
  */
-export function downloadPinCardImage({ nombre, pin, empresa }) {
+export function downloadPinCardImage(optionsOrNombre, pinArg, empresaArg) {
+  let nombre, pin, empresa;
+  if (typeof optionsOrNombre === "object" && optionsOrNombre !== null) {
+    ({ nombre, pin, empresa } = optionsOrNombre);
+  } else {
+    nombre = optionsOrNombre;
+    pin = pinArg;
+    empresa = empresaArg;
+  }
+
+  const cleanPin = pin !== undefined && pin !== null ? String(pin).trim() : "";
   const width = 640;
   const height = 400;
   const scale = 2; // Doble resolución para nitidez en pantallas Retina y móviles
@@ -117,7 +127,7 @@ export function downloadPinCardImage({ nombre, pin, empresa }) {
   // Dígitos del PIN (Grandes y espaciados)
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 44px 'Courier New', Courier, monospace";
-  const formattedPin = String(pin || "----").split("").join("   ");
+  const formattedPin = (cleanPin || "----").split("").join("   ");
   ctx.fillText(formattedPin, width / 2, boxY + 82);
 
   // Pie de nota de seguridad
@@ -136,7 +146,7 @@ export function downloadPinCardImage({ nombre, pin, empresa }) {
 
   // Crear descarga directa
   const safeName = (nombre || "Conductor").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_");
-  const fileName = `PIN_${safeName}_${pin}.png`;
+  const fileName = `PIN_${safeName}_${cleanPin || "codigo"}.png`;
 
   canvas.toBlob((blob) => {
     if (!blob) return;

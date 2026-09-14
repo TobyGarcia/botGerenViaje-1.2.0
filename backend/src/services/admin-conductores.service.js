@@ -304,7 +304,8 @@ export async function createAdminDriver({
 
 export async function updateAdminDriverStatus({
   idConductor,
-  activo
+  activo,
+  requestingUser = null
 }) {
   const client = await databasePool.connect();
   try {
@@ -314,14 +315,149 @@ export async function updateAdminDriverStatus({
       error.code = "DRIVER_DELETED";
       throw error;
     }
-    const inProgress = await client.query(`SELECT 1 FROM viajes v INNER JOIN estados_viaje e ON e.id_estado_viaje=v.id_estado_viaje WHERE v.id_conductores=$1 AND e.nombre='EN_CURSO' LIMIT 1`, [idConductor]);
+
+    const inProgress = await client.query(
+      `SELECT 1 FROM viajes v 
+       INNER JOIN estados_viaje e ON e.id_estado_viaje=v.id_estado_viaje 
+       WHERE v.id_conductores=$1 AND e.nombre='EN_CURSO' 
+       LIMIT 1`,
+      [idConductor]
+    );
     if (inProgress.rows[0]) {
       const error = new Error("No se puede eliminar un conductor con un viaje en curso.");
       error.code = "TRIP_IN_PROGRESS";
       throw error;
     }
-    await client.query(`UPDATE viajes v SET conductor_nombre_historico=COALESCE(v.conductor_nombre_historico,c.nombre) FROM conductores c WHERE v.id_conductores=$1 AND c.id_conductores=$1`, [idConductor]);
-    const result = await client.query(`DELETE FROM conductores WHERE id_conductores=$1 RETURNING id_conductores, nombre`, [idConductor]);
+
+    // 1. Obtener datos del conductor y su cuenta administrativa vinculada
+    const condRes = await client.query(
+      `SELECT id_conductores, nombre FROM conductores WHERE id_conductores = $1 FOR UPDATE`,
+      [idConductor]
+    );
+    const conductor = condRes.rows[0];
+    if (!conductor) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const adminCheck = await client.query(
+      `SELECT id_usuarios_admin, username, rol 
+       FROM usuarios_admin 
+       WHERE id_conductores = $1 
+       ORDER BY activo DESC, id_usuarios_admin DESC 
+       LIMIT 1`,
+      [idConductor]
+    );
+    const targetAdmin = adminCheck.rows[0] || null;
+
+    // 2. Validar auto-eliminación
+    if (requestingUser) {
+      if (
+        (requestingUser.id_conductores && Number(requestingUser.id_conductores) === Number(idConductor)) ||
+        (targetAdmin && Number(requestingUser.id_usuarios_admin) === Number(targetAdmin.id_usuarios_admin))
+      ) {
+        const err = new Error("No puedes eliminar tu propia cuenta de usuario o conductor.");
+        err.code = "FORBIDDEN";
+        err.status = 403;
+        throw err;
+      }
+
+      // 3. Validar jerarquía de roles para eliminación
+      const callerRol = String(requestingUser.rol || "").toUpperCase();
+      const targetRol = targetAdmin?.rol ? String(targetAdmin.rol).toUpperCase() : null;
+      const isCallerAdmin = ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(callerRol);
+
+      if (!isCallerAdmin) {
+        if (targetRol) {
+          // El conductor tiene un rol administrativo asignado
+          if (["GERENTE"].includes(callerRol)) {
+            const allowedForGerente = [
+              "COORDINADOR",
+              "COORDINADOR_AREA",
+              "COORDINADOR_QHSE",
+              "SUPERVISOR",
+              "QHSE",
+              "INSTRUCTOR",
+              "OPERADOR",
+              "CONSULTA"
+            ];
+            if (!allowedForGerente.includes(targetRol)) {
+              const err = new Error(`Tu rol de GERENTE no tiene permisos para eliminar a un usuario con rol ${targetRol}.`);
+              err.code = "FORBIDDEN";
+              err.status = 403;
+              throw err;
+            }
+          } else if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(callerRol)) {
+            const allowedForCoordinador = [
+              "SUPERVISOR",
+              "QHSE",
+              "INSTRUCTOR",
+              "OPERADOR",
+              "CONSULTA"
+            ];
+            if (!allowedForCoordinador.includes(targetRol)) {
+              const err = new Error(`Tu rol de COORDINADOR no tiene permisos para eliminar a un usuario con rol ${targetRol}.`);
+              err.code = "FORBIDDEN";
+              err.status = 403;
+              throw err;
+            }
+          } else {
+            // Supervisor, QHSE, Instructor, etc.
+            const err = new Error(`Tu rol de ${callerRol} solo puede eliminar conductores regulares, no usuarios con rol administrativo (${targetRol}).`);
+            err.code = "FORBIDDEN";
+            err.status = 403;
+            throw err;
+          }
+        } else {
+          // Conductor común sin rol administrativo:
+          // Supervisor, Coordinador y Gerente pueden eliminar cualquier conductor
+          const allowedRolesForConductor = [
+            "ADMINISTRADOR",
+            "GERENTE",
+            "GERENTE_GENERAL",
+            "COORDINADOR",
+            "COORDINADOR_AREA",
+            "COORDINADOR_QHSE",
+            "SUPERVISOR",
+            "QHSE",
+            "INSTRUCTOR"
+          ];
+          if (!allowedRolesForConductor.includes(callerRol)) {
+            const err = new Error(`Tu rol de ${callerRol} no tiene permisos para eliminar conductores.`);
+            err.code = "FORBIDDEN";
+            err.status = 403;
+            throw err;
+          }
+        }
+      }
+    }
+
+    // 4. Conservar histórico en viajes
+    await client.query(
+      `UPDATE viajes v 
+       SET conductor_nombre_historico = COALESCE(v.conductor_nombre_historico, c.nombre) 
+       FROM conductores c 
+       WHERE v.id_conductores = $1 AND c.id_conductores = $1`,
+      [idConductor]
+    );
+
+    // 5. Desvincular vehículos asignados
+    await client.query(
+      `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_conductor_asignado = $1`,
+      [idConductor]
+    );
+
+    // 6. Eliminar usuario administrativo vinculado (si existía) para no dejar registros huérfanos
+    await client.query(`DELETE FROM usuarios_admin WHERE id_conductores = $1`, [idConductor]);
+
+    // 7. Eliminar usuario de telegram vinculado
+    await client.query(`DELETE FROM usuarios_telegram WHERE id_conductores = $1`, [idConductor]);
+
+    // 8. Eliminar registro del conductor
+    const result = await client.query(
+      `DELETE FROM conductores WHERE id_conductores = $1 RETURNING id_conductores, nombre`,
+      [idConductor]
+    );
     const driver = result.rows[0] ?? null;
     await client.query("COMMIT");
     return driver ? { ...driver, deleted: true } : null;
@@ -543,23 +679,9 @@ export async function getAdminConductorRole({ idConductor }) {
 
   const usuarioAdmin = adminUserResult.rows[0] || null;
 
-  const unlinkedUsersResult = await databasePool.query(
-    `SELECT
-       id_usuarios_admin,
-       nombre,
-       username,
-       correo,
-       rol,
-       activo
-     FROM usuarios_admin
-     WHERE id_conductores IS NULL
-     ORDER BY activo DESC, nombre ASC`
-  );
-
   return {
     conductor,
-    usuarioAdmin,
-    unlinkedUsers: unlinkedUsersResult.rows
+    usuarioAdmin
   };
 }
 
@@ -692,67 +814,7 @@ export async function assignAdminConductorRole({
       };
     }
 
-    if (modo === "VINCULAR") {
-      const idUsuariosAdmin = Number(data.idUsuariosAdmin);
-      if (!Number.isInteger(idUsuariosAdmin) || idUsuariosAdmin <= 0) {
-        throw new Error("El usuario administrativo a vincular no es válido.");
-      }
-
-      const targetCheck = await client.query(
-        `SELECT id_usuarios_admin, nombre, username, correo, rol, id_conductores, pin_hash
-         FROM usuarios_admin WHERE id_usuarios_admin = $1 FOR UPDATE`,
-        [idUsuariosAdmin]
-      );
-
-      const targetAdmin = targetCheck.rows[0];
-      if (!targetAdmin) {
-        throw new Error("El usuario administrativo seleccionado no existe.");
-      }
-
-      if (targetAdmin.id_conductores && targetAdmin.id_conductores !== idConductor) {
-        throw new Error("El usuario administrativo ya se encuentra vinculado a otro conductor.");
-      }
-
-      const newRoleToApply = data.rol ? targetRol : targetAdmin.rol;
-      if (!allowedRoles.includes(newRoleToApply)) {
-        throw new Error(`No tienes permisos para vincular con rol ${newRoleToApply}.`);
-      }
-
-      // Sincronizar PIN si conductor ya lo tiene y admin no
-      const adminPinHash = targetAdmin.pin_hash || finalPinHash || null;
-
-      const vincularResult = await client.query(
-        `UPDATE usuarios_admin
-         SET id_conductores = $1,
-             rol = $2,
-             pin_hash = COALESCE(pin_hash, $3),
-             telegram_user_id = COALESCE(telegram_user_id, $4),
-             actualizado_en = CURRENT_TIMESTAMP
-         WHERE id_usuarios_admin = $5
-         RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
-        [idConductor, newRoleToApply, adminPinHash, conductor.telegram_user_id || null, idUsuariosAdmin]
-      );
-      updatedAdmin = vincularResult.rows[0];
-
-      // Sincronizar PIN de vuelta a conductor si el admin tenía PIN y el conductor no
-      if (targetAdmin.pin_hash && !conductor.pin_hash) {
-        await client.query(
-          `UPDATE conductores SET pin_hash = $1 WHERE id_conductores = $2`,
-          [targetAdmin.pin_hash, idConductor]
-        );
-      }
-
-      // Sincronizar rol en usuarios_telegram
-      if (conductor.telegram_user_id) {
-        const tgRol = mapAdminRoleToTelegramRole(newRoleToApply);
-        await client.query(
-          `UPDATE usuarios_telegram
-           SET rol = $1, estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
-           WHERE id_conductores = $2`,
-          [tgRol, idConductor]
-        );
-      }
-    } else if (modo === "ACTUALIZAR" && currentAdminUser) {
+    if (modo === "ACTUALIZAR" && currentAdminUser) {
       const username = String(data.username || currentAdminUser.username || "").trim().toLowerCase();
       const correo = data.correo ? String(data.correo).trim().toLowerCase() : currentAdminUser.correo;
       const activo = data.activo !== undefined ? Boolean(data.activo) : currentAdminUser.activo;

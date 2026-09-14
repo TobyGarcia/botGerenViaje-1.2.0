@@ -55,7 +55,7 @@ router.patch(
 
 router.patch(
   "/:idConductor/estado",
-  requireAdminRoles("ADMINISTRADOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   updateAdminDriverStatusController
 );
 

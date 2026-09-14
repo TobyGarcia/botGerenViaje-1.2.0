@@ -337,13 +337,10 @@ function ConductoresPage({ user }) {
   const [roleModalLoading, setRoleModalLoading] = useState(false);
   const [roleModalSaving, setRoleModalSaving] = useState(false);
   const [roleModalError, setRoleModalError] = useState("");
-  const [roleModalTab, setRoleModalTab] = useState("nuevo"); // 'nuevo' | 'vincular'
   const [roleForm, setRoleForm] = useState({
     rol: "OPERADOR",
     username: "",
     correo: "",
-    password: "",
-    idUsuariosAdmin: "",
     activo: true
   });
 
@@ -442,7 +439,7 @@ function ConductoresPage({ user }) {
         pinMode === "manual" ? manualPin.trim() : null
       );
 
-      const generatedPin = res.data?.pin;
+      const generatedPin = res.data?.pinGenerado || res.data?.pin || (pinMode === "manual" ? manualPin.trim() : null);
       setPinModalConductor(null);
       setPinSuccessData({
         conductorNombre: pinModalConductor.nombre,
@@ -461,7 +458,10 @@ function ConductoresPage({ user }) {
 
   function handleDownloadPinCard() {
     if (!pinSuccessData) return;
-    downloadPinCardImage(pinSuccessData.conductorNombre, pinSuccessData.pin);
+    downloadPinCardImage({
+      nombre: pinSuccessData.conductorNombre,
+      pin: pinSuccessData.pin
+    });
   }
 
   function handleCopyPin() {
@@ -482,6 +482,68 @@ function ConductoresPage({ user }) {
   const canAssignRole =
     !user ||
     ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user.rol);
+
+  const canDeleteConductor = (conductor) => {
+    if (!conductor) return false;
+    if (!user) return true;
+    const callerRol = user.rol || "";
+
+    // No permitir auto-eliminación
+    if (user.id_conductores && conductor.id_conductores && Number(user.id_conductores) === Number(conductor.id_conductores)) {
+      return false;
+    }
+    if (user.id_usuarios_admin && conductor.id_usuarios_admin && Number(user.id_usuarios_admin) === Number(conductor.id_usuarios_admin)) {
+      return false;
+    }
+
+    if (["ADMINISTRADOR", "GERENTE_GENERAL"].includes(callerRol)) {
+      return true;
+    }
+
+    const targetRol = conductor.rol_administrativo || null;
+    if (!targetRol) {
+      // Conductor regular sin rol administrativo:
+      // Gerente, Coordinador y Supervisor pueden eliminarlo
+      return [
+        "GERENTE",
+        "COORDINADOR",
+        "COORDINADOR_AREA",
+        "COORDINADOR_QHSE",
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR"
+      ].includes(callerRol);
+    }
+
+    // Conductor con rol administrativo asignado:
+    // Solo un Gerente puede eliminar a un Coordinador, Supervisor y roles operativos
+    if (["GERENTE"].includes(callerRol)) {
+      return [
+        "COORDINADOR",
+        "COORDINADOR_AREA",
+        "COORDINADOR_QHSE",
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR",
+        "OPERADOR",
+        "CONSULTA"
+      ].includes(targetRol);
+    }
+
+    // Un Coordinador puede eliminar a un Supervisor y roles operativos
+    if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(callerRol)) {
+      return [
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR",
+        "OPERADOR",
+        "CONSULTA"
+      ].includes(targetRol);
+    }
+
+    // Un Supervisor solo puede eliminar a cualquier conductor regular (sin rol)
+    return false;
+  };
 
   const getAllowedRoleOptions = () => {
     const callerRol = user?.rol || "ADMINISTRADOR";
@@ -524,7 +586,6 @@ function ConductoresPage({ user }) {
     setRoleModalData(null);
     setRoleModalLoading(true);
     setRoleModalError("");
-    setRoleModalTab("nuevo");
 
     // Generar sugerencia limpia de username a partir del nombre
     const cleanUsername = (conductor.nombre || "")
@@ -545,8 +606,6 @@ function ConductoresPage({ user }) {
       rol: conductor.rol_administrativo || defaultRole,
       username: conductor.admin_username || cleanUsername,
       correo: conductor.admin_correo || "",
-      password: "",
-      idUsuariosAdmin: conductor.id_usuarios_admin || "",
       activo: conductor.admin_activo !== false
     });
 
@@ -559,8 +618,6 @@ function ConductoresPage({ user }) {
             rol: res.data.usuarioAdmin.rol || defaultRole,
             username: res.data.usuarioAdmin.username || cleanUsername,
             correo: res.data.usuarioAdmin.correo || "",
-            password: "",
-            idUsuariosAdmin: res.data.usuarioAdmin.id_usuarios_admin,
             activo: res.data.usuarioAdmin.activo !== false
           });
         }
@@ -578,12 +635,7 @@ function ConductoresPage({ user }) {
     if (!roleModalConductor) return;
 
     const hasLinkedUser = Boolean(roleModalConductor.id_usuarios_admin || roleModalData?.usuarioAdmin);
-    const modo = overrideModo || (hasLinkedUser ? "ACTUALIZAR" : (roleModalTab === "vincular" ? "VINCULAR" : "NUEVO"));
-
-    if (modo === "VINCULAR" && !roleForm.idUsuariosAdmin) {
-      setRoleModalError("Debes seleccionar un usuario administrativo existente para vincular.");
-      return;
-    }
+    const modo = overrideModo || (hasLinkedUser ? "ACTUALIZAR" : "NUEVO");
 
     if (overrideModo === "REVOCAR") {
       if (!window.confirm(`¿Estás seguro de revocar el rol administrativo de ${roleModalConductor.nombre}? El perfil volverá a ser exclusivamente conductor.`)) {
@@ -664,12 +716,24 @@ function ConductoresPage({ user }) {
   }, [search, status]);
 
   function handleOpenDelete(conductor) {
+    if (!canDeleteConductor(conductor)) {
+      setMessage("No tienes permisos suficientes para eliminar a este usuario.");
+      setMessageType("error");
+      return;
+    }
     setDeleteConfirmConductor(conductor);
   }
 
   async function confirmDeleteDriver() {
     if (!deleteConfirmConductor) return;
     const conductor = deleteConfirmConductor;
+
+    if (!canDeleteConductor(conductor)) {
+      setMessage("No tienes permisos suficientes para eliminar a este usuario.");
+      setMessageType("error");
+      setDeleteConfirmConductor(null);
+      return;
+    }
 
     setUpdatingId(conductor.id_conductores);
     setMessage("");
@@ -1181,7 +1245,7 @@ function ConductoresPage({ user }) {
                               </button>
                             )}
 
-                            {(!user || ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(user.rol)) && (
+                            {canDeleteConductor(conductor) && (
                               <button
                                 type="button"
                                 className="conductor-action-btn btn-delete"
@@ -1368,7 +1432,7 @@ function ConductoresPage({ user }) {
                       </button>
                     )}
 
-                    {(!user || user.rol === "ADMINISTRADOR") && (
+                    {canDeleteConductor(conductor) && (
                       <button
                         type="button"
                         className="secondary-button"
@@ -2224,7 +2288,7 @@ function ConductoresPage({ user }) {
               </p>
               <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b", display: "flex", alignItems: "flex-start", gap: "8px" }}>
                 <IconAlerta size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
-                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.</span>
+                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram{deleteConfirmConductor.rol_administrativo ? ` y su cuenta administrativa con rol ${deleteConfirmConductor.rol_administrativo}` : ""}. Sus viajes históricos se conservarán para fines de auditoría.</span>
               </div>
             </div>
 

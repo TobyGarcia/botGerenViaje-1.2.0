@@ -253,7 +253,8 @@ export async function updateAdminDriverStatusController(
     const updatedDriver =
       await updateAdminDriverStatus({
         idConductor,
-        activo
+        activo,
+        requestingUser: request.adminUser
       });
 
     if (!updatedDriver) {
@@ -278,6 +279,9 @@ export async function updateAdminDriverStatusController(
     if (["TRIP_IN_PROGRESS", "DRIVER_DELETED"].includes(error.code)) {
       return response.status(409).json({ success: false, message: error.message });
     }
+    if (error.code === "FORBIDDEN" || error.status === 403) {
+      return response.status(403).json({ success: false, message: error.message });
+    }
     console.error(
       "Error actualizando conductor:",
       error.message
@@ -288,7 +292,7 @@ export async function updateAdminDriverStatusController(
       .json({
         success: false,
         message:
-          "No fue posible actualizar el conductor."
+          error.message || "No fue posible actualizar el conductor."
       });
   }
 }
@@ -407,6 +411,7 @@ export async function setDriverPinAdminController(request, response) {
       message: `PIN del conductor actualizado correctamente: ${finalPin}`,
       data: {
         ...updated,
+        pin: finalPin,
         pinGenerado: finalPin
       }
     });
