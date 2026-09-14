@@ -24,9 +24,11 @@ function getBadgeClass(estado) {
     case "VIGENTE":
       return "status-badge status-active";
     case "PROXIMO_A_VENCER":
+    case "PENDIENTE":
       return "status-badge status-pending";
     case "VENCIDO":
     case "SIN_REGISTRO":
+    case "REPROBADO":
       return "status-badge status-inactive";
     default:
       return "status-badge";
@@ -41,11 +43,51 @@ function getBadgeLabel(estado, dias) {
       return `Próximo a vencer (${dias} días)`;
     case "VENCIDO":
       return `Vencido (hace ${Math.abs(dias)} días)`;
+    case "PENDIENTE":
+      return "Cálculo Pendiente";
+    case "REPROBADO":
+      return "Reprobado";
     case "SIN_REGISTRO":
       return "Sin registro";
     default:
       return estado;
   }
+}
+
+function getPreviewVigencia(calificacion, fechaEvaluacion) {
+  const score = Number(calificacion || 0);
+  let dias = 0;
+  let label = "";
+  let aprobado = true;
+
+  if (score >= 85) {
+    dias = 365;
+    label = "365 días (1 año)";
+  } else if (score >= 75) {
+    dias = 180;
+    label = "180 días (6 meses)";
+  } else if (score >= 50) {
+    dias = 90;
+    label = "90 días (3 meses)";
+  } else {
+    dias = 0;
+    label = "Reprobado (re-evaluación al siguiente mes)";
+    aprobado = false;
+  }
+
+  if (!aprobado || !fechaEvaluacion) {
+    return { aprobado, label, fechaVencimiento: null };
+  }
+
+  const dateMatch = String(fechaEvaluacion).match(/^\d{4}-\d{2}-\d{2}/);
+  if (!dateMatch) return { aprobado, label, fechaVencimiento: null };
+
+  const [y, m, d] = dateMatch[0].split("-").map(Number);
+  const evalDate = new Date(y, m - 1, d);
+  evalDate.setDate(evalDate.getDate() + dias);
+  const expiryStr = evalDate.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+  return { aprobado, label, fechaVencimiento: expiryStr };
 }
 
 export default function ManejoComentadoPage({ user }) {
@@ -521,6 +563,24 @@ export default function ManejoComentadoPage({ user }) {
               </div>
 
               <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Calificación (0 - 100) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="form-control"
+                  value={renovarForm.calificacion}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const score = Number(val);
+                    const autoStatus = score >= 50 ? "APROBADO" : "REPROBADO";
+                    setRenovarForm({ ...renovarForm, calificacion: val, estadoEvaluacion: autoStatus });
+                  }}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label>Resultado de Evaluación</label>
                 <select
                   className="form-control"
@@ -532,18 +592,37 @@ export default function ManejoComentadoPage({ user }) {
                 </select>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label>Calificación (0 - 100)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  className="form-control"
-                  value={renovarForm.calificacion}
-                  onChange={(e) => setRenovarForm({ ...renovarForm, calificacion: e.target.value })}
-                  required
-                />
-              </div>
+              {/* Vista previa del cálculo dinámico */}
+              {(() => {
+                const preview = getPreviewVigencia(renovarForm.calificacion, renovarForm.fechaEvaluacion);
+                return (
+                  <div
+                    style={{
+                      background: preview.aprobado ? "#eefbf3" : "#fff5f5",
+                      border: `1px solid ${preview.aprobado ? "#abebd2" : "#feb2b2"}`,
+                      borderRadius: "8px",
+                      padding: "12px",
+                      marginBottom: "1rem",
+                      fontSize: "0.9rem"
+                    }}
+                  >
+                    <strong>Cálculo de Vigencia Asignada:</strong>
+                    <div style={{ marginTop: "4px" }}>
+                      • <strong>Estatus:</strong> {preview.aprobado ? "APROBADO" : "REPROBADO"} ({preview.label})
+                    </div>
+                    {preview.aprobado && preview.fechaVencimiento && (
+                      <div style={{ marginTop: "2px", color: "#166534" }}>
+                        • <strong>Fecha de Vencimiento:</strong> {preview.fechaVencimiento} (calculada descontando los días de la evaluación)
+                      </div>
+                    )}
+                    {!preview.aprobado && (
+                      <div style={{ marginTop: "2px", color: "#991b1b" }}>
+                        • Re-evaluación y curso programados para el próximo mes.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label>Comentarios / Observaciones del Evaluador</label>
