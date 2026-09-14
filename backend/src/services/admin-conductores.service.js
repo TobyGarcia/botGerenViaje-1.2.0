@@ -957,6 +957,7 @@ export async function assignAdminConductorRole({
         );
       }
     }
+  }
 
     await client.query("COMMIT");
 
