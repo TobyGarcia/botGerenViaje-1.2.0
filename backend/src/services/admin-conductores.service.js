@@ -667,12 +667,10 @@ export async function assignAdminConductorRole({
 
     if (modo === "REVOCAR") {
       if (currentAdminUser) {
+        // Eliminar el registro administrativo vinculado para liberar el username y correo
         await client.query(
-          `UPDATE usuarios_admin
-           SET id_conductores = NULL,
-               actualizado_en = CURRENT_TIMESTAMP
-           WHERE id_conductores = $1`,
-          [idConductor]
+          `DELETE FROM usuarios_admin WHERE id_usuarios_admin = $1`,
+          [currentAdminUser.id_usuarios_admin]
         );
       }
 
@@ -817,24 +815,48 @@ export async function assignAdminConductorRole({
         throw new Error("El nombre de usuario debe tener al menos 3 caracteres.");
       }
 
-      // Validar si username ya existe
-      const dupCheck = await client.query(
-        `SELECT id_usuarios_admin FROM usuarios_admin WHERE LOWER(username) = LOWER($1) LIMIT 1`,
-        [username]
+      // Validar si username o correo ya existe en una cuenta desvinculada
+      const unlinkedMatch = await client.query(
+        `SELECT id_usuarios_admin, id_conductores 
+         FROM usuarios_admin 
+         WHERE (LOWER(username) = LOWER($1) OR (correo IS NOT NULL AND $2 IS NOT NULL AND LOWER(correo) = LOWER($2)))
+         LIMIT 1`,
+        [username, correo]
       );
-      if (dupCheck.rows[0]) {
-        throw new Error(`El nombre de usuario "${username}" ya está registrado. Por favor ingresa uno diferente.`);
-      }
 
-      if (correo) {
-        const dupEmail = await client.query(
-          `SELECT id_usuarios_admin FROM usuarios_admin WHERE LOWER(correo) = LOWER($1) LIMIT 1`,
-          [correo]
-        );
-        if (dupEmail.rows[0]) {
-          throw new Error(`El correo corporativo "${correo}" ya está registrado en otra cuenta.`);
+      if (unlinkedMatch.rows[0]) {
+        const found = unlinkedMatch.rows[0];
+        // Si está vinculado a OTRO conductor distinto, no permitir
+        if (found.id_conductores && found.id_conductores !== idConductor) {
+          throw new Error(`El nombre de usuario "${username}" ya está registrado por otro personal.`);
         }
-      }
+        // Si está huérfano (id_conductores IS NULL) o pertenece a este mismo conductor, lo reasignamos
+        const reassignResult = await client.query(
+          `UPDATE usuarios_admin
+           SET id_conductores = $1,
+               rol = $2,
+               username = $3,
+               correo = $4,
+               activo = $5,
+               pin_hash = COALESCE(pin_hash, $6),
+               telegram_user_id = COALESCE(telegram_user_id, $7),
+               actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_usuarios_admin = $8
+           RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
+          [idConductor, targetRol, username, correo || null, activo, finalPinHash || null, conductor.telegram_user_id || null, found.id_usuarios_admin]
+        );
+        updatedAdmin = reassignResult.rows[0];
+
+        if (conductor.telegram_user_id) {
+          const tgRol = mapAdminRoleToTelegramRole(targetRol);
+          await client.query(
+            `UPDATE usuarios_telegram
+             SET rol = $1, estado_registro = 'COMPLETO', actualizado_en = CURRENT_TIMESTAMP
+             WHERE id_conductores = $2`,
+            [tgRol, idConductor]
+          );
+        }
+      } else {
 
       let passwordPlain = data.password ? String(data.password).trim() : null;
       if (!passwordPlain || passwordPlain.length < 8) {

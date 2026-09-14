@@ -487,6 +487,7 @@ function ConductoresPage({ user }) {
     const callerRol = user?.rol || "ADMINISTRADOR";
     if (["ADMINISTRADOR", "GERENTE_GENERAL"].includes(callerRol)) {
       return [
+        { value: "ADMINISTRADOR", label: "👑 ADMINISTRADOR — Control y Acceso Total al Sistema" },
         { value: "GERENTE", label: "GERENTE — Aprueba Viajes de Riesgo ALTO (> 23 pts)" },
         { value: "COORDINADOR", label: "COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)" },
         { value: "SUPERVISOR", label: "SUPERVISOR — Aprueba Viajes de Riesgo BAJO e Inspecciones" },
@@ -2351,31 +2352,6 @@ function ConductoresPage({ user }) {
 
                 {/* Si ya tiene rol administrativo vinculado */}
                 {roleModalConductor.rol_administrativo ? (
-                  roleModalData?.usuarioAdmin?.rol === "ADMINISTRADOR" ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#1e293b" }}>
-                        <span style={{ fontSize: "1.5rem" }}>👑</span>
-                        <div>
-                          <strong style={{ display: "block", fontSize: "0.95rem" }}>Cuenta con Rol ADMINISTRADOR</strong>
-                          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                            Usuario: <strong>@{roleForm.username}</strong> {roleForm.correo ? `(${roleForm.correo})` : ""}
-                          </span>
-                        </div>
-                      </div>
-                      <p style={{ margin: "0", fontSize: "0.85rem", color: "#475569", lineHeight: "1.5" }}>
-                        Las cuentas con privilegio de Administrador no se modifican desde esta ventana de conductores. Puedes administrarlas, editarlas o revocarlas de forma segura en el módulo exclusivo <strong>Administradores</strong> en el menú lateral.
-                      </p>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => setRoleModalConductor(null)}
-                        >
-                          Cerrar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                   <form onSubmit={(e) => handleSubmitRole(e, "ACTUALIZAR")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                     <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", padding: "10px 14px", fontSize: "0.85rem", color: "#5b21b6" }}>
                       Cuenta vinculada: <strong>@{roleForm.username}</strong> {roleForm.correo ? `(${roleForm.correo})` : ""}
@@ -2431,16 +2407,16 @@ function ConductoresPage({ user }) {
                     </label>
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                      {roleModalData?.usuarioAdmin?.rol === "ADMINISTRADOR" ? (
+                      {roleModalData?.usuarioAdmin?.id_usuarios_admin === user?.idUsuarioAdmin ? (
                         <span style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic" }}>
-                          Cuenta Administrador protegida
+                          (Tu propia sesión activa)
                         </span>
                       ) : (
                         <button
                           type="button"
                           className="secondary-button"
                           style={{ color: "#dc2626", borderColor: "#fecaca" }}
-                          disabled={roleModalSaving}
+                          disabled={roleModalSaving || (roleModalData?.usuarioAdmin?.rol === "ADMINISTRADOR" && user?.rol !== "ADMINISTRADOR")}
                           onClick={(e) => handleSubmitRole(e, "REVOCAR")}
                         >
                           Revocar Rol Administrativo
@@ -2466,7 +2442,6 @@ function ConductoresPage({ user }) {
                       </div>
                     </div>
                   </form>
-                  )
                 ) : (
                   /* Conductor SIN rol administrativo aún - Formulario directo */
                   <form onSubmit={(e) => handleSubmitRole(e, "NUEVO")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
