@@ -2419,15 +2419,21 @@ function ConductoresPage({ user }) {
                     </label>
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
-                        disabled={roleModalSaving}
-                        onClick={(e) => handleSubmitRole(e, "REVOCAR")}
-                      >
-                        Revocar Rol Administrativo
-                      </button>
+                      {roleModalData?.usuarioAdmin?.rol === "ADMINISTRADOR" ? (
+                        <span style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic" }}>
+                          Cuenta Administrador protegida
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                          disabled={roleModalSaving}
+                          onClick={(e) => handleSubmitRole(e, "REVOCAR")}
+                        >
+                          Revocar Rol Administrativo
+                        </button>
+                      )}
 
                       <div style={{ display: "flex", gap: "8px" }}>
                         <button
@@ -2449,219 +2455,96 @@ function ConductoresPage({ user }) {
                     </div>
                   </form>
                 ) : (
-                  /* Conductor SIN rol administrativo aún */
-                  <div>
-                    {/* Pestañas: Crear nuevo o Vincular existente */}
-                    <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px", marginBottom: "14px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setRoleModalTab("nuevo")}
-                        style={{
-                          background: roleModalTab === "nuevo" ? "#7c3aed" : "#f1f5f9",
-                          color: roleModalTab === "nuevo" ? "#ffffff" : "#475569",
-                          border: "none",
-                          borderRadius: "6px",
-                          padding: "6px 14px",
-                          fontSize: "0.85rem",
-                          fontWeight: 600,
-                          cursor: "pointer"
-                        }}
+                  /* Conductor SIN rol administrativo aún - Formulario directo */
+                  <form onSubmit={(e) => handleSubmitRole(e, "NUEVO")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                      Rol a Asignar *
+                      <select
+                        value={roleForm.rol}
+                        onChange={(e) => setRoleForm({ ...roleForm, rol: e.target.value })}
+                        style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
                       >
-                        Crear nuevo acceso
-                      </button>
+                        {getAllowedRoleOptions().map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-                      <button
-                        type="button"
-                        onClick={() => setRoleModalTab("vincular")}
-                        style={{
-                          background: roleModalTab === "vincular" ? "#7c3aed" : "#f1f5f9",
-                          color: roleModalTab === "vincular" ? "#ffffff" : "#475569",
-                          border: "none",
-                          borderRadius: "6px",
-                          padding: "6px 14px",
-                          fontSize: "0.85rem",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}
-                      >
-                        <span>Vincular cuenta existente</span>
-                        {roleModalData?.unlinkedUsers?.length > 0 && (
-                          <span style={{ background: roleModalTab === "vincular" ? "rgba(255,255,255,0.3)" : "#e2e8f0", padding: "1px 6px", borderRadius: "10px", fontSize: "0.72rem" }}>
-                            {roleModalData.unlinkedUsers.length}
-                          </span>
-                        )}
-                      </button>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Nombre de Usuario *
+                        <input
+                          type="text"
+                          required
+                          value={roleForm.username}
+                          onChange={(e) => setRoleForm({ ...roleForm, username: e.target.value })}
+                          placeholder="carlos.ramirez"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Correo Electrónico
+                        <input
+                          type="email"
+                          value={roleForm.correo}
+                          onChange={(e) => setRoleForm({ ...roleForm, correo: e.target.value })}
+                          placeholder="usuario@itzamna.mx"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
                     </div>
 
-                    {roleModalTab === "nuevo" ? (
-                      <form onSubmit={(e) => handleSubmitRole(e, "NUEVO")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                        <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                          Rol a Asignar *
-                          <select
-                            value={roleForm.rol}
-                            onChange={(e) => setRoleForm({ ...roleForm, rol: e.target.value })}
-                            style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
-                          >
-                            {getAllowedRoleOptions().map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                      Contraseña de Acceso Web (Opcional)
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          type="text"
+                          value={roleForm.password}
+                          onChange={(e) => setRoleForm({ ...roleForm, password: e.target.value })}
+                          placeholder="Generada automáticamente si se omite"
+                          style={{ flex: 1, padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => {
+                            const gen = Math.random().toString(36).slice(-8) + "Aa1!";
+                            setRoleForm({ ...roleForm, password: gen });
+                          }}
+                          style={{ whiteSpace: "nowrap", padding: "6px 12px", fontSize: "0.82rem" }}
+                        >
+                          Generar
+                        </button>
+                      </div>
+                    </label>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                            Nombre de Usuario *
-                            <input
-                              type="text"
-                              required
-                              value={roleForm.username}
-                              onChange={(e) => setRoleForm({ ...roleForm, username: e.target.value })}
-                              placeholder="carlos.ramirez"
-                              style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
-                            />
-                          </label>
+                    <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 12px", fontSize: "0.82rem", color: "#1e40af", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <IconKey size={16} style={{ flexShrink: 0 }} />
+                      <span>El <strong>PIN de 4 dígitos</strong> del conductor se sincronizará de forma inmediata para su inicio de sesión en plataforma o terminales.</span>
+                    </div>
 
-                          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                            Correo Electrónico
-                            <input
-                              type="email"
-                              value={roleForm.correo}
-                              onChange={(e) => setRoleForm({ ...roleForm, correo: e.target.value })}
-                              placeholder="usuario@itzamna.mx"
-                              style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
-                            />
-                          </label>
-                        </div>
-
-                        <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                          Contraseña de Acceso Web (Opcional)
-                          <div style={{ display: "flex", gap: "8px" }}>
-                            <input
-                              type="text"
-                              value={roleForm.password}
-                              onChange={(e) => setRoleForm({ ...roleForm, password: e.target.value })}
-                              placeholder="Generada automáticamente si se omite"
-                              style={{ flex: 1, padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
-                            />
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              onClick={() => {
-                                const gen = Math.random().toString(36).slice(-8) + "Aa1!";
-                                setRoleForm({ ...roleForm, password: gen });
-                              }}
-                              style={{ whiteSpace: "nowrap", padding: "6px 12px", fontSize: "0.82rem" }}
-                            >
-                              Generar
-                            </button>
-                          </div>
-                        </label>
-
-                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 12px", fontSize: "0.82rem", color: "#1e40af", display: "flex", alignItems: "center", gap: "8px" }}>
-                          <IconKey size={16} style={{ flexShrink: 0 }} />
-                          <span>El <strong>PIN de 4 dígitos</strong> del conductor se sincronizará de forma inmediata para su inicio de sesión en plataforma o terminales.</span>
-                        </div>
-
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            disabled={roleModalSaving}
-                            onClick={() => setRoleModalConductor(null)}
-                          >
-                            Cancelar
-                          </button>
-                          <button
-                            type="submit"
-                            className="primary-button"
-                            style={{ background: "#7c3aed", borderColor: "#6d28d9" }}
-                            disabled={roleModalSaving}
-                          >
-                            {roleModalSaving ? "Asignando..." : "Asignar Rol y Habilitar"}
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      /* Tab Vincular cuenta existente */
-                      <form onSubmit={(e) => handleSubmitRole(e, "VINCULAR")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                        <p style={{ margin: "0", fontSize: "0.85rem", color: "#475569" }}>
-                          Selecciona una cuenta administrativa previa que no esté enlazada a ningún conductor para fusionarla con este perfil y evitar registros duplicados:
-                        </p>
-
-                        {(!roleModalData?.unlinkedUsers || roleModalData.unlinkedUsers.length === 0) ? (
-                          <div style={{ padding: "16px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-                            No existen cuentas administrativas huérfanas sin conductor asignado. Usa la pestaña <strong>Crear nuevo acceso</strong>.
-                          </div>
-                        ) : (
-                          <>
-                            <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                              Cuenta Administrativa a Vincular *
-                              <select
-                                required
-                                value={roleForm.idUsuariosAdmin}
-                                onChange={(e) => {
-                                  const selectedId = Number(e.target.value);
-                                  const found = roleModalData.unlinkedUsers.find((u) => u.id_usuarios_admin === selectedId);
-                                  setRoleForm({
-                                    ...roleForm,
-                                    idUsuariosAdmin: e.target.value,
-                                    rol: found?.rol || roleForm.rol
-                                  });
-                                }}
-                                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
-                              >
-                                <option value="">-- Selecciona un usuario existente --</option>
-                                {roleModalData.unlinkedUsers.map((u) => (
-                                  <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
-                                    {u.nombre} (@{u.username}) — Rol actual: {u.rol}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                              Rol Definitivo a Aplicar *
-                              <select
-                                value={roleForm.rol}
-                                onChange={(e) => setRoleForm({ ...roleForm, rol: e.target.value })}
-                                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
-                              >
-                                {getAllowedRoleOptions().map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                disabled={roleModalSaving}
-                                onClick={() => setRoleModalConductor(null)}
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                type="submit"
-                                className="primary-button"
-                                style={{ background: "#7c3aed", borderColor: "#6d28d9" }}
-                                disabled={roleModalSaving || !roleForm.idUsuariosAdmin}
-                              >
-                                {roleModalSaving ? "Vinculando..." : "Vincular y Sincronizar"}
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </form>
-                    )}
-                  </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={roleModalSaving}
+                        onClick={() => setRoleModalConductor(null)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        style={{ background: "#7c3aed", borderColor: "#6d28d9" }}
+                        disabled={roleModalSaving}
+                      >
+                        {roleModalSaving ? "Asignando..." : "Asignar Rol y Habilitar"}
+                      </button>
+                    </div>
+                  </form>
                 )}
               </div>
             )}
