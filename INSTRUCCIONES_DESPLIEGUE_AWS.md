@@ -1,4 +1,4 @@
-﻿# Guía de Despliegue en Servidor AWS EC2 (Rama: FIX-USER-TEST)
+# Guía de Despliegue en Servidor AWS EC2 (Rama: FIX-USER-TEST)
 
 Esta guía contiene los pasos exactos y comandos directos para aplicar la reestructuración de roles y gestión centralizada de personal en el servidor de producción AWS EC2 (gv.aspromex.mx).
 
@@ -43,17 +43,41 @@ docker exec -i viajes-postgres psql -U " -d  < database/migrations/026_expand_ad
 
 ---
 
-### Paso 3: Reconstruir y reiniciar los contenedores
-Solo se reconstruyen ackend y panel-admin (la Mini App de conductores y la base de datos no sufren interrupción):
+### Paso 3: Limpieza segura de cuentas huérfanas (Opcional pero recomendado)
+Si tienes usuarios de prueba anteriores en `usuarios_admin` sin conductor asignado y quieres iniciar con el flujo limpio y centralizado desde **Conductores**, ejecuta esta consulta:
 
-`ash
-docker compose -f compose.prod.yml up -d --build backend panel-admin
-`
+> [!IMPORTANT]
+> **Esta consulta respeta y protege tu cuenta principal con rol `ADMINISTRADOR`**, eliminando únicamente los registros de prueba no enlazados que no sean administradores.
+
+```bash
+# 1. Inspeccionar qué usuarios están huérfanos antes de borrar
+docker exec -it viajes-postgres psql -U viajes_admin_prod -d gerenciamiento_viajes_prod -c "
+SELECT id_usuarios_admin, nombre, username, correo, rol 
+FROM usuarios_admin 
+WHERE id_conductores IS NULL;
+"
+
+# 2. Eliminar de forma segura SOLO las cuentas huérfanas que NO sean ADMINISTRADOR
+docker exec -i viajes-postgres psql -U viajes_admin_prod -d gerenciamiento_viajes_prod -c "
+DELETE FROM usuarios_admin 
+WHERE id_conductores IS NULL 
+  AND rol != 'ADMINISTRADOR';
+"
+```
 
 ---
 
-### Paso 4: Verificar que los servicios estén activos
-`ash
+### Paso 4: Reconstruir y reiniciar los contenedores
+Solo se reconstruyen `backend` y `panel-admin` (la Mini App de conductores, el bot y la base de datos no sufren interrupción):
+
+```bash
+docker compose -f compose.prod.yml up -d --build backend panel-admin
+```
+
+---
+
+### Paso 5: Verificar que los servicios estén activos
+```bash
 # 1. Comprobar que los contenedores estén en estado Up (healthy)
 docker compose -f compose.prod.yml ps
 
@@ -62,7 +86,7 @@ docker compose -f compose.prod.yml logs --tail 30 backend
 
 # 3. Ver los logs del panel admin
 docker compose -f compose.prod.yml logs --tail 20 panel-admin
-`
+```
 
 ---
 
