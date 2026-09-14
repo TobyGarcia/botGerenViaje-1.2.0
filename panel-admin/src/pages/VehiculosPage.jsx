@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState
 } from "react";
@@ -25,7 +26,11 @@ import {
   IconMantenimiento,
   IconEliminar,
   IconReactivar,
-  IconReloj
+  IconReloj,
+  IconUnidades,
+  IconCheck,
+  IconViajes,
+  IconAlerta
 } from "../components/Icons.jsx";
 
 const initialForm = {
@@ -63,6 +68,8 @@ function VehiculosPage({ user }) {
   const canManageMileage = user?.rol === "ADMINISTRADOR";
   const canEditVehicle = user?.rol === "ADMINISTRADOR";
   const [vehiculos, setVehiculos] = useState([]);
+  const [allVehiculos, setAllVehiculos] = useState([]);
+  const [onlyEnViaje, setOnlyEnViaje] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("TODOS");
   const [currentPage, setCurrentPage] = useState(1);
@@ -130,14 +137,21 @@ function VehiculosPage({ user }) {
     setLoading(true);
 
     try {
-      const response =
-        await getAdminVehiculos({
+      const [responseFiltered, responseAll] = await Promise.all([
+        getAdminVehiculos({
           search,
           status
-        });
+        }),
+        getAdminVehiculos({
+          status: "TODOS"
+        })
+      ]);
 
       setVehiculos(
-        response.data ?? []
+        responseFiltered.data ?? []
+      );
+      setAllVehiculos(
+        responseAll.data ?? []
       );
       setCurrentPage(1);
     } catch (error) {
@@ -447,9 +461,70 @@ function VehiculosPage({ user }) {
     finally { setMileageSaving(false); }
   }
 
-  const totalFiltered = vehiculos.length;
+  const metrics = useMemo(() => {
+    const list = allVehiculos.length > 0 ? allVehiculos : vehiculos;
+    const total = list.length;
+    const disponibles = list.filter((v) => v.activo && !v.en_mantenimiento && v.disponibilidad !== "EN_VIAJE").length;
+    const enMantenimiento = list.filter((v) => v.en_mantenimiento).length;
+    const enViaje = list.filter((v) => v.activo && v.disponibilidad === "EN_VIAJE").length;
+    const inactivos = list.filter((v) => !v.activo).length;
+    const disponiblesPct = total > 0 ? Math.round((disponibles / total) * 100) : 0;
+    return {
+      total,
+      disponibles,
+      enMantenimiento,
+      enViaje,
+      inactivos,
+      disponiblesPct
+    };
+  }, [allVehiculos, vehiculos]);
+
+  const handleKpiClick = (filterType) => {
+    setCurrentPage(1);
+    if (filterType === "TODOS") {
+      setStatus("TODOS");
+      setOnlyEnViaje(false);
+    } else if (filterType === "DISPONIBLES") {
+      if (status === "ACTIVOS" && !onlyEnViaje) {
+        setStatus("TODOS");
+      } else {
+        setStatus("ACTIVOS");
+        setOnlyEnViaje(false);
+      }
+    } else if (filterType === "MANTENIMIENTO") {
+      if (status === "MANTENIMIENTO") {
+        setStatus("TODOS");
+      } else {
+        setStatus("MANTENIMIENTO");
+        setOnlyEnViaje(false);
+      }
+    } else if (filterType === "EN_VIAJE") {
+      if (onlyEnViaje) {
+        setOnlyEnViaje(false);
+      } else {
+        setStatus("TODOS");
+        setOnlyEnViaje(true);
+      }
+    } else if (filterType === "INACTIVOS") {
+      if (status === "INACTIVOS") {
+        setStatus("TODOS");
+      } else {
+        setStatus("INACTIVOS");
+        setOnlyEnViaje(false);
+      }
+    }
+  };
+
+  const displayVehiculos = useMemo(() => {
+    if (onlyEnViaje) {
+      return vehiculos.filter((v) => v.disponibilidad === "EN_VIAJE");
+    }
+    return vehiculos;
+  }, [vehiculos, onlyEnViaje]);
+
+  const totalFiltered = displayVehiculos.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
-  const paginatedVehiculos = vehiculos.slice(
+  const paginatedVehiculos = displayVehiculos.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -465,8 +540,7 @@ function VehiculosPage({ user }) {
           <h1>Unidades</h1>
 
           <p>
-            Consulta, registra y controla
-            las unidades vehiculares.
+            Consulta, registra y controla las unidades vehiculares de la flota.
           </p>
         </div>
 
@@ -479,41 +553,149 @@ function VehiculosPage({ user }) {
         </button>
       </header>
 
+      {/* KPI Cards Grid */}
+      <section className="unidades-kpis-grid" aria-label="Métricas clave de unidades">
+        <div
+          className={`unidad-kpi-card kpi-card-clickable ${status === "TODOS" && !onlyEnViaje ? "kpi-card-active" : ""}`}
+          onClick={() => handleKpiClick("TODOS")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleKpiClick("TODOS"); }}
+          title="Ver todas las unidades de la flota"
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Total Unidades</span>
+            <div className="kpi-icon-wrapper kpi-icon-blue">
+              <IconUnidades size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{metrics.total}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-blue">Flota total</span> registradas
+          </div>
+        </div>
+
+        <div
+          className={`unidad-kpi-card kpi-card-clickable ${status === "ACTIVOS" && !onlyEnViaje ? "kpi-card-active kpi-active-green" : ""}`}
+          onClick={() => handleKpiClick("DISPONIBLES")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleKpiClick("DISPONIBLES"); }}
+          title="Filtrar unidades disponibles y operativas"
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Disponibles</span>
+            <div className="kpi-icon-wrapper kpi-icon-green">
+              <IconCheck size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{metrics.disponibles}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-green">{metrics.disponiblesPct}% de la flota</span> listas para ruta
+          </div>
+        </div>
+
+        <div
+          className={`unidad-kpi-card kpi-card-clickable ${status === "MANTENIMIENTO" ? "kpi-card-active kpi-active-amber" : ""}`}
+          onClick={() => handleKpiClick("MANTENIMIENTO")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleKpiClick("MANTENIMIENTO"); }}
+          title="Filtrar unidades actualmente en mantenimiento"
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">En Mantenimiento</span>
+            <div className="kpi-icon-wrapper kpi-icon-amber">
+              <IconMantenimiento size={20} />
+            </div>
+          </div>
+          <div className={`kpi-card-value ${metrics.enMantenimiento > 0 ? "kpi-val-amber" : ""}`}>
+            {metrics.enMantenimiento}
+          </div>
+          <div className="kpi-card-subtext">
+            <span className={`kpi-sub-pill ${metrics.enMantenimiento > 0 ? "kpi-pill-amber" : "kpi-pill-green"}`}>
+              {metrics.enMantenimiento > 0 ? "En taller" : "Sin unidades"}
+            </span>{" "}
+            {metrics.enMantenimiento > 0 ? "atención requerida" : "al día"}
+          </div>
+        </div>
+
+        <div
+          className={`unidad-kpi-card kpi-card-clickable ${onlyEnViaje ? "kpi-card-active kpi-active-indigo" : ""}`}
+          onClick={() => handleKpiClick("EN_VIAJE")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleKpiClick("EN_VIAJE"); }}
+          title="Filtrar unidades con viaje en curso"
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">En Viaje</span>
+            <div className="kpi-icon-wrapper kpi-icon-indigo">
+              <IconViajes size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{metrics.enViaje}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-blue">En ruta</span> {onlyEnViaje ? "(Filtro activo)" : "operando"}
+          </div>
+        </div>
+
+        <div
+          className={`unidad-kpi-card kpi-card-clickable ${status === "INACTIVOS" && !onlyEnViaje ? "kpi-card-active kpi-active-gray" : ""}`}
+          onClick={() => handleKpiClick("INACTIVOS")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleKpiClick("INACTIVOS"); }}
+          title="Filtrar unidades inactivas o dadas de baja"
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Inactivas</span>
+            <div className="kpi-icon-wrapper kpi-icon-gray">
+              <IconAlerta size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{metrics.inactivos}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-gray">Bajas</span> fuera de servicio
+          </div>
+        </div>
+      </section>
+
       {/* Subpestañas de estado */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px", flexWrap: "wrap" }}>
         <button
           type="button"
-          onClick={() => { setStatus("TODOS"); setCurrentPage(1); }}
+          onClick={() => { setStatus("TODOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
           style={{
             padding: "8px 16px",
             borderRadius: "6px",
             border: 0,
             fontWeight: "bold",
             cursor: "pointer",
-            background: status === "TODOS" ? "#0f172a" : "#f1f5f9",
-            color: status === "TODOS" ? "#ffffff" : "#475569"
+            background: status === "TODOS" && !onlyEnViaje ? "#0f172a" : "#f1f5f9",
+            color: status === "TODOS" && !onlyEnViaje ? "#ffffff" : "#475569"
           }}
         >
           Todos los Vehículos
         </button>
         <button
           type="button"
-          onClick={() => { setStatus("ACTIVOS"); setCurrentPage(1); }}
+          onClick={() => { setStatus("ACTIVOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
           style={{
             padding: "8px 16px",
             borderRadius: "6px",
             border: 0,
             fontWeight: "bold",
             cursor: "pointer",
-            background: status === "ACTIVOS" ? "#16a34a" : "#f1f5f9",
-            color: status === "ACTIVOS" ? "#ffffff" : "#475569"
+            background: status === "ACTIVOS" && !onlyEnViaje ? "#16a34a" : "#f1f5f9",
+            color: status === "ACTIVOS" && !onlyEnViaje ? "#ffffff" : "#475569"
           }}
         >
           Disponibles
         </button>
         <button
           type="button"
-          onClick={() => { setStatus("MANTENIMIENTO"); setCurrentPage(1); }}
+          onClick={() => { setStatus("MANTENIMIENTO"); setOnlyEnViaje(false); setCurrentPage(1); }}
           style={{
             padding: "8px 16px",
             borderRadius: "6px",
@@ -528,15 +710,15 @@ function VehiculosPage({ user }) {
         </button>
         <button
           type="button"
-          onClick={() => { setStatus("INACTIVOS"); setCurrentPage(1); }}
+          onClick={() => { setStatus("INACTIVOS"); setOnlyEnViaje(false); setCurrentPage(1); }}
           style={{
             padding: "8px 16px",
             borderRadius: "6px",
             border: 0,
             fontWeight: "bold",
             cursor: "pointer",
-            background: status === "INACTIVOS" ? "#64748b" : "#f1f5f9",
-            color: status === "INACTIVOS" ? "#ffffff" : "#475569"
+            background: status === "INACTIVOS" && !onlyEnViaje ? "#64748b" : "#f1f5f9",
+            color: status === "INACTIVOS" && !onlyEnViaje ? "#ffffff" : "#475569"
           }}
         >
           Inactivos
@@ -565,6 +747,7 @@ function VehiculosPage({ user }) {
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
+              setOnlyEnViaje(false);
               setCurrentPage(1);
             }}
           >
@@ -605,7 +788,7 @@ function VehiculosPage({ user }) {
           <p className="table-status">
             Cargando unidades...
           </p>
-        ) : vehiculos.length === 0 ? (
+        ) : displayVehiculos.length === 0 ? (
           <p className="table-status">
             No se encontraron unidades.
           </p>
@@ -617,7 +800,6 @@ function VehiculosPage({ user }) {
                   <thead>
                     <tr>
                       <th>Unidad</th>
-                      <th>Número económico</th>
                       <th>Placas</th>
                       <th>Personal asignado</th>
                       <th>Tiempo en Mantenimiento</th>
@@ -629,7 +811,6 @@ function VehiculosPage({ user }) {
                   <thead>
                     <tr>
                       <th>Unidad</th>
-                      <th>Número económico</th>
                       <th>Placas</th>
                       <th>Color</th>
                       <th>Personal asignado</th>
@@ -643,13 +824,23 @@ function VehiculosPage({ user }) {
                 <tbody>
                   {paginatedVehiculos.map((vehiculo) => (
                     <tr key={vehiculo.id_vehiculos}>
-                      <td>
-                        <strong>
-                          {vehiculo.marca || vehiculo.nombre} {vehiculo.modelo || ""}
-                        </strong>
+                      <td className="vehicle-name-cell">
+                        <div className="vehicle-title-wrap">
+                          <span className="vehicle-title-text">
+                            {vehiculo.marca || vehiculo.nombre} {vehiculo.modelo || ""}
+                          </span>
+                          {vehiculo.numero_economico ? (
+                            <span className="vehicle-eco-tag" title={`No. Económico: ${vehiculo.numero_economico}`}>
+                              <span className="vehicle-eco-label">ECO</span>
+                              <span className="vehicle-eco-val">{vehiculo.numero_economico}</span>
+                            </span>
+                          ) : (
+                            <span className="vehicle-eco-tag vehicle-eco-tag--empty" title="Sin número económico asignado">
+                              Sin No. Eco
+                            </span>
+                          )}
+                        </div>
                       </td>
-
-                      <td>{vehiculo.numero_economico}</td>
 
                       <td>{vehiculo.placas}</td>
 
