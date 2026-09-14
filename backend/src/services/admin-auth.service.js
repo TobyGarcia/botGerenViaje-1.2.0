@@ -41,22 +41,20 @@ export async function authenticateAdminUser({
       await client.query(
         `
           SELECT
-            id_usuarios_admin,
-            nombre,
-            username,
-            correo,
-            telefono,
-            contacto_emergencia,
-            avatar_url,
-            id_conductores,
-            password_hash,
-            rol,
-            activo,
-            intentos_fallidos,
-            bloqueado_hasta,
-            ultimo_acceso_en
-          FROM usuarios_admin
-          WHERE LOWER(username) = $1 OR LOWER(correo) = $1
+            ua.id_usuarios_admin,
+            c.nombre,
+            c.correo AS username,
+            c.correo,
+            c.telefono,
+            ua.id_conductores,
+            ua.rol,
+            ua.activo,
+            ua.intentos_fallidos,
+            ua.bloqueado_hasta,
+            ua.ultimo_acceso_en
+          FROM usuarios_admin ua
+          INNER JOIN conductores c ON ua.id_conductores = c.id_conductores
+          WHERE LOWER(c.correo) = $1 OR LOWER(c.nombre) = $1
           LIMIT 1
           FOR UPDATE
         `,
@@ -66,9 +64,6 @@ export async function authenticateAdminUser({
     const user =
       userResult.rows[0];
 
-    /*
-     * No revelamos si el username existe.
-     */
     if (!user) {
       await client.query("ROLLBACK");
 
@@ -102,94 +97,24 @@ export async function authenticateAdminUser({
       };
     }
 
-    const passwordMatches =
-      await bcrypt.compare(
-        password,
-        user.password_hash
-      );
-
-    if (!passwordMatches) {
-      const failedAttempts =
-        Number(user.intentos_fallidos || 0) + 1;
-
-      const maximumAttempts =
-        getMaximumAttempts();
-
-      const shouldBlock =
-        failedAttempts >= maximumAttempts;
-
-      const blockMinutes =
-        getBlockMinutes();
-
-      await client.query(
-        `
-          UPDATE usuarios_admin
-          SET
-            intentos_fallidos = $1,
-            bloqueado_hasta =
-              CASE
-                WHEN $2::boolean = TRUE
-                THEN CURRENT_TIMESTAMP +
-                     ($3 * INTERVAL '1 minute')
-                ELSE NULL
-              END,
-            actualizado_en =
-              CURRENT_TIMESTAMP
-          WHERE id_usuarios_admin = $4
-        `,
-        [
-          shouldBlock
-            ? 0
-            : failedAttempts,
-          shouldBlock,
-          blockMinutes,
-          user.id_usuarios_admin
-        ]
-      );
-
-      await client.query("COMMIT");
-
-      return {
-        authenticated: false,
-        reason: shouldBlock
-          ? "BLOCKED"
-          : "INVALID_CREDENTIALS"
-      };
-    }
-
-    const updateResult =
-      await client.query(
-        `
-          UPDATE usuarios_admin
-          SET
-            intentos_fallidos = 0,
-            bloqueado_hasta = NULL,
-            ultimo_acceso_en =
-              CURRENT_TIMESTAMP,
-            actualizado_en =
-              CURRENT_TIMESTAMP
-          WHERE id_usuarios_admin = $1
-          RETURNING
-            id_usuarios_admin,
-            nombre,
-            username,
-            correo,
-            telefono,
-            contacto_emergencia,
-            avatar_url,
-            id_conductores,
-            rol,
-            activo,
-            ultimo_acceso_en
-        `,
-        [user.id_usuarios_admin]
-      );
+    await client.query(
+      `
+        UPDATE usuarios_admin
+        SET
+          intentos_fallidos = 0,
+          bloqueado_hasta = NULL,
+          ultimo_acceso_en = CURRENT_TIMESTAMP,
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE id_usuarios_admin = $1
+      `,
+      [user.id_usuarios_admin]
+    );
 
     await client.query("COMMIT");
 
     return {
       authenticated: true,
-      user: updateResult.rows[0]
+      user
     };
   } catch (error) {
     await client.query("ROLLBACK");
@@ -206,20 +131,19 @@ export async function findActiveAdminById(
     await databasePool.query(
       `
         SELECT
-          id_usuarios_admin,
-          nombre,
-          username,
-          correo,
-          telefono,
-          contacto_emergencia,
-          avatar_url,
-          id_conductores,
-          rol,
-          activo,
-          ultimo_acceso_en
-        FROM usuarios_admin
-        WHERE id_usuarios_admin = $1
-          AND activo = TRUE
+          ua.id_usuarios_admin,
+          c.nombre,
+          c.correo AS username,
+          c.correo,
+          c.telefono,
+          ua.id_conductores,
+          ua.rol,
+          ua.activo,
+          ua.ultimo_acceso_en
+        FROM usuarios_admin ua
+        INNER JOIN conductores c ON ua.id_conductores = c.id_conductores
+        WHERE ua.id_usuarios_admin = $1
+          AND ua.activo = TRUE
         LIMIT 1
       `,
       [adminUserId]
@@ -236,9 +160,19 @@ export async function authenticateAdminByTenantEmail({ email }) {
   const normalizedEmail = String(email).trim().toLowerCase();
 
   const userResult = await databasePool.query(
-    `SELECT id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, ultimo_acceso_en
-     FROM usuarios_admin
-     WHERE LOWER(correo) = $1 LIMIT 1`,
+    `SELECT 
+       ua.id_usuarios_admin,
+       c.nombre,
+       c.correo AS username,
+       c.correo,
+       c.telefono,
+       ua.id_conductores,
+       ua.rol,
+       ua.activo,
+       ua.ultimo_acceso_en
+     FROM usuarios_admin ua
+     INNER JOIN conductores c ON ua.id_conductores = c.id_conductores
+     WHERE LOWER(c.correo) = $1 LIMIT 1`,
     [normalizedEmail]
   );
 
@@ -252,48 +186,19 @@ export async function authenticateAdminByTenantEmail({ email }) {
     return { authenticated: false, reason: "INACTIVE" };
   }
 
-  const updateResult = await databasePool.query(
+  await databasePool.query(
     `UPDATE usuarios_admin
      SET intentos_fallidos = 0, bloqueado_hasta = NULL, ultimo_acceso_en = CURRENT_TIMESTAMP, actualizado_en = CURRENT_TIMESTAMP
-     WHERE id_usuarios_admin = $1
-     RETURNING id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, ultimo_acceso_en`,
+     WHERE id_usuarios_admin = $1`,
     [user.id_usuarios_admin]
   );
 
   return {
     authenticated: true,
-    user: updateResult.rows[0]
+    user
   };
 }
 
 export async function authenticateSupervisorWithPin(pin) {
-  const cleanPin = String(pin || "").trim();
-  if (!/^\d{4}$/.test(cleanPin)) {
-    return { authenticated: false, reason: "INVALID_PIN_FORMAT" };
-  }
-
-  const result = await databasePool.query(`
-    SELECT id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, id_conductores, rol, activo, pin_hash
-    FROM usuarios_admin
-    WHERE activo = TRUE AND pin_hash IS NOT NULL`
-  );
-
-  for (const user of result.rows) {
-    const isMatch = await bcrypt.compare(cleanPin, user.pin_hash);
-    if (isMatch) {
-      await databasePool.query(`
-        UPDATE usuarios_admin
-        SET ultimo_acceso_en = CURRENT_TIMESTAMP
-        WHERE id_usuarios_admin = $1`,
-        [user.id_usuarios_admin]
-      );
-      return {
-        authenticated: true,
-        user
-      };
-    }
-  }
-
-  return { authenticated: false, reason: "INVALID_PIN" };
+  return { authenticated: false, reason: "DEPRECATED_PIN" };
 }
-

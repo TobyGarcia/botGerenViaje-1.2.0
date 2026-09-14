@@ -344,7 +344,7 @@ export default function GerenciamientoAdminPage({ user }) {
     <table class="header-table">
       <tr>
         <td class="logo-cell">
-          <img src="${logoAQR}" alt="AQUARIO" style="max-height: 34px; object-fit: contain;" />
+          <img src="${logoAQR}" alt="GV MOBILITY" style="max-height: 34px; object-fit: contain;" />
         </td>
         <td class="title-cell">
           CÓDIGO<br />
@@ -828,7 +828,7 @@ export default function GerenciamientoAdminPage({ user }) {
                 <tbody>
                   <tr>
                     <td style={{ border: "1px solid #000", padding: "4px", width: "22%", textAlign: "center" }}>
-                      <img src={logoAQR} alt="AQUARIO" style={{ maxHeight: "34px" }} />
+                      <img src={logoAQR} alt="GV MOBILITY" style={{ maxHeight: "34px" }} />
                     </td>
                     <td style={{ border: "1px solid #000", padding: "4px", width: "53%", textAlign: "center", fontWeight: "bold", fontSize: "0.9rem" }}>
                       CÓDIGO R2PLOG1 / {selectedDoc.folio_documento}

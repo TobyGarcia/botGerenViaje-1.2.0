@@ -84,7 +84,7 @@ function LoginPage({ onAuthenticated }) {
       <section className="login-section">
         <div className="login-card single-tenant-card">
           <div className="login-header">
-            <img className="login-logo" src={logoAQR} alt="AQR Logistics" />
+            <img className="login-logo" src={logoAQR} alt="GV MOBILITY" />
             <h2>Acceso Administrativo</h2>
           </div>
 

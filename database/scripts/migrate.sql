@@ -20,6 +20,7 @@
 \ir ../migrations/018_gerenciamiento_viajes.sql
 \ir ../migrations/019_fix_inspecciones_autorizador.sql
 \ir ../migrations/020_expand_usuario_telegram_estados.sql
+\ir ../migrations/026_refactor_usuarios_admin_conductores.sql
 
 
 

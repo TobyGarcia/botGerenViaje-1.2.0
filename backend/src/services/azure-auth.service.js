@@ -173,9 +173,19 @@ export async function findUserInWhitelist(email) {
   const normalizedEmail = String(email).trim().toLowerCase();
 
   const result = await databasePool.query(
-    `SELECT id_usuarios_admin, nombre, username, correo, rol, activo, telefono, contacto_emergencia, avatar_url, id_conductores, ultimo_acceso_en
-     FROM usuarios_admin
-     WHERE LOWER(correo) = $1 LIMIT 1`,
+    `SELECT 
+       ua.id_usuarios_admin,
+       c.nombre,
+       c.correo AS username,
+       c.correo,
+       ua.rol,
+       ua.activo,
+       c.telefono,
+       ua.id_conductores,
+       ua.ultimo_acceso_en
+     FROM usuarios_admin ua
+     INNER JOIN conductores c ON ua.id_conductores = c.id_conductores
+     WHERE LOWER(c.correo) = $1 LIMIT 1`,
     [normalizedEmail]
   );
 

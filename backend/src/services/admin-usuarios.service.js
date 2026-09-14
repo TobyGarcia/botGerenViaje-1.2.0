@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { databasePool } from "../database/pool.js";
 
 const roles = new Set([
@@ -14,89 +13,241 @@ const roles = new Set([
   "OPERADOR",
   "CONSULTA"
 ]);
-export function validAdminRole(rol) { return roles.has(String(rol || "").toUpperCase()); }
+
+export function validAdminRole(rol) {
+  return roles.has(String(rol || "").toUpperCase());
+}
 
 export async function listAdminUsers() {
   const result = await databasePool.query(`
-    SELECT ua.id_usuarios_admin, ua.nombre, ua.username, ua.correo, ua.telefono,
-      ua.contacto_emergencia, ua.avatar_url, ua.rol, ua.activo, ua.id_conductores,
-      (ua.pin_hash IS NOT NULL) AS tiene_pin,
-      ua.ultimo_acceso_en, c.nombre AS conductor
+    SELECT 
+      ua.id_usuarios_admin,
+      c.nombre,
+      c.correo AS username,
+      c.correo,
+      c.telefono,
+      ua.rol,
+      ua.activo,
+      ua.id_conductores,
+      ua.ultimo_acceso_en
     FROM usuarios_admin ua
-    LEFT JOIN conductores c ON c.id_conductores = ua.id_conductores
-    ORDER BY ua.activo DESC, ua.nombre ASC`);
+    INNER JOIN conductores c ON c.id_conductores = ua.id_conductores
+    ORDER BY ua.activo DESC, c.nombre ASC`);
   return result.rows;
-}
-
-export async function assignAdminUserPin(id, pin) {
-  const cleanPin = String(pin || "").trim();
-  if (!/^\d{4}$/.test(cleanPin)) {
-    throw new Error("El PIN debe constar exactamente de 4 dígitos numéricos.");
-  }
-  const pinHash = await bcrypt.hash(cleanPin, 10);
-  const result = await databasePool.query(`
-    UPDATE usuarios_admin
-    SET pin_hash = $1, actualizado_en = CURRENT_TIMESTAMP
-    WHERE id_usuarios_admin = $2
-    RETURNING id_usuarios_admin, nombre, username, correo, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
-    [pinHash, id]
-  );
-  return result.rows[0] ?? null;
 }
 
 export async function registerPublicUser({ nombre, username, correo, telefono, rol }) {
   const cleanEmail = String(correo || "").trim().toLowerCase();
   const cleanName = String(nombre || "").trim();
-  const cleanUsername = String(username || cleanEmail.split("@")[0] || "").trim().toLowerCase();
   const userRol = validAdminRole(rol) ? String(rol).toUpperCase() : "SUPERVISOR";
 
   if (!cleanName) throw new Error("El nombre completo es requerido.");
   if (!cleanEmail || !cleanEmail.includes("@")) throw new Error("Un correo corporativo válido es requerido.");
 
-  const randomPassword = await bcrypt.hash(Math.random().toString(36), 10);
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
 
-  const result = await databasePool.query(`
-    INSERT INTO usuarios_admin (nombre, username, correo, telefono, password_hash, rol, activo)
-    VALUES ($1, $2, $3, $4, $5, $6, true)
-    ON CONFLICT (correo) DO UPDATE SET
-      nombre = EXCLUDED.nombre,
-      telefono = COALESCE(EXCLUDED.telefono, usuarios_admin.telefono),
-      actualizado_en = CURRENT_TIMESTAMP
-    RETURNING id_usuarios_admin, nombre, username, correo, telefono, rol, activo, (pin_hash IS NOT NULL) AS tiene_pin`,
-    [cleanName, cleanUsername, cleanEmail, telefono || null, randomPassword, userRol]
-  );
+    // 1. Crear o actualizar el registro en conductores
+    const condResult = await client.query(
+      `INSERT INTO conductores (nombre, correo, telefono, activo)
+       VALUES ($1, $2, $3, true)
+       ON CONFLICT (LOWER(correo)) WHERE correo IS NOT NULL AND correo != ''
+       DO UPDATE SET nombre = EXCLUDED.nombre, telefono = COALESCE(EXCLUDED.telefono, conductores.telefono), actualizado_en = CURRENT_TIMESTAMP
+       RETURNING id_conductores, nombre, correo, telefono`,
+      [cleanName, cleanEmail, telefono || null]
+    );
 
-  return result.rows[0];
+    const conductorId = condResult.rows[0].id_conductores;
+
+    // 2. Insertar o actualizar en usuarios_admin
+    const adminResult = await client.query(
+      `INSERT INTO usuarios_admin (id_conductores, rol, activo)
+       VALUES ($1, $2, true)
+       ON CONFLICT (id_conductores) DO UPDATE SET rol = EXCLUDED.rol, activo = true, actualizado_en = CURRENT_TIMESTAMP
+       RETURNING id_usuarios_admin, id_conductores, rol, activo`,
+      [conductorId, userRol]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      id_usuarios_admin: adminResult.rows[0].id_usuarios_admin,
+      id_conductores: conductorId,
+      nombre: condResult.rows[0].nombre,
+      username: cleanEmail,
+      correo: cleanEmail,
+      telefono: condResult.rows[0].telefono,
+      rol: adminResult.rows[0].rol,
+      activo: adminResult.rows[0].activo
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createAdminUser(data) {
-  const hash = await bcrypt.hash(data.password, 12);
-  const result = await databasePool.query(`
-    INSERT INTO usuarios_admin (nombre, username, correo, password_hash, rol, id_conductores)
-    VALUES ($1,$2,$3,$4,$5,$6) RETURNING id_usuarios_admin, nombre, username, correo, rol, activo, id_conductores`,
-    [data.nombre, data.username.toLowerCase(), data.correo || null, hash, data.rol, data.idConductor || null]);
-  return result.rows[0];
+  const cleanEmail = String(data.correo || "").trim().toLowerCase();
+  const cleanName = String(data.nombre || "").trim();
+  const userRol = validAdminRole(data.rol) ? String(data.rol).toUpperCase() : "SUPERVISOR";
+
+  if (!cleanName) throw new Error("El nombre es obligatorio.");
+  if (!cleanEmail) throw new Error("El correo corporativo es obligatorio.");
+
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let conductorId = data.idConductor ? Number(data.idConductor) : null;
+
+    if (!conductorId) {
+      const condResult = await client.query(
+        `INSERT INTO conductores (nombre, correo, telefono, activo)
+         VALUES ($1, $2, $3, true)
+         ON CONFLICT (LOWER(correo)) WHERE correo IS NOT NULL AND correo != ''
+         DO UPDATE SET nombre = EXCLUDED.nombre
+         RETURNING id_conductores`,
+        [cleanName, cleanEmail, data.telefono || null]
+      );
+      conductorId = condResult.rows[0].id_conductores;
+    }
+
+    const adminResult = await client.query(
+      `INSERT INTO usuarios_admin (id_conductores, rol, activo)
+       VALUES ($1, $2, true)
+       RETURNING id_usuarios_admin, id_conductores, rol, activo`,
+      [conductorId, userRol]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      id_usuarios_admin: adminResult.rows[0].id_usuarios_admin,
+      id_conductores: conductorId,
+      nombre: cleanName,
+      username: cleanEmail,
+      correo: cleanEmail,
+      rol: adminResult.rows[0].rol,
+      activo: adminResult.rows[0].activo
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function updateAdminUser(id, data) {
-  const result = await databasePool.query(`
-    UPDATE usuarios_admin SET nombre=$1, correo=$2, rol=$3, activo=$4, id_conductores=$5,
-      actualizado_en=CURRENT_TIMESTAMP WHERE id_usuarios_admin=$6
-    RETURNING id_usuarios_admin, nombre, username, correo, rol, activo, id_conductores`,
-    [data.nombre, data.correo || null, data.rol, data.activo, data.idConductor || null, id]);
-  return result.rows[0] ?? null;
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Obtener id_conductores actual
+    const currentRes = await client.query(
+      `SELECT id_conductores FROM usuarios_admin WHERE id_usuarios_admin = $1`,
+      [id]
+    );
+
+    if (currentRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const conductorId = currentRes.rows[0].id_conductores;
+
+    // 2. Actualizar datos en conductores
+    if (data.nombre || data.correo) {
+      await client.query(
+        `UPDATE conductores
+         SET nombre = COALESCE($1, nombre),
+             correo = COALESCE($2, correo),
+             actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $3`,
+        [data.nombre || null, data.correo ? String(data.correo).trim().toLowerCase() : null, conductorId]
+      );
+    }
+
+    // 3. Actualizar usuarios_admin
+    const result = await client.query(
+      `UPDATE usuarios_admin 
+       SET rol = $1, activo = $2, actualizado_en = CURRENT_TIMESTAMP 
+       WHERE id_usuarios_admin = $3
+       RETURNING id_usuarios_admin, id_conductores, rol, activo`,
+      [data.rol, data.activo, id]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      id_usuarios_admin: result.rows[0].id_usuarios_admin,
+      id_conductores: conductorId,
+      nombre: data.nombre,
+      correo: data.correo,
+      rol: result.rows[0].rol,
+      activo: result.rows[0].activo
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function deleteAdminUser(id) {
-  const result = await databasePool.query("DELETE FROM usuarios_admin WHERE id_usuarios_admin=$1 RETURNING id_usuarios_admin", [id]);
+  const result = await databasePool.query(
+    "DELETE FROM usuarios_admin WHERE id_usuarios_admin = $1 RETURNING id_usuarios_admin",
+    [id]
+  );
   return result.rows[0] ?? null;
 }
 
 export async function updateOwnProfile(id, data) {
-  const result = await databasePool.query(`
-    UPDATE usuarios_admin SET nombre=$1, correo=$2, telefono=$3, contacto_emergencia=$4, avatar_url=$5,
-      actualizado_en=CURRENT_TIMESTAMP WHERE id_usuarios_admin=$6
-    RETURNING id_usuarios_admin, nombre, username, correo, telefono, contacto_emergencia, avatar_url, rol, activo, id_conductores, ultimo_acceso_en`,
-    [data.nombre, data.correo || null, data.telefono || null, data.contactoEmergencia || null, data.avatarUrl || null, id]);
-  return result.rows[0] ?? null;
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const currentRes = await client.query(
+      `SELECT id_conductores FROM usuarios_admin WHERE id_usuarios_admin = $1`,
+      [id]
+    );
+
+    if (currentRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const conductorId = currentRes.rows[0].id_conductores;
+
+    await client.query(
+      `UPDATE conductores 
+       SET nombre = COALESCE($1, nombre), 
+           correo = COALESCE($2, correo), 
+           telefono = COALESCE($3, telefono), 
+           actualizado_en = CURRENT_TIMESTAMP 
+       WHERE id_conductores = $4`,
+      [data.nombre || null, data.correo ? String(data.correo).trim().toLowerCase() : null, data.telefono || null, conductorId]
+    );
+
+    await client.query("COMMIT");
+
+    const fullRes = await databasePool.query(
+      `SELECT ua.id_usuarios_admin, c.nombre, c.correo AS username, c.correo, c.telefono, ua.rol, ua.activo, ua.id_conductores, ua.ultimo_acceso_en
+       FROM usuarios_admin ua
+       INNER JOIN conductores c ON c.id_conductores = ua.id_conductores
+       WHERE ua.id_usuarios_admin = $1`,
+      [id]
+    );
+
+    return fullRes.rows[0] ?? null;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
