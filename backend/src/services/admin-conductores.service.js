@@ -962,13 +962,24 @@ export async function assignAdminConductorRole({
       }
 
       // Validar si username o correo ya existe en una cuenta desvinculada
-      const unlinkedMatch = await client.query(
-        `SELECT id_usuarios_admin, id_conductores 
-         FROM usuarios_admin 
-         WHERE (LOWER(username) = LOWER($1) OR (correo IS NOT NULL AND $2 IS NOT NULL AND LOWER(correo) = LOWER($2)))
-         LIMIT 1`,
-        [username, correo]
-      );
+      let unlinkedMatch;
+      if (correo) {
+        unlinkedMatch = await client.query(
+          `SELECT id_usuarios_admin, id_conductores 
+           FROM usuarios_admin 
+           WHERE LOWER(username) = LOWER($1) OR (correo IS NOT NULL AND LOWER(correo) = LOWER($2))
+           LIMIT 1`,
+          [username, correo]
+        );
+      } else {
+        unlinkedMatch = await client.query(
+          `SELECT id_usuarios_admin, id_conductores 
+           FROM usuarios_admin 
+           WHERE LOWER(username) = LOWER($1)
+           LIMIT 1`,
+          [username]
+        );
+      }
 
       if (unlinkedMatch.rows[0]) {
         const found = unlinkedMatch.rows[0];
