@@ -504,36 +504,19 @@ export async function updateAdminDriverStatus({
        WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
       [idConductor]
     );
-    await client.query(
-      `UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL 
-       WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
-    await client.query(
-      `UPDATE vehiculos SET id_supervisor_asignado = NULL 
-       WHERE id_supervisor_asignado IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
-    await client.query(
-      `UPDATE historial_kilometraje_vehiculos SET id_usuarios_admin = NULL 
-       WHERE id_usuarios_admin IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
-    await client.query(
-      `UPDATE evaluaciones_manejo_comentado SET id_usuario_instructor = NULL 
-       WHERE id_usuario_instructor IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
-    await client.query(
-      `UPDATE evaluaciones_manejo_comentado SET id_usuario_programador = NULL 
-       WHERE id_usuario_programador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
-    await client.query(
-      `UPDATE evaluaciones_manejo_comentado SET id_usuario_evaluador = NULL 
-       WHERE id_usuario_evaluador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
-      [idConductor]
-    );
+
+    // Tablas opcionales con SAVEPOINT
+    await client.query("SAVEPOINT sp_opcionales_admin");
+    try {
+      await client.query(
+        `UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL 
+         WHERE id_usuario_autorizador IN (SELECT id_usuarios_admin FROM usuarios_admin WHERE id_conductores = $1)`,
+        [idConductor]
+      );
+      await client.query("RELEASE SAVEPOINT sp_opcionales_admin");
+    } catch {
+      await client.query("ROLLBACK TO SAVEPOINT sp_opcionales_admin");
+    }
 
     // 8. Eliminar usuario administrativo vinculado (si existía) para no dejar registros huérfanos
     await client.query(`DELETE FROM usuarios_admin WHERE id_conductores = $1`, [idConductor]);
@@ -881,12 +864,14 @@ export async function assignAdminConductorRole({
         await client.query(`UPDATE gerenciamiento_viajes SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
         await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_admin_aprobador = NULL WHERE id_usuario_admin_aprobador = $1`, [adminId]);
         await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
-        await client.query(`UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
-        await client.query(`UPDATE vehiculos SET id_supervisor_asignado = NULL WHERE id_supervisor_asignado = $1`, [adminId]);
-        await client.query(`UPDATE historial_kilometraje_vehiculos SET id_usuarios_admin = NULL WHERE id_usuarios_admin = $1`, [adminId]);
-        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_instructor = NULL WHERE id_usuario_instructor = $1`, [adminId]);
-        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_programador = NULL WHERE id_usuario_programador = $1`, [adminId]);
-        await client.query(`UPDATE evaluaciones_manejo_comentado SET id_usuario_evaluador = NULL WHERE id_usuario_evaluador = $1`, [adminId]);
+
+        await client.query("SAVEPOINT sp_opcionales_admin_role");
+        try {
+          await client.query(`UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [adminId]);
+          await client.query("RELEASE SAVEPOINT sp_opcionales_admin_role");
+        } catch {
+          await client.query("ROLLBACK TO SAVEPOINT sp_opcionales_admin_role");
+        }
 
         // Eliminar el registro administrativo vinculado para liberar el username y correo
         await client.query(
