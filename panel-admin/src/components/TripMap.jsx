@@ -27,16 +27,46 @@ function MapBoundsController({ positions }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!positions.length) return;
+    map.invalidateSize();
 
-    if (positions.length === 1) {
-      map.setView(positions[0], 16);
-      return;
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener("resize", handleResize);
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => {
+          map.invalidateSize();
+        })
+      : null;
+
+    const container = map.getContainer();
+    if (container && resizeObserver) {
+      resizeObserver.observe(container);
     }
 
-    map.fitBounds(positions, {
-      padding: [45, 45]
-    });
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (!positions.length) return;
+
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+      if (positions.length === 1) {
+        map.setView(positions[0], 16);
+      } else {
+        const isMobile = typeof window !== "undefined" && window.innerWidth <= 640;
+        map.fitBounds(positions, {
+          padding: isMobile ? [25, 25] : [45, 45]
+        });
+      }
+    }, 60);
+
+    return () => clearTimeout(timer);
   }, [map, positions]);
 
   return null;

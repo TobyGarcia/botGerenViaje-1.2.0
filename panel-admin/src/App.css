@@ -3358,13 +3358,6 @@ button.estado-toggle-btn:disabled {
   min-height: 640px;
 }
 
-@media (max-width: 1024px) {
-  .locations-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-}
-
 /* ==========================================================================
    PANEL IZQUIERDO: BUSCADOR + LISTA DE VIAJES
    ========================================================================== */
@@ -3872,54 +3865,158 @@ button.estado-toggle-btn:disabled {
   font-weight: 700;
 }
 
-.map-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 20px;
-  border-top: 1px solid #e1edf2;
-  color: #5d7783;
+/* ==========================================================================
+   UBICACIONES: RESPONSIVE ADAPTATIONS (UI/UX PRO MAX)
+   ========================================================================== */
+
+@media (max-width: 1280px) {
+  .locations-layout {
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 14px;
+  }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1024px) {
   .locations-layout {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    gap: 16px;
   }
 
-  .trip-location-list {
-    max-height: 360px;
+  .locations-list-panel {
+    height: 380px;
+    min-height: 320px;
   }
 
-  .trip-map,
+  .locations-map-panel {
+    height: 600px;
+    min-height: 500px;
+  }
+
   .map-empty-state {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .locations-layout {
+    gap: 14px;
+  }
+
+  .locations-list-panel {
+    height: 340px;
+    min-height: 280px;
+  }
+
+  .locations-map-panel {
+    height: 520px;
     min-height: 420px;
+  }
+
+  .selected-trip-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .selected-trip-summary {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .selected-trip-meta-item {
+    align-items: flex-start;
+    flex: 1 1 130px;
+  }
+
+  .map-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .map-footer-left {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 }
 
 @media (max-width: 640px) {
-  .locations-toolbar {
-    grid-template-columns: 1fr;
+  .locations-heading-title-group h2 {
+    font-size: 1rem;
   }
 
-  .selected-trip-header,
-  .map-footer {
-    align-items: flex-start;
-    flex-direction: column;
+  .locations-list-panel {
+    height: 320px;
+    min-height: 260px;
   }
 
-  .selected-trip-summary {
-    text-align: left;
+  .locations-map-panel {
+    height: 480px;
+    min-height: 380px;
+  }
+
+  .map-empty-state {
+    min-height: 320px;
+    padding: 20px 16px;
+  }
+
+  .selected-trip-header {
+    padding: 10px 14px;
+  }
+
+  .selected-trip-header h2 {
+    font-size: 1.05rem;
   }
 
   .selected-trip-route {
-    align-items: flex-start;
-    flex-direction: column;
+    font-size: 0.78rem;
+    flex-wrap: wrap;
   }
 
-  .trip-map,
-  .map-empty-state {
-    min-height: 360px;
+  .map-pro-dock {
+    top: 8px;
+    right: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .map-pro-btn {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+
+  /* Ocultar texto en móviles para mantener el dock compacto e icon-only */
+  .map-pro-btn > span:not(.pro-btn-pulse-dot) {
+    display: none;
+  }
+
+  .map-pro-btn .pro-btn-pulse-dot {
+    margin-left: 0;
+  }
+
+  .map-footer {
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .locations-list-panel {
+    height: 290px;
+  }
+
+  .locations-map-panel {
+    height: 440px;
+    min-height: 350px;
+  }
+
+  .selected-trip-meta-item {
+    flex: 1 1 100%;
   }
 }
 .trips-toolbar {

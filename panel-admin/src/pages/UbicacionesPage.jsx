@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState
 } from "react";
 
@@ -71,7 +73,18 @@ function UbicacionesPage() {
   const [message, setMessage] =
     useState("");
 
-  async function loadTrips() {
+  const mapPanelRef = useRef(null);
+
+  function handleSelectTrip(idViaje) {
+    setSelectedTripId(idViaje);
+    if (typeof window !== "undefined" && window.innerWidth <= 1024 && mapPanelRef.current) {
+      setTimeout(() => {
+        mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }
+
+  const loadTrips = useCallback(async () => {
     setLoadingTrips(true);
     setMessage("");
 
@@ -94,18 +107,12 @@ function UbicacionesPage() {
         return;
       }
 
-      const selectedStillExists =
-        nextTrips.some(
-          (trip) =>
-            trip.idViaje ===
-            selectedTripId
+      setSelectedTripId((currentId) => {
+        const selectedStillExists = nextTrips.some(
+          (trip) => trip.idViaje === currentId
         );
-
-      if (!selectedStillExists) {
-        setSelectedTripId(
-          nextTrips[0].idViaje
-        );
-      }
+        return selectedStillExists ? currentId : nextTrips[0].idViaje;
+      });
     } catch (error) {
       setMessage(error.message);
       setTrips([]);
@@ -115,7 +122,7 @@ function UbicacionesPage() {
     } finally {
       setLoadingTrips(false);
     }
-  }
+  }, [search, status]);
 
   async function loadTripDetail(
     idViaje
@@ -157,7 +164,7 @@ function UbicacionesPage() {
         timeoutId
       );
     };
-  }, [search, status]);
+  }, [loadTrips]);
 
   useEffect(() => {
     if (!selectedTripId) {
@@ -289,7 +296,7 @@ function UbicacionesPage() {
                     key={trip.idViaje}
                     className={`trip-location-item ${isSelected ? "trip-location-item-active" : ""}`}
                     onClick={() =>
-                      setSelectedTripId(trip.idViaje)
+                      handleSelectTrip(trip.idViaje)
                     }
                   >
                     <div className="trip-location-title">
@@ -327,7 +334,7 @@ function UbicacionesPage() {
         </aside>
 
         {/* LADO DERECHO: Mapa ocupando todo el lado derecho */}
-        <section className="locations-map-panel">
+        <section className="locations-map-panel" ref={mapPanelRef}>
           {loadingDetail ? (
             <div className="map-empty-state">
               <p>Cargando recorrido del viaje...</p>
