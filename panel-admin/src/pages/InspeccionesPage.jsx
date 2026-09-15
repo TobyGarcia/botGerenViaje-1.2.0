@@ -70,13 +70,6 @@ function formatFechaOperativa(value) {
   return value;
 }
 
-function getInitials(name) {
-  if (!name) return "CO";
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
 function StatusBadge({ estado }) {
   const norm = (estado || "").toUpperCase();
   if (norm === "APROBADA") {
@@ -218,7 +211,7 @@ function renderChecklistByCategories(checklist = {}) {
                         : "No Aplica"
                     }
                   >
-                    {state === "B" ? "✓ B" : state === "R" ? "⚠ R" : state === "M" ? "✕ M" : "—"}
+                    {state === "B" ? "BUENO" : state === "R" ? "REGULAR" : state === "M" ? "MALO" : "N/A"}
                   </span>
                 </div>
               ))}
@@ -296,7 +289,7 @@ function ApprovalSignature({ onChange }) {
           Limpiar firma
         </button>
         <small className={hasSignature ? "sig-status-ok" : "sig-status-pending"}>
-          {hasSignature ? "✓ Firma capturada correctamente." : "⚠ La firma es requerida para aprobar."}
+          {hasSignature ? "Firma capturada correctamente." : "Firma requerida para autorizar."}
         </small>
       </div>
     </section>
@@ -449,7 +442,7 @@ export default function InspeccionesPage({ user, onPendingChange }) {
                   onClick={() => setSearch("")}
                   title="Limpiar búsqueda"
                 >
-                  ✕
+                  <IconCross size={14} />
                 </button>
               )}
             </div>
@@ -539,7 +532,6 @@ export default function InspeccionesPage({ user, onPendingChange }) {
                             </td>
                             <td>
                               <div className="driver-cell">
-                                <span className="driver-avatar">{getInitials(row.conductor)}</span>
                                 <span className="driver-name">{row.conductor}</span>
                               </div>
                             </td>
@@ -674,7 +666,7 @@ export default function InspeccionesPage({ user, onPendingChange }) {
                       onClick={closeDetail}
                       title="Cerrar modal"
                     >
-                      ✕
+                      <IconCross size={18} />
                     </button>
                   </div>
                 </div>
@@ -818,7 +810,7 @@ export default function InspeccionesPage({ user, onPendingChange }) {
                         />
                         <div className="driver-signature-meta">
                           <span>Conductor: <strong>{detail.conductor}</strong></span>
-                          <small>✓ Verificado mediante Telegram Bot</small>
+                          <small><IconCheck size={13} /> Verificado mediante Telegram Bot</small>
                         </div>
                       </div>
                     </div>
