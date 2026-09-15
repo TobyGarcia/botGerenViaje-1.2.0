@@ -390,7 +390,7 @@ function UbicacionesPage() {
                   {locations.length} puntos GPS registrados
                   {locations.filter(l => l.es_punto_intermedio).length > 0 && (
                     <strong style={{ color: "#dc2626", marginLeft: "8px" }}>
-                      (🔴 {locations.filter(l => l.es_punto_intermedio).length} intermedio(s))
+                      ({locations.filter(l => l.es_punto_intermedio).length} intermedio(s))
                     </strong>
                   )}
                 </span>
@@ -401,8 +401,7 @@ function UbicacionesPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Abrir última ubicación
-                    en Google Maps
+                    Abrir última ubicación en Google Maps
                   </a>
                 )}
               </footer>
@@ -410,14 +409,14 @@ function UbicacionesPage() {
               {locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length > 0 && (
                 <div className="intermediate-points-container" style={{ marginTop: "16px", padding: "16px", background: "#fff5f5", borderRadius: "8px", border: "1px solid #fecaca" }}>
                   <h4 style={{ margin: "0 0 12px 0", color: "#991b1b", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
-                    🔴 Puntos Intermedios Registrados ({locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length})
+                    Puntos Intermedios Registrados ({locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length})
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).map((pt, idx) => (
                       <div key={pt.id_ubicaciones_viaje || pt.idUbicacion || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
                         <div>
                           <strong style={{ color: "#dc2626", fontSize: "0.9rem" }}>
-                            🔴 {pt.nombre_punto || pt.nombrePunto || `Punto Intermedio ${idx + 1}`}
+                            {pt.nombre_punto || pt.nombrePunto || `Punto Intermedio ${idx + 1}`}
                           </strong>
                           <small style={{ display: "block", color: "#64748b", marginTop: "2px" }}>
                             {formatDateTime(pt.fecha_gps || pt.fechaGps)} · Lat: {Number(pt.latitud).toFixed(6)}, Lng: {Number(pt.longitud).toFixed(6)}
@@ -430,7 +429,7 @@ function UbicacionesPage() {
                           className="secondary-button"
                           style={{ fontSize: "0.82rem", padding: "6px 12px", textDecoration: "none", whiteSpace: "nowrap" }}
                         >
-                          🗺️ Abrir en Google Maps
+                          Abrir en Google Maps
                         </a>
                       </div>
                     ))}

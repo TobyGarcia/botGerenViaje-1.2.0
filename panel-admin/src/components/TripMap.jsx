@@ -44,9 +44,15 @@ function MapBoundsController({ positions }) {
 
 function VehicleCameraController({ carPosition, followVehicle }) {
   const map = useMap();
+  const lastPanRef = useRef(0);
 
   useEffect(() => {
-    if (followVehicle && carPosition) {
+    if (!followVehicle || !carPosition) return;
+
+    const now = performance.now();
+    // Limitar llamadas para no bloquear la cola de animación de Leaflet
+    if (now - lastPanRef.current > 120) {
+      lastPanRef.current = now;
       map.panTo(carPosition, { animate: true, duration: 0.15 });
     }
   }, [carPosition, followVehicle, map]);
@@ -64,38 +70,113 @@ function formatDateTime(value) {
   });
 }
 
-function createCarIcon(bearing = 0, speedKmh = 0, deltaSec = 0) {
+function lerpAngle(current, target, factor) {
+  let diff = (target - current) % 360;
+  if (diff < -180) diff += 360;
+  if (diff > 180) diff -= 360;
+  return (current + diff * factor + 360) % 360;
+}
+
+function getInterpolatedState(distMeters, roadGeometry, roadDistances) {
+  if (!roadGeometry || roadGeometry.length === 0) {
+    return { pos: [0, 0], segmentIdx: 0, nextIdx: 0, fraction: 0 };
+  }
+  if (roadGeometry.length === 1 || distMeters <= 0) {
+    return { pos: roadGeometry[0], segmentIdx: 0, nextIdx: 0, fraction: 0 };
+  }
+  const total = roadDistances[roadDistances.length - 1] || 1;
+  if (distMeters >= total) {
+    const lastIdx = roadGeometry.length - 1;
+    return { pos: roadGeometry[lastIdx], segmentIdx: lastIdx, nextIdx: lastIdx, fraction: 1 };
+  }
+
+  let low = 0;
+  let high = roadDistances.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (roadDistances[mid] <= distMeters) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const i = Math.max(1, Math.min(roadGeometry.length - 1, low));
+  const segStart = roadDistances[i - 1];
+  const segEnd = roadDistances[i];
+  const segDist = Math.max(0.0001, segEnd - segStart);
+  const fraction = Math.min(1, Math.max(0, (distMeters - segStart) / segDist));
+
+  const lat = roadGeometry[i - 1][0] + (roadGeometry[i][0] - roadGeometry[i - 1][0]) * fraction;
+  const lon = roadGeometry[i - 1][1] + (roadGeometry[i][1] - roadGeometry[i - 1][1]) * fraction;
+
+  return {
+    pos: [lat, lon],
+    segmentIdx: i - 1,
+    nextIdx: i,
+    fraction
+  };
+}
+
+// Icono SVG detallado: Camionetita blanca tipo Pickup (top-down)
+function createPickupTruckIcon(bearing = 0, speedKmh = 0, deltaSec = 0) {
   const roundedSpeed = Math.round(Number(speedKmh) || 0);
   const deltaBadge = deltaSec > 0 ? `<span class="car-pill-delta">+${deltaSec}s</span>` : "";
 
   return L.divIcon({
     className: "custom-car-div-icon",
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
     html: `
       <div class="car-marker-container">
         <div class="car-chassis" style="transform: rotate(${Math.round(bearing)}deg);">
           <div class="car-glow-beam"></div>
-          <svg viewBox="0 0 28 54" class="car-svg">
-            <!-- Ruedas -->
-            <rect x="0" y="7" width="4" height="10" rx="2" fill="#090d16" />
-            <rect x="24" y="7" width="4" height="10" rx="2" fill="#090d16" />
-            <rect x="0" y="37" width="4" height="10" rx="2" fill="#090d16" />
-            <rect x="24" y="37" width="4" height="10" rx="2" fill="#090d16" />
-            <!-- Chasis -->
-            <rect x="3" y="3" width="22" height="48" rx="6" fill="#0284c7" stroke="#38bdf8" stroke-width="1.8" />
-            <!-- Parabrisas delantero -->
-            <path d="M 5 16 Q 14 13 23 16 L 21 23 Q 14 20 7 23 Z" fill="#0f172a" />
-            <!-- Techo -->
-            <rect x="6.5" y="23" width="15" height="15" rx="3" fill="#0369a1" />
-            <!-- Cristal trasero -->
-            <path d="M 7 39 Q 14 41 21 39 L 20 44 Q 14 46 8 44 Z" fill="#0f172a" />
-            <!-- Luces delanteras (faros) -->
-            <circle cx="6" cy="5" r="2.2" fill="#fef08a" />
-            <circle cx="22" cy="5" r="2.2" fill="#fef08a" />
-            <!-- Luces traseras de freno -->
-            <circle cx="6.5" cy="49" r="1.6" fill="#ef4444" />
-            <circle cx="21.5" cy="49" r="1.6" fill="#ef4444" />
+          <svg viewBox="0 0 32 68" class="car-svg">
+            <!-- Ruedas negras -->
+            <rect x="0.5" y="10" width="3.5" height="12" rx="1.5" fill="#0f172a" />
+            <rect x="28" y="10" width="3.5" height="12" rx="1.5" fill="#0f172a" />
+            <rect x="0.5" y="44" width="3.5" height="12" rx="1.5" fill="#0f172a" />
+            <rect x="28" y="44" width="3.5" height="12" rx="1.5" fill="#0f172a" />
+
+            <!-- Carrocería blanca de la Camionetita -->
+            <rect x="3" y="3" width="26" height="62" rx="5" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" />
+
+            <!-- Capó delantero blanco con líneas aerodinámicas -->
+            <path d="M 5 18 L 5 7 Q 5 4 8 4 L 24 4 Q 27 4 27 7 L 27 18 Z" fill="#f8fafc" />
+            <line x1="11" y1="6" x2="11" y2="16" stroke="#e2e8f0" stroke-width="1" />
+            <line x1="21" y1="6" x2="21" y2="16" stroke="#e2e8f0" stroke-width="1" />
+
+            <!-- Espejos retrovisores laterales blancos -->
+            <rect x="0" y="18" width="3" height="5" rx="1.5" fill="#ffffff" stroke="#64748b" stroke-width="0.8" />
+            <rect x="29" y="18" width="3" height="5" rx="1.5" fill="#ffffff" stroke="#64748b" stroke-width="0.8" />
+
+            <!-- Parabrisas delantero oscuro -->
+            <path d="M 5.5 19 Q 16 16 26.5 19 L 25 26 Q 16 24 7 26 Z" fill="#1e293b" stroke="#334155" stroke-width="0.6" />
+
+            <!-- Techo blanco de la cabina -->
+            <rect x="6" y="26" width="20" height="15" rx="2" fill="#ffffff" />
+            <line x1="10" y1="28" x2="10" y2="39" stroke="#e2e8f0" stroke-width="1" />
+            <line x1="22" y1="28" x2="22" y2="39" stroke="#e2e8f0" stroke-width="1" />
+
+            <!-- Medallón / Cristal trasero -->
+            <path d="M 7 41 Q 16 42 25 41 L 24.5 44 Q 16 45 7.5 44 Z" fill="#0f172a" />
+
+            <!-- BATEA / CAJA TRASERA DE PICKUP -->
+            <rect x="5.5" y="45.5" width="21" height="17" rx="2" fill="#334155" stroke="#1e293b" stroke-width="1" />
+            <line x1="8" y1="49" x2="24" y2="49" stroke="#475569" stroke-width="1" stroke-linecap="round" />
+            <line x1="8" y1="53" x2="24" y2="53" stroke="#475569" stroke-width="1" stroke-linecap="round" />
+            <line x1="8" y1="57" x2="24" y2="57" stroke="#475569" stroke-width="1" stroke-linecap="round" />
+
+            <!-- Tapa de batea trasera -->
+            <rect x="4.5" y="63" width="23" height="2" rx="1" fill="#e2e8f0" />
+
+            <!-- Faros delanteros LED amarillos -->
+            <rect x="5" y="3.5" width="4.5" height="2.5" rx="1" fill="#fef08a" />
+            <rect x="22.5" y="3.5" width="4.5" height="2.5" rx="1" fill="#fef08a" />
+
+            <!-- Luces traseras de freno rojas -->
+            <rect x="3.5" y="62" width="3" height="3" rx="0.8" fill="#ef4444" />
+            <rect x="25.5" y="62" width="3" height="3" rx="0.8" fill="#ef4444" />
           </svg>
         </div>
         <div class="car-telemetry-pill">
@@ -125,6 +206,13 @@ function createNumberedStopIcon(index) {
 }
 
 function TripMap({ locations = [] }) {
+  // Modos de visualización:
+  // "POINTS": Solo puntos de coordenadas
+  // "OSRM": Solo trazado de calles OSRM
+  // "BOTH": Puntos de coordenadas y OSRM juntos
+  // "ANIMATION": Simulación y recorrido animado fluido
+  const [mapMode, setMapMode] = useState("BOTH");
+
   const validLocations = useMemo(
     () =>
       locations.filter(
@@ -148,13 +236,41 @@ function TripMap({ locations = [] }) {
   const [roadGeometry, setRoadGeometry] = useState(rawPositions);
   const [isSnappingRoad, setIsSnappingRoad] = useState(false);
 
-  // Estado del motor de animación vehicular
+  // Distancias acumuladas en metros a lo largo de roadGeometry para interpolación fluida uniforme
+  const roadDistances = useMemo(() => {
+    if (!roadGeometry || roadGeometry.length < 2) return [0];
+    const dists = [0];
+    let acc = 0;
+    for (let i = 1; i < roadGeometry.length; i++) {
+      const d = calculateDistanceMeters(
+        roadGeometry[i - 1][0],
+        roadGeometry[i - 1][1],
+        roadGeometry[i][0],
+        roadGeometry[i][1]
+      );
+      acc += d;
+      dists.push(acc);
+    }
+    return dists;
+  }, [roadGeometry]);
+
+  const totalRoadDistance = roadDistances[roadDistances.length - 1] || 1;
+
+  // Estado del motor de animación vehicular (en metros recorridos)
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(2); // 1x, 2x, 5x, 10x
-  const [progressIndex, setProgressIndex] = useState(0); // Posición fraccional a lo largo de roadGeometry
+  const [currentDistMeters, setCurrentDistMeters] = useState(0);
   const [followVehicle, setFollowVehicle] = useState(false);
+
+  const currentDistRef = useRef(0);
+  const bearingRef = useRef(0);
   const animFrameRef = useRef(null);
   const lastTimeRef = useRef(null);
+
+  // Mantener ref sincronizada con el estado de metros
+  useEffect(() => {
+    currentDistRef.current = currentDistMeters;
+  }, [currentDistMeters]);
 
   // Ajustar ruta a calles reales con OSRM al cargar ubicaciones
   useEffect(() => {
@@ -184,13 +300,15 @@ function TripMap({ locations = [] }) {
     };
   }, [validLocations, rawPositions]);
 
-  // Si cambia el total de puntos o el viaje, reiniciar posición de reproducción
+  // Si cambia el viaje o las ubicaciones, reiniciar reproducción
   useEffect(() => {
-    setProgressIndex(0);
+    setCurrentDistMeters(0);
+    currentDistRef.current = 0;
+    bearingRef.current = 0;
     setIsPlaying(false);
   }, [validLocations.length]);
 
-  // Loop de animación con requestAnimationFrame
+  // Bucle de animación suave con requestAnimationFrame y avance uniforme por distancia
   useEffect(() => {
     if (!isPlaying) {
       lastTimeRef.current = null;
@@ -198,26 +316,27 @@ function TripMap({ locations = [] }) {
       return;
     }
 
-    const maxIndex = Math.max(0, roadGeometry.length - 1);
-    if (maxIndex === 0) return;
+    if (totalRoadDistance <= 1) return;
 
     function stepAnimation(timestamp) {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const deltaTime = (timestamp - lastTimeRef.current) / 1000;
+      const deltaTime = Math.min((timestamp - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = timestamp;
 
-      // Velocidad base de avance: ~1.8 puntos por segundo a 1x
-      const pointsPerSecond = 2.2 * playbackSpeed;
-      const deltaIndex = pointsPerSecond * deltaTime;
+      // Duración base del recorrido total a 1x (~30s base adaptada al kilometraje)
+      const baseDurationSec = Math.min(80, Math.max(22, totalRoadDistance / 40));
+      const speedMps = (totalRoadDistance / baseDurationSec) * playbackSpeed;
+      const nextDist = currentDistRef.current + speedMps * deltaTime;
 
-      setProgressIndex((prev) => {
-        const next = prev + deltaIndex;
-        if (next >= maxIndex) {
-          setIsPlaying(false);
-          return maxIndex;
-        }
-        return next;
-      });
+      if (nextDist >= totalRoadDistance) {
+        currentDistRef.current = totalRoadDistance;
+        setCurrentDistMeters(totalRoadDistance);
+        setIsPlaying(false);
+        return;
+      }
+
+      currentDistRef.current = nextDist;
+      setCurrentDistMeters(nextDist);
 
       animFrameRef.current = requestAnimationFrame(stepAnimation);
     }
@@ -227,46 +346,52 @@ function TripMap({ locations = [] }) {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [isPlaying, playbackSpeed, roadGeometry.length]);
+  }, [isPlaying, playbackSpeed, totalRoadDistance]);
 
-  // Coordenadas actuales del vehículo animado (interpolación lineal entre puntos)
-  const maxRoadIdx = Math.max(0, roadGeometry.length - 1);
-  const clampedProgress = Math.min(Math.max(0, progressIndex), maxRoadIdx);
-  const baseIdx = Math.floor(clampedProgress);
-  const nextIdx = Math.min(baseIdx + 1, maxRoadIdx);
-  const fraction = clampedProgress - baseIdx;
+  // Cálculo interpolado de posición actual y orientación
+  const carState = useMemo(() => {
+    if (!roadGeometry || roadGeometry.length === 0) {
+      return { pos: [0, 0], segmentIdx: 0, nextIdx: 0, fraction: 0 };
+    }
+    return getInterpolatedState(currentDistMeters, roadGeometry, roadDistances);
+  }, [currentDistMeters, roadGeometry, roadDistances]);
 
-  const currentLat =
-    roadGeometry[baseIdx] && roadGeometry[nextIdx]
-      ? roadGeometry[baseIdx][0] + (roadGeometry[nextIdx][0] - roadGeometry[baseIdx][0]) * fraction
-      : rawPositions[0]?.[0] || 0;
-  const currentLon =
-    roadGeometry[baseIdx] && roadGeometry[nextIdx]
-      ? roadGeometry[baseIdx][1] + (roadGeometry[nextIdx][1] - roadGeometry[baseIdx][1]) * fraction
-      : rawPositions[0]?.[1] || 0;
-  const currentCarPos = [currentLat, currentLon];
+  // Rumbo y giro suave (smooth bearing) mirando metros hacia adelante
+  const carBearing = useMemo(() => {
+    if (!roadGeometry || roadGeometry.length < 2) return 0;
+    const lookAheadMeters = Math.min(totalRoadDistance, currentDistMeters + 7);
+    const aheadState = getInterpolatedState(lookAheadMeters, roadGeometry, roadDistances);
+    if (carState.pos && aheadState.pos) {
+      const d = calculateDistanceMeters(
+        carState.pos[0],
+        carState.pos[1],
+        aheadState.pos[0],
+        aheadState.pos[1]
+      );
+      if (d > 0.5) {
+        const rawBearing = calculateBearing(
+          carState.pos[0],
+          carState.pos[1],
+          aheadState.pos[0],
+          aheadState.pos[1]
+        );
+        bearingRef.current = lerpAngle(bearingRef.current, rawBearing, 0.25);
+      }
+    }
+    return bearingRef.current;
+  }, [currentDistMeters, totalRoadDistance, carState.pos, roadGeometry, roadDistances]);
 
-  // Cálculo de orientación (bearing)
-  const bearing =
-    roadGeometry[baseIdx] && roadGeometry[nextIdx]
-      ? calculateBearing(
-          roadGeometry[baseIdx][0],
-          roadGeometry[baseIdx][1],
-          roadGeometry[nextIdx][0],
-          roadGeometry[nextIdx][1]
-        )
-      : 0;
-
-  // Trazado progresivo recorrido (estela brillante)
-  const traversedPositions =
-    roadGeometry.length > 0
-      ? (baseIdx === 0 && fraction === 0
-          ? [roadGeometry[0]]
-          : [...roadGeometry.slice(0, baseIdx + 1), currentCarPos])
-      : [];
+  // Trazado progresivo recorrido (estela azul brillante)
+  const traversedPositions = useMemo(() => {
+    if (!roadGeometry || roadGeometry.length === 0) return [];
+    if (carState.segmentIdx <= 0 && carState.fraction === 0) {
+      return [roadGeometry[0]];
+    }
+    return [...roadGeometry.slice(0, carState.segmentIdx + 1), carState.pos];
+  }, [roadGeometry, carState]);
 
   // Telemetría dinámica y tiempos
-  const progressRatio = maxRoadIdx > 0 ? clampedProgress / maxRoadIdx : 0;
+  const progressRatio = totalRoadDistance > 0 ? currentDistMeters / totalRoadDistance : 0;
   const nearestLocIdx = Math.min(
     Math.max(0, validLocations.length - 1),
     Math.round(progressRatio * Math.max(0, validLocations.length - 1))
@@ -287,9 +412,10 @@ function TripMap({ locations = [] }) {
   if (Number.isFinite(rawDbSpeed) && rawDbSpeed > 0.5) {
     speedKmh = rawDbSpeed;
   } else {
-    // Si en BD la velocidad es 0, null o cercana a cero (ej. 0.01 de ruido GPS),
-    // calcular dinámicamente la velocidad con la distancia Haversine y el tiempo transcurrido
-    const refLoc = (prevLoc && prevLoc !== currentLoc) ? prevLoc : validLocations[Math.min(validLocations.length - 1, nearestLocIdx + 1)];
+    const refLoc =
+      prevLoc && prevLoc !== currentLoc
+        ? prevLoc
+        : validLocations[Math.min(validLocations.length - 1, nearestLocIdx + 1)];
     if (refLoc && refLoc !== currentLoc) {
       const tCurrent = new Date(currentLoc.fechaGps ?? currentLoc.fecha_gps ?? 0).getTime();
       const tRef = new Date(refLoc.fechaGps ?? refLoc.fecha_gps ?? 0).getTime();
@@ -310,13 +436,14 @@ function TripMap({ locations = [] }) {
   const startMs = validLocations[0]
     ? new Date(validLocations[0].fechaGps ?? validLocations[0].fecha_gps ?? 0).getTime()
     : 0;
-  const endMs = validLocations.length > 0
-    ? new Date(
-        validLocations[validLocations.length - 1].fechaGps ??
-        validLocations[validLocations.length - 1].fecha_gps ??
-        0
-      ).getTime()
-    : 0;
+  const endMs =
+    validLocations.length > 0
+      ? new Date(
+          validLocations[validLocations.length - 1].fechaGps ??
+            validLocations[validLocations.length - 1].fecha_gps ??
+            0
+        ).getTime()
+      : 0;
   const totalTripSec = Math.max(0, Math.floor((endMs - startMs) / 1000));
   const currentTripSec = Math.floor(totalTripSec * progressRatio);
 
@@ -326,11 +453,15 @@ function TripMap({ locations = [] }) {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  const carIcon = createCarIcon(bearing, speedKmh, deltaSec);
+  // Icono de la camionetita blanca tipo pickup
+  const carIcon = useMemo(
+    () => createPickupTruckIcon(carBearing, speedKmh, deltaSec),
+    [carBearing, speedKmh, deltaSec]
+  );
 
   // Filtrar paradas intermedias
-  const intermediateStops = validLocations.filter(
-    (loc) => Boolean(loc.esPuntoIntermedio || loc.es_punto_intermedio)
+  const intermediateStops = validLocations.filter((loc) =>
+    Boolean(loc.esPuntoIntermedio || loc.es_punto_intermedio)
   );
 
   if (!rawPositions.length) {
@@ -341,8 +472,56 @@ function TripMap({ locations = [] }) {
     );
   }
 
+  const showPoints = mapMode === "POINTS" || mapMode === "BOTH";
+  const showOsrm = mapMode === "OSRM" || mapMode === "BOTH" || mapMode === "ANIMATION";
+  const isAnimationMode = mapMode === "ANIMATION";
+
   return (
     <div className="trip-map-wrapper">
+      {/* Botonera de Modos de Vista del Mapa */}
+      <div className="map-view-modes-bar">
+        <button
+          type="button"
+          className={`map-view-mode-btn ${mapMode === "POINTS" ? "active" : ""}`}
+          onClick={() => {
+            setIsPlaying(false);
+            setMapMode("POINTS");
+          }}
+        >
+          Puntos de coordenada
+        </button>
+
+        <button
+          type="button"
+          className={`map-view-mode-btn ${mapMode === "OSRM" ? "active" : ""}`}
+          onClick={() => {
+            setIsPlaying(false);
+            setMapMode("OSRM");
+          }}
+        >
+          Ruta OSRM
+        </button>
+
+        <button
+          type="button"
+          className={`map-view-mode-btn ${mapMode === "BOTH" ? "active" : ""}`}
+          onClick={() => {
+            setIsPlaying(false);
+            setMapMode("BOTH");
+          }}
+        >
+          Puntos y OSRM
+        </button>
+
+        <button
+          type="button"
+          className={`map-view-mode-btn ${mapMode === "ANIMATION" ? "active" : ""}`}
+          onClick={() => setMapMode("ANIMATION")}
+        >
+          Animación
+        </button>
+      </div>
+
       <MapContainer
         center={rawPositions[0]}
         zoom={15}
@@ -355,24 +534,42 @@ function TripMap({ locations = [] }) {
         />
 
         <MapBoundsController positions={rawPositions} />
-        <VehicleCameraController carPosition={currentCarPos} followVehicle={followVehicle} />
+        {isAnimationMode && (
+          <VehicleCameraController
+            carPosition={carState.pos}
+            followVehicle={followVehicle}
+          />
+        )}
 
-        {/* Polilínea base de la calle completa (calle real OSRM) */}
-        {roadGeometry.length > 1 && (
+        {/* Polilínea directa de puntos cuando solo se ven coordenadas */}
+        {mapMode === "POINTS" && rawPositions.length > 1 && (
+          <Polyline
+            positions={rawPositions}
+            pathOptions={{
+              color: "#0284c7",
+              weight: 3,
+              opacity: 0.75,
+              dashArray: "6, 8"
+            }}
+          />
+        )}
+
+        {/* Polilínea OSRM ajustada a calles */}
+        {showOsrm && roadGeometry.length > 1 && (
           <Polyline
             positions={roadGeometry}
             pathOptions={{
-              color: "#475569",
-              weight: 5,
-              opacity: 0.45,
+              color: isAnimationMode ? "#475569" : "#0284c7",
+              weight: isAnimationMode ? 5 : 5.5,
+              opacity: isAnimationMode ? 0.45 : 0.85,
               lineCap: "round",
               lineJoin: "round"
             }}
           />
         )}
 
-        {/* Polilínea progresiva recorrida (azul brillante con estela) */}
-        {traversedPositions.length > 1 && (
+        {/* Polilínea recorrida en animación (estela azul brillante) */}
+        {isAnimationMode && traversedPositions.length > 1 && (
           <Polyline
             positions={traversedPositions}
             pathOptions={{
@@ -385,46 +582,132 @@ function TripMap({ locations = [] }) {
           />
         )}
 
-        {/* Marcador animado del vehículo interactivo */}
-        {roadGeometry.length > 0 && (
-          <Marker position={currentCarPos} icon={carIcon} zIndexOffset={1000} />
+        {/* Camionetita blanca animada (solo en modo Animación) */}
+        {isAnimationMode && roadGeometry.length > 0 && (
+          <Marker position={carState.pos} icon={carIcon} zIndexOffset={1000} />
         )}
 
-        {/* Puntos GPS capturados */}
-        {validLocations.map((location, index) => {
-          const isFirst = index === 0;
-          const isLast = index === validLocations.length - 1;
-          const isIntermediate = Boolean(
-            location.esPuntoIntermedio || location.es_punto_intermedio
-          );
-
-          // Si es punto intermedio, se muestra con marcador dorado numerado
-          if (isIntermediate) {
-            const stopIndex = intermediateStops.indexOf(location) + 1;
-            return (
-              <Marker
-                key={location.idUbicacion ?? `stop-${index}`}
-                position={[Number(location.latitud), Number(location.longitud)]}
-                icon={createNumberedStopIcon(stopIndex)}
+        {/* Marcadores de Inicio y Fin (siempre visibles en OSRM o Animación) */}
+        {(mapMode === "OSRM" || isAnimationMode) && !showPoints && (
+          <>
+            {validLocations[0] && (
+              <CircleMarker
+                center={[Number(validLocations[0].latitud), Number(validLocations[0].longitud)]}
+                radius={8}
+                pathOptions={{
+                  color: "#16a34a",
+                  fillColor: "#22c55e",
+                  weight: 2.5,
+                  fillOpacity: 1
+                }}
               >
-                <Tooltip permanent direction="top" offset={[0, -32]} className="custom-intermediate-tooltip">
-                  <span className="intermediate-tooltip-content">
-                    <span className="dot-red-icon">🛑</span>
-                    <strong>{location.nombrePunto || location.nombre_punto || `Parada #${stopIndex}`}</strong>
-                  </span>
-                </Tooltip>
                 <Popup>
                   <div className="map-popup">
-                    <strong style={{ color: "#d97706" }}>
-                      🛑 Parada #{stopIndex}: {location.nombrePunto || location.nombre_punto || "Punto Intermedio"}
+                    <strong style={{ color: "#16a34a" }}>Inicio del recorrido</strong>
+                    <span>Fecha: {formatDateTime(validLocations[0].fechaGps ?? validLocations[0].fecha_gps)}</span>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
+
+            {validLocations.length > 1 && (
+              <CircleMarker
+                center={[
+                  Number(validLocations[validLocations.length - 1].latitud),
+                  Number(validLocations[validLocations.length - 1].longitud)
+                ]}
+                radius={8}
+                pathOptions={{
+                  color: "#ea580c",
+                  fillColor: "#f97316",
+                  weight: 2.5,
+                  fillOpacity: 1
+                }}
+              >
+                <Popup>
+                  <div className="map-popup">
+                    <strong style={{ color: "#ea580c" }}>Destino final</strong>
+                    <span>
+                      Fecha:{" "}
+                      {formatDateTime(
+                        validLocations[validLocations.length - 1].fechaGps ??
+                          validLocations[validLocations.length - 1].fecha_gps
+                      )}
+                    </span>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
+          </>
+        )}
+
+        {/* Marcadores de Paradas Intermedias */}
+        {intermediateStops.map((location, idx) => (
+          <Marker
+            key={location.idUbicacion ?? `inter-${idx}`}
+            position={[Number(location.latitud), Number(location.longitud)]}
+            icon={createNumberedStopIcon(idx + 1)}
+          >
+            <Tooltip permanent direction="top" offset={[0, -32]} className="custom-intermediate-tooltip">
+              <span className="intermediate-tooltip-content">
+                <strong>{location.nombrePunto || location.nombre_punto || `Parada #${idx + 1}`}</strong>
+              </span>
+            </Tooltip>
+            <Popup>
+              <div className="map-popup">
+                <strong style={{ color: "#d97706" }}>
+                  Parada #{idx + 1}: {location.nombrePunto || location.nombre_punto || "Punto Intermedio"}
+                </strong>
+                <span>
+                  {Number(location.latitud).toFixed(6)}, {Number(location.longitud).toFixed(6)}
+                </span>
+                <span>Fecha: {formatDateTime(location.fechaGps ?? location.fecha_gps)}</span>
+                <a
+                  href={`https://www.google.com/maps?q=${location.latitud},${location.longitud}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir en Google Maps
+                </a>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Puntos GPS capturados (cuando showPoints está activo) */}
+        {showPoints &&
+          validLocations.map((location, index) => {
+            const isFirst = index === 0;
+            const isLast = index === validLocations.length - 1;
+            const isIntermediate = Boolean(
+              location.esPuntoIntermedio || location.es_punto_intermedio
+            );
+
+            if (isIntermediate) return null; // Ya se renderizan arriba
+
+            return (
+              <CircleMarker
+                key={location.idUbicacion ?? `loc-${index}`}
+                center={[Number(location.latitud), Number(location.longitud)]}
+                radius={isFirst || isLast ? 8 : 4.5}
+                pathOptions={{
+                  color: isFirst ? "#16a34a" : isLast ? "#ea580c" : "#0284c7",
+                  fillColor: isFirst ? "#22c55e" : isLast ? "#f97316" : "#38bdf8",
+                  weight: 2.5,
+                  fillOpacity: isFirst || isLast ? 1 : 0.65
+                }}
+              >
+                <Popup>
+                  <div className="map-popup">
+                    <strong style={{ color: isFirst ? "#16a34a" : isLast ? "#ea580c" : "#0284c7" }}>
+                      {isFirst ? "Inicio del recorrido" : isLast ? "Destino final" : `Hito GPS #${index + 1}`}
                     </strong>
                     <span>
                       {Number(location.latitud).toFixed(6)}, {Number(location.longitud).toFixed(6)}
                     </span>
                     <span>Fecha: {formatDateTime(location.fechaGps ?? location.fecha_gps)}</span>
-                    {location.velocidad !== null && location.velocidad !== undefined && (
-                      <span>Velocidad al parar: {location.velocidad} km/h</span>
-                    )}
+                    {location.precisionMetros && <span>Precisión: {location.precisionMetros} m</span>}
+                    {location.velocidad && <span>Velocidad: {location.velocidad} km/h</span>}
                     <a
                       href={`https://www.google.com/maps?q=${location.latitud},${location.longitud}`}
                       target="_blank"
@@ -434,145 +717,126 @@ function TripMap({ locations = [] }) {
                     </a>
                   </div>
                 </Popup>
-              </Marker>
+              </CircleMarker>
             );
-          }
-
-          // Puntos regulares de paso, inicio y fin
-          return (
-            <CircleMarker
-              key={location.idUbicacion ?? `loc-${index}`}
-              center={[Number(location.latitud), Number(location.longitud)]}
-              radius={isFirst || isLast ? 8 : 4.5}
-              pathOptions={{
-                color: isFirst ? "#16a34a" : isLast ? "#ea580c" : "#0284c7",
-                fillColor: isFirst ? "#22c55e" : isLast ? "#f97316" : "#38bdf8",
-                weight: 2.5,
-                fillOpacity: isFirst || isLast ? 1 : 0.65
-              }}
-            >
-              <Popup>
-                <div className="map-popup">
-                  <strong style={{ color: isFirst ? "#16a34a" : isLast ? "#ea580c" : "#0284c7" }}>
-                    {isFirst ? "🏁 Inicio del recorrido" : isLast ? "📍 Destino final" : `Hito GPS #${index + 1}`}
-                  </strong>
-                  <span>
-                    {Number(location.latitud).toFixed(6)}, {Number(location.longitud).toFixed(6)}
-                  </span>
-                  <span>Fecha: {formatDateTime(location.fechaGps ?? location.fecha_gps)}</span>
-                  {location.precisionMetros && <span>Precisión: {location.precisionMetros} m</span>}
-                  {location.velocidad && <span>Velocidad: {location.velocidad} km/h</span>}
-                  <a
-                    href={`https://www.google.com/maps?q=${location.latitud},${location.longitud}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Abrir en Google Maps
-                  </a>
-                </div>
-              </Popup>
-            </CircleMarker>
-          );
-        })}
+          })}
       </MapContainer>
 
-      {/* Consola Flotante de Control de Reproducción y Telemetría */}
-      <div className="playback-hud-panel">
-        <div className="playback-hud-top">
-          <div className="playback-controls-group">
-            {/* Play / Pausa */}
-            <button
-              type="button"
-              className={`playback-btn-primary ${isPlaying ? "playing" : ""}`}
-              onClick={() => {
-                if (!isPlaying && clampedProgress >= maxRoadIdx) {
-                  setProgressIndex(0);
-                }
-                setIsPlaying(!isPlaying);
-              }}
-              title={isPlaying ? "Pausar simulación" : "Reproducir viaje"}
-            >
-              {isPlaying ? "⏸" : "▶"}
-            </button>
+      {/* Consola Flotante de Control de Reproducción (Solo en Modo Animación) */}
+      {isAnimationMode && (
+        <div className="playback-hud-panel">
+          <div className="playback-hud-top">
+            <div className="playback-controls-group">
+              {/* Play / Pausa */}
+              <button
+                type="button"
+                className={`playback-btn-primary ${isPlaying ? "playing" : ""}`}
+                onClick={() => {
+                  if (!isPlaying && currentDistMeters >= totalRoadDistance) {
+                    setCurrentDistMeters(0);
+                    currentDistRef.current = 0;
+                  }
+                  setIsPlaying(!isPlaying);
+                }}
+                title={isPlaying ? "Pausar simulación" : "Reproducir viaje"}
+              >
+                {isPlaying ? (
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <polygon points="6 4 20 12 6 20 6 4" />
+                  </svg>
+                )}
+              </button>
 
-            {/* Reiniciar */}
-            <button
-              type="button"
-              className="playback-btn-secondary"
-              onClick={() => {
-                setIsPlaying(false);
-                setProgressIndex(0);
-              }}
-              title="Reiniciar al inicio"
-            >
-              ⏮
-            </button>
+              {/* Reiniciar */}
+              <button
+                type="button"
+                className="playback-btn-secondary"
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCurrentDistMeters(0);
+                  currentDistRef.current = 0;
+                }}
+                title="Reiniciar al inicio"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <polygon points="11 12 20 5 20 19 11 12" />
+                  <polygon points="4 12 13 5 13 19 4 12" />
+                </svg>
+              </button>
 
-            {/* Selectores de Velocidad */}
-            <div className="playback-speed-selector">
-              {[1, 2, 5, 10].map((spd) => (
-                <button
-                  key={spd}
-                  type="button"
-                  className={`speed-pill ${playbackSpeed === spd ? "active" : ""}`}
-                  onClick={() => setPlaybackSpeed(spd)}
-                >
-                  {spd}x
-                </button>
-              ))}
+              {/* Selectores de Velocidad */}
+              <div className="playback-speed-selector">
+                {[1, 2, 5, 10].map((spd) => (
+                  <button
+                    key={spd}
+                    type="button"
+                    className={`speed-pill ${playbackSpeed === spd ? "active" : ""}`}
+                    onClick={() => setPlaybackSpeed(spd)}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Telemetría Instantánea */}
+            <div className="playback-telemetry-badge">
+              <span className="telemetry-speed-indicator">
+                <strong>{Math.round(speedKmh)}</strong> km/h
+              </span>
+              {deltaSec > 0 && (
+                <span className="telemetry-delta-indicator">
+                  Tramo: +{deltaSec}s
+                </span>
+              )}
+              {isSnappingRoad && (
+                <span className="telemetry-snapping-badge" title="Ajustando con OSRM">
+                  Ajustando a calles...
+                </span>
+              )}
+            </div>
+
+            {/* Opción Seguir Cámara */}
+            <label className="playback-follow-toggle">
+              <input
+                type="checkbox"
+                checked={followVehicle}
+                onChange={(e) => setFollowVehicle(e.target.checked)}
+              />
+              <span>Seguir camioneta</span>
+            </label>
           </div>
 
-          {/* Telemetría Instantánea del Tramo */}
-          <div className="playback-telemetry-badge">
-            <span className="telemetry-speed-indicator">
-              ⚡ <strong>{Math.round(speedKmh)}</strong> km/h
+          {/* Barra Deslizante de Tiempo */}
+          <div className="playback-scrubber-row">
+            <span className="playback-time-label current">
+              {formatMinSec(currentTripSec)}
             </span>
-            {deltaSec > 0 && (
-              <span className="telemetry-delta-indicator">
-                ⏱ Tramo: +{deltaSec}s
-              </span>
-            )}
-            {isSnappingRoad && (
-              <span className="telemetry-snapping-badge" title="Ajustando con OSRM">
-                🛣 Ajustando a calles...
-              </span>
-            )}
-          </div>
-
-          {/* Opción Seguir Cámara */}
-          <label className="playback-follow-toggle">
             <input
-              type="checkbox"
-              checked={followVehicle}
-              onChange={(e) => setFollowVehicle(e.target.checked)}
+              type="range"
+              min="0"
+              max={totalRoadDistance}
+              step="0.5"
+              value={currentDistMeters}
+              onChange={(e) => {
+                setIsPlaying(false);
+                const val = Number(e.target.value);
+                currentDistRef.current = val;
+                setCurrentDistMeters(val);
+              }}
+              className="playback-scrubber-slider"
             />
-            <span>Seguir vehículo</span>
-          </label>
+            <span className="playback-time-label total">
+              {formatMinSec(totalTripSec)}
+            </span>
+          </div>
         </div>
-
-        {/* Barra Scrubber y Contador de Tiempo */}
-        <div className="playback-scrubber-row">
-          <span className="playback-time-label current">
-            {formatMinSec(currentTripSec)}
-          </span>
-          <input
-            type="range"
-            min="0"
-            max={maxRoadIdx}
-            step="0.1"
-            value={clampedProgress}
-            onChange={(e) => {
-              setIsPlaying(false);
-              setProgressIndex(Number(e.target.value));
-            }}
-            className="playback-scrubber-slider"
-          />
-          <span className="playback-time-label total">
-            {formatMinSec(totalTripSec)}
-          </span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

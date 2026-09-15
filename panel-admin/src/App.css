@@ -5203,6 +5203,43 @@ min-width: 0;
    Motor de Animación Vehicular y Telemetría en TripMap (Leaflet)
    ========================================================================== */
 
+.map-view-modes-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.map-view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.map-view-mode-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.map-view-mode-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.35);
+}
+
 .trip-map-wrapper {
   position: relative;
   width: 100%;
@@ -5217,8 +5254,8 @@ min-width: 0;
 
 .car-marker-container {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5226,22 +5263,22 @@ min-width: 0;
 
 .car-chassis {
   position: absolute;
-  width: 28px;
-  height: 54px;
-  top: -4px;
-  left: 9px;
-  transition: transform 0.12s linear;
+  width: 32px;
+  height: 68px;
+  top: -10px;
+  left: 8px;
+  transition: none; /* Animación fluida frame a frame sin conflicto de transición CSS */
   transform-origin: center center;
-  filter: drop-shadow(0 4px 10px rgba(2, 132, 199, 0.45));
+  filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.45));
 }
 
 .car-glow-beam {
   position: absolute;
-  top: -10px;
-  left: 3px;
-  width: 22px;
-  height: 14px;
-  background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.45) 0%, rgba(254, 240, 138, 0) 75%);
+  top: -12px;
+  left: 4px;
+  width: 24px;
+  height: 16px;
+  background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.5) 0%, rgba(254, 240, 138, 0) 75%);
   pointer-events: none;
 }
 
@@ -5253,7 +5290,7 @@ min-width: 0;
 
 .car-telemetry-pill {
   position: absolute;
-  bottom: -18px;
+  bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(15, 23, 42, 0.92);
