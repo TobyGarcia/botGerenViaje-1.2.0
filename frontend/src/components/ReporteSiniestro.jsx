@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { crearReporteSiniestro } from "../services/api.js";
 import { compressImageToMaxKb } from "../utils/imageCompressor.js";
+import { savePendingSiniestro, countPendingSiniestros } from "../services/siniestro-storage.js";
+import { syncPendingSiniestros, onSiniestroSyncEvent } from "../services/siniestro-sync.js";
 import CameraModal from "./CameraModal.jsx";
 import {
   IconCamera,
@@ -42,6 +44,58 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  const checkPendingCount = async () => {
+    try {
+      const c = await countPendingCount();
+      setPendingCount(c);
+    } catch {
+      setPendingCount(0);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCount() {
+      try {
+        const c = await countPendingSiniestros();
+        if (isMounted) setPendingCount(c);
+      } catch {
+        if (isMounted) setPendingCount(0);
+      }
+    }
+
+    void loadCount();
+
+    const unsubscribe = onSiniestroSyncEvent(() => {
+      void loadCount();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    if (isManualSyncing || !navigator.onLine) return;
+    setIsManualSyncing(true);
+    try {
+      const res = await syncPendingSiniestros();
+      if (res.synced > 0) {
+        setSuccessMsg(`✅ ¡Se sincronizaron exitosamente ${res.synced} reporte(s) de siniestro que estaba(n) guardado(s) localmente!`);
+      }
+      const c = await countPendingSiniestros();
+      setPendingCount(c);
+    } catch (err) {
+      console.error("Error en sincronización manual de siniestros:", err);
+    } finally {
+      setIsManualSyncing(false);
+    }
+  };
 
   function captureGpsLocation() {
     if (!navigator.geolocation) {
@@ -148,17 +202,39 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
 
     setSending(true);
 
-    try {
-      const payload = {
-        idVehiculo: vehiculoAsignado?.id_vehiculos || null,
-        tipoSiniestro,
-        descripcion: descripcion.trim(),
-        latitud: location.latitude,
-        longitud: location.longitude,
-        altitud: location.altitude,
-        fotos: activePhotos
-      };
+    const payload = {
+      idVehiculo: vehiculoAsignado?.id_vehiculos || null,
+      tipoSiniestro,
+      descripcion: descripcion.trim(),
+      latitud: location.latitude,
+      longitud: location.longitude,
+      altitud: location.altitude,
+      fotos: activePhotos
+    };
 
+    // Modo Offline o Conexión sin señal: Guardar directamente en caché local de la PWA
+    if (!navigator.onLine) {
+      try {
+        await savePendingSiniestro(payload);
+        const newCount = await countPendingSiniestros();
+        setPendingCount(newCount);
+        setSuccessMsg("📱 Reporte guardado localmente en la caché de tu teléfono (Modo Offline). Se enviará automáticamente a supervisión en cuanto se restablezca tu conexión a internet.");
+        if (typeof onComplete === "function") {
+          setTimeout(() => {
+            onComplete({ ...payload, offlinePending: true });
+          }, 2000);
+        }
+      } catch (saveErr) {
+        console.error("Error guardando siniestro offline:", saveErr);
+        setError("No fue posible guardar el reporte en la memoria local del teléfono.");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // Modo En Línea: Intentar envío por API
+    try {
       const response = await crearReporteSiniestro(payload);
       if (response?.success) {
         setSuccessMsg("¡Reporte de siniestro registrado exitosamente! Las alertas con fotos y documento PDF han sido enviadas a supervisión.");
@@ -171,7 +247,24 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
         setError(response?.message || "No fue posible enviar el reporte.");
       }
     } catch (err) {
-      console.error("Error al enviar reporte de siniestro:", err);
+      console.warn("Fallo al enviar siniestro en línea, haciendo fallback a caché local:", err);
+      // Fallback a almacenamiento local si falla por error de red o timeout
+      if (!navigator.onLine || err.code === "NETWORK_ERROR" || err.code === "NETWORK_TIMEOUT" || err.status === 0 || err.message?.includes("fetch")) {
+        try {
+          await savePendingSiniestro(payload);
+          const newCount = await countPendingSiniestros();
+          setPendingCount(newCount);
+          setSuccessMsg("📶 Conexión inestable. El reporte de siniestro fue guardado de forma segura en la caché de tu teléfono y se transmitirá automáticamente cuando haya señal.");
+          if (typeof onComplete === "function") {
+            setTimeout(() => {
+              onComplete({ ...payload, offlinePending: true });
+            }, 2000);
+          }
+          return;
+        } catch (saveErr) {
+          console.error("Error guardando siniestro en fallback local:", saveErr);
+        }
+      }
       setError(err.message || "Ocurrió un error de red al transmitir la alerta de siniestro.");
     } finally {
       setSending(false);
@@ -192,8 +285,29 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
       </div>
 
       <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", borderRadius: "10px", padding: "10px 12px", marginBottom: "16px", fontSize: "0.84rem", color: "#c2410c", lineHeight: "1.4" }}>
-        <strong>⚠️ Nota de Emergencia:</strong> Al enviar este formulario se generará automáticamente la **alerta oficial con ubicación GPS, fotos y reporte PDF** a los canales de supervisión y gerencia.
+        <strong>⚠️ Nota de Emergencia:</strong> Al enviar este formulario se generará automáticamente la **alerta oficial con ubicación GPS, fotos y reporte PDF** a los canales de supervisión y gerencia. Si no tienes internet en este momento, el reporte se guardará localmente y se enviará automáticamente en cuanto recuperes señal.
       </div>
+
+      {pendingCount > 0 && (
+        <div style={{ background: "#fef3c7", border: "1px solid #fde047", borderRadius: "10px", padding: "12px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", fontSize: "0.85rem", color: "#854d0e" }}>
+          <div>
+            <strong>📱 Reportes offline pendientes ({pendingCount}):</strong>
+            <div style={{ fontSize: "0.78rem", opacity: 0.9 }}>
+              Tienes {pendingCount} reporte(s) guardado(s) en tu teléfono esperando conexión a internet.
+            </div>
+          </div>
+          {navigator.onLine && (
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={isManualSyncing}
+              style={{ background: "#d97706", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "700", fontSize: "0.78rem", cursor: isManualSyncing ? "wait" : "pointer", whiteSpace: "nowrap" }}
+            >
+              {isManualSyncing ? "Enviando..." : "⚡ Sincronizar ahora"}
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", color: "#991b1b", padding: "10px 12px", borderRadius: "8px", fontSize: "0.88rem", marginBottom: "14px", fontWeight: "600" }}>

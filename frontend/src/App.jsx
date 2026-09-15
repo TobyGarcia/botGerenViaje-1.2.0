@@ -59,6 +59,7 @@ import {
   startSilentAudioKeepAlive,
   stopSilentAudioKeepAlive
 } from "./services/background-audio.js";
+import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
 
 const initialForm = {
@@ -581,6 +582,16 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     return () => { active = false; clearTimeout(authTimeout); };
+  }, []);
+
+  useEffect(() => {
+    const cleanup = initSiniestroAutoSync((result) => {
+      if (result.synced > 0) {
+        setMessage(`✅ ¡Se enviaron automáticamente ${result.synced} reporte(s) de siniestro que estaba(n) guardado(s) en caché local!`);
+        setMessageType("success");
+      }
+    });
+    return cleanup;
   }, []);
 
   useEffect(() => {
