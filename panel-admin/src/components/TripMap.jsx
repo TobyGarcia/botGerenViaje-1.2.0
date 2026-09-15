@@ -478,47 +478,83 @@ function TripMap({ locations = [] }) {
 
   return (
     <div className="trip-map-wrapper">
-      {/* Botonera de Modos de Vista del Mapa */}
-      <div className="map-view-modes-bar">
+      {/* Dock Flotante de Modos de Vista - UI/UX PRO MAX */}
+      <div className="map-pro-dock" role="tablist" aria-label="Modos de visualización del mapa">
         <button
           type="button"
-          className={`map-view-mode-btn ${mapMode === "POINTS" ? "active" : ""}`}
+          role="tab"
+          aria-selected={mapMode === "POINTS"}
+          className={`map-pro-btn ${mapMode === "POINTS" ? "active" : ""}`}
           onClick={() => {
             setIsPlaying(false);
             setMapMode("POINTS");
           }}
+          title="Ver únicamente los puntos de coordenadas GPS capturados"
         >
-          Puntos de coordenada
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pro-btn-icon">
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="12" cy="12" r="8" />
+            <line x1="12" y1="2" x2="12" y2="5" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="5" y2="12" />
+            <line x1="19" y1="12" x2="22" y2="12" />
+          </svg>
+          <span>Puntos GPS</span>
         </button>
 
         <button
           type="button"
-          className={`map-view-mode-btn ${mapMode === "OSRM" ? "active" : ""}`}
+          role="tab"
+          aria-selected={mapMode === "OSRM"}
+          className={`map-pro-btn ${mapMode === "OSRM" ? "active" : ""}`}
           onClick={() => {
             setIsPlaying(false);
             setMapMode("OSRM");
           }}
+          title="Ver el trazado de la ruta ajustado a calles reales"
         >
-          Ruta OSRM
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pro-btn-icon">
+            <path d="M4 19L8 5" />
+            <path d="M20 19L16 5" />
+            <line x1="12" y1="7" x2="12" y2="9" />
+            <line x1="12" y1="13" x2="12" y2="15" />
+            <line x1="12" y1="19" x2="12" y2="21" />
+          </svg>
+          <span>Ruta OSRM</span>
         </button>
 
         <button
           type="button"
-          className={`map-view-mode-btn ${mapMode === "BOTH" ? "active" : ""}`}
+          role="tab"
+          aria-selected={mapMode === "BOTH"}
+          className={`map-pro-btn ${mapMode === "BOTH" ? "active" : ""}`}
           onClick={() => {
             setIsPlaying(false);
             setMapMode("BOTH");
           }}
+          title="Ver trazado de calles y coordenadas GPS combinados"
         >
-          Puntos y OSRM
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pro-btn-icon">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          <span>Puntos + OSRM</span>
         </button>
 
         <button
           type="button"
-          className={`map-view-mode-btn ${mapMode === "ANIMATION" ? "active" : ""}`}
+          role="tab"
+          aria-selected={mapMode === "ANIMATION"}
+          className={`map-pro-btn ${mapMode === "ANIMATION" ? "active active-anim" : ""}`}
           onClick={() => setMapMode("ANIMATION")}
+          title="Iniciar simulación dinámica y animación del vehículo"
         >
-          Animación
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pro-btn-icon">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          <span>Animación</span>
+          {isAnimationMode && <span className="pro-btn-pulse-dot"></span>}
         </button>
       </div>
 

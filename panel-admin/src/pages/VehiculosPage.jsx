@@ -12,7 +12,6 @@ import {
   getAdminVehiculoKilometraje,
   getAdminVehiculoKilometrajeResumen,
   getAdminVehiculos,
-  getAdminConductores,
   getAdminUsers,
   updateAdminVehiculoMantenimiento,
   updateAdminVehiculo,
@@ -178,21 +177,18 @@ function VehiculosPage({ user }) {
   const [mileageForm, setMileageForm] = useState({ kilometraje: "", observaciones: "" });
   const [detailVehicle, setDetailVehicle] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleteConfirmVehicle, setDeleteConfirmVehicle] = useState(null);
+  const [repairConfirmVehicle, setRepairConfirmVehicle] = useState(null);
 
-  const [conductoresOptions, setConductoresOptions] = useState([]);
   const [supervisoresOptions, setSupervisoresOptions] = useState([]);
 
   useEffect(() => {
     async function loadOptions() {
       try {
-        const [condRes, userRes] = await Promise.all([
-          getAdminConductores({ status: "ACTIVOS" }),
-          getAdminUsers()
-        ]);
-        setConductoresOptions(condRes.data ?? []);
+        const userRes = await getAdminUsers();
         setSupervisoresOptions((userRes.data ?? []).filter((u) => u.activo));
       } catch (err) {
-        console.error("Error cargando opciones de personal asignado:", err);
+        console.error("Error cargando opciones de supervisores:", err);
       }
     }
     loadOptions();
@@ -373,42 +369,46 @@ function VehiculosPage({ user }) {
     }
   }
 
-  async function handleStatusChange(
-    vehiculo
-  ) {
-    const confirmed =
-      window.confirm(
-        `¿Eliminar permanentemente la unidad ${vehiculo.nombre}? Sus viajes e historial se conservarán.`
-      );
-
-    if (!confirmed) {
-      return;
+  function handleStatusChange(vehiculo) {
+    if (vehiculo.activo) {
+      setDeleteConfirmVehicle(vehiculo);
+    } else {
+      handleReactivateVehicle(vehiculo);
     }
+  }
 
-    setUpdatingId(
-      vehiculo.id_vehiculos
-    );
-
+  async function handleConfirmDeleteVehicle() {
+    if (!deleteConfirmVehicle) return;
+    const vehiculo = deleteConfirmVehicle;
+    setUpdatingId(vehiculo.id_vehiculos);
     setMessage("");
 
     try {
-      const response =
-        await updateAdminVehiculoStatus(
-          vehiculo.id_vehiculos,
-          false
-        );
-
+      const response = await updateAdminVehiculoStatus(vehiculo.id_vehiculos, false);
       setVehiculos((current) =>
         current.filter((item) => item.id_vehiculos !== vehiculo.id_vehiculos)
       );
       await loadVehiculos();
-
-      setMessage(
-        response.message
-      );
-
+      setMessage(response.message || "Unidad dada de baja correctamente.");
       setMessageType("success");
+      setDeleteConfirmVehicle(null);
+    } catch (error) {
+      setMessage(error.message);
+      setMessageType("error");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
+  async function handleReactivateVehicle(vehiculo) {
+    setUpdatingId(vehiculo.id_vehiculos);
+    setMessage("");
+
+    try {
+      const response = await updateAdminVehiculoStatus(vehiculo.id_vehiculos, true);
+      await loadVehiculos();
+      setMessage(response.message || "Unidad reactivada exitosamente.");
+      setMessageType("success");
     } catch (error) {
       setMessage(error.message);
       setMessageType("error");
@@ -452,24 +452,23 @@ function VehiculosPage({ user }) {
 
   function handleMaintenanceChange(vehiculo) {
     if (vehiculo.en_mantenimiento) {
-      handleRepairVehicle(vehiculo);
+      setRepairConfirmVehicle(vehiculo);
     } else {
       setMaintenanceModalVehicle(vehiculo);
       setMaintenanceReason("");
     }
   }
 
-  async function handleRepairVehicle(vehiculo) {
-    const confirmed = window.confirm(
-      `¿Marcar como reparada la unidad ${vehiculo.marca || vehiculo.nombre} ${vehiculo.modelo || ""} (${vehiculo.numero_economico}) y devolverla a estado DISPONIBLE?`
-    );
-    if (!confirmed) return;
+  async function handleConfirmRepairVehicle() {
+    if (!repairConfirmVehicle) return;
+    const vehiculo = repairConfirmVehicle;
 
     setUpdatingId(vehiculo.id_vehiculos);
     try {
       const response = await updateAdminVehiculoMantenimiento(vehiculo.id_vehiculos, false);
       setMessage(response.message || "Vehículo reparado y reintegrado a unidades disponibles.");
       setMessageType("success");
+      setRepairConfirmVehicle(null);
       await loadVehiculos();
       if (detailVehicle?.id_vehiculos === vehiculo.id_vehiculos) {
         await openDetail(vehiculo);
@@ -486,7 +485,8 @@ function VehiculosPage({ user }) {
     e?.preventDefault();
     if (!maintenanceModalVehicle) return;
     if (!maintenanceReason.trim()) {
-      alert("Por favor especifica el motivo del mantenimiento.");
+      setMessage("Por favor especifica el motivo del mantenimiento antes de continuar.");
+      setMessageType("error");
       return;
     }
 
@@ -497,7 +497,7 @@ function VehiculosPage({ user }) {
         true,
         maintenanceReason.trim()
       );
-      setMessage(response.message || "Vehículo enviado a mantenimiento.");
+      setMessage(response.message || "Vehículo enviado a mantenimiento correctamente.");
       setMessageType("success");
       setMaintenanceModalVehicle(null);
       setMaintenanceReason("");
@@ -980,180 +980,304 @@ function VehiculosPage({ user }) {
         <div
           className="modal-overlay"
           role="presentation"
-          onMouseDown={
-            handleOverlayMouseDown
-          }
+          onMouseDown={handleOverlayMouseDown}
         >
           <section
-            className="modal-card"
+            className="modal-card vehicle-form-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="new-vehicle-title"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
+            onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="form-panel-header">
-              <div>
-                <h2
-                  id="new-vehicle-title"
-                >
-                  {editingVehicle ? "Editar unidad" : "Nueva unidad"}
-                </h2>
-
-                <p>
-                  {editingVehicle ? "Actualiza los datos de la unidad vehicular." : "Registra los datos de la unidad vehicular."}
-                </p>
+            <div className="vehicle-modal-header">
+              <div className="vehicle-modal-header-left">
+                <div className="vehicle-modal-icon-box vehicle-icon-box-primary">
+                  {editingVehicle ? <IconEditar size={22} /> : <IconCoche size={22} />}
+                </div>
+                <div className="vehicle-modal-title-group">
+                  <h2 id="new-vehicle-title">
+                    {editingVehicle ? "Editar Unidad" : "Registrar Nueva Unidad"}
+                  </h2>
+                  <p>
+                    {editingVehicle
+                      ? "Actualiza las especificaciones técnicas, póliza y asignación de la unidad."
+                      : "Ingresa los datos del vehículo para integrarlo a la flotilla activa."}
+                  </p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeForm}
-                aria-label="Cerrar formulario"
-                disabled={saving}
-              >
-                ×
-              </button>
+              <div className="vehicle-modal-header-right">
+                {editingVehicle?.numero_economico && (
+                  <span className="vehicle-eco-tag" title="Número económico">
+                    <span className="vehicle-eco-label">ECO</span>
+                    <span className="vehicle-eco-val">{editingVehicle.numero_economico}</span>
+                  </span>
+                )}
+                {editingVehicle?.placas && (
+                  <span className="vehicle-placa-badge" title="Placas">
+                    {editingVehicle.placas}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="close-button"
+                  onClick={closeForm}
+                  aria-label="Cerrar formulario"
+                  disabled={saving}
+                >
+                  <IconCross size={16} />
+                </button>
+              </div>
             </div>
 
-            <form
-              className="driver-form"
-              onSubmit={handleSubmit}
-            >
-              <label>
-                Marca
+            <form className="vehicle-modal-form" onSubmit={handleSubmit}>
+              <div className="vehicle-modal-scrollable">
+                {/* Sección 1: Datos Técnicos y Estéticos */}
+                <div className="vehicle-form-section-card">
+                  <div className="vehicle-form-section-header">
+                    <div className="vehicle-form-section-icon">
+                      <IconCoche size={16} />
+                    </div>
+                    <span>Especificaciones Principales</span>
+                  </div>
 
-                <input
-                  name="marca"
-                  value={form.marca}
-                  onChange={handleChange}
-                  placeholder="Ej. Mitsubishi"
-                  minLength="2"
-                  required
-                  disabled={saving}
-                />
-              </label>
+                  <div className="vehicle-form-grid-2">
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-marca">
+                        Marca <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-marca"
+                        name="marca"
+                        value={form.marca}
+                        onChange={handleChange}
+                        placeholder="Ej. Chevrolet, Toyota, Ford"
+                        minLength="2"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-              <label>
-                Modelo
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-modelo">
+                        Modelo <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-modelo"
+                        name="modelo"
+                        value={form.modelo}
+                        onChange={handleChange}
+                        placeholder="Ej. Trax, Hilux, Versa"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-                <input
-                  name="modelo"
-                  value={form.modelo}
-                  onChange={handleChange}
-                  placeholder="Ej. L300"
-                  required
-                  disabled={saving}
-                />
-              </label>
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-tipo">
+                        Tipo de Vehículo <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-tipo"
+                        name="tipoVehiculo"
+                        value={form.tipoVehiculo}
+                        onChange={handleChange}
+                        placeholder="Ej. Camioneta SUV, Sedán, Pick-up"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-              <label>
-                Número económico
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-color">Color</label>
+                      <input
+                        id="vehiculo-color"
+                        name="color"
+                        value={form.color}
+                        onChange={handleChange}
+                        placeholder="Ej. Blanco / Rojo / Plata"
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                <input
-                  name="numeroEconomico"
-                  value={
-                    form.numeroEconomico
-                  }
-                  onChange={handleChange}
-                  placeholder="Ej. AQR-05"
-                  required
-                  disabled={saving}
-                />
-              </label>
+                {/* Sección 2: Identificación y Registro Operativo */}
+                <div className="vehicle-form-section-card">
+                  <div className="vehicle-form-section-header">
+                    <div className="vehicle-form-section-icon">
+                      <IconUnidades size={16} />
+                    </div>
+                    <span>Identificación y Registro Operativo</span>
+                  </div>
 
-              <label>
-                Placas
+                  <div className="vehicle-form-grid-3">
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-eco">
+                        Número Económico <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-eco"
+                        name="numeroEconomico"
+                        value={form.numeroEconomico}
+                        onChange={handleChange}
+                        placeholder="Ej. AUTO-001, AQR-05"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-                <input
-                  name="placas"
-                  value={form.placas}
-                  onChange={handleChange}
-                  placeholder="Ej. CR-1234-A"
-                  required
-                  disabled={saving}
-                />
-              </label>
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-placas">
+                        Placas <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-placas"
+                        name="placas"
+                        value={form.placas}
+                        onChange={handleChange}
+                        placeholder="Ej. CR-1234-A"
+                        style={{ textTransform: "uppercase", letterSpacing: "0.5px" }}
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-              <label>
-                Número de póliza
-                <input name="numeroPoliza" value={form.numeroPoliza} onChange={handleChange} required disabled={saving} />
-              </label>
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-propiedad">Propiedad</label>
+                      <select
+                        id="vehiculo-propiedad"
+                        name="tipoPropiedad"
+                        value={form.tipoPropiedad}
+                        onChange={handleChange}
+                        disabled={saving}
+                      >
+                        <option value="EMPRESARIAL">Empresarial</option>
+                        <option value="PATRIMONIAL">Patrimonial</option>
+                      </select>
+                    </div>
 
-              <label>
-                Vencimiento del seguro
-                <input type="date" name="seguroVencimiento" value={form.seguroVencimiento} onChange={handleChange} required disabled={saving} />
-              </label>
+                    <div className="vehicle-form-field" style={{ gridColumn: "1 / -1" }}>
+                      <label htmlFor="vehiculo-vin">
+                        Número de Serie (VIN) <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-vin"
+                        name="numeroSerie"
+                        value={form.numeroSerie}
+                        onChange={handleChange}
+                        placeholder="Ej. 3GNAXJEV9LS123456"
+                        style={{ fontFamily: "monospace", letterSpacing: "1px" }}
+                        required
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              <label>
-                Número de serie
-                <input name="numeroSerie" value={form.numeroSerie} onChange={handleChange} required disabled={saving} />
-              </label>
+                {/* Sección 3: Póliza de Seguro y Supervisión */}
+                <div className="vehicle-form-section-card">
+                  <div className="vehicle-form-section-header">
+                    <div className="vehicle-form-section-icon">
+                      <IconShield size={16} />
+                    </div>
+                    <span>Seguro Vehicular y Asignación</span>
+                  </div>
 
-              <label>
-                Tipo de vehículo
-                <input name="tipoVehiculo" value={form.tipoVehiculo} onChange={handleChange} placeholder="Ej. Camioneta" required disabled={saving} />
-              </label>
+                  <div className="vehicle-form-grid-2">
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-poliza">
+                        Número de Póliza <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-poliza"
+                        name="numeroPoliza"
+                        value={form.numeroPoliza}
+                        onChange={handleChange}
+                        placeholder="Ej. POL-98765432-MX"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-              <label>
-                Propiedad
-                <select name="tipoPropiedad" value={form.tipoPropiedad} onChange={handleChange} disabled={saving}>
-                  <option value="EMPRESARIAL">Empresarial</option>
-                  <option value="PATRIMONIAL">Patrimonial</option>
-                </select>
-              </label>
+                    <div className="vehicle-form-field">
+                      <label htmlFor="vehiculo-vencimiento">
+                        Vencimiento del Seguro <span className="field-required">*</span>
+                      </label>
+                      <input
+                        id="vehiculo-vencimiento"
+                        type="date"
+                        name="seguroVencimiento"
+                        value={form.seguroVencimiento}
+                        onChange={handleChange}
+                        required
+                        disabled={saving}
+                      />
+                    </div>
 
-              <label>
-                Color
-                <input
-                  name="color"
-                  value={form.color}
-                  onChange={handleChange}
-                  placeholder="Ej. Blanco / Rojo"
-                  disabled={saving}
-                />
-              </label>
+                    <div className="vehicle-form-field" style={{ gridColumn: "1 / -1" }}>
+                      <label htmlFor="vehiculo-supervisor">
+                        Personal Asignado (Supervisor a cargo)
+                      </label>
+                      <select
+                        id="vehiculo-supervisor"
+                        name="idSupervisorAsignado"
+                        value={form.idSupervisorAsignado}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const userObj = supervisoresOptions.find(
+                            (u) => String(u.id_usuarios_admin) === String(id)
+                          );
+                          setForm((cur) => ({
+                            ...cur,
+                            idSupervisorAsignado: id,
+                            personalAsignadoNombre: userObj ? userObj.nombre : ""
+                          }));
+                        }}
+                        disabled={saving}
+                      >
+                        <option value="">-- Sin supervisor asignado --</option>
+                        {supervisoresOptions.map((u) => (
+                          <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
+                            {u.nombre} ({u.rol})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
 
-              <label>
-                Personal Asignado (Supervisor a cargo)
-                <select
-                  name="idSupervisorAsignado"
-                  value={form.idSupervisorAsignado}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    const userObj = supervisoresOptions.find((u) => String(u.id_usuarios_admin) === String(id));
-                    setForm((cur) => ({
-                      ...cur,
-                      idSupervisorAsignado: id,
-                      personalAsignadoNombre: userObj ? userObj.nombre : ""
-                    }));
-                  }}
-                  disabled={saving}
-                >
-                  <option value="">-- Sin supervisor asignado --</option>
-                  {supervisoresOptions.map((u) => (
-                    <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
-                      {u.nombre} ({u.rol})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="vehicle-name-preview">
-                <span>
-                  Nombre que se guardará:
-                </span>
-
-                <strong>
-                  {`${form.marca} ${form.modelo}`
-                    .replace(/\s+/g, " ")
-                    .trim() ||
-                    "Marca y modelo"}
-                </strong>
+                {/* Tarjeta de previsualización en vivo */}
+                <div className="vehicle-form-preview-card">
+                  <div className="vehicle-form-preview-label">
+                    <span>Previsualización del Vehículo:</span>
+                  </div>
+                  <div className="vehicle-form-preview-content">
+                    <div className="vehicle-form-preview-name">
+                      {`${form.marca} ${form.modelo}`.replace(/\s+/g, " ").trim() || "Marca y Modelo"}
+                    </div>
+                    <div className="vehicle-form-preview-tags">
+                      <span className="vehicle-eco-tag" style={{ fontSize: "0.78rem", padding: "2px 8px" }}>
+                        <span className="vehicle-eco-label">ECO</span>
+                        <span className="vehicle-eco-val">{form.numeroEconomico || "---"}</span>
+                      </span>
+                      {form.placas && (
+                        <span className="vehicle-placa-badge" style={{ fontSize: "0.78rem", padding: "2px 6px" }}>
+                          {form.placas}
+                        </span>
+                      )}
+                      {form.tipoVehiculo && (
+                        <span className="vehicle-preview-type-pill">
+                          {form.tipoVehiculo}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="form-actions">
+              {/* Botones de acción footer */}
+              <div className="vehicle-modal-footer">
                 <button
                   type="button"
                   className="secondary-button"
@@ -1162,15 +1286,19 @@ function VehiculosPage({ user }) {
                 >
                   Cancelar
                 </button>
-
                 <button
                   type="submit"
-                  className="primary-button"
+                  className="primary-button vehicle-submit-btn"
                   disabled={saving}
                 >
-                  {saving
-                    ? "Guardando..."
-                    : editingVehicle ? "Guardar cambios" : "Guardar unidad"}
+                  {saving ? (
+                    "Guardando..."
+                  ) : (
+                    <>
+                      <IconCheck size={16} />
+                      {editingVehicle ? "Guardar Cambios" : "Guardar Unidad"}
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -1179,32 +1307,272 @@ function VehiculosPage({ user }) {
       )}
 
       {mileageVehicle && (
-        <div className="modal-overlay" role="presentation" onMouseDown={() => !mileageSaving && setMileageVehicle(null)}>
-          <section className="modal-card mileage-modal" role="dialog" aria-modal="true" aria-labelledby="mileage-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="form-panel-header">
-              <div><h2 id="mileage-title">Historial de kilometraje</h2><p>{mileageVehicle.nombre} · {mileageVehicle.numero_economico}</p></div>
-              <button type="button" className="close-button" onClick={() => setMileageVehicle(null)} aria-label="Cerrar historial">×</button>
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onMouseDown={() => !mileageSaving && setMileageVehicle(null)}
+        >
+          <section
+            className="modal-card vehicle-mileage-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mileage-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="vehicle-modal-header">
+              <div className="vehicle-modal-header-left">
+                <div className="vehicle-modal-icon-box vehicle-icon-box-sky">
+                  <IconHistorial size={22} />
+                </div>
+                <div className="vehicle-modal-title-group">
+                  <h2 id="mileage-title">Historial de Kilometraje</h2>
+                  <p>
+                    {mileageVehicle.marca || mileageVehicle.nombre} {mileageVehicle.modelo || ""}
+                  </p>
+                </div>
+              </div>
+
+              <div className="vehicle-modal-header-right">
+                {mileageVehicle.numero_economico && (
+                  <span className="vehicle-eco-tag" title="Número económico">
+                    <span className="vehicle-eco-label">ECO</span>
+                    <span className="vehicle-eco-val">{mileageVehicle.numero_economico}</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="close-button"
+                  onClick={() => setMileageVehicle(null)}
+                  aria-label="Cerrar historial"
+                  disabled={mileageSaving}
+                >
+                  <IconCross size={16} />
+                </button>
+              </div>
             </div>
-            {mileageLoading ? <p className="table-status">Cargando historial...</p> : <>
-              <div className="mileage-summary">
-                <strong>Actual: {mileageSummary?.kilometraje_actual ?? mileageVehicle.kilometraje_actual ?? 0} km</strong>
-                <span>Viajes: {mileageSummary?.total_viajes ?? 0}</span>
-                <span>Recorridos: {mileageSummary?.kilometros_recorridos ?? 0} km</span>
+
+            {mileageLoading ? (
+              <div style={{ padding: "48px 24px", textAlign: "center" }}>
+                <p className="table-status">Cargando historial de kilometraje...</p>
               </div>
-              <div className="mileage-chart" aria-label="Evolución de kilometraje">
-                {mileageHistory.slice(0, 20).reverse().map((row) => <span key={row.id_historial_kilometraje} title={`${row.kilometraje} km`} style={{ height: `${Math.max(8, Math.min(100, Number(row.kilometraje) / Math.max(1, Number(mileageSummary?.kilometraje_actual || row.kilometraje)) * 100))}%` }} />)}
+            ) : (
+              <div className="vehicle-modal-scrollable vehicle-mileage-body">
+                {/* 3 KPI Cards ejecutivos */}
+                <div className="vehicle-mileage-kpis">
+                  <div className="vehicle-mileage-kpi-card">
+                    <div className="mileage-kpi-icon-wrap" style={{ background: "#e0f2fe", color: "#0284c7" }}>
+                      <IconReloj size={18} />
+                    </div>
+                    <div className="mileage-kpi-info">
+                      <span className="mileage-kpi-label">Odómetro Actual</span>
+                      <strong className="mileage-kpi-val" style={{ color: "#0284c7" }}>
+                        {Number(mileageSummary?.kilometraje_actual ?? mileageVehicle.kilometraje_actual ?? 0).toLocaleString("es-MX")} km
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="vehicle-mileage-kpi-card">
+                    <div className="mileage-kpi-icon-wrap" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+                      <IconViajes size={18} />
+                    </div>
+                    <div className="mileage-kpi-info">
+                      <span className="mileage-kpi-label">Viajes Registrados</span>
+                      <strong className="mileage-kpi-val" style={{ color: "#16a34a" }}>
+                        {mileageSummary?.total_viajes ?? 0}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="vehicle-mileage-kpi-card">
+                    <div className="mileage-kpi-icon-wrap" style={{ background: "#faf5ff", color: "#9333ea" }}>
+                      <IconUnidades size={18} />
+                    </div>
+                    <div className="mileage-kpi-info">
+                      <span className="mileage-kpi-label">Distancia Recorrida</span>
+                      <strong className="mileage-kpi-val" style={{ color: "#9333ea" }}>
+                        {Number(mileageSummary?.kilometros_recorridos ?? 0).toLocaleString("es-MX")} km
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gráfica de evolución estilizada si hay datos */}
+                {mileageHistory.length > 1 && (
+                  <div className="vehicle-mileage-chart-card">
+                    <div className="vehicle-mileage-chart-header">
+                      <span>Evolución de lecturas recientes</span>
+                      <span className="chart-count-badge">Últimos {Math.min(mileageHistory.length, 20)} registros</span>
+                    </div>
+                    <div className="vehicle-mileage-bars" aria-label="Evolución de kilometraje">
+                      {mileageHistory.slice(0, 20).reverse().map((row, idx) => {
+                        const maxKm = Math.max(1, Number(mileageSummary?.kilometraje_actual || row.kilometraje));
+                        const pct = Math.max(12, Math.min(100, (Number(row.kilometraje) / maxKm) * 100));
+                        return (
+                          <div key={row.id_historial_kilometraje || idx} className="mileage-bar-col">
+                            <div
+                              className="mileage-bar-fill"
+                              style={{ height: `${pct}%` }}
+                              data-tooltip={`${Number(row.kilometraje).toLocaleString("es-MX")} km`}
+                            />
+                            <span className="mileage-bar-label">
+                              {new Date(row.fecha_lectura).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit" })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabla de bitácora estilizada */}
+                <div className="vehicle-mileage-table-card">
+                  <div className="vehicle-mileage-table-header">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <IconHistorial size={16} style={{ color: "#0284c7" }} />
+                      <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>Bitácora de Lecturas</span>
+                    </div>
+                    <span className="table-row-count-badge">{mileageHistory.length} lecturas</span>
+                  </div>
+
+                  <div className="vehicle-mileage-table-wrap">
+                    <table className="vehicle-mileage-table">
+                      <thead>
+                        <tr>
+                          <th>Fecha y Hora</th>
+                          <th>Odómetro</th>
+                          <th>Tipo Registro</th>
+                          <th>Folio Viaje</th>
+                          <th>Observaciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mileageHistory.length ? (
+                          mileageHistory.map((row) => (
+                            <tr key={row.id_historial_kilometraje}>
+                              <td style={{ whiteSpace: "nowrap", color: "#475569" }}>
+                                {new Date(row.fecha_lectura).toLocaleString("es-MX", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </td>
+                              <td>
+                                <strong style={{ color: "#0284c7", fontFamily: "monospace", fontSize: "0.92rem" }}>
+                                  {Number(row.kilometraje).toLocaleString("es-MX")} km
+                                </strong>
+                              </td>
+                              <td>
+                                <span className={`mileage-type-pill pill-${(row.tipo_registro || "MANUAL").toLowerCase()}`}>
+                                  {row.tipo_registro === "INICIAL_VIAJE"
+                                    ? "Inicio de Viaje"
+                                    : row.tipo_registro === "FINAL_VIAJE"
+                                    ? "Fin de Viaje"
+                                    : row.tipo_registro === "MANUAL"
+                                    ? "Ajuste Manual"
+                                    : row.tipo_registro}
+                                </span>
+                              </td>
+                              <td>
+                                {row.folio ? (
+                                  <span className="mileage-folio-badge">#{row.folio}</span>
+                                ) : (
+                                  <span style={{ color: "#94a3b8" }}>—</span>
+                                )}
+                              </td>
+                              <td style={{ color: "#334155", maxWidth: "240px" }} title={row.observaciones || ""}>
+                                {row.observaciones || "—"}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: "center", padding: "32px 16px", color: "#64748b" }}>
+                              Aún no hay registros de kilometraje para esta unidad.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Formulario de ajuste manual */}
+                {canManageMileage && (
+                  <form className="vehicle-mileage-form-card" onSubmit={saveMileage}>
+                    <div className="vehicle-mileage-form-header">
+                      <IconReloj size={16} style={{ color: "#0284c7" }} />
+                      <span>Registrar Ajuste Manual de Odómetro</span>
+                    </div>
+
+                    <div className="vehicle-mileage-form-grid">
+                      <div className="vehicle-form-field">
+                        <label htmlFor="manual-km">
+                          Nuevo Kilometraje <span className="field-required">*</span>
+                        </label>
+                        <div className="vehicle-km-input-wrap">
+                          <input
+                            id="manual-km"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={mileageForm.kilometraje}
+                            onChange={(event) =>
+                              setMileageForm((current) => ({ ...current, kilometraje: event.target.value }))
+                            }
+                            placeholder="Ej. 25400"
+                            required
+                            disabled={mileageSaving}
+                          />
+                          <span className="km-unit-badge">km</span>
+                        </div>
+                      </div>
+
+                      <div className="vehicle-form-field">
+                        <label htmlFor="manual-obs">
+                          Motivo u Observaciones <span className="field-required">*</span>
+                        </label>
+                        <input
+                          id="manual-obs"
+                          type="text"
+                          value={mileageForm.observaciones}
+                          onChange={(event) =>
+                            setMileageForm((current) => ({ ...current, observaciones: event.target.value }))
+                          }
+                          placeholder="Ej. Calibración en taller, lectura física tras servicio..."
+                          required
+                          disabled={mileageSaving}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="vehicle-mileage-form-footer">
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        disabled={mileageSaving || !mileageForm.kilometraje}
+                      >
+                        <IconCheck size={16} />
+                        {mileageSaving ? "Guardando lectura..." : "Registrar Lectura"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
-              <div className="table-wrapper mileage-history-table"><table className="admin-table"><thead><tr><th>Fecha</th><th>Km</th><th>Tipo</th><th>Viaje</th><th>Observaciones</th></tr></thead><tbody>
-                {mileageHistory.length ? mileageHistory.map((row) => <tr key={row.id_historial_kilometraje}><td>{new Date(row.fecha_lectura).toLocaleString("es-MX")}</td><td>{row.kilometraje}</td><td>{row.tipo_registro}</td><td>{row.folio || "—"}</td><td>{row.observaciones || "—"}</td></tr>) : <tr><td colSpan="5">Aún no hay lecturas.</td></tr>}
-              </tbody></table></div>
-              {canManageMileage && <form className="driver-form mileage-form" onSubmit={saveMileage}>
-                <h3>Registrar ajuste manual</h3>
-                <label>Kilometraje<input type="number" min="0" step="1" value={mileageForm.kilometraje} onChange={(event) => setMileageForm((current) => ({ ...current, kilometraje: event.target.value }))} required /></label>
-                <label>Observaciones<textarea value={mileageForm.observaciones} onChange={(event) => setMileageForm((current) => ({ ...current, observaciones: event.target.value }))} required /></label>
-                <div className="form-actions"><button type="submit" className="primary-button" disabled={mileageSaving}>{mileageSaving ? "Guardando..." : "Registrar lectura"}</button></div>
-              </form>
-              }
-            </>}
+            )}
+
+            <div className="vehicle-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setMileageVehicle(null)}
+                disabled={mileageSaving}
+              >
+                Cerrar
+              </button>
+            </div>
           </section>
         </div>
       )}
@@ -1455,42 +1823,311 @@ function VehiculosPage({ user }) {
 
       {/* Modal para ingresar motivo de mantenimiento */}
       {maintenanceModalVehicle && (
-        <div className="modal-overlay" role="presentation" onMouseDown={() => !maintenanceSaving && setMaintenanceModalVehicle(null)}>
-          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
-            <div className="form-panel-header">
-              <div>
-                <h2 id="maintenance-modal-title">Enviar a Mantenimiento</h2>
-                <p>{maintenanceModalVehicle.marca || maintenanceModalVehicle.nombre} {maintenanceModalVehicle.modelo || ""} · Económico: {maintenanceModalVehicle.numero_economico}</p>
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onMouseDown={() => !maintenanceSaving && setMaintenanceModalVehicle(null)}
+        >
+          <section
+            className="modal-card vehicle-maintenance-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="maintenance-modal-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="vehicle-modal-header">
+              <div className="vehicle-modal-header-left">
+                <div className="vehicle-modal-icon-box vehicle-icon-box-amber">
+                  <IconMantenimiento size={22} />
+                </div>
+                <div className="vehicle-modal-title-group">
+                  <h2 id="maintenance-modal-title">Enviar a Mantenimiento</h2>
+                  <p>
+                    {maintenanceModalVehicle.marca || maintenanceModalVehicle.nombre} {maintenanceModalVehicle.modelo || ""}
+                  </p>
+                </div>
               </div>
-              <button type="button" className="close-button" onClick={() => setMaintenanceModalVehicle(null)} disabled={maintenanceSaving}>×</button>
+
+              <div className="vehicle-modal-header-right">
+                {maintenanceModalVehicle.numero_economico && (
+                  <span className="vehicle-eco-tag" title="Número económico">
+                    <span className="vehicle-eco-label">ECO</span>
+                    <span className="vehicle-eco-val">{maintenanceModalVehicle.numero_economico}</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="close-button"
+                  onClick={() => setMaintenanceModalVehicle(null)}
+                  disabled={maintenanceSaving}
+                  aria-label="Cerrar modal"
+                >
+                  <IconCross size={16} />
+                </button>
+              </div>
             </div>
+
             <form onSubmit={handleSendToMaintenance}>
-              <div style={{ padding: "8px 0" }}>
-                <p style={{ margin: "0 0 12px", fontSize: "0.88rem", color: "#475569" }}>
-                  Al enviar la unidad a mantenimiento, su estado cambiará a <strong>NO DISPONIBLE: MANTENIMIENTO</strong> y comenzará el conteo de días en taller hasta su reparación.
-                </p>
-                <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "6px" }}>
-                  Motivo del mantenimiento / Falla reportada *
+              <div className="vehicle-modal-scrollable" style={{ padding: "16px 20px" }}>
+                {/* Banner de advertencia */}
+                <div className="vehicle-maintenance-alert-banner">
+                  <IconAlerta size={20} style={{ flexShrink: 0, marginTop: "2px", color: "#d97706" }} />
+                  <div>
+                    <strong>Atención operativa:</strong>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "0.84rem", color: "#92400e", lineHeight: "1.4" }}>
+                      Al enviar esta unidad a mantenimiento, su estado cambiará a <strong>NO DISPONIBLE: MANTENIMIENTO</strong>, se bloqueará para nuevos viajes y comenzará a registrarse el tiempo en taller.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Resumen rápido de la unidad */}
+                <div className="vehicle-confirm-unit-strip">
+                  <div>
+                    <span className="strip-label">Unidad</span>
+                    <span className="strip-value">{maintenanceModalVehicle.marca || maintenanceModalVehicle.nombre} {maintenanceModalVehicle.modelo || ""}</span>
+                  </div>
+                  <div>
+                    <span className="strip-label">Placas</span>
+                    <span className="strip-value">{maintenanceModalVehicle.placas || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="strip-label">Odómetro</span>
+                    <span className="strip-value">{Number(maintenanceModalVehicle.kilometraje_actual ?? 0).toLocaleString("es-MX")} km</span>
+                  </div>
+                </div>
+
+                <div className="vehicle-form-field" style={{ marginTop: "16px" }}>
+                  <label htmlFor="maint-reason" style={{ fontWeight: 600, color: "#1e293b", display: "block", marginBottom: "6px" }}>
+                    Motivo del mantenimiento / Falla reportada <span className="field-required">*</span>
+                  </label>
                   <textarea
+                    id="maint-reason"
                     required
                     rows="4"
                     value={maintenanceReason}
                     onChange={(e) => setMaintenanceReason(e.target.value)}
-                    placeholder="Describe detalladamente el motivo del servicio, falla mecánica o mantenimiento preventivo..."
-                    style={{ width: "100%", marginTop: "6px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }}
+                    placeholder="Describe detalladamente el motivo del ingreso a taller, fallas mecánicas detectadas o servicio preventivo requerido..."
+                    className="vehicle-maintenance-textarea"
                     disabled={maintenanceSaving}
                   />
-                </label>
+                  <span style={{ fontSize: "0.76rem", color: "#64748b", marginTop: "4px", display: "block" }}>
+                    Este motivo quedará visible en la bitácora y en la ficha técnica de la unidad.
+                  </span>
+                </div>
               </div>
-              <div className="form-actions" style={{ marginTop: "16px" }}>
-                <button type="button" className="secondary-button" onClick={() => setMaintenanceModalVehicle(null)} disabled={maintenanceSaving}>
+
+              <div className="vehicle-modal-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setMaintenanceModalVehicle(null)}
+                  disabled={maintenanceSaving}
+                >
                   Cancelar
                 </button>
-                <button type="submit" className="primary-button" style={{ background: "#d97706" }} disabled={maintenanceSaving || !maintenanceReason.trim()}>
-                  {maintenanceSaving ? "Enviando..." : "Confirmar Envío a Mantenimiento"}
+                <button
+                  type="submit"
+                  className="primary-button"
+                  style={{ background: "#d97706", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  disabled={maintenanceSaving || !maintenanceReason.trim()}
+                >
+                  <IconMantenimiento size={16} />
+                  {maintenanceSaving ? "Enviando a taller..." : "Confirmar Envío a Taller"}
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {/* Modal Confirmación de Eliminación / Baja de Unidad */}
+      {deleteConfirmVehicle && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onMouseDown={() => updatingId !== deleteConfirmVehicle.id_vehiculos && setDeleteConfirmVehicle(null)}
+        >
+          <section
+            className="modal-card vehicle-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="vehicle-modal-header">
+              <div className="vehicle-modal-header-left">
+                <div className="vehicle-modal-icon-box vehicle-icon-box-danger">
+                  <IconEliminar size={22} />
+                </div>
+                <div className="vehicle-modal-title-group">
+                  <h2 id="delete-confirm-title" style={{ color: "#b91c1c" }}>
+                    ¿Dar de Baja la Unidad?
+                  </h2>
+                  <p>Esta acción modificará el estado operativo de la unidad.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={updatingId === deleteConfirmVehicle.id_vehiculos}
+                onClick={() => setDeleteConfirmVehicle(null)}
+                aria-label="Cerrar diálogo"
+              >
+                <IconCross size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 20px" }}>
+              <div className="vehicle-confirm-unit-card">
+                <div className="vehicle-confirm-unit-main">
+                  <strong style={{ fontSize: "0.95rem", color: "#0f172a" }}>
+                    {deleteConfirmVehicle.marca || deleteConfirmVehicle.nombre} {deleteConfirmVehicle.modelo || ""}
+                  </strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                    {deleteConfirmVehicle.numero_economico && (
+                      <span className="vehicle-eco-tag" style={{ fontSize: "0.78rem", padding: "2px 8px" }}>
+                        <span className="vehicle-eco-label">ECO</span>
+                        <span className="vehicle-eco-val">{deleteConfirmVehicle.numero_economico}</span>
+                      </span>
+                    )}
+                    {deleteConfirmVehicle.placas && (
+                      <span className="vehicle-placa-badge" style={{ fontSize: "0.78rem", padding: "2px 6px" }}>
+                        {deleteConfirmVehicle.placas}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="vehicle-confirm-warning-box">
+                <IconAlerta size={18} style={{ flexShrink: 0, marginTop: "2px", color: "#dc2626" }} />
+                <span>
+                  <strong>Advertencia:</strong> La unidad se marcará como <strong>INACTIVA</strong> y no estará disponible para nuevos viajes. Sus viajes históricos, lecturas de odómetro y registros contables se conservarán íntegros para auditoría.
+                </span>
+              </div>
+            </div>
+
+            <div className="vehicle-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={updatingId === deleteConfirmVehicle.id_vehiculos}
+                onClick={() => setDeleteConfirmVehicle(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={updatingId === deleteConfirmVehicle.id_vehiculos}
+                onClick={handleConfirmDeleteVehicle}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconEliminar size={16} />
+                {updatingId === deleteConfirmVehicle.id_vehiculos ? "Dando de baja..." : "Sí, dar de baja"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Modal Confirmación de Reparación / Reintegro a Servicio */}
+      {repairConfirmVehicle && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onMouseDown={() => updatingId !== repairConfirmVehicle.id_vehiculos && setRepairConfirmVehicle(null)}
+        >
+          <section
+            className="modal-card vehicle-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repair-confirm-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="vehicle-modal-header">
+              <div className="vehicle-modal-header-left">
+                <div className="vehicle-modal-icon-box vehicle-icon-box-emerald">
+                  <IconCheck size={22} />
+                </div>
+                <div className="vehicle-modal-title-group">
+                  <h2 id="repair-confirm-title" style={{ color: "#047857" }}>
+                    ¿Reintegrar Unidad a Servicio?
+                  </h2>
+                  <p>Finalizar periodo de mantenimiento preventivo o correctivo.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={updatingId === repairConfirmVehicle.id_vehiculos}
+                onClick={() => setRepairConfirmVehicle(null)}
+                aria-label="Cerrar diálogo"
+              >
+                <IconCross size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 20px" }}>
+              <div className="vehicle-confirm-unit-card">
+                <div className="vehicle-confirm-unit-main">
+                  <strong style={{ fontSize: "0.95rem", color: "#0f172a" }}>
+                    {repairConfirmVehicle.marca || repairConfirmVehicle.nombre} {repairConfirmVehicle.modelo || ""}
+                  </strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                    {repairConfirmVehicle.numero_economico && (
+                      <span className="vehicle-eco-tag" style={{ fontSize: "0.78rem", padding: "2px 8px" }}>
+                        <span className="vehicle-eco-label">ECO</span>
+                        <span className="vehicle-eco-val">{repairConfirmVehicle.numero_economico}</span>
+                      </span>
+                    )}
+                    {repairConfirmVehicle.placas && (
+                      <span className="vehicle-placa-badge" style={{ fontSize: "0.78rem", padding: "2px 6px" }}>
+                        {repairConfirmVehicle.placas}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {repairConfirmVehicle.dias_en_mantenimiento !== undefined && (
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>Tiempo en taller</span>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#b45309" }}>
+                      {repairConfirmVehicle.dias_en_mantenimiento} {repairConfirmVehicle.dias_en_mantenimiento === 1 ? "día" : "días"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="vehicle-confirm-success-box">
+                <IconCheck size={18} style={{ flexShrink: 0, marginTop: "2px", color: "#059669" }} />
+                <span>
+                  La unidad se marcará como <strong>reparada</strong> y su estado regresará inmediatamente a <strong>DISPONIBLE</strong>, quedando habilitada para nuevos viajes y conductores.
+                </span>
+              </div>
+            </div>
+
+            <div className="vehicle-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={updatingId === repairConfirmVehicle.id_vehiculos}
+                onClick={() => setRepairConfirmVehicle(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                style={{ background: "#059669", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                disabled={updatingId === repairConfirmVehicle.id_vehiculos}
+                onClick={handleConfirmRepairVehicle}
+              >
+                <IconCheck size={16} />
+                {updatingId === repairConfirmVehicle.id_vehiculos ? "Reintegrando..." : "Confirmar Reintegro"}
+              </button>
+            </div>
           </section>
         </div>
       )}
