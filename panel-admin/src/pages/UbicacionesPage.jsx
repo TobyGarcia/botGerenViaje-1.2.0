@@ -7,6 +7,13 @@ import TripMap
   from "../components/TripMap.jsx";
 
 import {
+  IconBuscar,
+  IconCross,
+  IconUbicaciones,
+  IconExternalLink
+} from "../components/Icons.jsx";
+
+import {
   getAdminUbicacionesViaje,
   getAdminUbicacionesViajeDetalle
 } from "../services/api.js";
@@ -163,8 +170,8 @@ function UbicacionesPage() {
   }, [selectedTripId]);
 
   return (
-    <section className="module-page">
-      <header className="module-header">
+    <section className="module-page locations-page">
+      <header className="module-header locations-header">
         <div>
           <span className="module-label">
             Seguimiento GPS
@@ -173,62 +180,10 @@ function UbicacionesPage() {
           <h1>Ubicaciones</h1>
 
           <p>
-            Consulta las posiciones y el
-            recorrido registrado de cada
-            viaje.
+            Consulta las posiciones y el recorrido registrado de cada viaje en tiempo real.
           </p>
         </div>
       </header>
-
-      <section className="module-toolbar locations-toolbar">
-        <label>
-          <span>Buscar viaje</span>
-
-          <input
-            type="search"
-            value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
-            placeholder="Folio, conductor, unidad o destino"
-          />
-        </label>
-
-        <label>
-          <span>Estado</span>
-
-          <select
-            value={status}
-            onChange={(event) =>
-              setStatus(
-                event.target.value
-              )
-            }
-          >
-            <option value="TODOS">
-              Todos
-            </option>
-
-            <option value="PENDIENTE">
-              Pendiente
-            </option>
-
-            <option value="EN_CURSO">
-              En curso
-            </option>
-
-            <option value="FINALIZADO">
-              Finalizado
-            </option>
-
-            <option value="CANCELADO">
-              Cancelado
-            </option>
-          </select>
-        </label>
-      </section>
 
       {message && (
         <p
@@ -240,186 +195,229 @@ function UbicacionesPage() {
       )}
 
       <section className="locations-layout">
+        {/* LADO IZQUIERDO: Panel con Buscador + Filtro + Lista de Viajes */}
         <aside className="locations-list-panel">
           <div className="locations-panel-heading">
-            <h2>Viajes con GPS</h2>
+            <div className="locations-heading-title-group">
+              <div className="locations-heading-icon-box">
+                <IconUbicaciones size={18} />
+              </div>
+              <div>
+                <h2>Viajes con GPS</h2>
+                <span className="locations-heading-subtitle">Telemetría en ruta</span>
+              </div>
+            </div>
 
-            <span>
+            <span className="locations-count-badge" title="Total de viajes con GPS">
               {trips.length}
             </span>
           </div>
 
-          {loadingTrips ? (
-            <p className="locations-empty">
-              Cargando viajes...
-            </p>
-          ) : trips.length === 0 ? (
-            <p className="locations-empty">
-              No hay viajes con ubicaciones
-              GPS registradas.
-            </p>
-          ) : (
-            <div className="trip-location-list">
-              {trips.map((trip) => (
+          {/* Buscador y Filtro Integrados en la Columna Izquierda */}
+          <div className="locations-sidebar-controls">
+            <div className="locations-search-box">
+              <IconBuscar size={15} className="locations-search-icon" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Buscar folio, conductor, unidad..."
+                className="locations-search-input"
+              />
+              {search && (
                 <button
                   type="button"
-                  key={trip.idViaje}
-                  className={
-                    selectedTripId ===
-                    trip.idViaje
-                      ? "trip-location-item trip-location-item-active"
-                      : "trip-location-item"
-                  }
-                  onClick={() =>
-                    setSelectedTripId(
-                      trip.idViaje
-                    )
-                  }
+                  onClick={() => setSearch("")}
+                  className="locations-search-clear"
+                  title="Limpiar búsqueda"
+                  aria-label="Limpiar búsqueda"
                 >
-                  <div className="trip-location-title">
-                    <strong>
-                      {trip.folio}
-                    </strong>
-
-                    <span className="status-badge status-active">
-                      {trip.estado}
-                    </span>
-                  </div>
-
-                  <span>
-                    {trip.conductor?.nombre ||
-                      "Sin conductor"}
-                  </span>
-
-                  <span>
-                    {trip.vehiculo?.nombre ||
-                      "Sin unidad"}
-                    {trip.vehiculo
-                      ?.numeroEconomico
-                      ? ` · ${trip.vehiculo.numeroEconomico}`
-                      : ""}
-                  </span>
-
-                  <span>
-                    {trip.origen?.nombre ||
-                      "Sin origen"}
-                    {" → "}
-                    {trip.destino?.nombre ||
-                      "Sin destino"}
-                  </span>
-
-                  <small>
-                    {trip.totalUbicaciones}{" "}
-                    ubicaciones
-                  </small>
-
-                  <small>
-                    Última señal:{" "}
-                    {formatDateTime(
-                      trip.ultimaUbicacionEn
-                    )}
-                  </small>
+                  <IconCross size={13} />
                 </button>
-              ))}
+              )}
+            </div>
+
+            <div className="locations-filter-row">
+              <label htmlFor="locations-status" className="locations-filter-label">
+                Estado:
+              </label>
+              <select
+                id="locations-status"
+                value={status}
+                onChange={(event) =>
+                  setStatus(event.target.value)
+                }
+                className="locations-status-select"
+              >
+                <option value="TODOS">
+                  Todos los estados
+                </option>
+                <option value="EN_CURSO">
+                  En curso
+                </option>
+                <option value="FINALIZADO">
+                  Finalizado
+                </option>
+                <option value="PENDIENTE">
+                  Pendiente
+                </option>
+                <option value="CANCELADO">
+                  Cancelado
+                </option>
+              </select>
+            </div>
+          </div>
+
+          {/* Lista scrolleable de viajes */}
+          {loadingTrips ? (
+            <div className="locations-loading-state">
+              <p>Cargando viajes con GPS...</p>
+            </div>
+          ) : trips.length === 0 ? (
+            <div className="locations-empty">
+              <p>No se encontraron viajes con los filtros aplicados.</p>
+            </div>
+          ) : (
+            <div className="trip-location-list">
+              {trips.map((trip) => {
+                const isSelected = selectedTripId === trip.idViaje;
+                return (
+                  <button
+                    type="button"
+                    key={trip.idViaje}
+                    className={`trip-location-item ${isSelected ? "trip-location-item-active" : ""}`}
+                    onClick={() =>
+                      setSelectedTripId(trip.idViaje)
+                    }
+                  >
+                    <div className="trip-location-title">
+                      <strong className="trip-folio">{trip.folio}</strong>
+                      <span className={`status-badge ${trip.estado === "EN_CURSO" ? "status-warning" : trip.estado === "FINALIZADO" ? "status-active" : "status-neutral"}`}>
+                        {trip.estado}
+                      </span>
+                    </div>
+
+                    <div className="trip-location-details">
+                      <span className="trip-driver-name">{trip.conductor?.nombre || "Sin conductor"}</span>
+                      <span className="trip-vehicle-name">
+                        {trip.vehiculo?.nombre || "Sin unidad"}
+                        {trip.vehiculo?.numeroEconomico ? ` · ${trip.vehiculo.numeroEconomico}` : ""}
+                      </span>
+                    </div>
+
+                    <div className="trip-location-route">
+                      <span>{trip.origen?.nombre || "Sin origen"}</span>
+                      <span className="route-arrow">→</span>
+                      <span>{trip.destino?.nombre || "Sin destino"}</span>
+                    </div>
+
+                    <div className="trip-location-footer">
+                      <small className="trip-pts-count">{trip.totalUbicaciones} ubicaciones</small>
+                      <small className="trip-time-stamp">
+                        {formatDateTime(trip.ultimaUbicacionEn)}
+                      </small>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </aside>
 
+        {/* LADO DERECHO: Mapa ocupando todo el lado derecho */}
         <section className="locations-map-panel">
           {loadingDetail ? (
             <div className="map-empty-state">
-              Cargando recorrido...
+              <p>Cargando recorrido del viaje...</p>
             </div>
           ) : !selectedTrip ? (
             <div className="map-empty-state">
-              Selecciona un viaje para
-              visualizar sus ubicaciones.
+              <IconUbicaciones size={42} style={{ color: "#94a3b8", marginBottom: "12px" }} />
+              <strong style={{ fontSize: "1.05rem", color: "#334155" }}>Selecciona un viaje</strong>
+              <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.88rem" }}>
+                Elige un viaje de la lista a la izquierda para visualizar su recorrido GPS en el mapa.
+              </p>
             </div>
           ) : (
-            <>
+            <div className="locations-map-inner">
               <header className="selected-trip-header">
-                <div>
-                  <span>
-                    Viaje seleccionado
-                  </span>
-
-                  <h2>
-                    {selectedTrip.folio}
-                  </h2>
+                <div className="selected-trip-header-left">
+                  <div className="selected-trip-title-line">
+                    <span className="selected-trip-tag">Viaje Seleccionado</span>
+                    <span className={`status-badge ${selectedTrip.estado === "EN_CURSO" ? "status-warning" : selectedTrip.estado === "FINALIZADO" ? "status-active" : "status-neutral"}`}>
+                      {selectedTrip.estado}
+                    </span>
+                  </div>
+                  <h2>{selectedTrip.folio}</h2>
+                  <div className="selected-trip-route">
+                    <strong>{selectedTrip.origen?.nombre || "Sin origen"}</strong>
+                    <span className="route-arrow">→</span>
+                    <strong>{selectedTrip.destino?.nombre || "Sin destino"}</strong>
+                  </div>
                 </div>
 
                 <div className="selected-trip-summary">
-                  <span>
-                    {
-                      selectedTrip
-                        .conductor?.nombre
-                    }
-                  </span>
-
-                  <span>
-                    {
-                      selectedTrip
-                        .vehiculo?.nombre
-                    }
-                  </span>
+                  <div className="selected-trip-meta-item">
+                    <span className="meta-item-label">Conductor</span>
+                    <strong className="meta-item-value">{selectedTrip.conductor?.nombre || "Sin conductor"}</strong>
+                  </div>
+                  <div className="selected-trip-meta-item">
+                    <span className="meta-item-label">Unidad</span>
+                    <strong className="meta-item-value">
+                      {selectedTrip.vehiculo?.nombre || "Sin unidad"}
+                      {selectedTrip.vehiculo?.numeroEconomico ? ` · ${selectedTrip.vehiculo.numeroEconomico}` : ""}
+                    </strong>
+                  </div>
                 </div>
               </header>
 
-              <div className="selected-trip-route">
-                <strong>
-                  {selectedTrip.origen
-                    ?.nombre ||
-                    "Sin origen"}
-                </strong>
-
-                <span>→</span>
-
-                <strong>
-                  {selectedTrip.destino
-                    ?.nombre ||
-                    "Sin destino"}
-                </strong>
+              <div className="locations-map-container">
+                <TripMap
+                  locations={locations}
+                />
               </div>
 
-              <TripMap
-                locations={locations}
-              />
-
               <footer className="map-footer">
-                <span>
-                  {locations.length} puntos GPS registrados
-                  {locations.filter(l => l.es_punto_intermedio).length > 0 && (
-                    <strong style={{ color: "#dc2626", marginLeft: "8px" }}>
-                      ({locations.filter(l => l.es_punto_intermedio).length} intermedio(s))
-                    </strong>
-                  )}
-                </span>
+                <div className="map-footer-left">
+                  <span>
+                    <strong>{locations.length}</strong> puntos GPS registrados
+                    {locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length > 0 && (
+                      <span className="intermediate-badge">
+                        ({locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length} intermedio(s))
+                      </span>
+                    )}
+                  </span>
+                </div>
 
                 {locations.length > 0 && (
                   <a
                     href={`https://www.google.com/maps?q=${locations.at(-1).latitud},${locations.at(-1).longitud}`}
                     target="_blank"
                     rel="noreferrer"
+                    className="map-maps-link"
                   >
-                    Abrir última ubicación en Google Maps
+                    <span>Abrir en Google Maps</span>
+                    <IconExternalLink size={13} />
                   </a>
                 )}
               </footer>
 
               {locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length > 0 && (
-                <div className="intermediate-points-container" style={{ marginTop: "16px", padding: "16px", background: "#fff5f5", borderRadius: "8px", border: "1px solid #fecaca" }}>
-                  <h4 style={{ margin: "0 0 12px 0", color: "#991b1b", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                <div className="intermediate-points-container" style={{ padding: "14px 18px", background: "#fff5f5", borderTop: "1px solid #fecaca" }}>
+                  <h4 style={{ margin: "0 0 10px 0", color: "#991b1b", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
                     Puntos Intermedios Registrados ({locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).length})
                   </h4>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
                     {locations.filter(l => l.es_punto_intermedio || l.esPuntoIntermedio).map((pt, idx) => (
-                      <div key={pt.id_ubicaciones_viaje || pt.idUbicacion || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
+                      <div key={pt.id_ubicaciones_viaje || pt.idUbicacion || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "8px 12px", borderRadius: "8px", border: "1px solid #fee2e2" }}>
                         <div>
-                          <strong style={{ color: "#dc2626", fontSize: "0.9rem" }}>
+                          <strong style={{ color: "#dc2626", fontSize: "0.85rem", display: "block" }}>
                             {pt.nombre_punto || pt.nombrePunto || `Punto Intermedio ${idx + 1}`}
                           </strong>
-                          <small style={{ display: "block", color: "#64748b", marginTop: "2px" }}>
-                            {formatDateTime(pt.fecha_gps || pt.fechaGps)} · Lat: {Number(pt.latitud).toFixed(6)}, Lng: {Number(pt.longitud).toFixed(6)}
+                          <small style={{ display: "block", color: "#64748b", marginTop: "2px", fontSize: "0.75rem" }}>
+                            {formatDateTime(pt.fecha_gps || pt.fechaGps)}
                           </small>
                         </div>
                         <a
@@ -427,16 +425,16 @@ function UbicacionesPage() {
                           target="_blank"
                           rel="noreferrer"
                           className="secondary-button"
-                          style={{ fontSize: "0.82rem", padding: "6px 12px", textDecoration: "none", whiteSpace: "nowrap" }}
+                          style={{ fontSize: "0.75rem", padding: "4px 8px", textDecoration: "none", whiteSpace: "nowrap" }}
                         >
-                          Abrir en Google Maps
+                          Maps
                         </a>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </section>
       </section>
