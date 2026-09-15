@@ -111,6 +111,7 @@ app.use(
 app.use("/api/viajes/:idViaje/inspeccion", inspeccionesRoutes);
 
 app.use("/api/conductor/auth", driverAuthRoutes);
+app.use("/api/driver", driverAuthRoutes);
 app.use(
   "/api/telegram",
   telegramAuthRoutes
