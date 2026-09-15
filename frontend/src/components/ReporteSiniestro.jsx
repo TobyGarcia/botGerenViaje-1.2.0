@@ -8,7 +8,8 @@ import {
   IconRefresh,
   IconCheck,
   IconMapPin,
-  IconAlert
+  IconAlert,
+  IconPlus
 } from "./Icons.jsx";
 
 const TIPOS_SINIESTRO = [
@@ -33,15 +34,15 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     error: ""
   });
 
-  const [photos, setPhotos] = useState(
-    Array.from({ length: 6 }, () => ({
+  const [photos, setPhotos] = useState([
+    {
       name: "",
       preview: "",
       base64: "",
       sizeKb: 0,
       compressing: false
-    }))
-  );
+    }
+  ]);
 
   const [activeCameraIndex, setActiveCameraIndex] = useState(null);
   const [sending, setSending] = useState(false);
@@ -135,11 +136,20 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     }
   }
 
-  function clearPhoto(index) {
+  function addPhotoSlot() {
+    if (photos.length >= 6) return;
+    setPhotos((prev) => [
+      ...prev,
+      { name: "", preview: "", base64: "", sizeKb: 0, compressing: false }
+    ]);
+  }
+
+  function removePhoto(index) {
     setPhotos((prev) => {
-      const next = [...prev];
-      next[index] = { name: "", preview: "", base64: "", sizeKb: 0, compressing: false };
-      return next;
+      if (prev.length === 1) {
+        return [{ name: "", preview: "", base64: "", sizeKb: 0, compressing: false }];
+      }
+      return prev.filter((_, i) => i !== index);
     });
   }
 
@@ -294,15 +304,20 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
 
         {/* Evidencias Fotográficas (Hasta 6 fotos) */}
         <div>
-          <label style={{ display: "block", fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", marginBottom: "8px" }}>
-            📷 4. Evidencias Fotográficas (Máx. 6 Fotos comprimidas ≤ 70KB)
-          </label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <label style={{ fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", margin: 0 }}>
+              📷 4. Evidencias Fotográficas ({photos.length}/6 Fotos)
+            </label>
+            <span style={{ fontSize: "0.78rem", color: "#64748b", fontWeight: "600" }}>
+              Máx. 70KB por foto
+            </span>
+          </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
             {photos.map((photo, idx) => (
               <div key={idx} style={{ border: "1px dashed #cbd5e1", borderRadius: "10px", padding: "8px", textAlign: "center", background: "#f8fafc", position: "relative" }}>
                 <span style={{ fontSize: "0.76rem", fontWeight: "700", color: "#475569", display: "block", marginBottom: "6px" }}>
-                  Foto {idx + 1} {idx < 2 ? "*" : ""}
+                  Foto {idx + 1}
                 </span>
 
                 {photo.compressing ? (
@@ -318,7 +333,7 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                     </div>
                     <button
                       type="button"
-                      onClick={() => clearPhoto(idx)}
+                      onClick={() => removePhoto(idx)}
                       style={{ background: "#ef4444", color: "#fff", border: 0, padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", cursor: "pointer", marginTop: "4px" }}
                     >
                       Quitar
@@ -343,10 +358,46 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                         <input type="file" accept="image/*" onChange={(e) => handleFileChange(idx, e)} style={{ display: "none" }} />
                       </label>
                     </div>
+                    {photos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        style={{ background: "transparent", color: "#94a3b8", border: 0, padding: "2px 4px", fontSize: "0.7rem", cursor: "pointer", marginTop: "4px", textDecoration: "underline" }}
+                      >
+                        Eliminar cuadro
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
             ))}
+
+            {photos.length < 6 && (
+              <button
+                type="button"
+                onClick={addPhotoSlot}
+                style={{
+                  border: "2px dashed #0284c7",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  background: "#f0f9ff",
+                  color: "#0284c7",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  minHeight: "120px",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px" }}>
+                  <IconPlus size={22} color="#0284c7" />
+                </div>
+                <span style={{ fontSize: "0.82rem", fontWeight: "700" }}>+ Agregar otra foto</span>
+                <span style={{ fontSize: "0.7rem", color: "#0369a1", marginTop: "2px" }}>({6 - photos.length} restantes)</span>
+              </button>
+            )}
           </div>
         </div>
 
