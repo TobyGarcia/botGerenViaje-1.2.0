@@ -98,6 +98,29 @@ function readPng(buffer, bgRgb = [255, 255, 255]) {
   return { width, height, data: deflateSync(rgbPixels) };
 }
 
+function readJpeg(buffer) {
+  if (buffer[0] !== 0xff || buffer[1] !== 0xd8) {
+    throw new Error("El archivo no es un JPEG válido.");
+  }
+  let offset = 2;
+  while (offset < buffer.length - 8) {
+    if (buffer[offset] !== 0xff) {
+      offset++;
+      continue;
+    }
+    const marker = buffer[offset + 1];
+    if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
+      const height = buffer.readUInt16BE(offset + 5);
+      const width = buffer.readUInt16BE(offset + 7);
+      const numComponents = buffer[offset + 9];
+      return { width, height, numComponents, data: buffer };
+    }
+    const length = buffer.readUInt16BE(offset + 2);
+    offset += 2 + length;
+  }
+  throw new Error("No se encontraron metadatos de dimensiones JPEG.");
+}
+
 function streamObject(dictionary, data) {
   return Buffer.concat([
     Buffer.from(`<< ${dictionary} /Length ${data.length} >>\nstream\n`, "latin1"),
@@ -159,9 +182,16 @@ export function generateSiniestroPdf(siniestro) {
 
   for (const item of photosList) {
     const base64Str = typeof item === "string" ? item : item?.base64;
-    if (base64Str && base64Str.startsWith("data:image/png;base64,")) {
+    if (!base64Str) continue;
+
+    const rawBase64 = base64Str.includes(";base64,") ? base64Str.split(";base64,")[1] : base64Str;
+    const imgBuffer = Buffer.from(rawBase64, "base64");
+
+    if (imgBuffer.length < 10) continue;
+
+    if (imgBuffer[0] === 0x89 && imgBuffer[1] === 0x50 && imgBuffer[2] === 0x4e && imgBuffer[3] === 0x47) {
       try {
-        const pngBuf = readPng(Buffer.from(base64Str.split(",")[1], "base64"), [255, 255, 255]);
+        const pngBuf = readPng(imgBuffer, [255, 255, 255]);
         const objId = addObject(
           streamObject(
             `/Type /XObject /Subtype /Image /Width ${pngBuf.width} /Height ${pngBuf.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode`,
@@ -169,8 +199,22 @@ export function generateSiniestroPdf(siniestro) {
           )
         );
         photoObjIds.push(objId);
-      } catch {
-        // Ignorar si falla lectura de imagen PNG
+      } catch (err) {
+        console.warn("Fallo al procesar PNG para PDF de siniestro:", err.message);
+      }
+    } else if (imgBuffer[0] === 0xff && imgBuffer[1] === 0xd8) {
+      try {
+        const jpgBuf = readJpeg(imgBuffer);
+        const colorSpace = jpgBuf.numComponents === 1 ? "/DeviceGray" : "/DeviceRGB";
+        const objId = addObject(
+          streamObject(
+            `/Type /XObject /Subtype /Image /Width ${jpgBuf.width} /Height ${jpgBuf.height} /ColorSpace ${colorSpace} /BitsPerComponent 8 /Filter /DCTDecode`,
+            jpgBuf.data
+          )
+        );
+        photoObjIds.push(objId);
+      } catch (err) {
+        console.warn("Fallo al procesar JPEG para PDF de siniestro:", err.message);
       }
     }
   }
@@ -228,7 +272,7 @@ export function generateSiniestroPdf(siniestro) {
   // 2. Detalles del Siniestro y Ubicación GPS
   rect(commands, MARGIN, y - 110, CONTENT_WIDTH, 110, { fill: "#fff8f8", stroke: "#fca5a5" });
   rect(commands, MARGIN, y - 20, CONTENT_WIDTH, 20, { fill: "#dc2626", stroke: "#dc2626" });
-  text(commands, MARGIN + 10, y - 14, "DETALLES DEL INCIDENTE Y UBICACIÓN GPS DEL SINIESTRO", { fontSize: 9.5, isBold: true, textColor: "#ffffff" });
+  text(commands, MARGIN + 10, y - 14, "DETALLES DEL INCIDENTE Y UBICACION GPS DEL SINIESTRO", { fontSize: 9.5, isBold: true, textColor: "#ffffff" });
 
   y -= 34;
   text(commands, MARGIN + 10, y, `Tipo de Siniestro:`, { fontSize: 9, isBold: true, textColor: "#991b1b" });
@@ -259,7 +303,7 @@ export function generateSiniestroPdf(siniestro) {
 
   // 3. Evidencias Fotográficas
   rect(commands, MARGIN, y - 20, CONTENT_WIDTH, 20, { fill: "#334155", stroke: "#334155" });
-  text(commands, MARGIN + 10, y - 14, `EVIDENCIAS FOTOGRÁFICAS ADJUNTAS (${photoObjIds.length} FOTO(S))`, { fontSize: 9.5, isBold: true, textColor: "#ffffff" });
+  text(commands, MARGIN + 10, y - 14, `EVIDENCIAS FOTOGRAFICAS ADJUNTAS (${photoObjIds.length} FOTO(S))`, { fontSize: 9.5, isBold: true, textColor: "#ffffff" });
 
   y -= 30;
 

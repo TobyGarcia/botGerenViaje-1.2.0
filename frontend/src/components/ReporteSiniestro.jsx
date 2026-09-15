@@ -9,7 +9,8 @@ import {
   IconCheck,
   IconMapPin,
   IconAlert,
-  IconPlus
+  IconPlus,
+  IconCross
 } from "./Icons.jsx";
 
 const TIPOS_SINIESTRO = [
@@ -304,57 +305,134 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
 
         {/* Evidencias Fotográficas (Hasta 6 fotos) */}
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <label style={{ fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", margin: 0 }}>
-              📷 4. Evidencias Fotográficas ({photos.length}/6 Fotos)
+              📷 4. Evidencias Fotográficas ({photos.filter((p) => p.base64).length}/6 Fotos)
             </label>
-            <span style={{ fontSize: "0.78rem", color: "#64748b", fontWeight: "600" }}>
-              Máx. 70KB por foto
+            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
+              Máx. 70KB / foto
             </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
             {photos.map((photo, idx) => (
-              <div key={idx} style={{ border: "1px dashed #cbd5e1", borderRadius: "10px", padding: "8px", textAlign: "center", background: "#f8fafc", position: "relative" }}>
-                <span style={{ fontSize: "0.76rem", fontWeight: "700", color: "#475569", display: "block", marginBottom: "6px" }}>
-                  Foto {idx + 1}
-                </span>
-
+              <div
+                key={idx}
+                style={{
+                  width: "95px",
+                  height: "95px",
+                  borderRadius: "12px",
+                  border: photo.base64 ? "2px solid #22c55e" : "2px dashed #cbd5e1",
+                  background: photo.base64 ? "#000000" : "#f8fafc",
+                  position: "relative",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                  boxSizing: "border-box"
+                }}
+              >
                 {photo.compressing ? (
-                  <div style={{ height: "80px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0284c7", fontSize: "0.76rem", gap: "4px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", color: "#0284c7", fontSize: "0.7rem", gap: "2px" }}>
                     <IconRefresh size={18} className="spin" />
-                    <span>Comprimiendo...</span>
+                    <span>70KB...</span>
                   </div>
                 ) : photo.base64 ? (
-                  <div>
-                    <img src={photo.preview} alt={`Evidencia ${idx + 1}`} style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", border: "1px solid #cbd5e1", marginBottom: "4px" }} />
-                    <div style={{ fontSize: "0.72rem", color: "#166534", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", gap: "2px" }}>
-                      <IconCheck size={12} /> {photo.sizeKb} KB
+                  <>
+                    <img
+                      src={photo.preview}
+                      alt={`Evidencia ${idx + 1}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        background: "rgba(0, 0, 0, 0.65)",
+                        color: "#ffffff",
+                        fontSize: "0.65rem",
+                        fontWeight: "700",
+                        textAlign: "center",
+                        padding: "2px 0"
+                      }}
+                    >
+                      ✓ {photo.sizeKb} KB
                     </div>
                     <button
                       type="button"
                       onClick={() => removePhoto(idx)}
-                      style={{ background: "#ef4444", color: "#fff", border: 0, padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", cursor: "pointer", marginTop: "4px" }}
+                      title="Quitar foto"
+                      style={{
+                        position: "absolute",
+                        top: "3px",
+                        right: "3px",
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        background: "#ef4444",
+                        color: "#ffffff",
+                        border: "1.5px solid #ffffff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                      }}
                     >
-                      Quitar
+                      <IconCross size={12} color="#ffffff" />
                     </button>
-                  </div>
+                  </>
                 ) : (
-                  <div>
-                    <div style={{ height: "60px", background: "#e2e8f0", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: "0.74rem", marginBottom: "6px" }}>
-                      Sin foto
-                    </div>
-                    <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                  <div style={{ width: "100%", height: "100%", padding: "5px", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box" }}>
+                    <span style={{ fontSize: "0.68rem", fontWeight: "800", color: "#64748b" }}>
+                      Foto {idx + 1}
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px", width: "100%" }}>
                       <button
                         type="button"
                         onClick={() => setActiveCameraIndex(idx)}
-                        style={{ flex: 1, background: "#2563eb", color: "#fff", border: 0, padding: "5px 4px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "2px" }}
-                        title="Tomar foto con cámara"
+                        style={{
+                          width: "100%",
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: 0,
+                          padding: "3px 0",
+                          borderRadius: "5px",
+                          fontSize: "0.65rem",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "3px"
+                        }}
+                        title="Tomar con Cámara"
                       >
-                        <IconCamera size={12} /> Cámara
+                        <IconCamera size={10} /> Cámara
                       </button>
-                      <label style={{ flex: 1, background: "#475569", color: "#fff", padding: "5px 4px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "2px" }}>
-                        <IconFolder size={12} /> Archivo
+                      <label
+                        style={{
+                          width: "100%",
+                          background: "#475569",
+                          color: "#fff",
+                          padding: "3px 0",
+                          borderRadius: "5px",
+                          fontSize: "0.65rem",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "3px",
+                          boxSizing: "border-box"
+                        }}
+                        title="Seleccionar Archivo"
+                      >
+                        <IconFolder size={10} /> Archivo
                         <input type="file" accept="image/*" onChange={(e) => handleFileChange(idx, e)} style={{ display: "none" }} />
                       </label>
                     </div>
@@ -362,9 +440,20 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        style={{ background: "transparent", color: "#94a3b8", border: 0, padding: "2px 4px", fontSize: "0.7rem", cursor: "pointer", marginTop: "4px", textDecoration: "underline" }}
+                        title="Eliminar este cuadro"
+                        style={{
+                          position: "absolute",
+                          top: "2px",
+                          right: "2px",
+                          background: "transparent",
+                          color: "#94a3b8",
+                          border: 0,
+                          cursor: "pointer",
+                          fontSize: "0.65rem",
+                          padding: "2px"
+                        }}
                       >
-                        Eliminar cuadro
+                        <IconCross size={10} color="#94a3b8" />
                       </button>
                     )}
                   </div>
@@ -377,9 +466,10 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                 type="button"
                 onClick={addPhotoSlot}
                 style={{
+                  width: "95px",
+                  height: "95px",
+                  borderRadius: "12px",
                   border: "2px dashed #0284c7",
-                  borderRadius: "10px",
-                  padding: "12px",
                   background: "#f0f9ff",
                   color: "#0284c7",
                   display: "flex",
@@ -387,15 +477,16 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  minHeight: "120px",
-                  transition: "all 0.2s ease"
+                  gap: "2px",
+                  boxShadow: "0 2px 6px rgba(2, 132, 199, 0.08)",
+                  boxSizing: "border-box"
                 }}
               >
-                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px" }}>
-                  <IconPlus size={22} color="#0284c7" />
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <IconPlus size={18} color="#0284c7" />
                 </div>
-                <span style={{ fontSize: "0.82rem", fontWeight: "700" }}>+ Agregar otra foto</span>
-                <span style={{ fontSize: "0.7rem", color: "#0369a1", marginTop: "2px" }}>({6 - photos.length} restantes)</span>
+                <span style={{ fontSize: "0.72rem", fontWeight: "800" }}>+ Foto</span>
+                <span style={{ fontSize: "0.62rem", color: "#0369a1" }}>({6 - photos.length} máx)</span>
               </button>
             )}
           </div>
