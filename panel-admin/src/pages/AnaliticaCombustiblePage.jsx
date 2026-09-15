@@ -424,8 +424,8 @@ export default function AnaliticaCombustiblePage() {
 
       {error && <p className="module-message module-message-error">{error}</p>}
 
-      {/* Tarjetas KPI */}
-      <section className="kpi-grid">
+      {/* Tarjetas KPI (4 en 1 sola fila) */}
+      <section className="kpi-grid-4">
         <article className="kpi-card">
           <span>Total Inspecciones Analizadas</span>
           <strong>{kpis.total_inspecciones}</strong>
@@ -458,27 +458,6 @@ export default function AnaliticaCombustiblePage() {
           <span>Unidades Monitoreadas</span>
           <strong>{kpis.total_vehiculos_analizados}</strong>
           <small>Vehículos con registros de inspección</small>
-        </article>
-
-        <article className="kpi-card">
-          <span>Rendimiento Promedio</span>
-          <strong style={{ color: "#2563eb" }}>
-            {kpis.rendimiento_promedio_flota !== null
-              ? `~${kpis.rendimiento_promedio_flota} km / 1%`
-              : "En recopilación"}
-          </strong>
-          <small>Eficiencia global (km recorridos por 1% de tanque)</small>
-        </article>
-
-        <article className="kpi-card">
-          <span>Inicios en Nivel Crítico</span>
-          <strong style={{ color: kpis.inspecciones_bajo_combustible > 0 ? "#dc2626" : "#16a34a" }}>
-            {kpis.inspecciones_bajo_combustible}{" "}
-            <span style={{ fontSize: "0.85rem", fontWeight: "normal", color: "#64748b" }}>
-              ({kpis.porcentaje_bajo_combustible}%)
-            </span>
-          </strong>
-          <small>Inspecciones con tanque ≤ 25% (Reserva/E)</small>
         </article>
       </section>
 

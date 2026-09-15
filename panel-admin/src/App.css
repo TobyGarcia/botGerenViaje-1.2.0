@@ -1349,6 +1349,7 @@
 
 .dashboard-overview { display: grid; gap: 24px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.kpi-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .kpi-card, .activity-card { padding: 24px; border: 1px solid #d6e8ef; border-radius: 16px; background: #ffffff; }
 .kpi-card { display: grid; gap: 8px; }
 .kpi-card span, .kpi-card small, .activity-card p { color: #607986; }
@@ -3698,8 +3699,12 @@ button.estado-toggle-btn:disabled {
   background: #fae8e8;
 }
 
+@media (max-width: 1100px) {
+  .kpi-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 780px) {
-  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-grid, .kpi-grid-4 { grid-template-columns: 1fr; }
   .activity-chart { gap: 7px; }
   .activity-bar-area { padding: 0 4px; }
 }
