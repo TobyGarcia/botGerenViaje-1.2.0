@@ -78,16 +78,6 @@ export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange
         <div className="topbar-actions">
           {conductor ? (
             <div className="topbar-user-area">
-              <span className="topbar-driver-pill" title={conductor.nombre}>
-                <svg className="driver-avatar-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span className="driver-name-text">
-                  {conductor.nombre ? conductor.nombre.split(" ").slice(0, 2).join(" ") : "Conductor"}
-                </span>
-              </span>
-
               <button
                 type="button"
                 className="topbar-btn-logout-icon"
