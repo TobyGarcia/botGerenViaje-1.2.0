@@ -398,6 +398,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   useEffect(() => {
     if (access.confirmed) {
       loadPendingDrivers();
+      loadGerenciamientos();
       if (activeTab === "inspecciones") loadInspecciones();
       else if (activeTab === "gerenciamiento") loadGerenciamientos();
       else if (activeTab === "asignaciones") loadAsignaciones();
@@ -1063,8 +1064,8 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                         </span>
                       </div>
                       <div style={{ textAlign: "left", fontSize: "0.88rem" }}>
-                        <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre}</div>
-                        <div><strong>Ruta:</strong> {g.origen_nombre} ➔ {g.destino_nombre}</div>
+                        <div><strong>Conductor:</strong> {g.nombre_conductor || g.conductor_nombre || "Conductor"}</div>
+                        <div><strong>Ruta:</strong> {g.origen_nombre || g.origen_texto || "N/A"} ➔ {g.destino_nombre || g.destino_texto || "N/A"}</div>
                         <div><strong>Estado:</strong> <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#fef9c3", color: "#854d0e", fontWeight: "bold" }}>PENDIENTE</span></div>
                       </div>
                     </button>

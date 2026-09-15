@@ -263,6 +263,30 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }, [form.idVehiculo, vehiculos]);
 
+  // Auto-seleccionar vehículo por defecto asignado por supervisor tan pronto como cargan las unidades
+  useEffect(() => {
+    if (!form.idVehiculo && vehiculos.length > 0) {
+      const driverId = telegramAuth?.conductor?.id_conductores;
+      const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+      const assigned = vehiculos.find(
+        (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
+               (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
+      );
+      if (assigned) {
+        setForm((prev) => ({
+          ...prev,
+          idVehiculo: String(assigned.id_vehiculos),
+          tipoVehiculo: assigned.tipo_vehiculo || assigned.nombre || "",
+          placa: assigned.placas || "",
+          modelo: assigned.modelo || assigned.marca || "",
+          color: assigned.color || "Blanco",
+          numeroUnidad: assigned.numero_economico || "",
+          kilometraje: assigned.kilometraje_actual ?? prev.kilometraje
+        }));
+      }
+    }
+  }, [vehiculos, telegramAuth, form.idVehiculo]);
+
   // Recalcular sugerencia de tabuladores A, C, G automáticamente
   useEffect(() => {
     let ptsDist = 1;
@@ -324,10 +348,32 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
   function handleInputChange(event) {
     const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : (type === "number" || name.startsWith("pts") ? Number(value) : value)
-    }));
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : (type === "number" || name.startsWith("pts") ? Number(value) : value)
+      };
+
+      if (name === "idOrigen") {
+        if (value === "CUSTOM") {
+          updated.origenTexto = prev.origenTexto || "";
+        } else {
+          const l = lugares.find((item) => String(item.id_lugares) === String(value));
+          if (l) updated.origenTexto = l.nombre;
+        }
+      }
+
+      if (name === "idDestino") {
+        if (value === "CUSTOM") {
+          updated.destinoTexto = prev.destinoTexto || "";
+        } else {
+          const l = lugares.find((item) => String(item.id_lugares) === String(value));
+          if (l) updated.destinoTexto = l.nombre;
+        }
+      }
+
+      return updated;
+    });
   }
 
   function handleRoutePointChange(index, value) {
@@ -510,37 +556,63 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         
         {/* Datos Básicos de Viaje */}
         <section className="geren-card">
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconMapPin size={20} color="#0284c7" /> Origen y Destino del Traslado</h4>
+          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconMapPin size={20} color="#0284c7" /> Origen y Destino del Traslado (Provincias / Ubicaciones)</h4>
 
           <div className="geren-grid-2" style={{ marginBottom: "14px" }}>
             <div className="geren-field">
-              <label className="geren-field-label">Origen *</label>
+              <label className="geren-field-label">Provincia / Ubicación de Origen *</label>
               <select
                 name="idOrigen"
                 value={form.idOrigen}
                 onChange={handleInputChange}
                 className="geren-field-select"
               >
-                <option value="">-- Selecciona Origen --</option>
+                <option value="">-- Selecciona Provincia u Origen --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
+                <option value="CUSTOM">+ Especificar provincia / ubicación...</option>
               </select>
+              {(form.idOrigen === "CUSTOM" || (!form.idOrigen && form.origenTexto)) && (
+                <input
+                  type="text"
+                  name="origenTexto"
+                  value={form.origenTexto}
+                  onChange={handleInputChange}
+                  placeholder="Nombre de la provincia / ciudad de origen"
+                  required
+                  className="geren-field-input"
+                  style={{ marginTop: "6px" }}
+                />
+              )}
             </div>
 
             <div className="geren-field">
-              <label className="geren-field-label">Destino *</label>
+              <label className="geren-field-label">Provincia / Ubicación de Destino *</label>
               <select
                 name="idDestino"
                 value={form.idDestino}
                 onChange={handleInputChange}
                 className="geren-field-select"
               >
-                <option value="">-- Selecciona Destino --</option>
+                <option value="">-- Selecciona Provincia o Destino --</option>
                 {lugares.map((l) => (
                   <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
                 ))}
+                <option value="CUSTOM">+ Especificar provincia / ubicación...</option>
               </select>
+              {(form.idDestino === "CUSTOM" || (!form.idDestino && form.destinoTexto)) && (
+                <input
+                  type="text"
+                  name="destinoTexto"
+                  value={form.destinoTexto}
+                  onChange={handleInputChange}
+                  placeholder="Nombre de la provincia / ciudad de destino"
+                  required
+                  className="geren-field-input"
+                  style={{ marginTop: "6px" }}
+                />
+              )}
             </div>
           </div>
 

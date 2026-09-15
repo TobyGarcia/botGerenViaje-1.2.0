@@ -19,6 +19,7 @@ import {
   iniciarViaje,
   registrarUbicacion,
   getGerenciamientoViajePorViaje,
+  getGerenciamientoViaje,
   registrarReporteHoraGerenciamiento,
   getDriverSession,
   logoutDriver,
@@ -253,6 +254,41 @@ const [cancelledTrip, setCancelledTrip] =
       setGerenciamientoDoc(null);
     }
   }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
+
+  // Sondeo continuo (polling) para detectar aprobación/rechazo del gerenciamiento de viaje por supervisión
+  useEffect(() => {
+    if (!gerenciamientoPendiente) return;
+
+    let timerId = null;
+    async function checkGerenciamientoStatus() {
+      try {
+        const idGeren = gerenciamientoPendiente.id_gerenciamiento || gerenciamientoPendiente.idGerenciamiento;
+        if (!idGeren) return;
+        const res = await getGerenciamientoViaje(idGeren);
+        if (res?.data) {
+          if (res.data.estado === "APROBADO") {
+            setGerenciamientoPendiente(null);
+            safeStorage.removeItem("cached_gerenciamiento_pendiente");
+            setMessage("✅ ¡Gerenciamiento de viaje APROBADO por supervisión! Ya puedes iniciar el viaje.");
+            setMessageType("success");
+          } else if (res.data.estado === "RECHAZADO") {
+            setGerenciamientoPendiente(null);
+            safeStorage.removeItem("cached_gerenciamiento_pendiente");
+            setCreatedTrip(null);
+            safeStorage.removeItem("cached_active_trip");
+            setMessage("⛔ Gerenciamiento de viaje RECHAZADO por supervisión.");
+            setMessageType("error");
+          }
+        }
+      } catch (err) {
+        // Ignorar errores de red temporales durante polling
+      }
+    }
+
+    checkGerenciamientoStatus();
+    timerId = setInterval(checkGerenciamientoStatus, 4000);
+    return () => { if (timerId) clearInterval(timerId); };
+  }, [gerenciamientoPendiente]);
 
   const [telegramAuth, setTelegramAuth] = useState(() => {
     const token = safeStorage.getItem("driver_token");
@@ -2150,6 +2186,17 @@ function isOutsideOperatingHours() {
         <strong>Kilómetros recorridos:</strong>{" "}
         {Number(finishedTrip.kilometrosRecorridos).toLocaleString("es-MX")} km
       </p>
+    )}
+
+    {gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
+      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.9rem", fontWeight: "bold" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <IconClock size={18} color="#ea580c" /> ⌛ Gerenciamiento Registrado — Esperando Aprobación de Supervisión
+        </span>
+        <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569", fontWeight: "normal" }}>
+          Tu gerenciamiento de viaje fuera del estado fue enviado a supervisión. En cuanto sea aprobado, se activará el botón para iniciar el viaje.
+        </p>
+      </div>
     )}
 
     {!startedTrip && !finishedTrip && !cancelledTrip && (

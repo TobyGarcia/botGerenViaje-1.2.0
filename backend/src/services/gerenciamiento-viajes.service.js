@@ -282,13 +282,14 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
 export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
     SELECT g.*,
-      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
       COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
       COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
-      o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre,
+      COALESCE(o.nombre, g.origen_texto, 'Origen N/A') AS origen_nombre,
+      COALESCE(d.nombre, g.destino_texto, 'Destino N/A') AS destino_nombre,
       i.id_inspeccion,
       i.combustible AS inspeccion_combustible,
       i.checklist AS inspeccion_checklist,
@@ -366,13 +367,14 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
 
   const query = `
     SELECT g.*,
-      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS conductor_nombre,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
       COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
       COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
-      o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre,
+      COALESCE(o.nombre, g.origen_texto, 'Origen N/A') AS origen_nombre,
+      COALESCE(d.nombre, g.destino_texto, 'Destino N/A') AS destino_nombre,
       i.id_inspeccion,
       i.combustible AS inspeccion_combustible,
       i.checklist AS inspeccion_checklist,
@@ -539,7 +541,7 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
 
 export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, horaReportada }) {
   const currentRes = await databasePool.query(`
-    SELECT sitios_reporte FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1
+    SELECT sitios_reporte, id_viaje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1
   `, [idGerenciamiento]);
 
   if (currentRes.rows.length === 0) {
@@ -547,9 +549,19 @@ export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, 
   }
 
   let sitios = currentRes.rows[0].sitios_reporte || [];
+  if (typeof sitios === "string") {
+    try { sitios = JSON.parse(sitios); } catch {}
+  }
   if (sitios[puntoIndex]) {
     sitios[puntoIndex].horaReportada = horaReportada || new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
+
+  const updateRes = await databasePool.query(`
+    UPDATE gerenciamiento_viajes
+    SET sitios_reporte = $1::jsonb, actualizado_en = CURRENT_TIMESTAMP
+    WHERE id_gerenciamiento = $2
+    RETURNING *
+  `, [JSON.stringify(sitios), idGerenciamiento]);
 
   return updateRes.rows[0];
 }
