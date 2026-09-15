@@ -311,3 +311,10 @@ export function loginUsuarioConPin(pin) {
     body: JSON.stringify({ pin })
   });
 }
+
+export function actualizarPerfilConductor(payload) {
+  return request("/api/driver/perfil", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}

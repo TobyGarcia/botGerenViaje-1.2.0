@@ -28,6 +28,7 @@ import {
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
+import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConductor.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
@@ -1642,90 +1643,164 @@ function isOutsideOperatingHours() {
         <PwaInstallPrompt />
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         <h1>
-        {createdTrip
-        ? "GERENCIAMIENTO DE VIAJE"
-        : activeTabMode === "gerenciamiento"
-          ? "GERENCIAMIENTO DE VIAJES"
-          : "Nuevo viaje"}
-      </h1>
+          {createdTrip
+            ? "GERENCIAMIENTO DE VIAJE"
+            : activeTabMode === "gerenciamiento"
+              ? "GERENCIAMIENTO DE VIAJES"
+              : activeTabMode === "perfil"
+                ? "ACTUALIZACIÓN DE DATOS"
+                : "Nuevo viaje"}
+        </h1>
 
-      {/* Tabs Selector de Modo de Viaje */}
-      {!createdTrip && (
-        <div style={{ display: "flex", gap: "8px", marginBottom: "14px", background: "#e2e8f0", padding: "4px", borderRadius: "10px" }}>
-          <button
-            type="button"
-            onClick={() => setActiveTabMode("urban")}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              borderRadius: "8px",
-              border: 0,
-              fontWeight: "bold",
-              fontSize: "0.88rem",
-              background: activeTabMode === "urban" ? "#ffffff" : "transparent",
-              color: activeTabMode === "urban" ? "#0f172a" : "#64748b",
-              boxShadow: activeTabMode === "urban" ? "0 2px 6px rgba(0,0,0,0.1)" : "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px"
-            }}
-          >
-            <IconCar size={18} /> Viaje Urbano / Local
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTabMode("gerenciamiento")}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              borderRadius: "8px",
-              border: 0,
-              fontWeight: "bold",
-              fontSize: "0.88rem",
-              background: activeTabMode === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "transparent",
-              color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
-              boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px"
-            }}
-          >
-            <IconMap size={18} /> Gerenciamiento Fuera de Ciudad
-          </button>
-        </div>
-      )}
+        {/* Top Dropdown Menu Selector */}
+        {!createdTrip && (
+          <div className="top-nav-menu-card" style={{ marginBottom: "16px", background: "#ffffff", padding: "12px", borderRadius: "12px", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ marginBottom: "8px" }}>
+              <label htmlFor="top-nav-select" style={{ fontWeight: "800", color: "#1e293b", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>📌</span> Menú Principal / Seleccionar Opción:
+              </label>
+              <select
+                id="top-nav-select"
+                value={activeTabMode}
+                onChange={(e) => setActiveTabMode(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: "2px solid #0284c7",
+                  background: "#f0f9ff",
+                  color: "#0369a1",
+                  fontWeight: "800",
+                  fontSize: "0.92rem",
+                  cursor: "pointer",
+                  marginTop: "4px"
+                }}
+              >
+                <option value="urban">🚗 Viaje Urbano / Local</option>
+                <option value="gerenciamiento">📋 Gerenciamiento de Viajes (Foráneo)</option>
+                <option value="perfil">👤 Actualización de Datos (Contacto y Licencia)</option>
+              </select>
+            </div>
 
-      <section className="summary-card" aria-label="Fecha actual">
-        <span>Fecha actual</span>
-        <strong>{currentDate}</strong>
-      </section>
+            <div className="top-segmented-tabs" style={{ display: "flex", gap: "6px", background: "#f1f5f9", padding: "4px", borderRadius: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setActiveTabMode("urban")}
+                style={{
+                  flex: 1,
+                  padding: "8px 6px",
+                  borderRadius: "6px",
+                  border: 0,
+                  fontWeight: "700",
+                  fontSize: "0.8rem",
+                  background: activeTabMode === "urban" ? "#ffffff" : "transparent",
+                  color: activeTabMode === "urban" ? "#0284c7" : "#64748b",
+                  boxShadow: activeTabMode === "urban" ? "0 2px 4px rgba(0,0,0,0.08)" : "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px"
+                }}
+              >
+                <IconCar size={15} /> Urbano
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTabMode("gerenciamiento")}
+                style={{
+                  flex: 1,
+                  padding: "8px 6px",
+                  borderRadius: "6px",
+                  border: 0,
+                  fontWeight: "700",
+                  fontSize: "0.8rem",
+                  background: activeTabMode === "gerenciamiento" ? "#0284c7" : "transparent",
+                  color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
+                  boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px"
+                }}
+              >
+                <IconMap size={15} /> Gerenciamiento
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTabMode("perfil")}
+                style={{
+                  flex: 1,
+                  padding: "8px 6px",
+                  borderRadius: "6px",
+                  border: 0,
+                  fontWeight: "700",
+                  fontSize: "0.8rem",
+                  background: activeTabMode === "perfil" ? "#0f172a" : "transparent",
+                  color: activeTabMode === "perfil" ? "#ffffff" : "#64748b",
+                  boxShadow: activeTabMode === "perfil" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px"
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg> Datos
+              </button>
+            </div>
+          </div>
+        )}
 
-      <section className="information-panel">
-          <p>
-            <strong>Usuario Telegram:</strong>{" "}
-            {telegramAuth.usuario?.firstName || "Usuario autenticado"}
-          </p>
+        <section className="summary-card" aria-label="Fecha actual">
+          <span>Fecha actual</span>
+          <strong>{currentDate}</strong>
+        </section>
 
-          <p>
-            <strong>Registro:</strong>{" "}
-            {telegramAuth.registered
-              ? "COMPLETO"
-              : telegramAuth.estadoRegistro || "PENDIENTE"}
-          </p>
-
-          {telegramAuth.conductor && (
+        <section className="information-panel">
             <p>
-              <strong>Conductor:</strong>{" "}
-              {telegramAuth.conductor.nombre}
+              <strong>Usuario Telegram:</strong>{" "}
+              {telegramAuth.usuario?.firstName || "Usuario autenticado"}
             </p>
-          )}
-      </section>
 
-      {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
+            <p>
+              <strong>Registro:</strong>{" "}
+              {telegramAuth.registered
+                ? "COMPLETO"
+                : telegramAuth.estadoRegistro || "PENDIENTE"}
+            </p>
+
+            {telegramAuth.conductor && (
+              <p>
+                <strong>Conductor:</strong>{" "}
+                {telegramAuth.conductor.nombre}
+              </p>
+            )}
+        </section>
+
+        {!createdTrip && activeTabMode === "perfil" && (
+          <ActualizacionPerfilConductor
+            conductor={authenticatedDriver}
+            onProfileUpdated={(updatedConductor) => {
+              setAuthenticatedDriver((prev) => ({ ...prev, ...updatedConductor }));
+              if (telegramAuth?.conductor) {
+                setTelegramAuth((prev) => ({
+                  ...prev,
+                  conductor: { ...prev.conductor, ...updatedConductor }
+                }));
+              }
+              const currentCache = getCachedJson("cached_driver", {});
+              safeStorage.setJSON("cached_driver", { ...currentCache, ...updatedConductor });
+            }}
+            onCancel={() => setActiveTabMode("urban")}
+          />
+        )}
+
+        {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
         <GerenciamientoForm
           telegramAuth={telegramAuth}
           conductores={conductores}
