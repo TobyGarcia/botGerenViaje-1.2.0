@@ -934,5 +934,540 @@
   opacity: 0.85;
 }
 
+/* ==========================================================================
+   SUPERVISOR PORTAL - UI/UX PRO MAX RESPONSIVE SYSTEM
+   ========================================================================== */
+
+/* Contenedor Fluido del Portal */
+.supervisor-portal-main {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 14px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .supervisor-portal-main {
+    padding: 24px 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .supervisor-portal-main {
+    padding: 28px 24px;
+  }
+}
+
+/* Barra de Navegación Superior Responsive */
+.supervisor-top-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.supervisor-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.supervisor-nav-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.supervisor-nav-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.supervisor-nav-role-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+/* Tabs directos para Tablet / Desktop */
+.supervisor-desktop-tabs {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 860px) {
+  .supervisor-desktop-tabs {
+    display: flex;
+  }
+  .supervisor-mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+.supervisor-desktop-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.supervisor-desktop-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.supervisor-desktop-tab-btn.active {
+  color: #ffffff;
+  background: #0284c7;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+.supervisor-tab-counter {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Botón de Menú Móvil */
+.supervisor-mobile-menu-btn {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+.supervisor-mobile-active-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+@media (min-width: 860px) {
+  .supervisor-mobile-active-label {
+    display: none;
+  }
+}
+
+/* Sección de Asignación Vehicular */
+.supervisor-section-header {
+  margin-bottom: 20px;
+}
+
+.supervisor-section-header h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.supervisor-section-header p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* Grid de Métricas / KPI Dashboard */
+.supervisor-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+@media (min-width: 900px) {
+  .supervisor-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+.supervisor-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.supervisor-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.kpi-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.kpi-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  font-size: 0.74rem;
+  color: #94a3b8;
+}
+
+.kpi-card-success .kpi-value {
+  color: #16a34a;
+}
+
+.kpi-card-warning .kpi-value {
+  color: #d97706;
+}
+
+.kpi-card-info .kpi-value {
+  color: #0284c7;
+}
+
+/* Toolbar: Buscador y Filtros */
+.supervisor-assignment-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.supervisor-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+}
+
+.supervisor-search-box .search-icon {
+  position: absolute;
+  left: 14px;
+  pointer-events: none;
+}
+
+.supervisor-search-box input {
+  width: 100%;
+  padding: 11px 38px 11px 40px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.supervisor-search-box input:focus {
+  border-color: #0284c7;
+  outline: 3px solid rgba(2, 132, 199, 0.15);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #e2e8f0;
+  color: #64748b;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.supervisor-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filter-chip:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.filter-chip.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.filter-chip.chip-warning.active {
+  background: #d97706;
+  border-color: #d97706;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
+}
+
+.filter-chip.chip-success.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+/* Grid de Tarjetas de Conductor Responsivo */
+.supervisor-assignment-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .supervisor-assignment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1080px) {
+  .supervisor-assignment-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+/* Tarjeta Individual de Asignación */
+.assignment-driver-card {
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.assignment-driver-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-2px);
+}
+
+.assignment-driver-card.card-unassigned {
+  border-color: #fef08a !important;
+  background: #fffdf5 !important;
+}
+
+.driver-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.driver-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.driver-name {
+  margin: 0 !important;
+  font-size: 0.96rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  line-height: 1.3;
+}
+
+.driver-company-tag {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+/* Fila de Estado de Asignación */
+.driver-status-row {
+  margin: 2px 0;
+}
+
+.vehicle-assigned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.vehicle-unassigned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Bloque del Selector de Unidad */
+.driver-select-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 !important;
+}
+
+.assignment-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.assignment-select:focus {
+  border-color: #0284c7;
+  outline: 3px solid rgba(2, 132, 199, 0.15);
+}
+
+.assignment-select:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: wait;
+}
+
+.saving-indicator {
+  font-size: 0.75rem;
+  color: #0284c7;
+  font-weight: 700;
+  animation: pulseSaving 1.2s infinite;
+}
+
+@keyframes pulseSaving {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.no-results-box {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #64748b;
+}
+
+.no-results-box p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+
 
 

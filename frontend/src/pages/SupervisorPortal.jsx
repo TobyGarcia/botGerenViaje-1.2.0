@@ -31,7 +31,8 @@ import {
   IconShield,
   IconMenu,
   IconUser,
-  IconMapPin
+  IconMapPin,
+  IconSearch
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import logoAQR from "../assets/logoAQR.webp";
@@ -313,6 +314,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [conductores, setConductores] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
   const [searchConductor, setSearchConductor] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState("ALL");
   const [savingAssignmentId, setSavingAssignmentId] = useState(null);
 
   // Conductores pendientes state
@@ -553,69 +555,115 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
 
   if (!access.confirmed) return <main className="container"><h1>Confirma tu correo</h1><p>Te enviamos un enlace de bienvenida. Ábrelo y vuelve a entrar desde Telegram para activar las aprobaciones.</p>{errorMessage&&<p className="message message-error">{errorMessage}</p>}{message&&<p className="message message-success">{message}</p>}</main>;
 
-  const filteredConductores = conductores.filter((c) =>
-    c.nombre.toLowerCase().includes(searchConductor.toLowerCase()) ||
-    (c.empresa || "").toLowerCase().includes(searchConductor.toLowerCase())
-  );
+  const totalConductores = conductores.length;
+  const conductoresAsignados = conductores.filter(c => c.id_vehiculo_asignado).length;
+  const conductoresSinAsignar = totalConductores - conductoresAsignados;
+  const totalVehiculos = vehiculos.length;
+
+  const filteredConductores = conductores.filter((c) => {
+    const matchesSearch = !searchConductor.trim() || (
+      c.nombre.toLowerCase().includes(searchConductor.toLowerCase()) ||
+      (c.empresa || "").toLowerCase().includes(searchConductor.toLowerCase())
+    );
+    if (!matchesSearch) return false;
+
+    if (assignmentFilter === "SIN_ASIGNAR") {
+      return !c.id_vehiculo_asignado;
+    }
+    if (assignmentFilter === "ASIGNADOS") {
+      return Boolean(c.id_vehiculo_asignado);
+    }
+    return true;
+  });
 
   const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
 
   return (
-    <main className="container">
-      {/* Barra Superior con Botón de Menú Desplegable */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "linear-gradient(135deg, #0f172a, #1e293b)",
-        color: "#ffffff",
-        borderRadius: "12px",
-        padding: "10px 14px",
-        marginBottom: "16px",
-        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.12)"
-      }}>
+    <main className="supervisor-portal-main">
+      {/* Barra Superior Responsive con Navegación Adaptativa */}
+      <div className="supervisor-top-navbar">
+        <div className="supervisor-nav-brand">
+          <img src={logoAQR} alt="AQUARIO" className="supervisor-nav-logo" />
+          <span className="supervisor-nav-title">Portal de Supervisión</span>
+          <span className="supervisor-nav-role-badge">{currentUserRole}</span>
+        </div>
+
+        {/* Pestañas directas para Desktop/Tablet */}
+        <nav className="supervisor-desktop-tabs">
+          <button
+            type="button"
+            className={`supervisor-desktop-tab-btn ${activeTab === "inspecciones" ? "active" : ""}`}
+            onClick={() => { setActiveTab("inspecciones"); setDetail(null); }}
+          >
+            <IconClipboard size={16} />
+            <span>Inspecciones</span>
+            {items.length > 0 && <span className="supervisor-tab-counter">{items.length}</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`supervisor-desktop-tab-btn ${activeTab === "gerenciamiento" ? "active" : ""}`}
+            onClick={() => { setActiveTab("gerenciamiento"); setGerenciamientoDetail(null); }}
+          >
+            <IconMap size={16} />
+            <span>Gerenciamiento</span>
+            {pendingGerenciamientos.length > 0 && <span className="supervisor-tab-counter">{pendingGerenciamientos.length}</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`supervisor-desktop-tab-btn ${activeTab === "conductores" ? "active" : ""}`}
+            onClick={() => { setActiveTab("conductores"); setSelectedDriver(null); }}
+          >
+            <IconIdCard size={16} />
+            <span>Conductores</span>
+            {pendingDrivers.length > 0 && <span className="supervisor-tab-counter">{pendingDrivers.length}</span>}
+          </button>
+
+          {['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) && (
+            <button
+              type="button"
+              className={`supervisor-desktop-tab-btn ${activeTab === "manejo-comentado" ? "active" : ""}`}
+              onClick={() => { setActiveTab("manejo-comentado"); setSelectedManejoAuthorization(null); }}
+            >
+              <IconAlert size={16} />
+              <span>Manejo Vencido</span>
+              {manejoAuthorizations.length > 0 && <span className="supervisor-tab-counter">{manejoAuthorizations.length}</span>}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={`supervisor-desktop-tab-btn ${activeTab === "asignaciones" ? "active" : ""}`}
+            onClick={() => setActiveTab("asignaciones")}
+          >
+            <IconCar size={16} />
+            <span>Asignaciones</span>
+          </button>
+        </nav>
+
+        {/* Botón de Menú y Etiqueta en Móvil */}
         <button
           type="button"
+          className="supervisor-mobile-menu-btn"
           onClick={() => setShowSidebar(true)}
-          style={{
-            background: "#0284c7",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "8px",
-            padding: "8px 14px",
-            fontWeight: "bold",
-            fontSize: "0.88rem",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            boxShadow: "0 2px 8px rgba(2, 132, 199, 0.4)"
-          }}
         >
-          <IconMenu size={20} />
+          <IconMenu size={18} />
           <span>Menú</span>
           {(items.length + pendingGerenciamientos.length + pendingDrivers.length + manejoAuthorizations.length) > 0 && (
-            <span style={{
-              background: "#ef4444",
-              color: "#ffffff",
-              borderRadius: "999px",
-              padding: "2px 7px",
-              fontSize: "0.75rem",
-              fontWeight: "800"
-            }}>
+            <span className="supervisor-tab-counter">
               {items.length + pendingGerenciamientos.length + pendingDrivers.length + manejoAuthorizations.length}
             </span>
           )}
         </button>
 
-        {/* Indicador de sección activa */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", fontWeight: "700" }}>
-          {activeTab === "inspecciones" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconClipboard size={18} /> Inspecciones {items.length > 0 ? `(${items.length})` : ""}</span>}
-          {activeTab === "gerenciamiento" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconMap size={18} /> Gerenciamiento {pendingGerenciamientos.length > 0 ? `(${pendingGerenciamientos.length})` : ""}</span>}
-          {activeTab === "conductores" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconIdCard size={18} /> Conductores {pendingDrivers.length > 0 ? `(${pendingDrivers.length})` : ""}</span>}
-          {activeTab === "manejo-comentado" && <span style={{ color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={18} /> Manejo Vencido {manejoAuthorizations.length > 0 ? `(${manejoAuthorizations.length})` : ""}</span>}
-          {activeTab === "asignaciones" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconCar size={18} /> Asignaciones</span>}
+        <div className="supervisor-mobile-active-label">
+          {activeTab === "inspecciones" && <span>Inspecciones ({items.length})</span>}
+          {activeTab === "gerenciamiento" && <span>Gerenciamiento ({pendingGerenciamientos.length})</span>}
+          {activeTab === "conductores" && <span>Conductores ({pendingDrivers.length})</span>}
+          {activeTab === "manejo-comentado" && <span>Manejo Vencido ({manejoAuthorizations.length})</span>}
+          {activeTab === "asignaciones" && <span>Asignaciones</span>}
         </div>
       </div>
 
@@ -1669,61 +1717,169 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </>
       )}
 
-      {/* Pestaña: Asignación Vehicular */}
+      {/* Pestaña: Asignación Vehicular (UI/UX PRO MAX Responsive) */}
       {activeTab === "asignaciones" && (
         <>
-          <h1>Asignación Vehicular</h1>
-          <p style={{ color: "#64748b", marginBottom: "16px" }}>
-            Asigna una unidad a un conductor. La unidad aparecerá pre-seleccionada automáticamente en su MiniApp.
-          </p>
+          <header className="supervisor-section-header">
+            <h1>Asignación Vehicular</h1>
+            <p>
+              Gestiona y vincula unidades de la flota a cada conductor. Las unidades asignadas se sincronizan en tiempo real con la MiniApp del operador.
+            </p>
+          </header>
 
-          <div style={{ marginBottom: "16px" }}>
-            <input
-              type="text"
-              placeholder="Buscar conductor..."
-              value={searchConductor}
-              onChange={(e) => setSearchConductor(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-            />
+          {/* KPI Dashboard */}
+          <div className="supervisor-kpi-grid">
+            <div className="supervisor-kpi-card">
+              <span className="kpi-label">Total Conductores</span>
+              <span className="kpi-value">{totalConductores}</span>
+              <span className="kpi-sub">En la plantilla activa</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-success">
+              <span className="kpi-label">Con Unidad Asignada</span>
+              <span className="kpi-value">{conductoresAsignados}</span>
+              <span className="kpi-sub">{totalConductores > 0 ? Math.round((conductoresAsignados / totalConductores) * 100) : 0}% de cobertura</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-warning">
+              <span className="kpi-label">Sin Asignar</span>
+              <span className="kpi-value">{conductoresSinAsignar}</span>
+              <span className="kpi-sub">Pendientes de unidad</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-info">
+              <span className="kpi-label">Flota de Vehículos</span>
+              <span className="kpi-value">{totalVehiculos}</span>
+              <span className="kpi-sub">Unidades disponibles</span>
+            </div>
           </div>
 
-          <section>
-            {filteredConductores.length ? filteredConductores.map((c) => {
-              const assignedVehicle = vehiculos.find(v => String(v.id_vehiculos) === String(c.id_vehiculo_asignado));
-              return (
-                <div key={c.id_conductores} className="result-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div>
-                    <strong>{c.nombre}</strong> {c.empresa ? `(${c.empresa})` : ""}
-                  </div>
-                  <div style={{ fontSize: "0.9rem", color: assignedVehicle ? "#15803d" : "#64748b", display: "flex", alignItems: "center", gap: "6px" }}>
-                    {assignedVehicle ? (
-                      <>
-                        <IconCar size={16} color="#15803d" />
-                        <span>Asignado: <strong>{assignedVehicle.nombre}</strong> ({assignedVehicle.numero_economico})</span>
-                      </>
-                    ) : (
-                      <span>Sin unidad asignada</span>
-                    )}
-                  </div>
-                  <label style={{ margin: 0, fontWeight: "normal", fontSize: "0.85rem" }}>
-                    Seleccionar unidad:
-                    <select
-                      value={c.id_vehiculo_asignado || ""}
-                      onChange={(e) => handleAssignVehicle(c.id_conductores, e.target.value)}
-                      disabled={savingAssignmentId === c.id_conductores}
-                      style={{ marginTop: "4px", width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-                    >
-                      <option value="">-- Sin unidad asignada --</option>
-                      {vehiculos.map((v) => (
-                        <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                          {v.nombre} — {v.numero_economico} {v.placas ? `(${v.placas})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              );
-            }) : <p>No se encontraron conductores.</p>}
+          {/* Barra de Filtros y Búsqueda */}
+          <div className="supervisor-assignment-toolbar">
+            <div className="supervisor-search-box">
+              <IconSearch className="search-icon" size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Buscar por conductor o empresa..."
+                value={searchConductor}
+                onChange={(e) => setSearchConductor(e.target.value)}
+              />
+              {searchConductor && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchConductor("")}
+                  aria-label="Limpiar búsqueda"
+                >
+                  <IconCross size={12} />
+                </button>
+              )}
+            </div>
+
+            <div className="supervisor-filter-chips">
+              <button
+                type="button"
+                className={`filter-chip ${assignmentFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("ALL")}
+              >
+                Todos ({totalConductores})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip chip-warning ${assignmentFilter === "SIN_ASIGNAR" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("SIN_ASIGNAR")}
+              >
+                Sin Asignar ({conductoresSinAsignar})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip chip-success ${assignmentFilter === "ASIGNADOS" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("ASIGNADOS")}
+              >
+                Con Unidad ({conductoresAsignados})
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Responsivo de Tarjetas de Conductor */}
+          <section className="supervisor-assignment-grid">
+            {filteredConductores.length ? (
+              filteredConductores.map((c) => {
+                const assignedVehicle = vehiculos.find(
+                  (v) => String(v.id_vehiculos) === String(c.id_vehiculo_asignado)
+                );
+                const isSaving = savingAssignmentId === c.id_conductores;
+
+                return (
+                  <article
+                    key={c.id_conductores}
+                    className={`assignment-driver-card ${!c.id_vehiculo_asignado ? "card-unassigned" : ""}`}
+                  >
+                    <div className="driver-card-header">
+                      <div className="driver-info">
+                        <h3 className="driver-name">{c.nombre}</h3>
+                        {c.empresa && (
+                          <span className="driver-company-tag">{c.empresa}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="driver-status-row">
+                      {assignedVehicle ? (
+                        <div className="vehicle-assigned-badge">
+                          <IconCar size={15} color="#15803d" />
+                          <span>
+                            {assignedVehicle.nombre} · {assignedVehicle.numero_economico}
+                            {assignedVehicle.placas ? ` (${assignedVehicle.placas})` : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="vehicle-unassigned-badge">
+                          <IconAlert size={15} color="#d97706" />
+                          <span>Sin unidad asignada</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="driver-select-block">
+                      <label className="select-label">
+                        <span>Unidad Asignada</span>
+                        <select
+                          className="assignment-select"
+                          value={c.id_vehiculo_asignado || ""}
+                          onChange={(e) => handleAssignVehicle(c.id_conductores, e.target.value)}
+                          disabled={isSaving}
+                        >
+                          <option value="">-- Sin unidad asignada --</option>
+                          {vehiculos.map((v) => (
+                            <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                              {v.nombre} — {v.numero_economico}{v.placas ? ` (${v.placas})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {isSaving && (
+                        <span className="saving-indicator">Guardando cambios...</span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="no-results-box">
+                <IconSearch size={32} color="#94a3b8" />
+                <p>No se encontraron conductores con el criterio de búsqueda o filtro seleccionado.</p>
+                {(searchConductor || assignmentFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    className="filter-chip"
+                    onClick={() => {
+                      setSearchConductor("");
+                      setAssignmentFilter("ALL");
+                    }}
+                  >
+                    Restablecer filtros
+                  </button>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}
