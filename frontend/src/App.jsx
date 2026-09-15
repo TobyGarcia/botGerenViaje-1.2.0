@@ -1759,13 +1759,10 @@ function isOutsideOperatingHours() {
           <ActualizacionPerfilConductor
             conductor={authenticatedDriver}
             onProfileUpdated={(updatedConductor) => {
-              setAuthenticatedDriver((prev) => ({ ...prev, ...updatedConductor }));
-              if (telegramAuth?.conductor) {
-                setTelegramAuth((prev) => ({
-                  ...prev,
-                  conductor: { ...prev.conductor, ...updatedConductor }
-                }));
-              }
+              setTelegramAuth((prev) => ({
+                ...prev,
+                conductor: { ...prev?.conductor, ...updatedConductor }
+              }));
               const currentCache = getCachedJson("cached_driver", {});
               safeStorage.setJSON("cached_driver", { ...currentCache, ...updatedConductor });
             }}
