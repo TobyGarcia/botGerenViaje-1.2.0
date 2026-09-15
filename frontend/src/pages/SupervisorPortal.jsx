@@ -29,7 +29,9 @@ import {
   IconWrench,
   IconScale,
   IconShield,
-  IconMenu
+  IconMenu,
+  IconUser,
+  IconMapPin
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import logoAQR from "../assets/logoAQR.webp";
