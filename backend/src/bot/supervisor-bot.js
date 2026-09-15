@@ -162,6 +162,40 @@ export async function startSupervisorBot() {
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 
+  const supervisorWebAppUrl = process.env.TELEGRAM_SUPERVISOR_WEB_APP_URL || process.env.VITE_SUPERVISOR_APP_URL || process.env.TELEGRAM_WEB_APP_URL;
+  const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+
+  if (supervisorWebAppUrl) {
+    try {
+      await supervisorBotInstance.telegram.callApi("setChatMenuButton", {
+        menu_button: {
+          type: "web_app",
+          text: "bot supervisor",
+          web_app: { url: supervisorWebAppUrl }
+        }
+      });
+      console.log("Botón de menú global 'bot supervisor' configurado.");
+    } catch (err) {
+      console.warn("No se pudo configurar el botón de menú global 'bot supervisor':", err.message);
+    }
+
+    if (supervisorGroupId) {
+      try {
+        await supervisorBotInstance.telegram.callApi("setChatMenuButton", {
+          chat_id: supervisorGroupId,
+          menu_button: {
+            type: "web_app",
+            text: "bot supervisor",
+            web_app: { url: supervisorWebAppUrl }
+          }
+        });
+        console.log(`Botón de menú 'bot supervisor' configurado para el grupo Viajes_ITZ_supervisor (${supervisorGroupId}).`);
+      } catch (err) {
+        console.warn(`No se pudo configurar el botón de menú 'bot supervisor' en el grupo (${supervisorGroupId}):`, err.message);
+      }
+    }
+  }
+
   const started = await launchWithRetry(supervisorBotInstance);
 
   if (started) {

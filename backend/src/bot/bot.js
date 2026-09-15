@@ -82,6 +82,40 @@ export async function startTelegramBot() {
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 
+  const webAppUrl = process.env.TELEGRAM_WEB_APP_URL || process.env.VITE_MINI_APP_URL;
+  const groupId = process.env.TELEGRAM_GROUP_ID;
+
+  if (webAppUrl) {
+    try {
+      await bot.telegram.callApi("setChatMenuButton", {
+        menu_button: {
+          type: "web_app",
+          text: "bot de viaje",
+          web_app: { url: webAppUrl }
+        }
+      });
+      console.log("Botón de menú global 'bot de viaje' configurado.");
+    } catch (err) {
+      console.warn("No se pudo configurar el botón de menú global 'bot de viaje':", err.message);
+    }
+
+    if (groupId) {
+      try {
+        await bot.telegram.callApi("setChatMenuButton", {
+          chat_id: groupId,
+          menu_button: {
+            type: "web_app",
+            text: "bot de viaje",
+            web_app: { url: webAppUrl }
+          }
+        });
+        console.log(`Botón de menú 'bot de viaje' configurado para el grupo viajes_ITZ (${groupId}).`);
+      } catch (err) {
+        console.warn(`No se pudo configurar el botón de menú 'bot de viaje' en el grupo (${groupId}):`, err.message);
+      }
+    }
+  }
+
   const started = await launchWithRetry(bot);
 
   if (started) {
