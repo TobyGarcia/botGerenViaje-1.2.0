@@ -70,10 +70,17 @@ export async function getAdminAnaliticaCombustible({ idVehiculo = null, dateFrom
   let totalKmMonitoreados = 0;
   let sumaPorcentajesCombustible = 0;
   let cantidadLecturas = rows.length;
+  let totalKmUtilGlobal = 0;
+  let totalPctUtilGlobal = 0;
+  let inspeccionesBajoCombustible = 0;
 
   rows.forEach((row) => {
     const fuelPercent = FUEL_PERCENT_MAP[row.combustible] ?? 0;
     sumaPorcentajesCombustible += fuelPercent;
+
+    if (fuelPercent <= 25) {
+      inspeccionesBajoCombustible += 1;
+    }
 
     if (!lecturasPorVehiculo[row.id_vehiculos]) {
       lecturasPorVehiculo[row.id_vehiculos] = {
@@ -95,6 +102,11 @@ export async function getAdminAnaliticaCombustible({ idVehiculo = null, dateFrom
       kmDeltaDesdeAnterior = row.kilometraje_inicial - prevLectura.kilometraje_inicial;
       if (kmDeltaDesdeAnterior < 0) kmDeltaDesdeAnterior = 0;
       consumoDeltaPorcentaje = prevLectura.combustible_porcentaje - fuelPercent;
+
+      if (consumoDeltaPorcentaje > 0) {
+        totalKmUtilGlobal += kmDeltaDesdeAnterior;
+        totalPctUtilGlobal += consumoDeltaPorcentaje;
+      }
     }
 
     if (row.kilometros_recorridos && row.kilometros_recorridos > 0) {
@@ -123,6 +135,8 @@ export async function getAdminAnaliticaCombustible({ idVehiculo = null, dateFrom
   });
 
   const promedioCombustible = cantidadLecturas > 0 ? Math.round(sumaPorcentajesCombustible / cantidadLecturas) : 0;
+  const rendimientoPromedioGlobal = totalPctUtilGlobal > 0 ? Math.round((totalKmUtilGlobal / totalPctUtilGlobal) * 10) / 10 : null;
+  const porcentajeBajoCombustible = cantidadLecturas > 0 ? Math.round((inspeccionesBajoCombustible / cantidadLecturas) * 100) : 0;
 
   // Formatear respuesta plana y agrupada por vehículo
   const vehiculosResumen = Object.values(lecturasPorVehiculo).map((v) => {
@@ -151,7 +165,10 @@ export async function getAdminAnaliticaCombustible({ idVehiculo = null, dateFrom
       total_inspecciones: cantidadLecturas,
       total_km_monitoreados: totalKmMonitoreados,
       promedio_combustible_inicial: promedioCombustible,
-      total_vehiculos_analizados: vehiculosResumen.length
+      total_vehiculos_analizados: vehiculosResumen.length,
+      rendimiento_promedio_flota: rendimientoPromedioGlobal,
+      inspecciones_bajo_combustible: inspeccionesBajoCombustible,
+      porcentaje_bajo_combustible: porcentajeBajoCombustible
     },
     vehiculos: vehiculosResumen,
     lecturas_lineales: rows.map((row) => ({
