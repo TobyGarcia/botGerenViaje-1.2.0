@@ -177,48 +177,47 @@ function UbicacionesPage() {
   }, [selectedTripId]);
 
   return (
-    <section className="module-page locations-page">
-      <header className="module-header locations-header">
-        <div>
-          <span className="module-label">
-            Seguimiento GPS
-          </span>
-
-          <h1>Ubicaciones</h1>
-
-          <p>
-            Consulta las posiciones y el recorrido registrado de cada viaje en tiempo real.
-          </p>
-        </div>
-      </header>
-
-      {message && (
-        <p
-          className="module-message module-message-error"
-          role="alert"
-        >
-          {message}
-        </p>
-      )}
-
+    <div className="locations-page">
       <section className="locations-layout">
-        {/* LADO IZQUIERDO: Panel con Buscador + Filtro + Lista de Viajes */}
-        <aside className="locations-list-panel">
-          <div className="locations-panel-heading">
-            <div className="locations-heading-title-group">
-              <div className="locations-heading-icon-box">
-                <IconUbicaciones size={18} />
-              </div>
-              <div>
-                <h2>Viajes con GPS</h2>
-                <span className="locations-heading-subtitle">Telemetría en ruta</span>
-              </div>
-            </div>
-
-            <span className="locations-count-badge" title="Total de viajes con GPS">
-              {trips.length}
+        {/* LADO IZQUIERDO: Encabezado + Panel con Buscador + Filtro + Lista de Viajes */}
+        <aside className="locations-sidebar-col">
+          <header className="locations-sidebar-header">
+            <span className="module-label">
+              Seguimiento GPS
             </span>
-          </div>
+
+            <h1>Ubicaciones</h1>
+
+            <p>
+              Consulta las posiciones y el recorrido registrado de cada viaje en tiempo real.
+            </p>
+          </header>
+
+          {message && (
+            <p
+              className="module-message module-message-error"
+              role="alert"
+            >
+              {message}
+            </p>
+          )}
+
+          <div className="locations-list-panel">
+            <div className="locations-panel-heading">
+              <div className="locations-heading-title-group">
+                <div className="locations-heading-icon-box">
+                  <IconUbicaciones size={18} />
+                </div>
+                <div>
+                  <h2>Viajes con GPS</h2>
+                  <span className="locations-heading-subtitle">Telemetría en ruta</span>
+                </div>
+              </div>
+
+              <span className="locations-count-badge" title="Total de viajes con GPS">
+                {trips.length}
+              </span>
+            </div>
 
           {/* Buscador y Filtro Integrados en la Columna Izquierda */}
           <div className="locations-sidebar-controls">
@@ -331,7 +330,8 @@ function UbicacionesPage() {
               })}
             </div>
           )}
-        </aside>
+        </div>
+      </aside>
 
         {/* LADO DERECHO: Mapa ocupando todo el lado derecho */}
         <section className="locations-map-panel" ref={mapPanelRef}>
@@ -445,7 +445,7 @@ function UbicacionesPage() {
           )}
         </section>
       </section>
-    </section>
+    </div>
   );
 }
 

@@ -3349,13 +3349,59 @@ button.estado-toggle-btn:disabled {
 .destination-note strong {
   color: #2e81ab;
 }
+.locations-page {
+  width: 100%;
+  max-width: 100%;
+}
+
 .locations-layout {
   display: grid;
   grid-template-columns: 380px minmax(0, 1fr);
   gap: 18px;
   align-items: stretch;
-  height: calc(100vh - 150px);
+  height: calc(100vh - 84px);
   min-height: 640px;
+}
+
+.locations-sidebar-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.locations-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 0 4px 4px 4px;
+}
+
+.locations-sidebar-header .module-label {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #0284c7;
+  text-transform: uppercase;
+}
+
+.locations-sidebar-header h1 {
+  margin: 2px 0 4px 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+}
+
+.locations-sidebar-header p {
+  margin: 0;
+  font-size: 0.81rem;
+  color: #64748b;
+  line-height: 1.35;
 }
 
 /* ==========================================================================
@@ -3370,7 +3416,8 @@ button.estado-toggle-btn:disabled {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06);
 }
 
@@ -3884,6 +3931,10 @@ button.estado-toggle-btn:disabled {
     gap: 16px;
   }
 
+  .locations-sidebar-col {
+    height: auto;
+  }
+
   .locations-list-panel {
     height: 380px;
     min-height: 320px;
@@ -3902,6 +3953,10 @@ button.estado-toggle-btn:disabled {
 @media (max-width: 768px) {
   .locations-layout {
     gap: 14px;
+  }
+
+  .locations-sidebar-header h1 {
+    font-size: 1.35rem;
   }
 
   .locations-list-panel {
@@ -3947,6 +4002,10 @@ button.estado-toggle-btn:disabled {
 }
 
 @media (max-width: 640px) {
+  .locations-sidebar-header h1 {
+    font-size: 1.2rem;
+  }
+
   .locations-heading-title-group h2 {
     font-size: 1rem;
   }
