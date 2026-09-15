@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireActiveDriver } from "../middlewares/driver-auth.middleware.js";
 import {
   createGerenciamientoController,
   getGerenciamientoByIdController,
@@ -12,7 +13,7 @@ import {
 
 const router = Router();
 
-router.post("/", createGerenciamientoController);
+router.post("/", requireActiveDriver, createGerenciamientoController);
 router.get("/", listGerenciamientosController);
 router.get("/:id", getGerenciamientoByIdController);
 router.get("/:id/pdf", downloadGerenciamientoPdfController);

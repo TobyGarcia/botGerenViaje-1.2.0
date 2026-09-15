@@ -485,11 +485,12 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
       const payload = {
         ...form,
+        idConductor: selectedDriver.id_conductores || driverId,
         tipoAsignacion: "PERMANENTE",
         rutaPuntos: rutaFiltrada,
         acompanantes: acompanantesFiltrados,
         firmaConductor: firmaDataUrl,
-        nombreConductorFirma: selectedDriver.nombre,
+        nombreConductorFirma: selectedDriver.nombre || form.nombreConductor || "Conductor",
         inspeccionData: finalInspData
       };
 

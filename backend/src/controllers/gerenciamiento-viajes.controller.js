@@ -20,6 +20,8 @@ import { uploadGerenciamientoPdfToSharePoint, uploadInspectionPdfToSharePoint } 
 import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
 import { getInspectionByViaje, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 
+import { databasePool } from "../database/pool.js";
+
 async function authenticateDriver(request) {
   if (request.driverUser) {
     return {
@@ -28,19 +30,43 @@ async function authenticateDriver(request) {
       activo: true
     };
   }
+
+  const payloadIdConductor = request.body?.idConductor || request.body?.id_conductor;
+  if (payloadIdConductor) {
+    try {
+      const driverRes = await databasePool.query(
+        "SELECT id_conductores, nombre, activo FROM conductores WHERE id_conductores = $1 AND activo = TRUE",
+        [Number(payloadIdConductor)]
+      );
+      if (driverRes.rows[0]) {
+        return {
+          id_conductores: driverRes.rows[0].id_conductores,
+          nombre: driverRes.rows[0].nombre,
+          activo: true
+        };
+      }
+    } catch (err) {
+      console.warn("[Gerenciamiento] Falló búsqueda de conductor por ID en body:", err.message);
+    }
+  }
+
   const initDataHeader = request.get("X-Telegram-Init-Data") || "";
-  if (!initDataHeader) {
-    throw new Error("No se proporcionó información de autenticación de Telegram.");
+  if (initDataHeader) {
+    try {
+      const telegramData = validateTelegramInitData(initDataHeader, {
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 86400)
+      });
+      const telegramUser = await findTelegramUserById(telegramData.user.id);
+      if (telegramUser?.id_conductores && telegramUser.activo) {
+        return telegramUser;
+      }
+    } catch (err) {
+      console.warn("[Gerenciamiento] Falló autenticación por Telegram InitData:", err.message);
+    }
   }
-  const telegramData = validateTelegramInitData(initDataHeader, {
-    botToken: process.env.TELEGRAM_BOT_TOKEN,
-    maxAgeSeconds: Number(process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS || 86400)
-  });
-  const telegramUser = await findTelegramUserById(telegramData.user.id);
-  if (!telegramUser?.id_conductores || !telegramUser.activo) {
-    throw new Error("El usuario de Telegram no tiene un conductor activo asociado.");
-  }
-  return telegramUser;
+
+  throw new Error("No se proporcionó información de autenticación válida para el conductor.");
 }
 
 export async function createGerenciamientoController(request, response) {

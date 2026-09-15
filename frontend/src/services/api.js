@@ -17,7 +17,7 @@ async function request(path, options = {}) {
     : (driverToken || supervisorToken);
 
   const controller = new AbortController();
-  const timeoutMs = options.timeout || 8000;
+  const timeoutMs = options.timeout || 25000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
