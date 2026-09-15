@@ -1,7 +1,7 @@
 import React from "react";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 
-export default function TopBar({ conductor, onLogout }) {
+export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange }) {
   const isTelegram = Boolean(window.Telegram?.WebApp);
 
   const handleCloseMiniApp = () => {
@@ -19,10 +19,28 @@ export default function TopBar({ conductor, onLogout }) {
       <div className="topbar-inner">
         <div className="topbar-brand">
           <img src={aquarioBlanco} alt="AQUARIO" className="topbar-logo-img" />
-          <div className="topbar-titles">
-            <span className="topbar-title">AQUARIO</span>
-            <span className="topbar-subtitle">Control de Viajes</span>
-          </div>
+
+          {/* Menú Desplegable Superior al lado del Logotipo */}
+          {typeof onTabChange === "function" && (
+            <div className="topbar-menu-dropdown-wrapper">
+              <select
+                className="topbar-menu-select"
+                value={activeTabMode || "urban"}
+                onChange={(e) => onTabChange(e.target.value)}
+                aria-label="Menú principal de navegación"
+              >
+                <option value="urban">🚘 Viaje Urbano</option>
+                <option value="gerenciamiento">🗺️ Gerenciamiento</option>
+                <option value="siniestro">🚨 Reportar Siniestro</option>
+                <option value="perfil">👤 Datos Conductor</option>
+              </select>
+              <div className="topbar-select-arrow">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="topbar-actions">

@@ -1639,7 +1639,12 @@ function isOutsideOperatingHours() {
 
   return (
     <div className="app-shell">
-      <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+      <TopBar
+        conductor={authenticatedDriver}
+        onLogout={handleLogout}
+        activeTabMode={activeTabMode}
+        onTabChange={setActiveTabMode}
+      />
       <main className="container">
         <PwaInstallPrompt />
         <OfflineBanner idViaje={createdTrip?.idViaje} />
@@ -1654,105 +1659,6 @@ function isOutsideOperatingHours() {
                   ? "ACTUALIZACIÓN DE DATOS"
                   : "Nuevo viaje"}
         </h1>
-
-        {/* Top Button Tabs Navigation */}
-        {!createdTrip && (
-          <div className="top-nav-menu-card" style={{ marginBottom: "16px", background: "#ffffff", padding: "8px", borderRadius: "12px", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div className="top-segmented-tabs" style={{ display: "flex", gap: "6px", background: "#f1f5f9", padding: "4px", borderRadius: "8px" }}>
-              <button
-                type="button"
-                onClick={() => setActiveTabMode("urban")}
-                style={{
-                  flex: 1,
-                  padding: "8px 4px",
-                  borderRadius: "6px",
-                  border: 0,
-                  fontWeight: "700",
-                  fontSize: "0.78rem",
-                  background: activeTabMode === "urban" ? "#ffffff" : "transparent",
-                  color: activeTabMode === "urban" ? "#0284c7" : "#64748b",
-                  boxShadow: activeTabMode === "urban" ? "0 2px 4px rgba(0,0,0,0.08)" : "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px"
-                }}
-              >
-                <IconCar size={15} /> Urbano
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTabMode("gerenciamiento")}
-                style={{
-                  flex: 1,
-                  padding: "8px 4px",
-                  borderRadius: "6px",
-                  border: 0,
-                  fontWeight: "700",
-                  fontSize: "0.78rem",
-                  background: activeTabMode === "gerenciamiento" ? "#0284c7" : "transparent",
-                  color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
-                  boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px"
-                }}
-              >
-                <IconMap size={15} /> Gerenciamiento
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTabMode("siniestro")}
-                style={{
-                  flex: 1,
-                  padding: "8px 4px",
-                  borderRadius: "6px",
-                  border: 0,
-                  fontWeight: "700",
-                  fontSize: "0.78rem",
-                  background: activeTabMode === "siniestro" ? "#dc2626" : "transparent",
-                  color: activeTabMode === "siniestro" ? "#ffffff" : "#dc2626",
-                  boxShadow: activeTabMode === "siniestro" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px"
-                }}
-              >
-                <IconAlert size={15} color={activeTabMode === "siniestro" ? "#ffffff" : "#dc2626"} /> Siniestro
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTabMode("perfil")}
-                style={{
-                  flex: 1,
-                  padding: "8px 4px",
-                  borderRadius: "6px",
-                  border: 0,
-                  fontWeight: "700",
-                  fontSize: "0.78rem",
-                  background: activeTabMode === "perfil" ? "#0f172a" : "transparent",
-                  color: activeTabMode === "perfil" ? "#ffffff" : "#64748b",
-                  boxShadow: activeTabMode === "perfil" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px"
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg> Datos
-              </button>
-            </div>
-          </div>
-        )}
 
         <section className="summary-card" aria-label="Fecha actual">
           <span>Fecha actual</span>
