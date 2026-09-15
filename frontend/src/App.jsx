@@ -1652,36 +1652,9 @@ function isOutsideOperatingHours() {
                 : "Nuevo viaje"}
         </h1>
 
-        {/* Top Dropdown Menu Selector */}
+        {/* Top Button Tabs Navigation */}
         {!createdTrip && (
-          <div className="top-nav-menu-card" style={{ marginBottom: "16px", background: "#ffffff", padding: "12px", borderRadius: "12px", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ marginBottom: "8px" }}>
-              <label htmlFor="top-nav-select" style={{ fontWeight: "800", color: "#1e293b", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>📌</span> Menú Principal / Seleccionar Opción:
-              </label>
-              <select
-                id="top-nav-select"
-                value={activeTabMode}
-                onChange={(e) => setActiveTabMode(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "2px solid #0284c7",
-                  background: "#f0f9ff",
-                  color: "#0369a1",
-                  fontWeight: "800",
-                  fontSize: "0.92rem",
-                  cursor: "pointer",
-                  marginTop: "4px"
-                }}
-              >
-                <option value="urban">🚗 Viaje Urbano / Local</option>
-                <option value="gerenciamiento">📋 Gerenciamiento de Viajes (Foráneo)</option>
-                <option value="perfil">👤 Actualización de Datos (Contacto y Licencia)</option>
-              </select>
-            </div>
-
+          <div className="top-nav-menu-card" style={{ marginBottom: "16px", background: "#ffffff", padding: "8px", borderRadius: "12px", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div className="top-segmented-tabs" style={{ display: "flex", gap: "6px", background: "#f1f5f9", padding: "4px", borderRadius: "8px" }}>
               <button
                 type="button"
