@@ -35,17 +35,10 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     error: ""
   });
 
-  const [photos, setPhotos] = useState([
-    {
-      name: "",
-      preview: "",
-      base64: "",
-      sizeKb: 0,
-      compressing: false
-    }
-  ]);
-
-  const [activeCameraIndex, setActiveCameraIndex] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [compressingNew, setCompressingNew] = useState(false);
+  const [showPickerModal, setShowPickerModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -88,70 +81,49 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     );
   }
 
-  async function processPhoto(index, file) {
+  async function processAndAddPhoto(file) {
     if (!file) return;
+    if (photos.length >= 6) return;
 
-    setPhotos((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], compressing: true };
-      return next;
-    });
+    setCompressingNew(true);
     setError("");
 
     try {
       const compressed = await compressImageToMaxKb(file, 70);
-      setPhotos((prev) => {
-        const next = [...prev];
-        next[index] = {
-          name: file.name,
+      setPhotos((prev) => [
+        ...prev,
+        {
+          name: file.name || `foto_${prev.length + 1}.jpg`,
           preview: compressed.base64,
           base64: compressed.base64,
-          sizeKb: compressed.sizeKb,
-          compressing: false
-        };
-        return next;
-      });
+          sizeKb: compressed.sizeKb
+        }
+      ]);
     } catch (err) {
       console.error("Error al procesar foto de siniestro:", err);
-      setError(`No se pudo comprimir la foto ${index + 1}.`);
-      setPhotos((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], compressing: false };
-        return next;
-      });
+      setError("No se pudo comprimir la foto seleccionada.");
+    } finally {
+      setCompressingNew(false);
     }
   }
 
-  function handleFileChange(index, event) {
+  function handleFileSelect(event) {
     const file = event.target.files?.[0];
     if (file) {
-      void processPhoto(index, file);
+      void processAndAddPhoto(file);
     }
+    if (event.target) event.target.value = "";
   }
 
   function handleCameraCapture(file) {
-    const idx = activeCameraIndex;
-    setActiveCameraIndex(null);
-    if (idx !== null && file) {
-      void processPhoto(idx, file);
+    setShowCameraModal(false);
+    if (file) {
+      void processAndAddPhoto(file);
     }
   }
 
-  function addPhotoSlot() {
-    if (photos.length >= 6) return;
-    setPhotos((prev) => [
-      ...prev,
-      { name: "", preview: "", base64: "", sizeKb: 0, compressing: false }
-    ]);
-  }
-
   function removePhoto(index) {
-    setPhotos((prev) => {
-      if (prev.length === 1) {
-        return [{ name: "", preview: "", base64: "", sizeKb: 0, compressing: false }];
-      }
-      return prev.filter((_, i) => i !== index);
-    });
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e) {
@@ -307,14 +279,15 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <label style={{ fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", margin: 0 }}>
-              📷 4. Evidencias Fotográficas ({photos.filter((p) => p.base64).length}/6 Fotos)
+              📷 4. Evidencias Fotográficas ({photos.length}/6 Fotos)
             </label>
             <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
               Máx. 70KB / foto
             </span>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+            {/* Lista de Fotos en Formato Thumbnail */}
             {photos.map((photo, idx) => (
               <div
                 key={idx}
@@ -322,171 +295,112 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
                   width: "95px",
                   height: "95px",
                   borderRadius: "12px",
-                  border: photo.base64 ? "2px solid #22c55e" : "2px dashed #cbd5e1",
-                  background: photo.base64 ? "#000000" : "#f8fafc",
+                  border: "2px solid #22c55e",
+                  background: "#000000",
                   position: "relative",
                   overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                   boxSizing: "border-box"
                 }}
               >
-                {photo.compressing ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", color: "#0284c7", fontSize: "0.7rem", gap: "2px" }}>
-                    <IconRefresh size={18} className="spin" />
-                    <span>70KB...</span>
-                  </div>
-                ) : photo.base64 ? (
-                  <>
-                    <img
-                      src={photo.preview}
-                      alt={`Evidencia ${idx + 1}`}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        background: "rgba(0, 0, 0, 0.65)",
-                        color: "#ffffff",
-                        fontSize: "0.65rem",
-                        fontWeight: "700",
-                        textAlign: "center",
-                        padding: "2px 0"
-                      }}
-                    >
-                      ✓ {photo.sizeKb} KB
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(idx)}
-                      title="Quitar foto"
-                      style={{
-                        position: "absolute",
-                        top: "3px",
-                        right: "3px",
-                        width: "22px",
-                        height: "22px",
-                        borderRadius: "50%",
-                        background: "#ef4444",
-                        color: "#ffffff",
-                        border: "1.5px solid #ffffff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                      }}
-                    >
-                      <IconCross size={12} color="#ffffff" />
-                    </button>
-                  </>
-                ) : (
-                  <div style={{ width: "100%", height: "100%", padding: "5px", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box" }}>
-                    <span style={{ fontSize: "0.68rem", fontWeight: "800", color: "#64748b" }}>
-                      Foto {idx + 1}
-                    </span>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "3px", width: "100%" }}>
-                      <button
-                        type="button"
-                        onClick={() => setActiveCameraIndex(idx)}
-                        style={{
-                          width: "100%",
-                          background: "#2563eb",
-                          color: "#fff",
-                          border: 0,
-                          padding: "3px 0",
-                          borderRadius: "5px",
-                          fontSize: "0.65rem",
-                          fontWeight: "700",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "3px"
-                        }}
-                        title="Tomar con Cámara"
-                      >
-                        <IconCamera size={10} /> Cámara
-                      </button>
-                      <label
-                        style={{
-                          width: "100%",
-                          background: "#475569",
-                          color: "#fff",
-                          padding: "3px 0",
-                          borderRadius: "5px",
-                          fontSize: "0.65rem",
-                          fontWeight: "700",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "3px",
-                          boxSizing: "border-box"
-                        }}
-                        title="Seleccionar Archivo"
-                      >
-                        <IconFolder size={10} /> Archivo
-                        <input type="file" accept="image/*" onChange={(e) => handleFileChange(idx, e)} style={{ display: "none" }} />
-                      </label>
-                    </div>
-                    {photos.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(idx)}
-                        title="Eliminar este cuadro"
-                        style={{
-                          position: "absolute",
-                          top: "2px",
-                          right: "2px",
-                          background: "transparent",
-                          color: "#94a3b8",
-                          border: 0,
-                          cursor: "pointer",
-                          fontSize: "0.65rem",
-                          padding: "2px"
-                        }}
-                      >
-                        <IconCross size={10} color="#94a3b8" />
-                      </button>
-                    )}
-                  </div>
-                )}
+                <img
+                  src={photo.preview}
+                  alt={`Evidencia ${idx + 1}`}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: "rgba(0, 0, 0, 0.7)",
+                    color: "#ffffff",
+                    fontSize: "0.65rem",
+                    fontWeight: "700",
+                    textAlign: "center",
+                    padding: "2px 0"
+                  }}
+                >
+                  ✓ {photo.sizeKb} KB
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removePhoto(idx)}
+                  title="Eliminar foto"
+                  style={{
+                    position: "absolute",
+                    top: "4px",
+                    right: "4px",
+                    width: "22px",
+                    height: "22px",
+                    borderRadius: "50%",
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    border: "1.5px solid #ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)"
+                  }}
+                >
+                  <IconCross size={12} color="#ffffff" />
+                </button>
               </div>
             ))}
 
-            {photos.length < 6 && (
-              <button
-                type="button"
-                onClick={addPhotoSlot}
+            {/* Thumbnail de Carga durante la compresión */}
+            {compressingNew && (
+              <div
                 style={{
                   width: "95px",
                   height: "95px",
                   borderRadius: "12px",
                   border: "2px dashed #0284c7",
                   background: "#f0f9ff",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#0284c7",
+                  fontSize: "0.7rem",
+                  gap: "4px",
+                  boxSizing: "border-box"
+                }}
+              >
+                <IconRefresh size={20} className="spin" />
+                <span style={{ fontWeight: "700" }}>Procesando...</span>
+              </div>
+            )}
+
+            {/* Un solo Cuadro Blanco con el símbolo PLUS en medio */}
+            {photos.length < 6 && !compressingNew && (
+              <button
+                type="button"
+                onClick={() => setShowPickerModal(true)}
+                style={{
+                  width: "95px",
+                  height: "95px",
+                  borderRadius: "12px",
+                  border: "2px dashed #94a3b8",
+                  background: "#ffffff",
                   color: "#0284c7",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  gap: "2px",
-                  boxShadow: "0 2px 6px rgba(2, 132, 199, 0.08)",
-                  boxSizing: "border-box"
+                  gap: "4px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                  boxSizing: "border-box",
+                  transition: "all 0.15s ease"
                 }}
               >
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <IconPlus size={18} color="#0284c7" />
+                <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <IconPlus size={20} color="#0284c7" />
                 </div>
-                <span style={{ fontSize: "0.72rem", fontWeight: "800" }}>+ Foto</span>
-                <span style={{ fontSize: "0.62rem", color: "#0369a1" }}>({6 - photos.length} máx)</span>
+                <span style={{ fontSize: "0.72rem", fontWeight: "700", color: "#334155" }}>Agregar</span>
               </button>
             )}
           </div>
@@ -506,7 +420,7 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
           )}
           <button
             type="submit"
-            disabled={sending || photos.some((p) => p.compressing)}
+            disabled={sending || compressingNew}
             style={{
               flex: 2,
               padding: "12px",
@@ -530,11 +444,57 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
         </div>
       </form>
 
+      {/* Modal / Selector de Origen de Foto */}
+      {showPickerModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "340px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)", textAlign: "center" }}>
+            <h3 style={{ margin: "0 0 6px 0", fontSize: "1.05rem", color: "#0f172a", fontWeight: "800" }}>📷 Opciones de Evidencia</h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: "0.82rem", color: "#64748b" }}>Selecciona cómo deseas adjuntar la fotografía:</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPickerModal(false);
+                  setShowCameraModal(true);
+                }}
+                style={{ width: "100%", padding: "12px", borderRadius: "10px", border: 0, background: "#2563eb", color: "#ffffff", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+              >
+                <IconCamera size={18} /> Tomar Foto con Cámara
+              </button>
+
+              <label
+                style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
+              >
+                <IconFolder size={18} color="#0284c7" /> Elegir de Galería / Archivos
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    setShowPickerModal(false);
+                    handleFileSelect(e);
+                  }}
+                  style={{ display: "none" }}
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setShowPickerModal(false)}
+                style={{ width: "100%", padding: "10px", borderRadius: "10px", border: 0, background: "transparent", color: "#64748b", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", marginTop: "4px" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Visor de Cámara */}
-      {activeCameraIndex !== null && (
+      {showCameraModal && (
         <CameraModal
           onCapture={handleCameraCapture}
-          onClose={() => setActiveCameraIndex(null)}
+          onClose={() => setShowCameraModal(false)}
         />
       )}
     </div>
