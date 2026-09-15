@@ -29,6 +29,7 @@ import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
 import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConductor.jsx";
+import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
@@ -1647,9 +1648,11 @@ function isOutsideOperatingHours() {
             ? "GERENCIAMIENTO DE VIAJE"
             : activeTabMode === "gerenciamiento"
               ? "GERENCIAMIENTO DE VIAJES"
-              : activeTabMode === "perfil"
-                ? "ACTUALIZACIÓN DE DATOS"
-                : "Nuevo viaje"}
+              : activeTabMode === "siniestro"
+                ? "REPORTAR SINIESTRO"
+                : activeTabMode === "perfil"
+                  ? "ACTUALIZACIÓN DE DATOS"
+                  : "Nuevo viaje"}
         </h1>
 
         {/* Top Button Tabs Navigation */}
@@ -1661,11 +1664,11 @@ function isOutsideOperatingHours() {
                 onClick={() => setActiveTabMode("urban")}
                 style={{
                   flex: 1,
-                  padding: "8px 6px",
+                  padding: "8px 4px",
                   borderRadius: "6px",
                   border: 0,
                   fontWeight: "700",
-                  fontSize: "0.8rem",
+                  fontSize: "0.78rem",
                   background: activeTabMode === "urban" ? "#ffffff" : "transparent",
                   color: activeTabMode === "urban" ? "#0284c7" : "#64748b",
                   boxShadow: activeTabMode === "urban" ? "0 2px 4px rgba(0,0,0,0.08)" : "none",
@@ -1683,11 +1686,11 @@ function isOutsideOperatingHours() {
                 onClick={() => setActiveTabMode("gerenciamiento")}
                 style={{
                   flex: 1,
-                  padding: "8px 6px",
+                  padding: "8px 4px",
                   borderRadius: "6px",
                   border: 0,
                   fontWeight: "700",
-                  fontSize: "0.8rem",
+                  fontSize: "0.78rem",
                   background: activeTabMode === "gerenciamiento" ? "#0284c7" : "transparent",
                   color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
                   boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
@@ -1702,14 +1705,36 @@ function isOutsideOperatingHours() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTabMode("perfil")}
+                onClick={() => setActiveTabMode("siniestro")}
                 style={{
                   flex: 1,
-                  padding: "8px 6px",
+                  padding: "8px 4px",
                   borderRadius: "6px",
                   border: 0,
                   fontWeight: "700",
-                  fontSize: "0.8rem",
+                  fontSize: "0.78rem",
+                  background: activeTabMode === "siniestro" ? "#dc2626" : "transparent",
+                  color: activeTabMode === "siniestro" ? "#ffffff" : "#dc2626",
+                  boxShadow: activeTabMode === "siniestro" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px"
+                }}
+              >
+                <IconAlert size={15} color={activeTabMode === "siniestro" ? "#ffffff" : "#dc2626"} /> Siniestro
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTabMode("perfil")}
+                style={{
+                  flex: 1,
+                  padding: "8px 4px",
+                  borderRadius: "6px",
+                  border: 0,
+                  fontWeight: "700",
+                  fontSize: "0.78rem",
                   background: activeTabMode === "perfil" ? "#0f172a" : "transparent",
                   color: activeTabMode === "perfil" ? "#ffffff" : "#64748b",
                   boxShadow: activeTabMode === "perfil" ? "0 2px 4px rgba(0,0,0,0.12)" : "none",
@@ -1754,6 +1779,19 @@ function isOutsideOperatingHours() {
               </p>
             )}
         </section>
+
+        {!createdTrip && activeTabMode === "siniestro" && (
+          <ReporteSiniestro
+            conductor={authenticatedDriver}
+            vehiculoAsignado={selectedVehicle}
+            onComplete={() => {
+              setActiveTabMode("urban");
+              setMessage("🚨 Reporte de siniestro registrado y enviado con éxito a supervisión.");
+              setMessageType("success");
+            }}
+            onCancel={() => setActiveTabMode("urban")}
+          />
+        )}
 
         {!createdTrip && activeTabMode === "perfil" && (
           <ActualizacionPerfilConductor

@@ -376,4 +376,67 @@ export async function sendDriverDeactivationNotification({ telegramUserId, condu
   }
 }
 
+export async function sendSiniestroGroupAlert({ siniestro, pdfBuffer }) {
+  const groupId = process.env.TELEGRAM_GROUP_ID;
+  if (!groupId) {
+    console.warn("No se envió la alerta de siniestro: TELEGRAM_GROUP_ID no está configurado.");
+    return;
+  }
+
+  const message = [
+    `🚨 *ALERTA URGENTE: REPORTADO DE SINIESTRO* 🚨`,
+    `----------------------------------------`,
+    `*Folio:* ${siniestro.folio || "N/A"}`,
+    `*Tipo de Siniestro:* ${siniestro.tipo_siniestro || "GENERAL"}`,
+    `*Conductor:* ${siniestro.conductor_nombre || "No especificado"}`,
+    `*Teléfono:* ${siniestro.conductor_telefono || "N/A"}`,
+    `*Empresa / Cargo:* ${siniestro.empresa || "ITZAMNA"} - ${siniestro.puesto || "N/A"}`,
+    `*Vehículo:* ${siniestro.vehiculo_nombre || "N/A"} (Eco: ${siniestro.numero_economico || "N/A"})`,
+    `*Placas:* ${siniestro.placas || "N/A"}`,
+    `----------------------------------------`,
+    `📍 *Ubicación GPS:* Lat ${siniestro.latitud ?? "N/A"}, Lon ${siniestro.longitud ?? "N/A"}`,
+    siniestro.altitud ? `⛰️ *Altitud:* ${siniestro.altitud} m.s.n.m.` : null,
+    siniestro.latitud && siniestro.longitud ? `🗺️ [Abrir en Google Maps](https://www.google.com/maps?q=${siniestro.latitud},${siniestro.longitud})` : null,
+    `----------------------------------------`,
+    `📝 *Descripción:* ${siniestro.descripcion || "Sin descripción"}`
+  ].filter(Boolean).join("\n");
+
+  try {
+    const bot = getTelegramBot();
+    await bot.telegram.sendMessage(groupId, message, { parse_mode: "Markdown", disable_web_page_preview: false });
+
+    // Enviar parrilla de fotos del siniestro si existen
+    if (Array.isArray(siniestro.fotos) && siniestro.fotos.length > 0) {
+      const mediaGroup = siniestro.fotos.slice(0, 6).map((photo, index) => {
+        const base64Str = typeof photo === "string" ? photo : photo?.base64;
+        if (base64Str && base64Str.includes(";base64,")) {
+          const buf = Buffer.from(base64Str.split(",")[1], "base64");
+          return {
+            type: "photo",
+            media: { source: buf },
+            caption: index === 0 ? `🚨 Fotos Evidencia Siniestro Folio ${siniestro.folio}` : undefined
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (mediaGroup.length > 0) {
+        await bot.telegram.sendMediaGroup(groupId, mediaGroup);
+      }
+    }
+
+    // Enviar PDF si está disponible
+    if (pdfBuffer && Buffer.isBuffer(pdfBuffer)) {
+      await bot.telegram.sendDocument(groupId, {
+        source: pdfBuffer,
+        filename: `REPORTE_SINIESTRO_${siniestro.folio}.pdf`
+      }, {
+        caption: `📄 Reporte Oficial de Siniestro Folio ${siniestro.folio}`
+      });
+    }
+  } catch (error) {
+    console.error("Error al enviar alerta de siniestro al grupo principal por Telegram:", error.message);
+  }
+}
+
 

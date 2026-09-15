@@ -318,3 +318,10 @@ export function actualizarPerfilConductor(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function crearReporteSiniestro(payload) {
+  return request("/api/siniestros", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
