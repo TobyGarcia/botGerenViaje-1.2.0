@@ -342,19 +342,20 @@
 .checklist-badge-na { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
 
 /* Contenedor dinámico de acompañantes */
-.companions-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.companions-header { display: flex; align-items: center; justify-content: space-between; }
+.companions-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; width: 100%; box-sizing: border-box; }
+.companions-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
 .companions-title-group { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #173f51; }
-.companions-count-badge { font-size: 0.76rem; font-weight: 800; color: #2e81ab; background: #e8f8fe; padding: 2px 8px; border-radius: 12px; }
-.companions-controls { display: flex; align-items: center; gap: 10px; }
-.add-companion-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid #2e81ab; background: #2e81ab; color: #ffffff; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.15s ease; }
+.companions-count-badge { font-size: 0.76rem; font-weight: 800; color: #2e81ab; background: #e8f8fe; padding: 2px 8px; border-radius: 12px; white-space: nowrap; }
+.companions-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.add-companion-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid #2e81ab; background: #2e81ab; color: #ffffff; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
 .add-companion-btn:hover:not(:disabled) { background: #22678c; }
 .add-companion-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.companions-inputs-wrapper { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
-.companions-rule-hint { font-size: 0.76rem; color: #64748b; font-weight: 600; }
-.companion-row { display: flex; align-items: center; gap: 8px; }
+.companions-inputs-wrapper { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; width: 100%; box-sizing: border-box; }
+.companions-sub-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; width: 100%; margin-bottom: 2px; }
+.companions-rule-hint { font-size: 0.76rem; color: #64748b; font-weight: 600; flex: 1; min-width: 120px; }
+.companion-row { display: flex; align-items: center; gap: 8px; width: 100%; }
 .companion-row input { flex: 1; min-width: 0; }
-.remove-companion-btn { width: 34px; height: 34px; border-radius: 6px; border: 1px solid #fca5a5; background: #fef2f2; color: #dc2626; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.remove-companion-btn { width: 34px; height: 34px; border-radius: 6px; border: 1px solid #fca5a5; background: #fef2f2; color: #dc2626; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
 .remove-companion-btn:hover { background: #fee2e2; }
 
 /* Evaluation Slider Custom Styles */

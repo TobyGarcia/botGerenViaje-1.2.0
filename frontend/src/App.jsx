@@ -1972,24 +1972,8 @@ function isOutsideOperatingHours() {
               <div className="companions-header">
                 <div className="companions-title-group">
                   <span>Acompañantes</span>
-                  {form.viajaAcompanado && (
-                    <span className="companions-count-badge">
-                      {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
-                    </span>
-                  )}
                 </div>
                 <div className="companions-controls">
-                  {form.viajaAcompanado && (
-                    <button
-                      type="button"
-                      className="add-companion-btn"
-                      onClick={addCompanionField}
-                      disabled={listaAcompanantes.length >= maxAcompanantes}
-                      title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
-                    >
-                      + Agregar
-                    </button>
-                  )}
                   <button
                     type="button"
                     className={`companions-toggle ${form.viajaAcompanado ? "companions-toggle-active" : ""}`}
@@ -2006,9 +1990,25 @@ function isOutsideOperatingHours() {
 
               {form.viajaAcompanado && (
                 <div className="companions-inputs-wrapper">
-                  <small className="companions-rule-hint">
-                    {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
-                  </small>
+                  <div className="companions-sub-header">
+                    <small className="companions-rule-hint">
+                      {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
+                    </small>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span className="companions-count-badge">
+                        {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
+                      </span>
+                      <button
+                        type="button"
+                        className="add-companion-btn"
+                        onClick={addCompanionField}
+                        disabled={listaAcompanantes.length >= maxAcompanantes}
+                        title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  </div>
                   {listaAcompanantes.map((nombre, index) => (
                     <div key={index} className="companion-row">
                       <input
