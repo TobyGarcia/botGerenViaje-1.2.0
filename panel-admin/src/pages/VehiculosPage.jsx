@@ -31,7 +31,10 @@ import {
   IconCheck,
   IconViajes,
   IconAlerta,
-  IconCross
+  IconCross,
+  IconCoche,
+  IconShield,
+  IconUsuarios
 } from "../components/Icons.jsx";
 
 const initialForm = {
@@ -1208,38 +1211,242 @@ function VehiculosPage({ user }) {
 
       {(detailLoading || detailVehicle) && (
         <div className="modal-overlay" role="presentation" onMouseDown={() => !detailLoading && setDetailVehicle(null)}>
-          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="vehicle-detail-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="form-panel-header">
-              <div><h2 id="vehicle-detail-title">Detalle de unidad</h2><p>{detailVehicle ? `${detailVehicle.marca || detailVehicle.nombre} ${detailVehicle.modelo || ""}` : "Cargando información..."}</p></div>
-              <button type="button" className="close-button" onClick={() => setDetailVehicle(null)} aria-label="Cerrar detalle" disabled={detailLoading}>×</button>
-            </div>
-            {detailLoading ? <p className="table-status">Cargando detalle...</p> : detailVehicle && (
-              <div className="mileage-summary">
-                <span><strong>Estado:</strong> {detailVehicle.disponibilidad}</span>
-                <span><strong>Núm. económico:</strong> {detailVehicle.numero_economico}</span>
-                <span><strong>Placas:</strong> {detailVehicle.placas}</span>
-                <span><strong>Color:</strong> {detailVehicle.color || "Sin capturar"}</span>
-                <span><strong>Personal asignado:</strong> {detailVehicle.personal_asignado || "Sin asignar"}</span>
-                <span><strong>Tipo:</strong> {detailVehicle.tipo_vehiculo || "Sin capturar"}</span>
-                <span><strong>Propiedad:</strong> {detailVehicle.tipo_propiedad || "Sin capturar"}</span>
-                <span><strong>Núm. de serie:</strong> {detailVehicle.numero_serie || "Sin capturar"}</span>
-                <span><strong>Póliza:</strong> {detailVehicle.numero_poliza || "Sin capturar"}</span>
-                <span><strong>Vence seguro:</strong> {formatVehicleDate(detailVehicle.seguro_vencimiento)}</span>
-                <span><strong>Kilometraje:</strong> {detailVehicle.kilometraje_actual ?? 0} km</span>
-                {detailVehicle.en_mantenimiento && (
-                  <>
-                    <span style={{ color: "#b91c1c" }}><strong>En mantenimiento:</strong> Sí ({detailVehicle.dias_en_mantenimiento ?? 0} {detailVehicle.dias_en_mantenimiento === 1 ? "día" : "días"})</span>
-                    <span><strong>Motivo mantenimiento:</strong> {detailVehicle.motivo_mantenimiento || "Sin registrar"}</span>
-                  </>
+          <section
+            className="modal-card vehicle-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vehicle-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="vehicle-detail-header">
+              <div className="vehicle-detail-header-left">
+                <div className="vehicle-detail-icon-box">
+                  <IconCoche size={24} />
+                </div>
+                <div className="vehicle-detail-title-group">
+                  <h2 id="vehicle-detail-title">Detalle de Unidad</h2>
+                  <p>
+                    {detailVehicle
+                      ? `${detailVehicle.marca || detailVehicle.nombre} ${detailVehicle.modelo || ""}`.trim()
+                      : "Cargando información..."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="vehicle-detail-header-right">
+                {detailVehicle?.numero_economico && (
+                  <span className="vehicle-eco-tag" style={{ fontSize: "0.82rem", padding: "4px 10px" }} title="Número económico">
+                    <span className="vehicle-eco-label">ECO</span>
+                    <span className="vehicle-eco-val">{detailVehicle.numero_economico}</span>
+                  </span>
                 )}
-                {detailVehicle.folio_viaje_en_curso && <span><strong>Viaje en curso:</strong> {detailVehicle.folio_viaje_en_curso} · {detailVehicle.conductor_viaje_en_curso}</span>}
+                <button
+                  type="button"
+                  className="close-button"
+                  onClick={() => setDetailVehicle(null)}
+                  aria-label="Cerrar detalle"
+                  disabled={detailLoading}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {detailLoading ? (
+              <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                <p className="table-status">Cargando información del vehículo...</p>
+              </div>
+            ) : detailVehicle && (
+              <div className="vehicle-detail-content">
+                {/* Banner de Mantenimiento si aplica */}
+                {detailVehicle.en_mantenimiento && (
+                  <div className="vehicle-maintenance-alert-box">
+                    <div className="vehicle-maintenance-alert-header">
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <IconMantenimiento size={16} /> En Mantenimiento ({detailVehicle.dias_en_mantenimiento ?? 0} {detailVehicle.dias_en_mantenimiento === 1 ? "día" : "días"})
+                      </span>
+                      <span style={{ fontSize: "0.75rem", background: "#fef3c7", padding: "2px 8px", borderRadius: "999px", color: "#b45309", fontWeight: 700 }}>
+                        Atención Requerida
+                      </span>
+                    </div>
+                    <div className="vehicle-maintenance-alert-reason">
+                      <strong>Motivo:</strong> {detailVehicle.motivo_mantenimiento || "Sin registrar"}
+                    </div>
+                  </div>
+                )}
+
+                {/* Banner de Viaje Activo si aplica */}
+                {detailVehicle.folio_viaje_en_curso && (
+                  <div className="vehicle-trip-active-box">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <IconViajes size={18} />
+                      <span><strong>Viaje en Curso:</strong> Folio #{detailVehicle.folio_viaje_en_curso}</span>
+                    </div>
+                    <span>{detailVehicle.conductor_viaje_en_curso || "Conductor asignado"}</span>
+                  </div>
+                )}
+
+                {/* Tarjeta 1: Operación y Asignación */}
+                <div className="vehicle-detail-section-card">
+                  <div className="vehicle-detail-section-title">
+                    <IconUsuarios size={16} />
+                    <span>Operación y Asignación</span>
+                  </div>
+
+                  <div className="vehicle-detail-grid-3">
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Estado Operativo</span>
+                      <div className="vehicle-field-value" style={{ gap: "8px" }}>
+                        {renderVehicleStatusCircle(detailVehicle)}
+                        <span style={{ fontSize: "0.88rem", fontWeight: 700 }}>
+                          {detailVehicle.en_mantenimiento
+                            ? "En Mantenimiento"
+                            : !detailVehicle.activo
+                            ? "Inactivo"
+                            : detailVehicle.disponibilidad === "EN_VIAJE"
+                            ? "En Viaje"
+                            : "Disponible"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Personal Asignado</span>
+                      <span className="vehicle-field-value">
+                        {detailVehicle.personal_asignado ? (
+                          <span>{detailVehicle.personal_asignado}</span>
+                        ) : (
+                          <span style={{ color: "#94a3b8", fontWeight: 500, fontStyle: "italic" }}>
+                            Sin asignar
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Kilometraje Actual</span>
+                      <span className="vehicle-field-value vehicle-km-highlight">
+                        <IconReloj size={15} style={{ color: "#0284c7" }} />
+                        {Number(detailVehicle.kilometraje_actual ?? 0).toLocaleString("es-MX")} km
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tarjeta 2: Identificación y Especificaciones */}
+                <div className="vehicle-detail-section-card">
+                  <div className="vehicle-detail-section-title">
+                    <IconCoche size={16} />
+                    <span>Identificación del Vehículo</span>
+                  </div>
+
+                  <div className="vehicle-detail-grid-3">
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Placas</span>
+                      <div className="vehicle-field-value">
+                        <span className="vehicle-placa-badge">{detailVehicle.placas || "—"}</span>
+                      </div>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Tipo de Vehículo</span>
+                      <span className="vehicle-field-value" style={{ textTransform: "capitalize" }}>
+                        {detailVehicle.tipo_vehiculo || "Sin capturar"}
+                      </span>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Color</span>
+                      <span className="vehicle-field-value" style={{ textTransform: "capitalize" }}>
+                        {detailVehicle.color || "Sin capturar"}
+                      </span>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Tipo de Propiedad</span>
+                      <span className="vehicle-field-value">
+                        <span style={{ padding: "2px 8px", borderRadius: "6px", background: "#f1f5f9", fontSize: "0.78rem", fontWeight: 700, color: "#334155" }}>
+                          {detailVehicle.tipo_propiedad || "EMPRESARIAL"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="vehicle-field-block" style={{ gridColumn: "span 2" }}>
+                      <span className="vehicle-field-label">Número de Serie (VIN)</span>
+                      <div className="vehicle-field-value">
+                        <span className="vehicle-vin-code">{detailVehicle.numero_serie || "Sin capturar"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tarjeta 3: Póliza de Seguro */}
+                <div className="vehicle-detail-section-card">
+                  <div className="vehicle-detail-section-title">
+                    <IconShield size={16} />
+                    <span>Póliza y Seguro Vehicular</span>
+                  </div>
+
+                  <div className="vehicle-detail-grid-2">
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Número de Póliza</span>
+                      <span className="vehicle-field-value" style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>
+                        {detailVehicle.numero_poliza || "Sin capturar"}
+                      </span>
+                    </div>
+
+                    <div className="vehicle-field-block">
+                      <span className="vehicle-field-label">Vencimiento del Seguro</span>
+                      <span className="vehicle-field-value">
+                        <IconShield size={15} style={{ color: "#16a34a" }} />
+                        {formatVehicleDate(detailVehicle.seguro_vencimiento)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
+
             {detailVehicle && !detailLoading && (
-              <div className="form-actions">
-                {canEditVehicle && <button type="button" className="primary-button" onClick={() => { const vehicle = detailVehicle; setDetailVehicle(null); openForm(vehicle); }}>
-                  Editar datos
-                </button>}
+              <div className="vehicle-detail-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", fontSize: "0.85rem" }}
+                  onClick={() => {
+                    const v = detailVehicle;
+                    setDetailVehicle(null);
+                    openMileage(v);
+                  }}
+                  title="Consultar historial de lecturas de kilometraje"
+                >
+                  <IconHistorial size={16} /> Historial KM
+                </button>
+
+                <div className="vehicle-detail-footer-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+                    onClick={() => setDetailVehicle(null)}
+                  >
+                    Cerrar
+                  </button>
+                  {canEditVehicle && (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", fontSize: "0.85rem" }}
+                      onClick={() => {
+                        const vehicle = detailVehicle;
+                        setDetailVehicle(null);
+                        openForm(vehicle);
+                      }}
+                    >
+                      <IconEditar size={16} /> Editar datos
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </section>
