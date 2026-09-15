@@ -125,7 +125,8 @@ async function initializeDependencies() {
             ADD COLUMN IF NOT EXISTS aprobado_por_admin BOOLEAN NOT NULL DEFAULT TRUE,
             ADD COLUMN IF NOT EXISTS fecha_aprobacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN IF NOT EXISTS licencia_url TEXT DEFAULT NULL,
-            ADD COLUMN IF NOT EXISTS licencia_reverso_url TEXT DEFAULT NULL;
+            ADD COLUMN IF NOT EXISTS licencia_reverso_url TEXT DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS puesto VARCHAR(100) DEFAULT NULL;
         `);
       } catch (mErr) {
         console.warn("Aviso en auto-migración de conductores:", mErr.message);

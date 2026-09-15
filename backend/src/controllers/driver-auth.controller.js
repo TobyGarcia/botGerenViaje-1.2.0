@@ -114,6 +114,7 @@ export async function getDriverSessionController(request, response) {
           licenciaNumero: conductor.licencia_numero,
           tipo_licencia: conductor.tipo_licencia,
           empresa: conductor.empresa,
+          puesto: conductor.puesto,
           licencia_vigente: conductor.licencia_vigente,
           licencia_vencimiento: conductor.licencia_vencimiento,
           telefono: conductor.telefono,
@@ -154,6 +155,7 @@ export async function updateDriverProfileController(request, response) {
       telefono,
       licenciaNumero,
       tipoLicencia,
+      puesto,
       licenciaVencimiento,
       licenciaArchivoBase64,
       licenciaReversoBase64,
@@ -176,6 +178,7 @@ export async function updateDriverProfileController(request, response) {
       telefono,
       licenciaNumero,
       tipoLicencia,
+      puesto,
       licenciaVencimiento,
       licenciaUrl,
       licenciaReversoUrl

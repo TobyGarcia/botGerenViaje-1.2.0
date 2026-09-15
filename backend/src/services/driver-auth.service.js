@@ -22,6 +22,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          licencia_numero,
          tipo_licencia,
          empresa,
+         puesto,
          licencia_vigente,
          licencia_vencimiento,
          telefono,
@@ -64,6 +65,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          licencia_numero,
          tipo_licencia,
          empresa,
+         puesto,
          licencia_vigente,
          licencia_vencimiento,
          telefono,
@@ -108,6 +110,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
       licenciaNumero: conductor.licencia_numero,
       tipo_licencia: conductor.tipo_licencia,
       empresa: conductor.empresa,
+      puesto: conductor.puesto,
       licencia_vigente: conductor.licencia_vigente,
       licencia_vencimiento: conductor.licencia_vencimiento,
       telefono: conductor.telefono,
@@ -148,6 +151,7 @@ export async function findActiveDriverById(idConductor) {
        licencia_numero,
        tipo_licencia,
        empresa,
+       puesto,
        licencia_vigente,
        licencia_vencimiento,
        telefono,
@@ -170,6 +174,7 @@ export async function findDriverById(idConductor) {
        licencia_numero,
        tipo_licencia,
        empresa,
+       puesto,
        licencia_vigente,
        licencia_vencimiento,
        telefono,
@@ -190,6 +195,7 @@ export async function updateDriverSelfProfile(idConductor, {
   telefono,
   licenciaNumero,
   tipoLicencia,
+  puesto,
   licenciaVencimiento,
   licenciaUrl,
   licenciaReversoUrl
@@ -210,6 +216,11 @@ export async function updateDriverSelfProfile(idConductor, {
   if (tipoLicencia !== undefined) {
     params.push(String(tipoLicencia).trim());
     updates.push(`tipo_licencia = $${params.length}`);
+  }
+
+  if (puesto !== undefined) {
+    params.push(puesto ? String(puesto).trim() : null);
+    updates.push(`puesto = $${params.length}`);
   }
 
   if (licenciaVencimiento !== undefined && String(licenciaVencimiento).trim()) {
@@ -245,6 +256,7 @@ export async function updateDriverSelfProfile(idConductor, {
       licencia_numero,
       tipo_licencia,
       empresa,
+      puesto,
       licencia_vigente,
       licencia_vencimiento,
       telefono,

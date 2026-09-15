@@ -153,6 +153,7 @@ function validateDriverRegistration(body) {
     : "";
   const tipoLicencia = typeof body?.tipoLicencia === "string" ? body.tipoLicencia.trim() : "";
   const empresa = typeof body?.empresa === "string" ? body.empresa.trim().toUpperCase() : "";
+  const puesto = typeof body?.puesto === "string" ? body.puesto.trim() : "";
 
   const fechaManejoComentado = typeof body?.fechaManejoComentado === "string" && body.fechaManejoComentado.trim()
     ? body.fechaManejoComentado.trim()
@@ -203,7 +204,7 @@ function validateDriverRegistration(body) {
     licenciaReversoUrl = saveLicenseFileBase64(body.licenciaReversoBase64, body.licenciaReversoNombre || "", "licencia_reverso");
   }
 
-  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, fechaManejoComentado, licenciaUrl, licenciaReversoUrl };
+  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, puesto, licenciaVencimiento, fechaManejoComentado, licenciaUrl, licenciaReversoUrl };
 }
 
 

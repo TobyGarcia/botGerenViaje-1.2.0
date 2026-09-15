@@ -2,12 +2,8 @@ import React, { useState } from "react";
 import { actualizarPerfilConductor } from "../services/api.js";
 
 const TIPOS_LICENCIA_OPCIONES = [
-  "Tipo A (Particular / Automóvil)",
-  "Tipo B (Carga / Chófer Particular)",
-  "Tipo C (Servicio Público / Colectivo)",
-  "Tipo D (Especial / Maquinaria)",
-  "Tipo E (Maquinaria Pesada / Grúas)",
-  "Licencia Federal de Conductor"
+  "AUTOMOVILISTA",
+  "CHOFER"
 ];
 
 function formatDateForInput(dateStr) {
@@ -23,7 +19,8 @@ function formatDateForInput(dateStr) {
 export default function ActualizacionPerfilConductor({ conductor, onProfileUpdated, onCancel }) {
   const [telefono, setTelefono] = useState(conductor?.telefono || "");
   const [licenciaNumero, setLicenciaNumero] = useState(conductor?.licencia_numero || conductor?.licenciaNumero || "");
-  const [tipoLicencia, setTipoLicencia] = useState(conductor?.tipo_licencia || TIPOS_LICENCIA_OPCIONES[0]);
+  const [tipoLicencia, setTipoLicencia] = useState(conductor?.tipo_licencia || "AUTOMOVILISTA");
+  const [puesto, setPuesto] = useState(conductor?.puesto || "");
   const [licenciaVencimiento, setLicenciaVencimiento] = useState(formatDateForInput(conductor?.licencia_vencimiento || conductor?.licenciaVencimiento));
 
   const [licenciaArchivoBase64, setLicenciaArchivoBase64] = useState("");
@@ -89,6 +86,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
         telefono: telefono.trim(),
         licenciaNumero: licenciaNumero.trim(),
         tipoLicencia: tipoLicencia.trim(),
+        puesto: puesto.trim(),
         licenciaVencimiento,
         ...(licenciaArchivoBase64 ? { licenciaArchivoBase64, licenciaNombreArchivo } : {}),
         ...(licenciaReversoBase64 ? { licenciaReversoBase64, licenciaReversoNombre } : {})
@@ -167,6 +165,21 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
             style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #0284c7", fontSize: "0.95rem", fontWeight: "600", color: "#0f172a" }}
           />
           <small style={{ color: "#64748b", fontSize: "0.78rem" }}>Número al cual avisar en caso de alguna incidencia durante los viajes.</small>
+        </div>
+
+        <div>
+          <label htmlFor="input-puesto" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.88rem", marginBottom: "4px" }}>
+            💼 Puesto / Cargo
+          </label>
+          <input
+            id="input-puesto"
+            type="text"
+            value={puesto}
+            onChange={(e) => setPuesto(e.target.value)}
+            placeholder="Ej. Operador, Supervisor..."
+            maxLength={100}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.95rem", fontWeight: "600", color: "#0f172a" }}
+          />
         </div>
 
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
