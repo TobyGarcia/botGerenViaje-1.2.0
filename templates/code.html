@@ -1,671 +1,227 @@
-<!DOCTYPE html><html class="h-full bg-slate-50" lang="es" style=""><head>
+<!DOCTYPE html><html class="h-full bg-slate-950" lang="es" style=""><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 <title>GV Mobility - Gerenciamiento de Viaje</title>
-<!-- Tailwind CSS CDN with Forms & Container Queries -->
+<!-- Tailwind CSS v3 with plugins -->
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<!-- Google Fonts: Plus Jakarta Sans -->
-<link href="https://fonts.googleapis.com" rel="preconnect">
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Configuration -->
 <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-          },
           colors: {
             brand: {
-              50: '#f0f7ff',
-              100: '#e0effe',
-              500: '#0284c7',
-              600: '#0369a1',
-              700: '#075985',
-              900: '#0B192C',
-            },
-            accent: {
-              orange: '#ea580c',
-              orangeHover: '#c2410c',
+              navy: '#0A192F',
+              header: '#0b1626',
+              primary: '#0284C7',
+              darkBlue: '#0369A1',
+              accent: '#00B4D8',
+              crimson: '#9E1C1C',
+              crimsonDark: '#801515',
+              emerald: '#10B981'
             }
+          },
+          boxShadow: {
+            'card': '0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04)',
+            'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            'emergency': '0 8px 24px -4px rgba(185, 28, 28, 0.25)'
           }
         }
       }
     }
   </script>
 <!-- BEGIN: Custom Styles -->
-<style data-purpose="base-layout">
+<style data-purpose="custom-typography-and-effects">
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    
     body {
-      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-    /* Input custom scroll & select styles */
-    select {
-      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-      background-position: right 0.75rem center;
-      background-repeat: no-repeat;
-      background-size: 1.25em 1.25em;
-      padding-right: 2.5rem;
+
+    /* Pulse wave for active GPS beacon */
+    .radar-pulse {
+      position: relative;
     }
-  </style>
-<style data-purpose="card-decorations">
-    .card-shadow {
-      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+    .radar-pulse::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      background-color: rgba(16, 185, 129, 0.35);
+      animation: pulse-ring 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
     }
-    .badge-blur {
-      backdrop-filter: blur(8px);
+
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.85);
+        opacity: 0.9;
+      }
+      80%, 100% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
     }
   </style>
 <!-- END: Custom Styles -->
-</head>
-<body class="h-full font-sans bg-[#F4F7FB] text-slate-800 antialiased flex flex-col items-center">
-<!-- Mobile Container / Wrapper for App Viewport -->
-<div class="w-full max-w-md min-h-screen bg-[#F4F7FB] flex flex-col shadow-2xl relative pb-28">
-<!-- BEGIN: TopBar -->
-<header class="sticky top-0 z-40 bg-[#0B192C] px-4 py-3 flex items-center justify-between border-b border-slate-800/80 shadow-md">
-<!-- Logo Container -->
-<div class="flex items-center space-x-2">
-<img alt="GV Mobility Logo" class="h-8 w-auto object-contain brightness-110 drop-shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqrUoDuzCSXiXqeVy7ohKSonIR5TBiEO-VPfhbnG1yltXKN41emb0qjIiV22f0vSH37SBUDHqMTiXWn6-fXdnzYHJDlcw1B8ZLnDiE4z5sKdjxgAJmZTipswa3DdxsYOzLILlvniShhlvJ0U_Bf6_G0PiuXTIXFygCcpo_9za_ppA05zuzETT0zhsAGvE1kQN6Ohy26hSmySEQO5MkUBCQWr9XBPKCALDzYKkY5kHZpFufGa0fKh-lzmIe6zorIinU9jo">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" data-snapdom="injected-import"></head>
+<body class="h-full flex justify-center bg-slate-900 text-slate-800 antialiased selection:bg-sky-500 selection:text-white">
+<!-- BEGIN: Mobile Device Frame Wrapper -->
+<div class="w-full max-w-md min-h-screen bg-[#F7F9FC] flex flex-col shadow-2xl relative overflow-x-hidden pb-12" data-purpose="mobile-viewport-container">
+<!-- BEGIN: MainHeader -->
+<!-- Top status bar & brand identity navigation -->
+<header class="bg-[#0b1626] text-white px-4 py-3 sticky top-0 z-40 flex items-center justify-between border-b border-slate-800 shadow-md">
+<!-- GV Mobility Brand Logo -->
+<div class="flex items-center gap-2">
+<img alt="GV Mobility Logo" class="h-8 w-auto object-contain max-w-[145px]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXieZaCd2sX9v0xzWq3Vlm8Irjkc1U-JKsM9u19ExG0B_GbfiZa2E-7Lr2CZXuK8a2cox5XUAi3cno4tABPZQozpVGIijYIcvNHyOJVV3nGyVW5Zr-6CD-qbeX9wxhnyC_H-9sIT4j8lPQEdWXKMNdh6oshIvxzZS_h5kLyixHNpott2xqeEKFkDAQ3epUaQ-MGAEdraPWpvetKm5HdzcabcFRyrqkXF8oyqLD6OSc3NMUA71f9yKBvoPE6vCYzvULsOU">
 </div>
-<!-- Header Action Controls -->
-<div class="flex items-center space-x-2.5">
-<button aria-label="Abrir Menú" class="w-9 h-9 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white flex items-center justify-center transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400" type="button">
-<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</button>
-<button aria-label="Cerrar Sesión" class="w-9 h-9 rounded-lg bg-red-950/40 border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-red-400" type="button">
-<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" stroke-linecap="round" stroke-linejoin="round"></path>
+<!-- Header actions: Utility menu and Exit button -->
+<div class="flex items-center gap-2">
+<!-- Quick Options Button -->
+<button aria-label="Abrir menú" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#0369a1] hover:bg-[#0284c7] text-white rounded-lg font-medium text-xs shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400" type="button"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+<!-- Exit / Logout Button -->
+<button aria-label="Cerrar sesión o salir" class="h-9 w-9 bg-rose-950/40 border border-rose-900/60 hover:bg-rose-900/60 active:bg-rose-900 text-rose-300 rounded-lg flex items-center justify-center transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500" type="button">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+<polyline points="16 17 21 12 16 7"></polyline>
+<line x1="21" x2="9" y1="12" y2="12"></line>
 </svg>
 </button>
 </div>
 </header>
-<!-- END: TopBar -->
-<!-- BEGIN: Stepper Header -->
-<div class="bg-gradient-to-br from-white to-sky-50/50 rounded-2xl p-4 border border-sky-100 card-shadow mx-4 mt-4 mb-2"><div class="flex items-center space-x-2 text-sky-800 font-extrabold tracking-wider text-xs uppercase mb-1"><svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="">Operación y Logística</span></div><h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">GERENCIAMIENTO DE VIAJE</h1></div><div class="sticky top-[57px] z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 shadow-sm">
-<div class="flex items-center justify-between mb-2">
+<!-- END: MainHeader -->
+<!-- BEGIN: TitleAndNotificationSection -->
+<section class="px-4 pt-4 pb-2">
+<!-- Title & Operational Subheading -->
+<div class="mb-3">
+<h1 class="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">Gerenciamiento de Viaje</h1>
+<p class="text-xs text-slate-500 font-medium mt-0.5">Control operativo y seguimiento de trayecto</p>
+</div>
+<!-- Success Notification Banner -->
+<aside aria-label="Confirmación de asignación de viaje" class="bg-emerald-50/90 border border-emerald-300/80 rounded-xl p-3 flex items-start gap-2.5 shadow-sm">
+<div class="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 text-emerald-700 mt-0.5">
+<svg aria-hidden="true" class="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+</div>
+<div class="text-xs leading-relaxed">
+<p class="font-bold text-emerald-950">Viaje creado correctamente.</p>
+<p class="text-emerald-800 font-medium">Folio asignado: <span class="font-mono font-bold text-emerald-900 tracking-wide">VJ-20260917-0015</span></p>
+</div>
+</aside>
+</section>
+<!-- END: TitleAndNotificationSection -->
+<!-- BEGIN: ActiveTripInformation -->
+<!-- Main trip details and status card -->
+<main class="px-4 py-2 space-y-4 flex-1">
+<section class="bg-white rounded-2xl border border-slate-200/90 shadow-card p-4" data-purpose="trip-overview-card">
+<!-- Status indicator bar -->
+<div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+</span>
+<span class="text-sm font-bold text-slate-900">Viaje en curso</span>
+</div>
+<!-- Status badge -->
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 tracking-wide uppercase">
+            EN_CURSO
+          </span>
+</div>
+<!-- Trip key attributes list -->
+<dl class="py-3 space-y-2.5 text-xs">
+<!-- Folio -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Folio:</dt>
+<dd class="bg-slate-100 px-2 py-0.5 rounded text-slate-800 font-mono font-semibold text-[11px] tracking-tight">VJ-20260917-0015</dd>
+</div>
+<!-- Conductor -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Conductor:</dt>
+<dd class="text-slate-900 font-bold">Mauricio Blanquet</dd>
+</div>
+<!-- Unidad -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Unidad:</dt>
+<dd class="text-slate-900 font-semibold tracking-wide">MITSUBISHI L200</dd>
+</div>
+<!-- Número económico -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Número económico:</dt>
+<dd class="bg-slate-100 px-2 py-0.5 rounded text-slate-800 font-mono font-semibold text-[11px]">AQR-001</dd>
+</div>
+<!-- Kilometraje inicial -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Kilometraje inicial:</dt>
+<dd class="bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded border border-sky-100">208 km</dd>
+</div>
+<!-- Hora de salida -->
+<div class="flex justify-between items-center py-0.5">
+<dt class="text-slate-500 font-medium">Hora de salida:</dt>
+<dd class="text-slate-700 font-medium text-[11px]">17 sep 2026, 3:45:43 p.m.</dd>
+</div>
+</dl>
+<!-- Cancel trip action trigger -->
+<div class="pt-2 mb-2 grid grid-cols-2 gap-2.5"><button type="button" class="w-full py-2.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400"><svg aria-hidden="true" class="w-4 h-4 stroke-[2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg><span class="truncate">Punto Intermedio</span></button><button type="button" class="w-full py-2.5 px-2 bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400"><svg aria-hidden="true" class="w-3.5 h-3.5 stroke-[2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg><span class="truncate">Sincronizar</span></button></div><div class="pt-3 mt-1 border-t border-slate-100"><div class="pb-2 flex items-center justify-between"></div><form action="#" class="mt-2 space-y-3" method="POST" onsubmit="event.preventDefault();"><div><label class="block text-xs font-bold text-slate-800 mb-1" for="odometer-final">Lectura final de Odómetro (KM) <span class="text-rose-700">*</span></label><div class="relative rounded-xl shadow-sm"><input class="block w-full rounded-xl border-slate-300 py-2.5 px-3.5 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:ring-sky-500 tracking-wide font-mono shadow-inner" id="odometer-final" name="odometer-final" placeholder="0" type="number" value="208"><div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-xs font-bold text-slate-400">KM</span></div></div><p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1"><svg aria-hidden="true" class="w-3 h-3 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="12" y1="12.01" x2="12" y2="8"></line></svg><span class="">Captura el kilometraje actual del odómetro.</span></p></div><div class="pt-1"><button class="w-full py-3 px-4 bg-[#8b2626] hover:bg-[#731e1e] active:bg-[#5c1818] text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-700" type="submit"><svg aria-hidden="true" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><rect height="16" rx="2" width="16" x="4" y="4"></rect></svg><span class="tracking-wide uppercase">Finalizar viaje</span></button></div></form></div><div class="pt-2 border-t border-slate-100">
+<button class="w-full py-2.5 px-4 bg-rose-50/60 hover:bg-rose-100 active:bg-rose-200 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-rose-400" type="button">
+<svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+<span class="">Cancelar viaje</span>
+</button>
+</div>
+</section>
+<!-- END: ActiveTripInformation -->
+<!-- BEGIN: EmergencyAlertCard -->
+<!-- Priority incident and hazard reporting card -->
+<section class="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 shadow-subtle relative overflow-hidden" data-purpose="emergency-report-card">
+<div class="flex items-start gap-3">
+<div class="p-2 rounded-xl bg-rose-100 text-rose-700 shrink-0 mt-0.5">
+<svg aria-hidden="true" class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
 <div>
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 tracking-wide" id="step-badge">PASO 1 DE 5</span>
-<h3 class="text-xs font-bold text-slate-800 mt-0.5" id="step-title">Ruta y Unidad</h3>
-</div>
-<div class="text-right">
-<span class="text-xs font-extrabold text-sky-700" id="step-percentage">20%</span>
+<h2 class="text-sm font-bold text-rose-950 leading-tight">¿Inconveniente o emergencia en la ruta?</h2>
+<p class="text-[11px] text-rose-800/90 leading-relaxed mt-1">Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.</p>
 </div>
 </div>
-<!-- Progress Bar Track -->
-<div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/60">
-<div class="bg-gradient-to-r from-[#0369a1] to-[#0284c7] h-full rounded-full transition-all duration-300 ease-out" id="progress-bar-fill" style="width: 20%;"></div>
-</div>
-<!-- Step Icons Row -->
-<div class="flex items-center justify-between pt-2.5 px-1">
-<!-- Step 1 Dot -->
-<button class="step-indicator flex flex-col items-center group focus:outline-none" data-step="1" onclick="goToStep(1)" type="button">
-<div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-[#0284c7] text-white shadow-sm ring-2 ring-sky-200" id="step-dot-1">1</div>
-<span class="text-[9px] font-bold mt-1 text-sky-800">Ruta</span>
-</button>
-<div class="flex-1 h-0.5 mx-1 bg-slate-200 transition-colors" id="step-connector-1"></div>
-<!-- Step 2 Dot -->
-<button class="step-indicator flex flex-col items-center group focus:outline-none" data-step="2" onclick="goToStep(2)" type="button">
-<div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-300" id="step-dot-2">2</div>
-<span class="text-[9px] font-medium mt-1 text-slate-500">Salud</span>
-</button>
-<div class="flex-1 h-0.5 mx-1 bg-slate-200 transition-colors" id="step-connector-2"></div>
-<!-- Step 3 Dot -->
-<button class="step-indicator flex flex-col items-center group focus:outline-none" data-step="3" onclick="goToStep(3)" type="button">
-<div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-300" id="step-dot-3">3</div>
-<span class="text-[9px] font-medium mt-1 text-slate-500">General</span>
-</button>
-<div class="flex-1 h-0.5 mx-1 bg-slate-200 transition-colors" id="step-connector-3"></div>
-<!-- Step 4 Dot -->
-<button class="step-indicator flex flex-col items-center group focus:outline-none" data-step="4" onclick="goToStep(4)" type="button">
-<div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-300" id="step-dot-4">4</div>
-<span class="text-[9px] font-medium mt-1 text-slate-500">Revisión</span>
-</button>
-<div class="flex-1 h-0.5 mx-1 bg-slate-200 transition-colors" id="step-connector-4"></div>
-<!-- Step 5 Dot -->
-<button class="step-indicator flex flex-col items-center group focus:outline-none" data-step="5" onclick="goToStep(5)" type="button">
-<div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-300" id="step-dot-5">5</div>
-<span class="text-[9px] font-medium mt-1 text-slate-500">Riesgos</span>
+<div class="mt-3.5">
+<button class="w-full py-2.5 px-4 bg-gradient-to-r from-red-700 to-rose-800 hover:from-red-800 hover:to-rose-900 active:from-red-900 active:to-rose-950 text-white font-bold text-xs rounded-xl shadow-emergency flex items-center justify-center gap-2 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1" type="button">
+<svg aria-hidden="true" class="w-4 h-4 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Reportar Siniestro / Incidente</span>
 </button>
 </div>
-</div>
-<!-- END: Stepper Header -->
-<!-- BEGIN: MainContent -->
-<main class="flex-1 px-4 pt-4 pb-4 space-y-4" id="wizard-container">
-<!-- Form Title Header -->
+</section>
+<!-- END: EmergencyAlertCard -->
+<!-- BEGIN: GPSTrackingSection -->
+<!-- Live GPS telemetry data and controls -->
 
-<form class="space-y-4" id="trip-management-form" onsubmit="event.preventDefault();">
-<!-- STEP 1: Origen y Destino -->
-<div class="step-pane block" id="step-pane-1">
-<section class="bg-white rounded-2xl border border-slate-200/90 card-shadow p-4 transition-all">
-<div class="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
-<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
-<path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-<h2 class="text-sm font-bold text-sky-950 uppercase tracking-wide">
-              Origen y Destino del Traslado
-            </h2>
-</div>
-<div class="space-y-3.5">
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="origin">
-                Provincia / Ubicación de Origen <span class="text-rose-500">*</span>
-</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="origin" placeholder="Buscar o escribir origen..." required="" type="text">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="destination">
-                Provincia / Ubicación de Destino <span class="text-rose-500">*</span>
-</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="destination" placeholder="Buscar o escribir destino..." required="" type="text">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="departure-time">
-                Hora Salida <span class="text-rose-500">*</span>
-</label>
-<div class="relative">
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 pr-10 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="departure-time" required="" type="text" value="02:58 p. m.">
-<div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-</div>
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="vehicle-select">
-                Seleccionar Vehículo <span class="text-rose-500">*</span>
-</label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none appearance-none" id="vehicle-select">
-<option selected="">MITSUBISHI L200 (AQR-001) - Placa: CR30438</option>
-<option>TOYOTA HILUX (BQR-002) - Placa: DR99210</option>
-<option>NISSAN NP300 (CQR-003) - Placa: EM54109</option>
-</select>
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="initial-km">
-                Kilometraje Inicial <span class="text-rose-500">*</span>
-</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-semibold text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="initial-km" required="" type="number" value="207">
-<p class="text-[11px] text-slate-400 mt-1">Verificar con el odómetro del tablero del vehículo asignado.</p>
-</div>
-</div>
-</section>
-</div>
-<!-- STEP 2: Valoración Médica Pre-viaje -->
-<div class="step-pane hidden" id="step-pane-2">
-<section class="bg-white rounded-2xl border border-slate-200/90 card-shadow p-4 transition-all">
-<div class="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
-<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-<h2 class="text-sm font-bold text-sky-950">
-              1. Valoración Médica Pre-viaje
-            </h2>
-</div>
-<div class="space-y-3">
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="bp">Presión Arterial</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.2 text-slate-800 font-medium focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="bp" type="text" value="120/80">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="visual">Examen Visual</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.2 text-slate-800 font-medium focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="visual" type="text" value="Normal">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="glucose">Glucosa</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.2 text-slate-800 font-medium focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="glucose" type="text" value="90 mg/dL">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="heart-rate">Frecuencia Cardíaca</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.2 text-slate-800 font-medium focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="heart-rate" type="text" value="72 bpm">
-</div>
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="respiratory-rate">Frecuencia Respiratoria</label>
-<input class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.2 text-slate-800 font-medium focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="respiratory-rate" type="text" value="16 rpm">
-</div>
-<!-- Modern Checkbox -->
-<div class="pt-2">
-<label class="relative flex items-center p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer transition">
-<input class="w-5 h-5 text-red-600 rounded border-slate-300 focus:ring-red-500 focus:ring-offset-0 transition" id="alcohol-test" type="checkbox">
-<span class="ml-3 text-xs font-bold text-slate-800 select-none">
-                  Alcoholímetro Positivo
-                </span>
-</label>
-</div>
-</div>
-</section>
-</div>
-<!-- STEP 3: Información General del Traslado -->
-<div class="step-pane hidden" id="step-pane-3">
-<section class="bg-white rounded-2xl border border-slate-200/90 card-shadow p-4 transition-all">
-<div class="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
-<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-<h2 class="text-sm font-bold text-sky-950">
-              2. Información General del Traslado
-            </h2>
-</div>
-<div class="space-y-3.5">
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="estimated-time">
-                Tiempo Estimado de Viaje (Horas) <span class="text-rose-500">*</span>
-</label>
-<div class="flex items-center space-x-2">
-<input class="w-24 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-semibold text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" id="estimated-time" min="0.5" required="" step="0.5" type="number" value="1">
-<span class="text-xs font-bold text-slate-600">hrs</span>
-</div>
-<p class="text-[11px] text-slate-400 mt-1">
-                Indica la duración estimada del traslado en horas (Ej: 1.5, 3, 5 hrs).
-              </p>
-</div>
-<!-- Route Stop Points with dynamic items -->
-<div class="pt-1">
-<div class="flex items-center justify-between mb-2">
-<label class="text-xs font-bold text-slate-700 leading-tight">
-                  Ruta a seguir (Puntos de Parada / Intermedios):
-                </label>
-<button class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white text-[11px] font-bold shadow-sm transition-colors" type="button">
-<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-                  Agregar Punto
-                </button>
-</div>
-<!-- List of intermediate points -->
-<div class="space-y-2">
-<!-- Point 1 -->
-<div class="flex items-center space-x-2">
-<input class="flex-1 text-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-normal focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" type="text" value="Punto 1 de la ruta (Ej: Escárcega, Caseta A)">
-<button aria-label="Eliminar punto" class="w-8 h-8 rounded-lg bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center flex-shrink-0 transition-colors shadow-sm" type="button">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</button>
-</div>
-<!-- Point 2 -->
-<div class="flex items-center space-x-2">
-<input class="flex-1 text-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-normal focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition" type="text" value="Punto 2 de la ruta (Ej: Escárcega, Caseta B)">
-<button aria-label="Eliminar punto" class="w-8 h-8 rounded-lg bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center flex-shrink-0 transition-colors shadow-sm" type="button">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</button>
-</div>
-</div>
-</div>
-<!-- Accompanied switch/pill selector -->
-<div class="pt-2">
-<div class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 bg-slate-50/60">
-<span class="text-xs font-bold text-slate-800">¿Viaja Acompañado?</span>
-<div class="flex rounded-lg bg-slate-200 p-0.5" role="group">
-<button class="px-3.5 py-1 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition" type="button">
-                    NO
-                  </button>
-<button class="px-3.5 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition" type="button">
-                    SÍ
-                  </button>
-</div>
-</div>
-</div>
-</div>
-</section>
-</div>
-<!-- STEP 4: Verificación Previaje -->
-<div class="step-pane hidden" id="step-pane-4">
-<section class="bg-white rounded-2xl border border-slate-200/90 card-shadow p-4 transition-all">
-<div class="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
-<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-<h2 class="text-sm font-bold text-sky-950 leading-tight">
-              3. Lista de Verificación Previaje (Preguntas de Control 1-6)
-            </h2>
-</div>
-<!-- Highlight Alert: Inspección Obligatoria -->
-<div class="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 space-y-2.5 mb-3.5">
-<div class="flex items-start space-x-2">
-<svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-<div>
-<h3 class="text-xs font-bold text-amber-950 leading-tight">
-                  Inspección Vehicular Obligatoria Integrada
-                </h3>
-<p class="text-[11px] text-amber-900 mt-0.5 leading-relaxed">
-                  Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo).
-                </p>
-</div>
-</div>
-<button class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-[#e65100] hover:bg-[#c2410c] text-white text-xs font-bold shadow-md transition-all active:scale-[0.99]" type="button">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V3.75m0 3.75h-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-<span class="">Abrir Inspección Vehicular Interactiva</span>
-</button>
-</div>
-<!-- Blue Notice Box -->
-<div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3 flex items-start space-x-2.5 mb-4">
-<svg class="w-4 h-4 text-sky-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-<path d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-<p class="text-[11px] font-medium text-sky-900 leading-snug">
-              Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
-            </p>
-</div>
-<!-- Questions Control List -->
-<div class="space-y-3">
-<!-- Question 1 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q1">
-                1. ¿El conductor conoce los riesgos locales (vía, clima, peatones, animales)?
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q1">
-<option selected="">SÍ</option>
-<option>NO</option>
-</select>
-</div>
-<!-- Question 2 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q2">
-                2. ¿El conductor ha consumido medicamentos que producen somnolencia?
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q2">
-<option selected="">NO (Normal)</option>
-<option>SÍ (Riesgo)</option>
-</select>
-</div>
-<!-- Question 3 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q3">
-                3. ¿El conductor ha dormido adecuadamente?
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q3">
-<option selected="">SÍ</option>
-<option>NO</option>
-</select>
-</div>
-<!-- Question 4 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q4">
-                4. ¿El conductor está informado que está prohibido llevar personal ajeno?
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q4">
-<option selected="">SÍ</option>
-<option>NO</option>
-</select>
-</div>
-<!-- Question 5 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q5">
-                5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q5">
-<option selected="">NO</option>
-<option>SÍ</option>
-</select>
-</div>
-<!-- Question 6 -->
-<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-2">
-<label class="text-xs font-semibold text-slate-800 leading-snug" for="q6">
-                6. ¿Se realizó la reunión pre caravana? (Solo si viajan &gt; 1 vehículo)
-              </label>
-<select class="w-full text-xs rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition outline-none" id="q6">
-<option selected="">NO</option>
-<option>SÍ</option>
-<option>NO APLICA</option>
-</select>
-</div>
-</div>
-</section>
-</div>
-<!-- STEP 5: Análisis de Riesgos de la Ruta -->
-<div class="step-pane hidden" id="step-pane-5">
-<section class="bg-white rounded-2xl border border-slate-200/90 card-shadow p-4 transition-all">
-<div class="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
-<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</div>
-<h2 class="text-sm font-bold text-sky-950 leading-tight">
-              4. Análisis de Riesgos de la Ruta (Tabuladores A al G)
-            </h2>
-</div>
-<div class="space-y-3.5">
-<!-- Tabulador A -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-a">
-                A. Distancia a Recorrer
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-a">
-<option selected="">Menos de 50 Km (1 pto)</option>
-<option>De 50 Km a 150 Km (2 ptos)</option>
-<option>De 151 Km a 300 Km (4 ptos)</option>
-<option>Más de 300 Km (6 ptos)</option>
-</select>
-</div>
-<!-- Tabulador B -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-b">
-                B. Clima Esperado
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-b">
-<option selected="">Seco / Condiciones Normales (2 ptos)</option>
-<option>Lluvia Ligera / Nublado (3 ptos)</option>
-<option>Lluvia Fuerte / Tormenta (5 ptos)</option>
-<option>Niebla / Granizo Severo (7 ptos)</option>
-</select>
-</div>
-<!-- Tabulador C -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-c">
-                C. Vehículos y Personas
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-c">
-<option selected="">1 Vehículo y 1 Persona (Solitario) (6 ptos)</option>
-<option>1 Vehículo y 2 o más Personas (3 ptos)</option>
-<option>Caravana de 2 o más Vehículos (1 pto)</option>
-</select>
-</div>
-<!-- Tabulador D -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-d">
-                D. Condiciones de la Vía
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-d">
-<option selected="">Pavimentada (1 pto)</option>
-<option>Terracería / Regular (3 ptos)</option>
-<option>Camino Difícil / Lodo / Baches (5 ptos)</option>
-</select>
-</div>
-<!-- Tabulador E -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-e">
-                E. Cobertura Comunicaciones
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-e">
-<option selected="">Teléfono Celular con Señal (0 ptos)</option>
-<option>Señal Intermitente / Radio Troncal (2 ptos)</option>
-<option>Sin Señal Telefónica (4 ptos)</option>
-</select>
-</div>
-<!-- Tabulador F -->
-<div>
-<label class="block text-xs font-bold text-slate-700 mb-1" for="tab-f">
-                F. Horas Trabajadas + Viaje
-              </label>
-<select class="w-full text-xs sm:text-sm rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition outline-none" id="tab-f">
-<option selected="">Menos de 12 horas acumuladas (1 pto)</option>
-<option>De 12 a 14 horas acumuladas (4 ptos)</option>
-<option>Más de 14 horas acumuladas (Crítico) (8 ptos)</option>
-</select>
-</div>
-</div>
-</section>
-</div>
-</form>
+<!-- END: GPSTrackingSection -->
+<!-- BEGIN: FinishTripSection -->
+<!-- Terminal odometer capture and journey closing section -->
+
+<!-- END: FinishTripSection -->
+<!-- BEGIN: TelemetryFooterInfo -->
+<!-- Precision and transmission audit details -->
+
+<!-- END: TelemetryFooterInfo -->
 </main>
-<!-- END: MainContent -->
-<!-- BEGIN: Bottom Wizard Navigation (Fixed Dock) -->
-<div class="fixed bottom-0 left-0 right-0 z-40 flex justify-center bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-3 shadow-lg">
-<div class="w-full max-w-md flex items-center space-x-2.5 px-2">
-<!-- Back Button -->
-<button class="hidden flex-1 py-3 px-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition active:scale-[0.99]" id="btn-prev" onclick="prevStep()" type="button">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-<span class="">Anterior</span>
-</button>
-<!-- Next / Submit Button -->
-<button class="py-3 px-4 rounded-xl bg-gradient-to-r from-[#0369a1] to-[#0284c7] hover:from-[#075985] hover:to-[#0369a1] text-white font-bold text-xs shadow-md shadow-sky-600/20 flex items-center justify-center space-x-1.5 transition-all active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sky-500 w-full" id="btn-next" onclick="nextStep()" type="button">
-<span id="btn-next-label" class="">Siguiente: Valoración Médica</span>
-<svg class="w-4 h-4" fill="none" id="btn-next-icon" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</button>
+<!-- END: ActiveTripInformation -->
 </div>
-</div>
-<!-- END: Bottom Wizard Navigation -->
-</div>
-<!-- BEGIN: Wizard JavaScript -->
-<script>
-  let currentStep = 1;
-  const totalSteps = 5;
+<!-- END: Mobile Device Frame Wrapper -->
 
-  const stepMeta = [
-    { title: "Ruta y Unidad", nextText: "Siguiente: Valoración Médica" },
-    { title: "Valoración Médica", nextText: "Siguiente: Info General" },
-    { title: "Información General", nextText: "Siguiente: Verificación Previaje" },
-    { title: "Verificación Previaje", nextText: "Siguiente: Análisis de Riesgos" },
-    { title: "Análisis de Riesgos", nextText: "Continuar a Firma Digital y Guardar Viaje" }
-  ];
 
-  function updateWizardUI() {
-    // Show/hide step panes
-    for (let i = 1; i <= totalSteps; i++) {
-      const pane = document.getElementById('step-pane-' + i);
-      if (pane) {
-        if (i === currentStep) {
-          pane.classList.remove('hidden');
-          pane.classList.add('block');
-        } else {
-          pane.classList.add('hidden');
-          pane.classList.remove('block');
-        }
-      }
-    }
 
-    // Update Header Text & Progress
-    const stepBadge = document.getElementById('step-badge');
-    const stepTitle = document.getElementById('step-title');
-    const stepPct = document.getElementById('step-percentage');
-    const progressFill = document.getElementById('progress-bar-fill');
 
-    if (stepBadge) stepBadge.innerText = `PASO ${currentStep} DE ${totalSteps}`;
-    if (stepTitle) stepTitle.innerText = stepMeta[currentStep - 1].title;
-    
-    const pct = Math.round((currentStep / totalSteps) * 100);
-    if (stepPct) stepPct.innerText = `${pct}%`;
-    if (progressFill) progressFill.style.width = `${pct}%`;
 
-    // Update Step Dots & Connectors
-    for (let i = 1; i <= totalSteps; i++) {
-      const dot = document.getElementById('step-dot-' + i);
-      const connector = document.getElementById('step-connector-' + (i - 1));
 
-      if (dot) {
-        if (i === currentStep) {
-          dot.className = "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-[#0284c7] text-white shadow-sm ring-2 ring-sky-200";
-          dot.innerHTML = i;
-        } else if (i < currentStep) {
-          dot.className = "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-sky-800 text-white shadow-sm";
-          dot.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
-        } else {
-          dot.className = "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-300";
-          dot.innerHTML = i;
-        }
-      }
 
-      if (connector) {
-        if (i <= currentStep) {
-          connector.className = "flex-1 h-0.5 mx-1 bg-sky-600 transition-colors";
-        } else {
-          connector.className = "flex-1 h-0.5 mx-1 bg-slate-200 transition-colors";
-        }
-      }
-    }
 
-    // Update Bottom Buttons
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const btnNextLabel = document.getElementById('btn-next-label');
-
-    if (btnPrev) {
-      if (currentStep === 1) {
-        btnPrev.classList.add('hidden');
-        if (btnNext) {
-          btnNext.classList.remove('flex-[2]');
-          btnNext.classList.add('w-full');
-        }
-      } else {
-        btnPrev.classList.remove('hidden');
-        if (btnNext) {
-          btnNext.classList.remove('w-full');
-          btnNext.classList.add('flex-[2]');
-        }
-      }
-    }
-
-    if (btnNextLabel) {
-      btnNextLabel.innerText = stepMeta[currentStep - 1].nextText;
-    }
-
-    // Scroll to top of wizard container for smooth flow
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function nextStep() {
-    if (currentStep < totalSteps) {
-      currentStep++;
-      updateWizardUI();
-    } else {
-      // Final submit / signature action
-      alert('¡Listo para proceder a la firma digital del Gerenciamiento de Viaje!');
-    }
-  }
-
-  function prevStep() {
-    if (currentStep > 1) {
-      currentStep--;
-      updateWizardUI();
-    }
-  }
-
-  function goToStep(step) {
-    if (step >= 1 && step <= totalSteps) {
-      currentStep = step;
-      updateWizardUI();
-    }
-  }
-
-  // Initialize
-  document.addEventListener('DOMContentLoaded', () => {
-    updateWizardUI();
-  });
-</script>
-<!-- END: Wizard JavaScript -->
 
 
 </body></html>

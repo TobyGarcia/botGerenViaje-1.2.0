@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
@@ -627,18 +627,6 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
   return (
     <div className="gw-container">
-      {/* Stepper Header Card */}
-      <div className="gw-stepper-header-card">
-        <div className="gw-header-tag">
-          <IconShield size={14} color="#0284c7" />
-          <span>Operación y Logística</span>
-        </div>
-        <h1 className="gw-header-title">GERENCIAMIENTO DE VIAJE</h1>
-        <p style={{ margin: "4px 0 0", fontSize: "0.74rem", color: "#64748b" }}>
-          CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
-        </p>
-      </div>
-
       {/* Sticky Stepper Bar */}
       <div className="gw-sticky-stepper">
         <div className="gw-stepper-top-row">
@@ -662,10 +650,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             const stepNum = index + 1;
             const isActive = stepNum === currentStep;
             const isCompleted = stepNum < currentStep;
-            const isPending = stepNum > currentStep;
 
             return (
-              <div key={stepNum} style={{ display: "flex", alignItems: "center", flex: stepNum < totalSteps ? 1 : "0 0 auto" }}>
+              <Fragment key={stepNum}>
                 <button
                   type="button"
                   className="gw-step-dot-btn"
@@ -673,7 +660,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   title={meta.title}
                 >
                   <div className={`gw-step-dot ${isActive ? "active" : isCompleted ? "completed" : "pending"}`}>
-                    {isCompleted ? <IconCheck size={12} color="#ffffff" /> : stepNum}
+                    {isCompleted ? <IconCheck size={14} color="#ffffff" /> : stepNum}
                   </div>
                   <span className={`gw-step-label ${isActive ? "active" : isCompleted ? "completed" : "pending"}`}>
                     {meta.shortTitle}
@@ -682,10 +669,22 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 {stepNum < totalSteps && (
                   <div className={`gw-step-connector ${stepNum < currentStep ? "completed" : ""}`} />
                 )}
-              </div>
+              </Fragment>
             );
           })}
         </div>
+      </div>
+
+      {/* Stepper Header Card */}
+      <div className="gw-stepper-header-card">
+        <div className="gw-header-tag">
+          <IconCheck size={14} color="#0284c7" />
+          <span>Operación y Logística</span>
+        </div>
+        <h1 className="gw-header-title">GERENCIAMIENTO DE VIAJE</h1>
+        <p className="gw-header-subtitle">
+          CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
+        </p>
       </div>
 
       {errorMessage && (
@@ -1525,7 +1524,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
           <button
             type="button"
-            className="gw-btn-next"
+            className={`gw-btn-next ${currentStep === 1 ? "full-width" : ""}`}
             onClick={handleNextStep}
             disabled={submitting || (currentStep === 5 && (esBloqueante || !inspeccionCompleted))}
           >
