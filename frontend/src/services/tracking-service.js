@@ -13,6 +13,8 @@ let activeTripId = null;
 let syncPromise = null;
 let statusListener = null;
 let isStarting = false;
+let watchId = null;
+let workerTimer = null;
 
 function notify(update) {
   statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
@@ -78,7 +80,47 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
   });
 }
 
-let watchId = null;
+function startWorkerTimer(callback, intervalMs) {
+  stopWorkerTimer();
+  if (typeof window === "undefined" || typeof Worker === "undefined") return;
+  try {
+    const workerScript = `
+      let timer = null;
+      self.onmessage = function(e) {
+        if (e.data.action === 'start') {
+          if (timer) clearInterval(timer);
+          timer = setInterval(function() {
+            self.postMessage('tick');
+          }, e.data.intervalMs || 30000);
+        } else if (e.data.action === 'stop') {
+          if (timer) clearInterval(timer);
+          timer = null;
+        }
+      };
+    `;
+    const blob = new Blob([workerScript], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    workerTimer = new Worker(url);
+    workerTimer.onmessage = function(e) {
+      if (e.data === "tick") {
+        callback();
+      }
+    };
+    workerTimer.postMessage({ action: "start", intervalMs });
+  } catch (err) {
+    console.warn("[TrackingService] No se pudo crear Web Worker Timer:", err?.message);
+  }
+}
+
+function stopWorkerTimer() {
+  if (workerTimer) {
+    try {
+      workerTimer.postMessage({ action: "stop" });
+      workerTimer.terminate();
+    } catch {}
+    workerTimer = null;
+  }
+}
 
 export async function startTracking(idViaje) {
   const normalizedId = Number(idViaje);
@@ -96,11 +138,13 @@ export async function startTracking(idViaje) {
     notify({ status: "Esperando permiso" });
     await captureAndQueueLocation(normalizedId);
     
-    // 1. Temporizador periódico por intervalo
+    // 1. Temporizador periódico de ventana principal
     intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
 
-    // 2. Listener de hardware GPS del SO (watchPosition)
-    // El SO envía actualizaciones asíncronas de ubicación aun cuando los timers de JS estén pausados por pantalla apagada
+    // 2. Web Worker Timer (Hilo independiente resistente a throttling de ventana)
+    startWorkerTimer(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+
+    // 3. Listener de hardware GPS del SO (watchPosition)
     if (typeof navigator !== "undefined" && "geolocation" in navigator && !watchId) {
       let lastWatchTime = 0;
       try {
@@ -130,16 +174,17 @@ export async function startTracking(idViaje) {
 
 export function stopTracking({ clearState = true } = {}) {
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
+  stopWorkerTimer();
   if (watchId !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
     try { navigator.geolocation.clearWatch(watchId); } catch {}
     watchId = null;
   }
   if (clearState) clearTrackingState();
   activeTripId = null;
-  // Detener y liberar audio silencioso y estado de multimedia en móvil
   stopSilentAudioKeepAlive();
   notify({ status: "Detenido" });
 }
+
 export async function resumeTrackingIfNeeded() {
   const state = getTrackingState();
   if (state?.trackingActivo && state.idViaje) { await startTracking(state.idViaje); return state.idViaje; }
