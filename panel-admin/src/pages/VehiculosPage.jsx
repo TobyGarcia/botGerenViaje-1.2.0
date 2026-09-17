@@ -292,22 +292,56 @@ function VehiculosPage({ user }) {
     setMessage("");
   }
 
-  function openForm(vehiculo = null) {
-    setForm(vehiculo ? {
-      marca: vehiculo.marca || "",
-      modelo: vehiculo.modelo || "",
-      numeroEconomico: vehiculo.numero_economico || "",
-      placas: vehiculo.placas || "",
-      numeroPoliza: vehiculo.numero_poliza || "",
-      seguroVencimiento: vehiculo.seguro_vencimiento ? String(vehiculo.seguro_vencimiento).slice(0, 10) : "",
-      numeroSerie: vehiculo.numero_serie || "",
-      tipoVehiculo: vehiculo.tipo_vehiculo || "",
-      tipoPropiedad: vehiculo.tipo_propiedad || "EMPRESARIAL",
-      color: vehiculo.color || "",
-      idSupervisorAsignado: vehiculo.id_supervisor_asignado ? String(vehiculo.id_supervisor_asignado) : "",
-      personalAsignadoNombre: vehiculo.personal_asignado_nombre || vehiculo.personal_asignado || ""
+function formatIsoDate(value) {
+  if (!value) return "";
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.slice(0, 10);
+  }
+  const dateObj = new Date(str);
+  if (!isNaN(dateObj.getTime())) {
+    const y = dateObj.getUTCFullYear();
+    const m = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return "";
+}
+
+  async function openForm(vehiculo = null) {
+    let fullVehicle = vehiculo;
+    if (vehiculo && vehiculo.id_vehiculos && (!vehiculo.numero_serie || !vehiculo.numero_poliza || !vehiculo.seguro_vencimiento)) {
+      try {
+        const res = await getAdminVehiculoDetalle(vehiculo.id_vehiculos);
+        if (res?.data) {
+          fullVehicle = { ...vehiculo, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Aviso al consultar detalle completo de vehículo:", err.message);
+      }
+    }
+
+    setForm(fullVehicle ? {
+      marca: fullVehicle.marca || "",
+      modelo: fullVehicle.modelo || "",
+      numeroEconomico: fullVehicle.numero_economico || fullVehicle.numeroEconomico || "",
+      placas: fullVehicle.placas || "",
+      numeroPoliza: fullVehicle.numero_poliza || fullVehicle.numeroPoliza || "",
+      seguroVencimiento: formatIsoDate(fullVehicle.seguro_vencimiento || fullVehicle.seguroVencimiento),
+      numeroSerie: fullVehicle.numero_serie || fullVehicle.numeroSerie || "",
+      tipoVehiculo: fullVehicle.tipo_vehiculo || fullVehicle.tipoVehiculo || "",
+      tipoPropiedad: fullVehicle.tipo_propiedad || fullVehicle.tipoPropiedad || "EMPRESARIAL",
+      color: fullVehicle.color || "",
+      idSupervisorAsignado: fullVehicle.id_supervisor_asignado ? String(fullVehicle.id_supervisor_asignado) : (fullVehicle.idSupervisorAsignado ? String(fullVehicle.idSupervisorAsignado) : ""),
+      personalAsignadoNombre: fullVehicle.personal_asignado_nombre || fullVehicle.personal_asignado || ""
     } : initialForm);
-    setEditingVehicle(vehiculo);
+    setEditingVehicle(fullVehicle);
     setMessage("");
     setShowForm(true);
   }
