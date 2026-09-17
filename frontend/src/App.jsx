@@ -1681,7 +1681,7 @@ function isOutsideOperatingHours() {
         activeTabMode={activeTabMode}
         onTabChange={setActiveTabMode}
       />
-      <main className="container">
+      <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         {createdTrip ? (
           <div className="gv-screen-header">
@@ -2152,11 +2152,11 @@ function isOutsideOperatingHours() {
 
      
 
-      {createdTrip && message && (
+      {createdTrip && (
         <section className="gv-success-alert" data-purpose="status-notification">
           <div className="gv-alert-icon-box">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
           <div>
@@ -2168,7 +2168,7 @@ function isOutsideOperatingHours() {
         </section>
       )}
 
-      {!createdTrip && message && (
+      {message && (
         <p className={`message message-${messageType}`} role={messageType === "error" ? "alert" : "status"} aria-live="polite">
           {message}
         </p>
@@ -2208,17 +2208,24 @@ function isOutsideOperatingHours() {
     {/* Header de la tarjeta con Estado */}
     <div className="gv-trip-header">
       <div className="gv-trip-title-group">
-        <span
-          className={`gv-status-dot ${
-            finishedTrip
-              ? "finished"
-              : cancelledTrip
-                ? "cancelled"
-                : startedTrip
-                  ? "in-progress"
-                  : "pending"
-          }`}
-        />
+        <span className="gv-status-dot-wrapper">
+          {startedTrip && !finishedTrip && !cancelledTrip ? (
+            <span className="gv-radar-pulse">
+              <span className="gv-radar-pulse-ping" />
+              <span className="gv-radar-pulse-dot" />
+            </span>
+          ) : (
+            <span
+              className={`gv-status-dot ${
+                finishedTrip
+                  ? "finished"
+                  : cancelledTrip
+                    ? "cancelled"
+                    : "pending"
+              }`}
+            />
+          )}
+        </span>
         <h3 className="gv-trip-title">
           {finishedTrip
             ? "Viaje finalizado"
@@ -2320,7 +2327,7 @@ function isOutsideOperatingHours() {
       )}
     </dl>
 
-    {/* Mensaje Informativo */}
+    {/* Mensaje Informativo Previo a Iniciar */}
     {!startedTrip && !finishedTrip && !cancelledTrip && (
       <div className="gv-trip-info-callout">
         <svg
@@ -2343,7 +2350,7 @@ function isOutsideOperatingHours() {
     )}
 
     {gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
-      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: "bold" }}>
+      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: "bold", marginTop: "10px" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <IconClock size={18} color="#ea580c" /> Gerenciamiento Registrado — Esperando Aprobación de Supervisión
         </span>
@@ -2353,10 +2360,10 @@ function isOutsideOperatingHours() {
       </div>
     )}
 
-    {/* Botones de Acción */}
-    <div className="gv-trip-actions">
-      {!startedTrip && !finishedTrip && !cancelledTrip && (
-        gerenciamientoPendiente ? (
+    {/* Botones de Acción Previos al Inicio */}
+    {!startedTrip && !finishedTrip && !cancelledTrip && (
+      <div className="gv-trip-actions">
+        {gerenciamientoPendiente ? (
           <button
             type="button"
             className="gv-btn-primary"
@@ -2407,209 +2414,119 @@ function isOutsideOperatingHours() {
             </svg>
             <span>{startingTrip ? "Iniciando viaje..." : "Iniciar viaje"}</span>
           </button>
-        )
-      )}
+        )}
+      </div>
+    )}
 
-      {!finishedTrip && !cancelledTrip && (
+    {/* Acciones en viaje activo (Punto Intermedio + Sincronizar + Odómetro + Finalizar) */}
+    {startedTrip && !finishedTrip && !cancelledTrip && (
+      <>
+        <div className="gv-trip-mid-actions">
+          <button
+            type="button"
+            className="gv-btn-midpoint"
+            onClick={handleAddIntermediatePoint}
+            disabled={savingIntermediatePoint}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span className="truncate">{savingIntermediatePoint ? "Guardando..." : "Punto Intermedio"}</span>
+          </button>
+          <button
+            type="button"
+            className="gv-btn-sync"
+            onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
+          >
+            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M23 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="truncate">Sincronizar</span>
+          </button>
+        </div>
+
+        <div className="gv-trip-finish-section">
+          <form onSubmit={handleFinishTrip}>
+            <div>
+              <label className="gv-finish-label" htmlFor="odometer-final">
+                Lectura final de Odómetro (KM) <span className="gv-required-star">*</span>
+              </label>
+              <div className="gv-odometer-wrapper">
+                <input
+                  id="odometer-final"
+                  name="odometer-final"
+                  type="number"
+                  placeholder="0"
+                  className="gv-odometer-input"
+                  value={kilometrajeFinal}
+                  onChange={(event) => {
+                    setKilometrajeFinal(event.target.value);
+                    setMessage("");
+                  }}
+                  min={
+                    Number(
+                      startedTrip.kilometrajeInicial ??
+                      startedTrip.kilometraje_inicial ??
+                      0
+                    ) + 1
+                  }
+                  step="1"
+                  required
+                />
+                <div className="gv-odometer-suffix">
+                  <span>KM</span>
+                </div>
+              </div>
+              <p className="gv-odometer-hint">
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="12" y1="12.01" x2="12" y2="8" />
+                </svg>
+                <span>Captura el kilometraje actual del odómetro.</span>
+              </p>
+            </div>
+            <div className="gv-finish-btn-wrapper">
+              <button
+                type="submit"
+                className="gv-btn-finish"
+                disabled={finishingTrip}
+              >
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+                <span>{finishingTrip ? "Finalizando viaje..." : "FINALIZAR VIAJE"}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </>
+    )}
+
+    {/* Cancelar viaje siempre en la base de la tarjeta si el viaje no ha finalizado ni cancelado */}
+    {!finishedTrip && !cancelledTrip && (
+      <div className="gv-cancel-wrapper">
         <button
           type="button"
-          className="gv-btn-cancel"
+          className="gv-btn-cancel-light"
           onClick={handleCancelTrip}
           disabled={cancellingTrip || startingTrip}
         >
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
           <span>{cancellingTrip ? "Cancelando viaje..." : "Cancelar viaje"}</span>
         </button>
-      )}
-    </div>
-
-    {startedTrip && !finishedTrip && !cancelledTrip && (
-      <section className="gps-panel">
-        {/* Banner de Emergencia / Siniestro en Ruta */}
-        <div style={{ background: "#fef2f2", border: "2px solid #fca5a5", borderRadius: "14px", padding: "16px", marginBottom: "18px", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.12)", boxSizing: "border-box" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div>
-              <strong style={{ color: "#991b1b", fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px", lineHeight: "1.3" }}>
-                <IconAlert size={22} color="#dc2626" style={{ shrink: 0 }} /> ¿Inconveniente o emergencia en la ruta?
-              </strong>
-              <p style={{ margin: "6px 0 0 0", fontSize: "0.85rem", color: "#7f1d1d", lineHeight: "1.4" }}>
-                Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSiniestroModal(true)}
-              style={{
-                width: "100%",
-                background: "linear-gradient(135deg, #dc2626, #b91c1c)",
-                color: "#ffffff",
-                border: 0,
-                padding: "12px 16px",
-                borderRadius: "10px",
-                fontWeight: "800",
-                fontSize: "0.92rem",
-                cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(220, 38, 38, 0.3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                boxSizing: "border-box",
-                textAlign: "center",
-                lineHeight: "1.3"
-              }}
-            >
-              <IconAlert size={18} color="#ffffff" style={{ shrink: 0 }} />
-              <span>Reportar Siniestro / Incidente</span>
-            </button>
-          </div>
-        </div>
-
-        <h3>Rastreo GPS</h3>
-
-  <p><strong>Seguimiento GPS:</strong> {trackingInfo.active ? "Activo" : "Detenido"}</p>
-  <p><strong>Estado:</strong> {trackingInfo.status || gpsStatus}</p>
-  <p><strong>Última captura:</strong> {trackingInfo.lastCapture ? new Date(trackingInfo.lastCapture).toLocaleTimeString("es-MX") : "Aún no disponible"}</p>
-  <p><strong>Latitud:</strong> {Number.isFinite(trackingInfo.latitude) ? trackingInfo.latitude.toFixed(6) : "Aún no disponible"}</p>
-  <p><strong>Longitud:</strong> {Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</p>
-  <p><strong>Pendientes:</strong> {trackingInfo.pending ?? 0}</p>
-  <p><strong>Conexión:</strong> {trackingInfo.connection}</p>
-  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "12px 0" }}>
-    <button
-      type="button"
-      className="gps-button"
-      onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
-    >
-      Reintentar sincronización
-    </button>
-
-    <button
-      type="button"
-      className="primary-button"
-      style={{ backgroundColor: "#dc2626", borderColor: "#b91c1c", color: "#ffffff", padding: "8px 14px", fontWeight: "bold" }}
-      onClick={handleAddIntermediatePoint}
-      disabled={savingIntermediatePoint}
-    >
-      {savingIntermediatePoint ? "Guardando punto..." : <><IconMapPin size={16} color="#ffffff" style={{ marginRight: "4px" }} /> Añadir Punto Intermedio</>}
-    </button>
-  </div>
-
-  {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
-  {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
-    <div style={{ background: "#ffffff", padding: "14px", borderRadius: "8px", border: "1px solid #cbd5e1", margin: "14px 0" }}>
-      <h4 style={{ margin: "0 0 10px", color: "#1e3a8a", fontSize: "0.95rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-        <IconPin size={18} color="#1e3a8a" /> Sitios de Reporte de la Ruta
-      </h4>
-      <div style={{ display: "grid", gap: "8px" }}>
-        {gerenciamientoDoc.sitios_reporte.map((sitio, index) => (
-          <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-            <div>
-              <strong style={{ color: "#0f172a" }}>Punto {index + 1}:</strong> {sitio.punto}
-            </div>
-            {sitio.horaReportada ? (
-              <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "12px", fontSize: "0.82rem", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                <IconCheck size={14} color="#166534" /> Reportado: {sitio.horaReportada}
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={async () => {
-                  const nowStr = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
-                  try {
-                    const updated = await registrarReporteHoraGerenciamiento(gerenciamientoDoc.id_gerenciamiento, { puntoIndex: index, horaReportada: nowStr });
-                    setGerenciamientoDoc(updated.data);
-                    setMessage(`Punto ${sitio.punto} reportado exitosamente a las ${nowStr}.`);
-                    setMessageType("success");
-                  } catch (err) {
-                    setMessage(err.message || "Error al registrar reporte.");
-                    setMessageType("error");
-                  }
-                }}
-                style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-              >
-                <IconClock size={14} color="#ffffff" /> Marcar Hora ({new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })})
-              </button>
-            )}
-          </div>
-        ))}
       </div>
-    </div>
-  )}
-  <form className="finish-trip-form" onSubmit={handleFinishTrip}>
-      <h3>Finalizar viaje</h3>
-
-      <label>
-        Kilometraje final
-
-        <input
-          type="number"
-          value={kilometrajeFinal}
-          onChange={(event) => {
-            setKilometrajeFinal(event.target.value);
-            setMessage("");
-          }}
-          min={
-            Number(
-              startedTrip.kilometrajeInicial ??
-              startedTrip.kilometraje_inicial ??
-              0
-            ) + 1
-          }
-          step="1"
-          required
-        />
-        <small>
-          Captura el kilometraje actual del odómetro.
-        </small>
-      </label>
-      <button
-        type="submit"
-        className="finish-trip-button"
-        disabled={finishingTrip}
-      >
-        {finishingTrip ? "Finalizando viaje..." : "■ Finalizar viaje"}
-      </button>
-    </form>
-  {lastLocation && (
-    <div className="location-details">
-      <p>
-        <strong>Latitud:</strong>{" "}
-        {Number(
-          lastLocation.latitude
-        ).toFixed(6)}
-      </p>
-
-      <p>
-        <strong>Longitud:</strong>{" "}
-        {Number(
-          lastLocation.longitude
-        ).toFixed(6)}
-      </p>
-
-      <p>
-        <strong>Precisión:</strong>{" "}
-        {lastLocation.accuracy !== null
-          ? `${Math.round(
-              Number(lastLocation.accuracy)
-            )} metros`
-          : "No disponible"}
-      </p>
-
-      <p>
-        <strong>Último envío:</strong>{" "}
-        {new Date(
-          lastLocation.serverTimestamp
-        ).toLocaleTimeString("es-MX")}
-      </p>
-    </div>
-  )}
-</section>
     )}
 
     {(finishedTrip || cancelledTrip) && (
-      <div className="completed-trip-actions">
+      <div className="completed-trip-actions" style={{ marginTop: "14px" }}>
         <button
           type="button"
           className="new-trip-button"
@@ -2624,6 +2541,139 @@ function isOutsideOperatingHours() {
         >
           Salir
         </button>
+      </div>
+    )}
+  </section>
+)}
+
+{/* Tarjeta de Emergencia / Siniestro en Ruta (FUERA de la tarjeta del viaje) */}
+{startedTrip && !finishedTrip && !cancelledTrip && (
+  <section className="gv-emergency-alert-card" data-purpose="emergency-report-card">
+    <div className="gv-emergency-header">
+      <div className="gv-emergency-icon-box">
+        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div>
+        <h2 className="gv-emergency-title">¿Inconveniente o emergencia en la ruta?</h2>
+        <p className="gv-emergency-desc">
+          Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.
+        </p>
+      </div>
+    </div>
+    <div className="gv-emergency-btn-wrapper">
+      <button
+        type="button"
+        onClick={() => setShowSiniestroModal(true)}
+        className="gv-btn-emergency-action"
+      >
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>Reportar Siniestro / Incidente</span>
+      </button>
+    </div>
+  </section>
+)}
+
+{/* Tarjeta de Telemetría GPS y Sitios de Reporte */}
+{startedTrip && !finishedTrip && !cancelledTrip && (
+  <section className="gv-telemetry-card">
+    <div className="gv-telemetry-header">
+      <div className="gv-telemetry-title-group">
+        <span className="gv-radar-pulse">
+          <span className="gv-radar-pulse-ping" />
+          <span className="gv-radar-pulse-dot" />
+        </span>
+        <h3 className="gv-telemetry-title">Rastreo GPS</h3>
+      </div>
+      <span className={`gv-telemetry-status-badge ${trackingInfo.active ? "active" : "inactive"}`}>
+        {trackingInfo.active ? "Activo" : "Detenido"}
+      </span>
+    </div>
+
+    <dl className="gv-telemetry-dl">
+      <div className="gv-telemetry-row">
+        <dt>Seguimiento GPS:</dt>
+        <dd style={{ color: trackingInfo.active ? "#047857" : "#64748b", fontWeight: 700 }}>
+          {trackingInfo.active ? "Activo" : "Detenido"}
+        </dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Estado:</dt>
+        <dd className="gv-badge-mono">{trackingInfo.status || gpsStatus}</dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Última captura:</dt>
+        <dd>{trackingInfo.lastCapture ? new Date(trackingInfo.lastCapture).toLocaleTimeString("es-MX") : "Aún no disponible"}</dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Latitud:</dt>
+        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.latitude) ? trackingInfo.latitude.toFixed(6) : "Aún no disponible"}</dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Longitud:</dt>
+        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Pendientes:</dt>
+        <dd>{trackingInfo.pending ?? 0}</dd>
+      </div>
+      <div className="gv-telemetry-row">
+        <dt>Conexión:</dt>
+        <dd>{trackingInfo.connection}</dd>
+      </div>
+    </dl>
+
+    {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
+    {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
+      <div className="gv-checkpoints-section">
+        <h4 className="gv-checkpoints-title">
+          <IconPin size={16} color="#0369a1" /> Sitios de Reporte de la Ruta
+        </h4>
+        <div className="gv-checkpoints-list">
+          {gerenciamientoDoc.sitios_reporte.map((sitio, index) => (
+            <div key={index} className="gv-checkpoint-item">
+              <div className="gv-checkpoint-name">
+                <strong>Punto {index + 1}:</strong> {sitio.punto}
+              </div>
+              {sitio.horaReportada ? (
+                <span className="gv-checkpoint-badge-done">
+                  <IconCheck size={13} color="#166534" /> Reportado: {sitio.horaReportada}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const nowStr = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+                    try {
+                      const updated = await registrarReporteHoraGerenciamiento(gerenciamientoDoc.id_gerenciamiento, { puntoIndex: index, horaReportada: nowStr });
+                      setGerenciamientoDoc(updated.data);
+                      setMessage(`Punto ${sitio.punto} reportado exitosamente a las ${nowStr}.`);
+                      setMessageType("success");
+                    } catch (err) {
+                      setMessage(err.message || "Error al registrar reporte.");
+                      setMessageType("error");
+                    }
+                  }}
+                  className="gv-btn-checkpoint"
+                >
+                  <IconClock size={13} color="#ffffff" /> Marcar Hora ({new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })})
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {lastLocation && (
+      <div className="location-details" style={{ marginTop: "12px" }}>
+        <p><strong>Latitud:</strong> {Number(lastLocation.latitude).toFixed(6)}</p>
+        <p><strong>Longitud:</strong> {Number(lastLocation.longitude).toFixed(6)}</p>
+        <p><strong>Precisión:</strong> {lastLocation.accuracy !== null ? `${Math.round(Number(lastLocation.accuracy))} metros` : "No disponible"}</p>
+        <p><strong>Último envío:</strong> {new Date(lastLocation.serverTimestamp).toLocaleTimeString("es-MX")}</p>
       </div>
     )}
   </section>
