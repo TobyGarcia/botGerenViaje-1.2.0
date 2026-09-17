@@ -4,8 +4,23 @@ import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import VehicleDropdown from "./VehicleDropdown.jsx";
-import { IconMapPin, IconStethoscope, IconClipboard, IconSearch, IconAlert, IconEdit, IconCheck, IconCross, IconCar, IconLock, IconRocket, IconMoon, IconRefresh, IconBan } from "./Icons.jsx";
-
+import {
+  IconMapPin,
+  IconStethoscope,
+  IconClipboard,
+  IconSearch,
+  IconAlert,
+  IconEdit,
+  IconCheck,
+  IconCross,
+  IconCar,
+  IconLock,
+  IconRocket,
+  IconRefresh,
+  IconBan,
+  IconShield,
+  IconClock
+} from "./Icons.jsx";
 
 const defaultChecklistItems = {
   "Luces": "B",
@@ -164,6 +179,17 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
            (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
   );
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 5;
+
+  const stepMeta = [
+    { title: "Ruta y Unidad", shortTitle: "Ruta", nextText: "Siguiente: Valoración Médica" },
+    { title: "Valoración Médica", shortTitle: "Salud", nextText: "Siguiente: Info General" },
+    { title: "Información General", shortTitle: "General", nextText: "Siguiente: Verificación Previaje" },
+    { title: "Verificación Previaje", shortTitle: "Revisión", nextText: "Siguiente: Análisis de Riesgos" },
+    { title: "Análisis de Riesgos", shortTitle: "Riesgos", nextText: "Continuar a Firma Digital y Guardar Viaje" }
+  ];
 
   const [form, setForm] = useState({
     departamento: "Logística",
@@ -432,25 +458,92 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  function validateCurrentStep() {
+    setErrorMessage("");
+    if (currentStep === 1) {
+      if (!form.idOrigen && !form.origenTexto) {
+        setErrorMessage("Por favor selecciona o escribe la Ubicación de Origen.");
+        return false;
+      }
+      if (!form.idDestino && !form.destinoTexto) {
+        setErrorMessage("Por favor selecciona o escribe la Ubicación de Destino.");
+        return false;
+      }
+      if (!form.idVehiculo) {
+        setErrorMessage("Por favor selecciona el Vehículo que utilizarás.");
+        return false;
+      }
+      if (!form.kilometraje && form.kilometraje !== 0) {
+        setErrorMessage("Por favor ingresa el Kilometraje Inicial del vehículo.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function handleNextStep() {
+    if (!validateCurrentStep()) return;
+
+    if (currentStep < totalSteps) {
+      setCurrentStep((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      // Step 5: Proceder a firma o envío
+      if (esBloqueante) {
+        setErrorMessage("Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
+        return;
+      }
+      if (!inspeccionCompleted) {
+        setErrorMessage("Debes realizar y completar la Inspección Vehicular Interactiva antes de registrar el viaje.");
+        setCurrentStep(4);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      const firmaDataUrl = firmaConductor || inspeccionData?.firma || "";
+      if (!firmaDataUrl) {
+        setShowSignatureModal(true);
+        return;
+      }
+      submitForm();
+    }
+  }
+
+  function handlePrevStep() {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  function goToStep(step) {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  async function submitForm() {
     setErrorMessage("");
     setSuccessMessage("");
 
     if (!inspeccionCompleted) {
       setErrorMessage("Debes realizar y completar la Inspección Vehicular Interactiva antes de registrar el Gerenciamiento de Viaje.");
+      setCurrentStep(4);
       return;
     }
     if (!form.idOrigen && !form.origenTexto) {
       setErrorMessage("Por favor selecciona o especifica el Origen.");
+      setCurrentStep(1);
       return;
     }
     if (!form.idDestino && !form.destinoTexto) {
       setErrorMessage("Por favor selecciona o especifica el Destino.");
+      setCurrentStep(1);
       return;
     }
     if (!form.idVehiculo) {
       setErrorMessage("Por favor selecciona el Vehículo que utilizarás.");
+      setCurrentStep(1);
       return;
     }
     if (esBloqueante) {
@@ -460,7 +553,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
     const firmaDataUrl = firmaConductor || inspeccionData?.firma || "";
     if (!firmaDataUrl) {
-      setErrorMessage("Por favor realiza la captura de tu firma digital antes de enviar.");
+      setShowSignatureModal(true);
       return;
     }
 
@@ -530,40 +623,101 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     kilometraje_actual: form.kilometraje || selectedVehicleObj.kilometraje_actual || 0
   };
 
+  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+
   return (
-    <div className="geren-container">
-      {/* Header con Logo de GV MOBILITY */}
-      <header className="geren-header">
-        <img src={logoGvBlack} alt="GV MOBILITY" style={{ height: "42px", maxWidth: "150px", objectFit: "contain" }} />
-        <div>
-          <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 800 }}>GERENCIAMIENTO DE VIAJE</h3>
-          <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
-            CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
-          </p>
+    <div className="gw-container">
+      {/* Stepper Header Card */}
+      <div className="gw-stepper-header-card">
+        <div className="gw-header-tag">
+          <IconShield size={14} color="#0284c7" />
+          <span>Operación y Logística</span>
         </div>
-      </header>
+        <h1 className="gw-header-title">GERENCIAMIENTO DE VIAJE</h1>
+        <p style={{ margin: "4px 0 0", fontSize: "0.74rem", color: "#64748b" }}>
+          CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
+        </p>
+      </div>
+
+      {/* Sticky Stepper Bar */}
+      <div className="gw-sticky-stepper">
+        <div className="gw-stepper-top-row">
+          <div>
+            <span className="gw-step-badge">PASO {currentStep} DE {totalSteps}</span>
+            <h3 className="gw-step-title">{stepMeta[currentStep - 1].title}</h3>
+          </div>
+          <div>
+            <span className="gw-step-percentage">{progressPercent}%</span>
+          </div>
+        </div>
+
+        {/* Progress Bar Track */}
+        <div className="gw-progress-track">
+          <div className="gw-progress-fill" style={{ width: `${progressPercent}%` }}></div>
+        </div>
+
+        {/* Step Dots Row */}
+        <div className="gw-stepper-dots-row">
+          {stepMeta.map((meta, index) => {
+            const stepNum = index + 1;
+            const isActive = stepNum === currentStep;
+            const isCompleted = stepNum < currentStep;
+            const isPending = stepNum > currentStep;
+
+            return (
+              <div key={stepNum} style={{ display: "flex", alignItems: "center", flex: stepNum < totalSteps ? 1 : "0 0 auto" }}>
+                <button
+                  type="button"
+                  className="gw-step-dot-btn"
+                  onClick={() => goToStep(stepNum)}
+                  title={meta.title}
+                >
+                  <div className={`gw-step-dot ${isActive ? "active" : isCompleted ? "completed" : "pending"}`}>
+                    {isCompleted ? <IconCheck size={12} color="#ffffff" /> : stepNum}
+                  </div>
+                  <span className={`gw-step-label ${isActive ? "active" : isCompleted ? "completed" : "pending"}`}>
+                    {meta.shortTitle}
+                  </span>
+                </button>
+                {stepNum < totalSteps && (
+                  <div className={`gw-step-connector ${stepNum < currentStep ? "completed" : ""}`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {errorMessage && (
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}>
-          <IconAlert size={20} color="#dc2626" /> {errorMessage}
+        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 14px", borderRadius: "12px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px" }}>
+          <IconAlert size={18} color="#dc2626" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
       {successMessage && (
-        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px 16px", borderRadius: "10px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}>
-          <IconCheck size={20} color="#166534" /> {successMessage}
+        <div style={{ background: "#dcfce7", color: "#166534", padding: "12px 14px", borderRadius: "12px", border: "1px solid #86efac", marginBottom: "16px", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px" }}>
+          <IconCheck size={18} color="#166534" />
+          <span>{successMessage}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ padding: 0, background: "transparent", border: 0, boxShadow: "none", display: "grid", gap: "16px" }}>
+      <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }}>
         
-        {/* Datos Básicos de Viaje */}
-        <section className="geren-card">
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconMapPin size={20} color="#0284c7" /> Origen y Destino del Traslado (Provincias / Ubicaciones)</h4>
+        {/* STEP 1: Ruta y Unidad */}
+        {currentStep === 1 && (
+          <section className="gw-card">
+            <div className="gw-card-header">
+              <div className="gw-card-icon-box">
+                <IconMapPin size={18} color="#0284c7" />
+              </div>
+              <h2 className="gw-card-title">Origen y Destino del Traslado</h2>
+            </div>
 
-          <div className="geren-grid-2" style={{ marginBottom: "14px" }}>
-            <div className="geren-field">
-              <label className="geren-field-label">Provincia / Ubicación de Origen *</label>
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Provincia / Ubicación de Origen <span className="gw-req-star">*</span>
+              </label>
               <DestinationAutocomplete
                 lugares={lugares}
                 value={form.idOrigen}
@@ -582,8 +736,10 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               />
             </div>
 
-            <div className="geren-field">
-              <label className="geren-field-label">Provincia / Ubicación de Destino *</label>
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Provincia / Ubicación de Destino <span className="gw-req-star">*</span>
+              </label>
               <DestinationAutocomplete
                 lugares={lugares}
                 value={form.idDestino}
@@ -601,23 +757,27 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 required
               />
             </div>
-          </div>
 
-          <div className="geren-grid-3">
-            <div className="geren-field">
-              <label className="geren-field-label">Hora Salida *</label>
-              <input
-                type="time"
-                name="horaSalida"
-                value={form.horaSalida}
-                onChange={handleInputChange}
-                required
-                className="geren-field-input"
-              />
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Hora Salida <span className="gw-req-star">*</span>
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="time"
+                  name="horaSalida"
+                  value={form.horaSalida}
+                  onChange={handleInputChange}
+                  required
+                  className="gw-input"
+                />
+              </div>
             </div>
 
-            <div className="geren-field">
-              <label className="geren-field-label">Seleccionar Vehículo *</label>
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Seleccionar Vehículo <span className="gw-req-star">*</span>
+              </label>
               <VehicleDropdown
                 name="idVehiculo"
                 value={form.idVehiculo}
@@ -628,69 +788,135 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
               />
             </div>
 
-            <div className="geren-field">
-              <label className="geren-field-label">Kilometraje Inicial *</label>
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Kilometraje Inicial <span className="gw-req-star">*</span>
+              </label>
               <input
                 type="number"
                 name="kilometraje"
                 value={form.kilometraje}
                 onChange={handleInputChange}
                 required
-                className="geren-field-input"
+                className="gw-input"
+                placeholder="Ej: 207"
+              />
+              <p className="gw-field-hint">Verificar con el odómetro del tablero del vehículo asignado.</p>
+            </div>
+          </section>
+        )}
+
+        {/* STEP 2: Valoración Médica */}
+        {currentStep === 2 && (
+          <section className="gw-card">
+            <div className="gw-card-header">
+              <div className="gw-card-icon-box">
+                <IconStethoscope size={18} color="#0284c7" />
+              </div>
+              <h2 className="gw-card-title">1. Valoración Médica Pre-viaje</h2>
+            </div>
+
+            <div className="gw-field">
+              <label className="gw-field-label">Presión Arterial</label>
+              <input
+                type="text"
+                name="presionArterial"
+                value={form.presionArterial}
+                onChange={handleInputChange}
+                className="gw-input"
+                placeholder="120/80"
               />
             </div>
-          </div>
-        </section>
 
-        {/* 1. Valoración Médica Pre-viaje */}
-        <section className="geren-card">
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconStethoscope size={20} color="#0284c7" /> 1. Valoración Médica Pre-viaje</h4>
-
-          <div className="geren-grid-3" style={{ marginBottom: "14px" }}>
-            <div className="geren-field">
-              <label className="geren-field-label">Presión Arterial</label>
-              <input type="text" name="presionArterial" value={form.presionArterial} onChange={handleInputChange} className="geren-field-input" />
+            <div className="gw-field">
+              <label className="gw-field-label">Examen Visual</label>
+              <input
+                type="text"
+                name="examenVisual"
+                value={form.examenVisual}
+                onChange={handleInputChange}
+                className="gw-input"
+                placeholder="Normal"
+              />
             </div>
 
-            <div className="geren-field">
-              <label className="geren-field-label">Examen Visual</label>
-              <input type="text" name="examenVisual" value={form.examenVisual} onChange={handleInputChange} className="geren-field-input" />
+            <div className="gw-field">
+              <label className="gw-field-label">Glucosa</label>
+              <input
+                type="text"
+                name="glucosa"
+                value={form.glucosa}
+                onChange={handleInputChange}
+                className="gw-input"
+                placeholder="90 mg/dL"
+              />
             </div>
 
-            <div className="geren-field">
-              <label className="geren-field-label">Glucosa</label>
-              <input type="text" name="glucosa" value={form.glucosa} onChange={handleInputChange} className="geren-field-input" />
-            </div>
-          </div>
-
-          <div className="geren-grid-3">
-            <div className="geren-field">
-              <label className="geren-field-label">Frecuencia Cardíaca</label>
-              <input type="text" name="frecuenciaCardiaca" value={form.frecuenciaCardiaca} onChange={handleInputChange} className="geren-field-input" />
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">Frecuencia Respiratoria</label>
-              <input type="text" name="frecuenciaRespiratoria" value={form.frecuenciaRespiratoria} onChange={handleInputChange} className="geren-field-input" />
+            <div className="gw-field">
+              <label className="gw-field-label">Frecuencia Cardíaca</label>
+              <input
+                type="text"
+                name="frecuenciaCardiaca"
+                value={form.frecuenciaCardiaca}
+                onChange={handleInputChange}
+                className="gw-input"
+                placeholder="72 bpm"
+              />
             </div>
 
-            <div className="geren-field" style={{ justifyContent: "flex-end" }}>
-              <label className="alcoholimetro-card">
-                <input type="checkbox" name="alcoholimetro" checked={form.alcoholimetro} onChange={handleInputChange} style={{ width: "18px", height: "18px" }} />
-                <span>Alcoholímetro Positivo</span>
+            <div className="gw-field">
+              <label className="gw-field-label">Frecuencia Respiratoria</label>
+              <input
+                type="text"
+                name="frecuenciaRespiratoria"
+                value={form.frecuenciaRespiratoria}
+                onChange={handleInputChange}
+                className="gw-input"
+                placeholder="16 rpm"
+              />
+            </div>
+
+            <div className="gw-field" style={{ paddingTop: "6px" }}>
+              <label style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "12px 14px",
+                borderRadius: "12px",
+                border: form.alcoholimetro ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
+                background: form.alcoholimetro ? "#fef2f2" : "#f8fafc",
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}>
+                <input
+                  type="checkbox"
+                  name="alcoholimetro"
+                  checked={form.alcoholimetro}
+                  onChange={handleInputChange}
+                  style={{ width: "20px", height: "20px", accentColor: "#dc2626", cursor: "pointer" }}
+                />
+                <span style={{ marginLeft: "12px", fontSize: "0.82rem", fontWeight: "700", color: form.alcoholimetro ? "#991b1b" : "#1e293b" }}>
+                  Alcoholímetro Positivo
+                </span>
               </label>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* 2. Información General del Vehículo y Ruta */}
-        <section className="geren-card">
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconClipboard size={20} color="#0284c7" /> 2. Información General del Traslado</h4>
-          
-          <div style={{ display: "grid", gap: "14px" }}>
-            {/* Tiempo Estimado de Viaje */}
-            <div className="geren-field">
-              <label className="geren-field-label">Tiempo Estimado de Viaje (Horas) *</label>
+        {/* STEP 3: Información General del Traslado */}
+        {currentStep === 3 && (
+          <section className="gw-card">
+            <div className="gw-card-header">
+              <div className="gw-card-icon-box">
+                <IconClipboard size={18} color="#0284c7" />
+              </div>
+              <h2 className="gw-card-title">2. Información General del Traslado</h2>
+            </div>
+
+            {/* Tiempo Estimado */}
+            <div className="gw-field">
+              <label className="gw-field-label">
+                Tiempo Estimado de Viaje (Horas) <span className="gw-req-star">*</span>
+              </label>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <input
                   type="number"
@@ -701,31 +927,42 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                   value={form.tiempoViajeHoras}
                   onChange={handleInputChange}
                   required
-                  className="geren-field-input"
+                  className="gw-input"
                   placeholder="Ej: 2.5"
-                  style={{ maxWidth: "160px" }}
+                  style={{ maxWidth: "120px", fontWeight: "bold" }}
                 />
-                <span style={{ fontWeight: "bold", color: "#475569", fontSize: "0.9rem" }}>hrs</span>
+                <span style={{ fontWeight: "700", color: "#475569", fontSize: "0.86rem" }}>hrs</span>
               </div>
-              <small style={{ color: "#64748b", marginTop: "2px" }}>
-                Indica la duración estimada del traslado en horas (Ej: 1.5, 3, 5 hrs).
-              </small>
+              <p className="gw-field-hint">Indica la duración estimada del traslado en horas (Ej: 1.5, 3, 5 hrs).</p>
             </div>
 
             {/* Puntos de Ruta */}
-            <div>
+            <div className="gw-field" style={{ paddingTop: "4px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <label className="geren-field-label">Ruta a seguir (Puntos de Parada / Intermedios):</label>
+                <label className="gw-field-label" style={{ margin: 0 }}>
+                  Ruta a seguir (Puntos de Parada / Intermedios):
+                </label>
                 {rutaPuntos.length < 4 && (
                   <button
                     type="button"
                     onClick={addRoutePoint}
-                    style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", fontWeight: "bold" }}
+                    style={{
+                      background: "#0284c7",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "6px 12px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                      fontWeight: "700",
+                      boxShadow: "0 1px 3px rgba(2, 132, 199, 0.3)"
+                    }}
                   >
                     + Agregar Punto
                   </button>
                 )}
               </div>
+
               <div style={{ display: "grid", gap: "8px" }}>
                 {rutaPuntos.map((punto, index) => (
                   <div key={index} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -733,14 +970,28 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                       type="text"
                       value={punto}
                       onChange={(e) => handleRoutePointChange(index, e.target.value)}
-                      placeholder={`Punto ${index + 1} de la ruta (Ej: Escárcega, Caseta Champotón...)`}
-                      className="geren-field-input"
+                      placeholder={`Punto ${index + 1} de la ruta (Ej: Escárcega, Caseta A)`}
+                      className="gw-input"
+                      style={{ flex: 1 }}
                     />
                     {rutaPuntos.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeRoutePoint(index)}
-                        style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          flexShrink: 0,
+                          background: "#ef4444",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "10px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 1px 3px rgba(239, 68, 68, 0.3)"
+                        }}
                         title="Eliminar punto"
                       >
                         <IconCross size={16} color="#ffffff" />
@@ -752,366 +1003,552 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             </div>
 
             {/* Acompañantes */}
-            <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label className="geren-field-label">¿Viaja Acompañado?</label>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  {viajaAcompanado && listaAcompanantes.length < maxAcompanantes && (
+            <div className="gw-field" style={{ paddingTop: "6px" }}>
+              <div style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "12px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1e293b" }}>¿Viaja Acompañado?</span>
+                  <div style={{ display: "flex", background: "#e2e8f0", padding: "2px", borderRadius: "8px" }}>
                     <button
                       type="button"
-                      onClick={addCompanionField}
-                      disabled={listaAcompanantes.length >= maxAcompanantes}
-                      style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.82rem", fontWeight: "bold" }}
+                      onClick={() => {
+                        setViajaAcompanado(false);
+                        setListaAcompanantes([""]);
+                      }}
+                      style={{
+                        padding: "4px 14px",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        background: !viajaAcompanado ? "#ffffff" : "transparent",
+                        color: !viajaAcompanado ? "#0f172a" : "#64748b",
+                        boxShadow: !viajaAcompanado ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+                      }}
                     >
-                      + Agregar
+                      NO
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViajaAcompanado((prev) => {
-                        const next = !prev;
-                        if (!next) setListaAcompanantes([""]);
-                        return next;
-                      });
-                    }}
-                    style={{
-                      background: viajaAcompanado ? "#1e3a8a" : "#cbd5e1",
-                      color: "#ffffff",
-                      border: 0,
-                      padding: "6px 14px",
-                      borderRadius: "14px",
-                      fontSize: "0.85rem",
-                      fontWeight: "bold",
-                      cursor: "pointer"
-                    }}
-                  >
-                    {viajaAcompanado ? "SÍ" : "NO"}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setViajaAcompanado(true)}
+                      style={{
+                        padding: "4px 14px",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        background: viajaAcompanado ? "#0284c7" : "transparent",
+                        color: viajaAcompanado ? "#ffffff" : "#64748b",
+                        boxShadow: viajaAcompanado ? "0 1px 3px rgba(2, 132, 199, 0.3)" : "none"
+                      }}
+                    >
+                      SÍ
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {viajaAcompanado && (
-                <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
-                  <small style={{ color: "#64748b", fontSize: "0.8rem" }}>
-                    {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
-                  </small>
-                  {listaAcompanantes.map((nombre, index) => (
-                    <div key={index} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <input
-                        type="text"
-                        value={nombre}
-                        onChange={(e) => handleCompanionChange(index, e.target.value)}
-                        placeholder={`Nombre del acompañante ${index + 1}`}
-                        required={index === 0}
-                        className="geren-field-input"
-                      />
-                      {listaAcompanantes.length > 1 && (
+                {viajaAcompanado && (
+                  <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <p className="gw-field-hint" style={{ margin: 0 }}>
+                        {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
+                      </p>
+                      {listaAcompanantes.length < maxAcompanantes && (
                         <button
                           type="button"
-                          onClick={() => removeCompanionField(index)}
-                          style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
-                          title="Quitar acompañante"
+                          onClick={addCompanionField}
+                          style={{
+                            background: "#0284c7",
+                            color: "#ffffff",
+                            border: "none",
+                            padding: "4px 10px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "0.72rem",
+                            fontWeight: "700"
+                          }}
                         >
-                          <IconCross size={16} color="#ffffff" />
+                          + Agregar
                         </button>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
 
-        {/* 3. Lista de Verificación e INSPECCIÓN VEHICULAR INTEGRADA CON MODAL */}
-        <section className="geren-card">
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconSearch size={20} color="#0284c7" /> 3. Lista de Verificación Previaje (Preguntas de Control 1-6)</h4>
-          
-          {/* BANNER / BOTÓN PARA ACTIVAR LA VENTANA INTERACTIVA DE INSPECCIÓN VEHICULAR */}
-          <div style={{ background: inspeccionCompleted ? "#dcfce7" : "#fff7ed", padding: "14px 16px", borderRadius: "10px", border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`, marginBottom: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-              <div>
-                <strong style={{ color: inspeccionCompleted ? "#166534" : "#c2410c", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
-                  {inspeccionCompleted ? <><IconCheck size={18} color="#166534" /> Inspección Vehicular Diaria Realizada</> : <><IconAlert size={18} color="#ea580c" /> Inspección Vehicular Obligatoria Integrada</>}
-                </strong>
-                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569" }}>
-                  {inspeccionCompleted
-                    ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Chequeo de componentes OK ${inspeccionData?.esDiaSiguiente ? " | Programado Día Siguiente (24h anticipación)" : ""}`
-                    : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
-                </p>
+                    {listaAcompanantes.map((nombre, index) => (
+                      <div key={index} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <input
+                          type="text"
+                          value={nombre}
+                          onChange={(e) => handleCompanionChange(index, e.target.value)}
+                          placeholder={`Nombre del acompañante ${index + 1}`}
+                          required={index === 0}
+                          className="gw-input"
+                          style={{ flex: 1 }}
+                        />
+                        {listaAcompanantes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeCompanionField(index)}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              flexShrink: 0,
+                              background: "#ef4444",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "10px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: "0 1px 3px rgba(239, 68, 68, 0.3)"
+                            }}
+                            title="Quitar acompañante"
+                          >
+                            <IconCross size={16} color="#ffffff" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* STEP 4: Verificación Previaje */}
+        {currentStep === 4 && (
+          <section className="gw-card">
+            <div className="gw-card-header">
+              <div className="gw-card-icon-box">
+                <IconSearch size={18} color="#0284c7" />
+              </div>
+              <h2 className="gw-card-title">3. Lista de Verificación Previaje (Preguntas de Control 1-6)</h2>
+            </div>
+
+            {/* Banner Inspección Vehicular Interactiva */}
+            <div style={{
+              borderRadius: "12px",
+              border: `1.5px solid ${inspeccionCompleted ? "#86efac" : "#fdba74"}`,
+              background: inspeccionCompleted ? "#f0fdf4" : "#fff7ed",
+              padding: "14px",
+              marginBottom: "14px"
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
+                {inspeccionCompleted ? (
+                  <IconCheck size={20} color="#16a34a" />
+                ) : (
+                  <IconAlert size={20} color="#ea580c" />
+                )}
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: "800", color: inspeccionCompleted ? "#166534" : "#9a3412" }}>
+                    {inspeccionCompleted ? "Inspección Vehicular Diaria Realizada" : "Inspección Vehicular Obligatoria Integrada"}
+                  </h3>
+                  <p style={{ margin: "3px 0 0", fontSize: "0.75rem", color: inspeccionCompleted ? "#15803d" : "#7c2d12", lineHeight: 1.35 }}>
+                    {inspeccionCompleted
+                      ? `Combustible: ${inspeccionData?.combustible || "3/4"} | Revisión de componentes OK ${inspeccionData?.esDiaSiguiente ? " | Programado Día Siguiente" : ""}`
+                      : "Primero se realiza la Inspección Vehicular interactiva (nivel combustible, diagrama de daños y checklist completo)."}
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
                   if (!form.idVehiculo) {
-                    alert("Por favor selecciona primero la Unidad/Vehículo en la primera sección.");
+                    setErrorMessage("Por favor selecciona primero la Unidad/Vehículo en el Paso 1.");
+                    setCurrentStep(1);
                     return;
                   }
                   setShowInspectionModal(true);
                 }}
                 style={{
+                  width: "100%",
+                  height: "44px",
+                  borderRadius: "10px",
                   background: inspeccionCompleted ? "#15803d" : "#ea580c",
                   color: "#ffffff",
-                  border: 0,
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  fontSize: "0.88rem",
+                  border: "none",
+                  fontWeight: "800",
+                  fontSize: "0.82rem",
                   cursor: "pointer",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
-                  display: "inline-flex",
+                  display: "flex",
                   alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                {inspeccionCompleted ? <><IconRefresh size={16} /> Ver / Editar Inspección</> : <><IconCar size={16} /> Abrir Inspección Vehicular Interactiva</>}
-              </button>
-            </div>
-          </div>
-
-          {!inspeccionCompleted && (
-            <div style={{ background: "#eff6ff", color: "#1d4ed8", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bfdbfe", marginBottom: "14px", fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-              <IconLock size={16} color="#1d4ed8" /> Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
-            </div>
-          )}
-
-          <div style={{ display: "grid", gap: "10px", opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>1. ¿El conductor conoce los riesgos locales (vía, clima, peatones, animales)?</span>
-              <select disabled={!inspeccionCompleted} name="conocimientoRiesgosLocales" value={form.conocimientoRiesgosLocales ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="true">SÍ</option>
-                <option value="false">NO</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>2. ¿El conductor ha consumido medicamentos que producen somnolencia?</span>
-              <select disabled={!inspeccionCompleted} name="medicamentosSomnolencia" value={form.medicamentosSomnolencia ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, medicamentosSomnolencia: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="false">NO (Normal)</option>
-                <option value="true">SÍ (Somnolencia)</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>3. ¿El conductor ha dormido adecuadamente?</span>
-              <select disabled={!inspeccionCompleted} name="dormidoAdecuadamente" value={form.dormidoAdecuadamente ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, dormidoAdecuadamente: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="true">SÍ</option>
-                <option value="false">NO</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>4. ¿El conductor está informado que está prohibido llevar personal ajeno?</span>
-              <select disabled={!inspeccionCompleted} name="prohibidoPersonalAjeno" value={form.prohibidoPersonalAjeno ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="true">SÍ</option>
-                <option value="false">NO</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</span>
-              <select disabled={!inspeccionCompleted} name="inspeccionVehiculoRealizada" value={form.inspeccionVehiculoRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="true">SÍ</option>
-                <option value="false">NO</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <span>6. ¿Se realizó la reunión pre caravana? (Solo si viajan &gt;1 vehículo)</span>
-              <select disabled={!inspeccionCompleted} name="reunionPreCaravanaRealizada" value={form.reunionPreCaravanaRealizada ? "true" : "false"} onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))} style={{ fontWeight: "bold", padding: "6px 10px", background: "#ffffff", borderRadius: "6px" }}>
-                <option value="false">NO</option>
-                <option value="true">SÍ</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        {/* 4. Tabuladores de Riesgo (COMPLETOS A, B, C, D, E, F, G) */}
-        <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconAlert size={20} color="#ea580c" /> 4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h4>
-
-          <div className="geren-grid-2">
-            <div className="geren-field">
-              <label className="geren-field-label">A. Distancia a Recorrer</label>
-              <select disabled={!inspeccionCompleted} name="ptsDistancia" value={form.ptsDistancia} onChange={handleInputChange} className="geren-field-select">
-                <option value={1}>Menos de 50 Km (1 pto)</option>
-                <option value={2}>Menos de 100 Km (2 ptos)</option>
-                <option value={5}>Menos de 200 Km (5 ptos)</option>
-                <option value={8}>Más de 200 Km (8 ptos)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">B. Clima Esperado</label>
-              <select disabled={!inspeccionCompleted} name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="geren-field-select">
-                <option value={2}>Seco / Condiciones Normales (2 ptos)</option>
-                <option value={4}>Lluvia suave (4 ptos)</option>
-                <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
-                <option value={10}>Nieve / Tormenta extrema (10 ptos)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">C. Vehículos y Personas</label>
-              <select disabled={!inspeccionCompleted} name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleInputChange} className="geren-field-select">
-                <option value={1}>2+ Vehículos y 2+ Personas (1 pto)</option>
-                <option value={2}>2+ Vehículos y 1+ Persona (2 ptos)</option>
-                <option value={3}>1 Vehículo y 2+ Personas (3 ptos)</option>
-                <option value={6}>1 Vehículo y 1 Persona (Solitario) (6 ptos)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">D. Condiciones de la Vía</label>
-              <select disabled={!inspeccionCompleted} name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} className="geren-field-select">
-                <option value={1}>Pavimentada (1 pto)</option>
-                <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
-                <option value={4}>No Pavimentada / Terregal (4 ptos)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">E. Cobertura Comunicaciones</label>
-              <select disabled={!inspeccionCompleted} name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} className="geren-field-select">
-                <option value={0}>Teléfono Celular con Señal (0 ptos)</option>
-                <option value={2}>Sin comunicación y Viaje en Caravana (2 ptos)</option>
-                <option value={4}>Sin comunicación y Viaje en Solitario (4 ptos)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">F. Horas Trabajadas + Viaje</label>
-              <select disabled={!inspeccionCompleted} name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} className="geren-field-select">
-                <option value={1}>Menos de 12 horas acumuladas (1 pto)</option>
-                <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
-                <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
-                <option value={16}>≥ 16 horas (BLOQUEANTE - NO CONDUCIR)</option>
-              </select>
-            </div>
-
-            <div className="geren-field">
-              <label className="geren-field-label">G. Hora del Traslado</label>
-              <select disabled={!inspeccionCompleted} name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleInputChange} className="geren-field-select">
-                <option value={1}>Día (06:00 a 18:00 hrs) (1 pto)</option>
-                <option value={8}>Noche (18:00 a 06:00 hrs) (8 ptos)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Badge Resultado de Riesgo */}
-          <div style={{ marginTop: "16px", padding: "14px 16px", borderRadius: "10px", background: nivelRiesgo === "ALTO" ? "#fee2e2" : nivelRiesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: `1px solid ${nivelRiesgo === "ALTO" ? "#fca5a5" : nivelRiesgo === "MEDIO" ? "#fde047" : "#86efac"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <strong style={{ fontSize: "1rem", color: nivelRiesgo === "ALTO" ? "#991b1b" : nivelRiesgo === "MEDIO" ? "#854d0e" : "#166534" }}>
-                EVALUACIÓN DE RIESGO: {nivelRiesgo} ({puntajeTotal} ptos)
-              </strong>
-              <div style={{ fontSize: "0.82rem", marginTop: "2px", color: "#334155" }}>
-                Autorización Requerida: <strong>{autorizacionRequerida}</strong>
-              </div>
-            </div>
-            {esBloqueante && (
-              <span style={{ background: "#dc2626", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                <IconBan size={14} color="#fff" /> BLOQUEANTE
-              </span>
-            )}
-          </div>
-        </section>
-
-        {/* 5. Firma Digital Conductor */}
-        <section className="geren-card" style={{ opacity: inspeccionCompleted ? 1 : 0.55, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
-          <h4 className="geren-card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><IconEdit size={20} color="#0284c7" /> 5. Firma Digital del Conductor *</h4>
-          <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "#64748b" }}>
-            Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás en condiciones óptimas para conducir.
-          </p>
-
-          {firmaConductor ? (
-            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "4px 8px" }}>
-                  <img src={firmaConductor} alt="Firma capturada" style={{ height: "60px", maxWidth: "160px", objectFit: "contain", display: "block" }} />
-                </div>
-                <div>
-                  <strong style={{ color: "#166534", fontSize: "0.92rem", display: "flex", alignItems: "center", gap: "4px" }}><IconCheck size={18} color="#166534" /> Firma Digital Capturada</strong>
-                  <span style={{ fontSize: "0.8rem", color: "#475569" }}>{selectedDriver.nombre || form.nombreConductor || "Conductor"}</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowSignatureModal(true)}
-                style={{ background: "#ffffff", border: "1px solid #86efac", color: "#15803d", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <IconRefresh size={16} /> Modificar Firma
-              </button>
-            </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "20px 16px", background: "#f8fafc", border: "2px dashed #cbd5e1", borderRadius: "12px" }}>
-              <p style={{ margin: "0 0 12px", fontSize: "0.88rem", color: "#64748b" }}>
-                No se ha capturado tu firma digital para este gerenciamiento.
-              </p>
-              <button
-                type="button"
-                disabled={!inspeccionCompleted}
-                onClick={() => setShowSignatureModal(true)}
-                style={{
-                  background: !inspeccionCompleted ? "#94a3b8" : "#2563eb",
-                  color: "#ffffff",
-                  border: 0,
-                  padding: "12px 24px",
-                  borderRadius: "10px",
-                  fontWeight: "bold",
-                  fontSize: "0.92rem",
-                  cursor: !inspeccionCompleted ? "not-allowed" : "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
+                  justifyContent: "center",
                   gap: "8px",
-                  boxShadow: !inspeccionCompleted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.25)"
+                  boxShadow: "0 2px 8px rgba(234, 88, 12, 0.25)"
                 }}
               >
-                <IconEdit size={18} color="#ffffff" /> Abrir Captura de Firma Digital
+                {inspeccionCompleted ? (
+                  <><IconRefresh size={16} color="#ffffff" /> Ver / Editar Inspección</>
+                ) : (
+                  <><IconCar size={18} color="#ffffff" /> Abrir Inspección Vehicular Interactiva</>
+                )}
               </button>
             </div>
-          )}
-        </section>
 
-        {/* Botones de Envío */}
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-          {onCancel && (
+            {!inspeccionCompleted && (
+              <div className="gw-notice-blue">
+                <IconLock size={16} color="#0369a1" />
+                <p className="gw-notice-blue-text">
+                  Completa la Inspección Vehicular Interactiva arriba para desbloquear las preguntas de control, tabuladores de riesgo y la firma digital.
+                </p>
+              </div>
+            )}
+
+            {/* Questions Control List */}
+            <div style={{ display: "grid", gap: "10px", opacity: inspeccionCompleted ? 1 : 0.6, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  1. ¿El conductor conoce los riesgos locales (vía, clima, peatones, animales)?
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="conocimientoRiesgosLocales"
+                  value={form.conocimientoRiesgosLocales ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, conocimientoRiesgosLocales: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="true">SÍ</option>
+                  <option value="false">NO</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  2. ¿El conductor ha consumido medicamentos que producen somnolencia?
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="medicamentosSomnolencia"
+                  value={form.medicamentosSomnolencia ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, medicamentosSomnolencia: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="false">NO (Normal)</option>
+                  <option value="true">SÍ (Somnolencia)</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  3. ¿El conductor ha dormido adecuadamente?
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="dormidoAdecuadamente"
+                  value={form.dormidoAdecuadamente ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, dormidoAdecuadamente: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="true">SÍ</option>
+                  <option value="false">NO</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  4. ¿El conductor está informado que está prohibido llevar personal ajeno?
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="prohibidoPersonalAjeno"
+                  value={form.prohibidoPersonalAjeno ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, prohibidoPersonalAjeno: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="true">SÍ</option>
+                  <option value="false">NO</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="inspeccionVehiculoRealizada"
+                  value={form.inspeccionVehiculoRealizada ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, inspeccionVehiculoRealizada: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="true">SÍ</option>
+                  <option value="false">NO</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                <label className="gw-field-label" style={{ marginBottom: "6px" }}>
+                  6. ¿Se realizó la reunión pre caravana? (Solo si viajan &gt; 1 vehículo)
+                </label>
+                <select
+                  disabled={!inspeccionCompleted}
+                  name="reunionPreCaravanaRealizada"
+                  value={form.reunionPreCaravanaRealizada ? "true" : "false"}
+                  onChange={(e) => setForm((p) => ({ ...p, reunionPreCaravanaRealizada: e.target.value === "true" }))}
+                  className="gw-select"
+                  style={{ height: "38px", fontSize: "0.82rem", fontWeight: "700" }}
+                >
+                  <option value="false">NO</option>
+                  <option value="true">SÍ</option>
+                </select>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* STEP 5: Análisis de Riesgos de la Ruta */}
+        {currentStep === 5 && (
+          <>
+            <section className="gw-card" style={{ opacity: inspeccionCompleted ? 1 : 0.6, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
+              <div className="gw-card-header">
+                <div className="gw-card-icon-box">
+                  <IconAlert size={18} color="#ea580c" />
+                </div>
+                <h2 className="gw-card-title">4. Análisis de Riesgos de la Ruta (Tabuladores A al G)</h2>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">A. Distancia a Recorrer</label>
+                <select disabled={!inspeccionCompleted} name="ptsDistancia" value={form.ptsDistancia} onChange={handleInputChange} className="gw-select">
+                  <option value={1}>Menos de 50 Km (1 pto)</option>
+                  <option value={2}>Menos de 100 Km (2 ptos)</option>
+                  <option value={5}>Menos de 200 Km (5 ptos)</option>
+                  <option value={8}>Más de 200 Km (8 ptos)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">B. Clima Esperado</label>
+                <select disabled={!inspeccionCompleted} name="ptsClima" value={form.ptsClima} onChange={handleInputChange} className="gw-select">
+                  <option value={2}>Seco / Condiciones Normales (2 ptos)</option>
+                  <option value={4}>Lluvia suave (4 ptos)</option>
+                  <option value={8}>Lluvia fuerte / Niebla (8 ptos)</option>
+                  <option value={10}>Nieve / Tormenta extrema (10 ptos)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">C. Vehículos y Personas</label>
+                <select disabled={!inspeccionCompleted} name="ptsVehiculosPersonas" value={form.ptsVehiculosPersonas} onChange={handleInputChange} className="gw-select">
+                  <option value={1}>2+ Vehículos y 2+ Personas (1 pto)</option>
+                  <option value={2}>2+ Vehículos y 1+ Persona (2 ptos)</option>
+                  <option value={3}>1 Vehículo y 2+ Personas (3 ptos)</option>
+                  <option value={6}>1 Vehículo y 1 Persona (Solitario) (6 ptos)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">D. Condiciones de la Vía</label>
+                <select disabled={!inspeccionCompleted} name="ptsCondicionesVia" value={form.ptsCondicionesVia} onChange={handleInputChange} className="gw-select">
+                  <option value={1}>Pavimentada (1 pto)</option>
+                  <option value={2}>Mixta (&lt;50% No Pavimentada) (2 ptos)</option>
+                  <option value={4}>No Pavimentada / Terregal (4 ptos)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">E. Cobertura Comunicaciones</label>
+                <select disabled={!inspeccionCompleted} name="ptsComunicaciones" value={form.ptsComunicaciones} onChange={handleInputChange} className="gw-select">
+                  <option value={0}>Teléfono Celular con Señal (0 ptos)</option>
+                  <option value={2}>Sin comunicación y Viaje en Caravana (2 ptos)</option>
+                  <option value={4}>Sin comunicación y Viaje en Solitario (4 ptos)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">F. Horas Trabajadas + Viaje</label>
+                <select disabled={!inspeccionCompleted} name="ptsHorasTrabajadas" value={form.ptsHorasTrabajadas} onChange={handleInputChange} className="gw-select">
+                  <option value={1}>Menos de 12 horas acumuladas (1 pto)</option>
+                  <option value={3}>Menos de 14 horas acumuladas (3 ptos)</option>
+                  <option value={6}>Menos de 16 horas acumuladas (6 ptos)</option>
+                  <option value={16}>≥ 16 horas (BLOQUEANTE - NO CONDUCIR)</option>
+                </select>
+              </div>
+
+              <div className="gw-field">
+                <label className="gw-field-label">G. Hora del Traslado</label>
+                <select disabled={!inspeccionCompleted} name="ptsHoraTraslado" value={form.ptsHoraTraslado} onChange={handleInputChange} className="gw-select">
+                  <option value={1}>Día (06:00 a 18:00 hrs) (1 pto)</option>
+                  <option value={8}>Noche (18:00 a 06:00 hrs) (8 ptos)</option>
+                </select>
+              </div>
+
+              {/* Badge Resultado de Riesgo */}
+              <div style={{
+                marginTop: "16px",
+                padding: "14px 16px",
+                borderRadius: "12px",
+                background: nivelRiesgo === "ALTO" ? "#fee2e2" : nivelRiesgo === "MEDIO" ? "#fef9c3" : "#dcfce7",
+                border: `1px solid ${nivelRiesgo === "ALTO" ? "#fca5a5" : nivelRiesgo === "MEDIO" ? "#fde047" : "#86efac"}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px"
+              }}>
+                <div>
+                  <strong style={{ fontSize: "0.95rem", color: nivelRiesgo === "ALTO" ? "#991b1b" : nivelRiesgo === "MEDIO" ? "#854d0e" : "#166534" }}>
+                    EVALUACIÓN DE RIESGO: {nivelRiesgo} ({puntajeTotal} ptos)
+                  </strong>
+                  <div style={{ fontSize: "0.78rem", marginTop: "3px", color: "#334155" }}>
+                    Autorización Requerida: <strong>{autorizacionRequerida}</strong>
+                  </div>
+                </div>
+                {esBloqueante && (
+                  <span style={{ background: "#dc2626", color: "#fff", padding: "6px 12px", borderRadius: "8px", fontSize: "0.78rem", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <IconBan size={14} color="#fff" /> BLOQUEANTE
+                  </span>
+                )}
+              </div>
+            </section>
+
+            {/* 5. Firma Digital Conductor */}
+            <section className="gw-card" style={{ opacity: inspeccionCompleted ? 1 : 0.6, pointerEvents: inspeccionCompleted ? "auto" : "none" }}>
+              <div className="gw-card-header">
+                <div className="gw-card-icon-box">
+                  <IconEdit size={18} color="#0284c7" />
+                </div>
+                <h2 className="gw-card-title">5. Firma Digital del Conductor *</h2>
+              </div>
+              <p style={{ margin: "0 0 12px", fontSize: "0.78rem", color: "#64748b" }}>
+                Al firmar confirmas que la valoración médica y la inspección vehicular son verídicas y estás en condiciones óptimas para conducir.
+              </p>
+
+              {firmaConductor ? (
+                <div style={{
+                  background: "#f0fdf4",
+                  border: "1.5px solid #86efac",
+                  borderRadius: "12px",
+                  padding: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "4px 8px" }}>
+                      <img src={firmaConductor} alt="Firma capturada" style={{ height: "55px", maxWidth: "150px", objectFit: "contain", display: "block" }} />
+                    </div>
+                    <div>
+                      <strong style={{ color: "#166534", fontSize: "0.88rem", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <IconCheck size={16} color="#166534" /> Firma Capturada
+                      </strong>
+                      <span style={{ fontSize: "0.78rem", color: "#475569" }}>
+                        {selectedDriver.nombre || form.nombreConductor || "Conductor"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSignatureModal(true)}
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #86efac",
+                      color: "#15803d",
+                      padding: "8px 14px",
+                      borderRadius: "8px",
+                      fontWeight: "700",
+                      fontSize: "0.78rem",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <IconRefresh size={14} /> Modificar Firma
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "20px 16px", background: "#f8fafc", border: "2px dashed #cbd5e1", borderRadius: "12px" }}>
+                  <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "#64748b" }}>
+                    No se ha capturado tu firma digital para este gerenciamiento.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!inspeccionCompleted}
+                    onClick={() => setShowSignatureModal(true)}
+                    style={{
+                      background: !inspeccionCompleted ? "#94a3b8" : "#2563eb",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "10px 20px",
+                      borderRadius: "10px",
+                      fontWeight: "800",
+                      fontSize: "0.86rem",
+                      cursor: !inspeccionCompleted ? "not-allowed" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      boxShadow: !inspeccionCompleted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.25)"
+                    }}
+                  >
+                    <IconEdit size={16} color="#ffffff" /> Abrir Captura de Firma Digital
+                  </button>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </form>
+
+      {/* Fixed Bottom Navigation Dock */}
+      <div className="gw-bottom-nav">
+        <div className="gw-bottom-nav-inner">
+          {currentStep > 1 && (
             <button
               type="button"
-              onClick={onCancel}
+              className="gw-btn-prev"
+              onClick={handlePrevStep}
               disabled={submitting}
-              style={{ background: "#e2e8f0", color: "#334155", border: 0, padding: "12px 22px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}
             >
-              Cancelar
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                <path d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Anterior</span>
             </button>
           )}
 
           <button
-            type="submit"
-            disabled={submitting || esBloqueante || !inspeccionCompleted}
-            style={{
-              background: (esBloqueante || !inspeccionCompleted) ? "#94a3b8" : "#16a34a",
-              color: "#ffffff",
-              border: 0,
-              padding: "14px 32px",
-              borderRadius: "10px",
-              fontWeight: "bold",
-              fontSize: "0.98rem",
-              cursor: (esBloqueante || !inspeccionCompleted) ? "not-allowed" : "pointer",
-              boxShadow: (esBloqueante || !inspeccionCompleted) ? "none" : "0 4px 14px rgba(22, 163, 74, 0.3)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
+            type="button"
+            className="gw-btn-next"
+            onClick={handleNextStep}
+            disabled={submitting || (currentStep === 5 && (esBloqueante || !inspeccionCompleted))}
           >
-            {submitting ? "Enviando Solicitud..." : <><IconRocket size={18} color="#ffffff" /> Registrar Gerenciamiento e Inspección</>}
+            {submitting ? (
+              <span>Enviando Solicitud...</span>
+            ) : currentStep < totalSteps ? (
+              <>
+                <span>{stepMeta[currentStep - 1].nextText}</span>
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </>
+            ) : (
+              <>
+                <IconRocket size={18} color="#ffffff" />
+                <span>Registrar Gerenciamiento e Inspección</span>
+              </>
+            )}
           </button>
         </div>
+      </div>
 
-      </form>
-
-      {/* VENTANA OVERLAY DE INSPECCIÓN VEHICULAR INTERACTIVA */}
+      {/* Modal Overlay de Inspección Vehicular Interactiva */}
       {showInspectionModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.85)", zIndex: 99999, display: "grid", placeItems: "center", padding: "12px", overflowY: "auto" }}>
           <div style={{ width: "100%", maxWidth: "720px", maxHeight: "94vh", overflowY: "auto" }}>
@@ -1125,7 +1562,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         </div>
       )}
 
-      {/* VENTANA OVERLAY DE CAPTURA DE FIRMA DIGITAL */}
+      {/* Modal Overlay de Firma Digital */}
       {showSignatureModal && (
         <SignaturePadModal
           onSave={(dataUrl) => {
