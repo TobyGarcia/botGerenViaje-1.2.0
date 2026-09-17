@@ -2252,13 +2252,13 @@ function isOutsideOperatingHours() {
     {startedTrip && !finishedTrip && !cancelledTrip && (
       <section className="gps-panel">
         {/* Banner de Emergencia / Siniestro en Ruta */}
-        <div style={{ background: "#fef2f2", border: "2px solid #ef4444", borderRadius: "12px", padding: "14px", marginBottom: "18px", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.15)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ background: "#fef2f2", border: "2px solid #fca5a5", borderRadius: "14px", padding: "16px", marginBottom: "18px", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.12)", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
-              <strong style={{ color: "#991b1b", fontSize: "0.98rem", display: "flex", alignItems: "center", gap: "6px" }}>
-                <IconAlert size={20} color="#dc2626" /> ¿Inconveniente o emergencia en la ruta?
+              <strong style={{ color: "#991b1b", fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px", lineHeight: "1.3" }}>
+                <IconAlert size={22} color="#dc2626" style={{ shrink: 0 }} /> ¿Inconveniente o emergencia en la ruta?
               </strong>
-              <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#7f1d1d" }}>
+              <p style={{ margin: "6px 0 0 0", fontSize: "0.85rem", color: "#7f1d1d", lineHeight: "1.4" }}>
                 Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.
               </p>
             </div>
@@ -2266,22 +2266,27 @@ function isOutsideOperatingHours() {
               type="button"
               onClick={() => setShowSiniestroModal(true)}
               style={{
-                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                width: "100%",
+                background: "linear-gradient(135deg, #dc2626, #b91c1c)",
                 color: "#ffffff",
                 border: 0,
-                padding: "10px 18px",
-                borderRadius: "8px",
+                padding: "12px 16px",
+                borderRadius: "10px",
                 fontWeight: "800",
-                fontSize: "0.9rem",
+                fontSize: "0.92rem",
                 cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(220, 38, 38, 0.35)",
-                display: "inline-flex",
+                boxShadow: "0 4px 14px rgba(220, 38, 38, 0.3)",
+                display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "8px",
-                whiteSpace: "nowrap"
+                boxSizing: "border-box",
+                textAlign: "center",
+                lineHeight: "1.3"
               }}
             >
-              <IconAlert size={18} color="#ffffff" /> 🚨 Reportar Siniestro / Incidente
+              <IconAlert size={18} color="#ffffff" style={{ shrink: 0 }} />
+              <span>Reportar Siniestro / Incidente</span>
             </button>
           </div>
         </div>
