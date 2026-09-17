@@ -463,8 +463,8 @@
 }
 
 .topbar-logo-img {
-  height: 28px;
-  max-width: 90px;
+  height: 30px;
+  max-width: 110px;
   object-fit: contain;
   display: block;
 }
@@ -682,12 +682,65 @@
   align-items: center;
 }
 
+.pin-logo-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.pin-gv-logo {
+  height: 38px;
+  max-width: 140px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 .pin-aquario-logo {
   height: 34px;
   width: auto;
   object-fit: contain;
   margin-bottom: 3px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+}
+
+.pin-register-card-btn {
+  margin-top: 10px;
+  background: rgba(240, 249, 255, 0.95);
+  border: 1.5px solid rgba(186, 230, 253, 0.9);
+  color: #0284c7;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08);
+  transition: all 0.2s ease;
+}
+
+.pin-register-card-btn:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.15);
+}
+
+.pin-register-card-btn:active {
+  transform: translateY(1px);
 }
 
 .pin-title {

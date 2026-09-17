@@ -3,8 +3,9 @@ import "./App.css";
 import SupervisorPortal from "./pages/SupervisorPortal.jsx";
 import TopBar from "./components/TopBar.jsx";
 import { exchangeAzureOAuthCode, getAzureOAuthUrl, getSupervisorAccess } from "./services/api.js";
-import aquarioBlanco from "./assets/AQUARIO_BLANCO.png";
+import logoGv from "./assets/LOGOGV.png";
 import safeStorage from "./utils/safeStorage.js";
+import { IconAlert } from "./components/Icons.jsx";
 
 export default function SupervisorApp() {
   const [access, setAccess] = useState(null);
@@ -136,7 +137,9 @@ export default function SupervisorApp() {
         <main className="pin-view-main">
           <div className="pin-login-wrapper">
             <div className="pin-login-card glass-panel" style={{ textAlign: "center", padding: "24px" }}>
-              <img src={aquarioBlanco} alt="AQUARIO" className="pin-aquario-logo" style={{ margin: "0 auto 12px" }} />
+              <div className="pin-logo-box" style={{ margin: "0 auto 12px" }}>
+                <img src={logoGv} alt="GV MOBILITY" className="pin-gv-logo" />
+              </div>
               <p className="loading-message" style={{ color: "#0f172a", fontWeight: 600 }}>
                 {authenticatingMs ? "Autenticando en Microsoft..." : "Validando acceso de supervisor..."}
               </p>
@@ -148,7 +151,9 @@ export default function SupervisorApp() {
           <div className="pin-login-wrapper">
             <div className="pin-login-card glass-panel">
               <div className="pin-header">
-                <img src={aquarioBlanco} alt="AQUARIO" className="pin-aquario-logo" />
+                <div className="pin-logo-box">
+                  <img src={logoGv} alt="GV MOBILITY" className="pin-gv-logo" />
+                </div>
                 <h2 className="pin-title">Control de Supervisión</h2>
                 <p className="pin-subtitle">
                   Inicia sesión con tu cuenta corporativa del tenant de Microsoft para acceder
@@ -157,7 +162,7 @@ export default function SupervisorApp() {
 
               {error && (
                 <div className="pin-error-banner" role="alert">
-                  <span>⚠️ {error}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={16} color="#ef4444" /> {error}</span>
                 </div>
               )}
 

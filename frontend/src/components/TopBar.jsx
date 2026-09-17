@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
+import logoGv from "../assets/LOGOGV.png";
 import NavDrawer from "./NavDrawer.jsx";
 import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
 
@@ -39,7 +39,7 @@ export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange
       <header className="app-topbar">
         <div className="topbar-inner">
           <div className="topbar-brand" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <img src={aquarioBlanco} alt="AQUARIO" className="topbar-logo-img" />
+            <img src={logoGv} alt="GV MOBILITY" className="topbar-logo-img" />
 
             {/* Botón de Menú Estilo Pill y Módulo Activo (Captura de Pantalla) */}
             {typeof onTabChange === "function" && (

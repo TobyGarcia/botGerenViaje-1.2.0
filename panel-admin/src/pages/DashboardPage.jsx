@@ -12,7 +12,7 @@ import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
-import logoAquarioBlanco from "../assets/page_assets/AQUARIO_BLANCO.png";
+import logoAquarioBlanco from "../assets/LOGOGV.png";
 import {
   IconInicio,
   IconInspecciones,
