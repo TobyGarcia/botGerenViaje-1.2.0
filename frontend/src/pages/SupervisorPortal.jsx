@@ -38,7 +38,7 @@ import {
   IconSearch
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
-import logoGv from "../assets/LOGOGV.png";
+import logoGvBlack from "../assets/LOGOGVBLACK.png";
 
 function SignaturePadModal({
   title = "Firma Digital de Autorización",
@@ -1040,7 +1040,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     {/* Encabezado Institucional SII-MX-23-LOG-003 */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", margin: "14px 0 10px 0", borderBottom: "2px solid #0284c7", paddingBottom: "10px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <img src={logoGv} alt="GV MOBILITY" style={{ height: "38px", maxWidth: "130px", objectFit: "contain" }} />
+                        <img src={logoGvBlack} alt="GV MOBILITY" style={{ height: "38px", maxWidth: "140px", objectFit: "contain" }} />
                         <div>
                           <h2 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h2>
                           <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Código: <strong>{gerenciamientoDetail.folio_documento || "SII-MX-23-LOG-003"}</strong> (Rev. {gerenciamientoDetail.version_documento || "3.0"})</span>

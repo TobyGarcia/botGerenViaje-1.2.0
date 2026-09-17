@@ -455,40 +455,55 @@
 
 .sidebar-brand {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
   margin: 0;
+  width: 100%;
+  min-height: 52px;
 }
 
-.sidebar-brand-logo {
-  width: 44px;
-  height: 44px;
+/* Isologo en grande cuando la barra esta compacta / escondida */
+.sidebar-brand-isologo {
+  width: 48px;
+  height: 48px;
   object-fit: contain;
-  border-radius: 8px;
-  transition: all 0.28s ease;
+  display: block;
+  margin: 0 auto;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
 }
 
-.sidebar:hover .sidebar-brand-logo {
-  width: 145px;
+/* Logo completo para cuando la barra se expande */
+.sidebar-brand-full {
+  display: none;
+  width: 175px;
+  max-width: 100%;
   height: auto;
-  max-height: 54px;
+  max-height: 52px;
+  object-fit: contain;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
 
-.sidebar-brand-title {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #ffffff;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  white-space: normal;
-  line-height: 1.25;
+/* Al pasar el cursor por la barra (escritorio) */
+.sidebar:hover .sidebar-brand-isologo {
+  display: none !important;
 }
 
-.sidebar:hover .sidebar-brand-title {
-  opacity: 1;
-  transform: translateY(0);
+.sidebar:hover .sidebar-brand-full {
+  display: block !important;
+  animation: fadeInSidebarLogo 0.22s ease forwards;
+}
+
+@keyframes fadeInSidebarLogo {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .sidebar-text {
@@ -5146,21 +5161,22 @@ min-width: 0;
   }
 
   .sidebar-brand {
-    gap: 4px !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    width: auto !important;
   }
 
-  .sidebar-brand-logo {
-    width: 110px !important;
+  .sidebar-brand-isologo {
+    display: none !important;
+  }
+
+  .sidebar-brand-full {
+    display: block !important;
+    width: 145px !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 42px !important;
-  }
-
-  .sidebar-brand-title {
-    opacity: 1 !important;
-    transform: none !important;
-    font-size: 0.88rem !important;
+    max-height: 44px !important;
   }
 
   .sidebar-text {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
-import logoAQR from "../assets/LoginAssets/logoAQR.webp";
+import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
 
 function LoginPage({ onAuthenticated }) {
@@ -84,7 +84,7 @@ function LoginPage({ onAuthenticated }) {
       <section className="login-section">
         <div className="login-card single-tenant-card">
           <div className="login-header">
-            <img className="login-logo" src={logoAQR} alt="AQR Logistics" />
+            <img className="login-logo" src={logoGvBlack} alt="GV MOBILITY" style={{ maxWidth: "210px", maxHeight: "58px", objectFit: "contain" }} />
             <h2>Acceso Administrativo</h2>
           </div>
 

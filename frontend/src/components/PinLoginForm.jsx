@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { loginConductorConPin } from "../services/api";
-import logoGv from "../assets/LOGOGV.png";
 import PwaInstallPrompt from "./PwaInstallPrompt";
 import safeStorage from "../utils/safeStorage";
 import { IconAlert, IconFileText, IconBackspace } from "./Icons.jsx";
@@ -117,11 +116,8 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   return (
     <div className="pin-login-wrapper">
       <div className="pin-login-card glass-panel">
-        {/* Header con Logo y Titulo */}
+        {/* Header con Titulo de Acceso por PIN */}
         <div className="pin-header">
-          <div className="pin-logo-box">
-            <img src={logoGv} alt="GV MOBILITY" className="pin-gv-logo" />
-          </div>
           <h2 className="pin-title">Ingreso por PIN</h2>
           <p className="pin-subtitle">
             Ingresa tu PIN de 4 dígitos para acceder al sistema

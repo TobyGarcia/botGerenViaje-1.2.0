@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
-import logoGv from "../assets/LOGOGV.png";
+import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import { IconMapPin, IconStethoscope, IconClipboard, IconSearch, IconAlert, IconEdit, IconCheck, IconCross, IconCar, IconLock, IconRocket, IconMoon, IconRefresh, IconBan } from "./Icons.jsx";
@@ -533,7 +533,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     <div className="geren-container">
       {/* Header con Logo de GV MOBILITY */}
       <header className="geren-header">
-        <img src={logoGv} alt="GV MOBILITY" style={{ height: "42px", maxWidth: "140px", objectFit: "contain" }} />
+        <img src={logoGvBlack} alt="GV MOBILITY" style={{ height: "42px", maxWidth: "150px", objectFit: "contain" }} />
         <div>
           <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 800 }}>GERENCIAMIENTO DE VIAJE</h3>
           <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>

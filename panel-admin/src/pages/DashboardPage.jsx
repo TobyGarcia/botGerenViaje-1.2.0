@@ -12,7 +12,8 @@ import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
-import logoAquarioBlanco from "../assets/LOGOGV.png";
+import logoGv from "../assets/LOGOGV.png";
+import isologoGv from "../assets/ISOLOGO.png";
 import {
   IconInicio,
   IconInspecciones,
@@ -683,8 +684,8 @@ function DashboardPage({ user, onLogout }) {
         <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <img className="sidebar-brand-logo" src={logoAquarioBlanco} alt="AQUARIO" />
-              <span className="sidebar-text sidebar-brand-title">Gerenciamiento viajes</span>
+              <img className="sidebar-brand-logo sidebar-brand-full" src={logoGv} alt="GV MOBILITY" />
+              <img className="sidebar-brand-logo sidebar-brand-isologo" src={isologoGv} alt="GV MOBILITY" />
             </div>
 
             {/* Botón de Menú Hamburguesa para Móviles */}
