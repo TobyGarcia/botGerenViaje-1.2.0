@@ -118,7 +118,7 @@ export default function OfflineBanner({ idViaje }) {
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginTop: '2px' }}>
               {pendingCount > 0 && <span>{pendingCount} {pendingCount === 1 ? 'punto GPS' : 'puntos GPS'}</span>}
               {pendingCount > 0 && pendingSiniestroCount > 0 && <span> y </span>}
-              {pendingSiniestroCount > 0 && <span>🚨 {pendingSiniestroCount} {pendingSiniestroCount === 1 ? 'reporte de siniestro' : 'reportes de siniestros'}</span>}
+              {pendingSiniestroCount > 0 && <span><IconAlert size={14} color="#ffffff" /> {pendingSiniestroCount} {pendingSiniestroCount === 1 ? 'reporte de siniestro' : 'reportes de siniestros'}</span>}
               <span> por enviar</span>
             </div>
           )}
