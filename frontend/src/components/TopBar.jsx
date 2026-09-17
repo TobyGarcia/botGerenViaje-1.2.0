@@ -38,44 +38,36 @@ export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange
     <>
       <header className="app-topbar">
         <div className="topbar-inner">
-          <div className="topbar-brand" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div className="topbar-brand">
             <img src={logoGv} alt="GV MOBILITY" className="topbar-logo-img" />
-
-            {/* Botón de Menú Estilo Pill y Módulo Activo (Captura de Pantalla) */}
-            {typeof onTabChange === "function" && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => setDrawerOpen(true)}
-                  style={{
-                    background: "#0284c7",
-                    color: "#ffffff",
-                    border: 0,
-                    borderRadius: "8px",
-                    padding: "6px 12px",
-                    fontSize: "0.82rem",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    boxShadow: "0 2px 6px rgba(2, 132, 199, 0.3)",
-                    transition: "all 0.15s ease"
-                  }}
-                  title="Abrir menú de navegación"
-                >
-                  <IconMenu size={16} color="#ffffff" /> Menú
-                </button>
-
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#38bdf8", fontSize: "0.82rem", fontWeight: "700" }}>
-                  <ActiveIcon size={15} color="#38bdf8" />
-                  <span>{activeMeta.label}</span>
-                </div>
-              </div>
-            )}
           </div>
 
-        <div className="topbar-actions">
+        <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {typeof onTabChange === "function" && (
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              title="Abrir menú"
+              aria-label="Abrir menú"
+              style={{
+                background: "#0284c7",
+                color: "#ffffff",
+                border: 0,
+                borderRadius: "8px",
+                width: "38px",
+                height: "38px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 6px rgba(2, 132, 199, 0.25)",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <IconMenu size={20} color="#ffffff" />
+            </button>
+          )}
+
           {conductor ? (
             <div className="topbar-user-area">
               <button
@@ -84,6 +76,19 @@ export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange
                 onClick={onLogout}
                 title="Cerrar sesión / Salir"
                 aria-label="Cerrar sesión"
+                style={{
+                  background: "rgba(244, 63, 94, 0.15)",
+                  border: "1px solid rgba(244, 63, 94, 0.3)",
+                  borderRadius: "8px",
+                  width: "38px",
+                  height: "38px",
+                  color: "#fda4af",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease"
+                }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

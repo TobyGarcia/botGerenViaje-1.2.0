@@ -1795,31 +1795,15 @@ function isOutsideOperatingHours() {
 
           {/* Tarjeta de Conductor Consolidada */}
           <section className="urban-driver-card">
-            <div className="urban-driver-card-top">
-              <div className="urban-driver-info-left">
-                <div className="urban-driver-avatar">
-                  {getDriverInitials(telegramAuth?.conductor?.nombre || selectedDriver?.nombre || "Conductor")}
-                </div>
-                <div>
-                  <div className="urban-driver-name-row">
-                    <h2 className="urban-driver-name">
-                      {telegramAuth?.conductor?.nombre || selectedDriver?.nombre || "Conductor"}
-                    </h2>
-                    <svg className="urban-verified-badge" fill="currentColor" viewBox="0 0 20 20">
-                      <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fillRule="evenodd"></path>
-                    </svg>
-                  </div>
-                  <div className="urban-driver-status-row">
-                    <span className="urban-status-indicator-dot"></span>
-                    <span>{telegramAuth?.conductor ? "Telegram: Autenticado" : "PIN: Autenticado"}</span>
-                  </div>
-                </div>
-              </div>
-              <div className={`urban-license-chip ${Boolean(selectedDriver?.licencia_vigente ?? telegramAuth?.conductor?.licencia_vigente) ? "valid" : "invalid"}`}>
-                <span className="urban-license-dot"></span>
-                <span>{Boolean(selectedDriver?.licencia_vigente ?? telegramAuth?.conductor?.licencia_vigente) ? "Licencia Vigente" : "Licencia No Vigente"}</span>
-              </div>
+            <div className="urban-driver-name-row">
+              <h2 className="urban-driver-name">
+                {telegramAuth?.conductor?.nombre || selectedDriver?.nombre || "Conductor"}
+              </h2>
+              <svg className="urban-verified-badge" fill="currentColor" viewBox="0 0 20 20">
+                <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fillRule="evenodd"></path>
+              </svg>
             </div>
+
             <div className="urban-license-strip">
               <div>
                 <span className="urban-strip-label">No. Licencia:</span>
@@ -2005,15 +1989,6 @@ function isOutsideOperatingHours() {
                   </div>
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="urban-add-dest-cta"
-                onClick={() => setShowAddDestinoModal(true)}
-              >
-                <span className="urban-add-dest-icon">+</span>
-                <span>¿No encuentras tu destino? Agrégalo aquí</span>
-              </button>
             </section>
 
             {/* Paso 3: Detalles Adicionales */}
