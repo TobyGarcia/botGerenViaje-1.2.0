@@ -31,7 +31,8 @@ import {
   IconShield,
   IconMenu,
   IconUser,
-  IconMapPin
+  IconMapPin,
+  IconSearch
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import logoAQR from "../assets/logoAQR.webp";
@@ -313,6 +314,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const [conductores, setConductores] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
   const [searchConductor, setSearchConductor] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState("ALL");
   const [savingAssignmentId, setSavingAssignmentId] = useState(null);
 
   // Conductores pendientes state
@@ -553,347 +555,85 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
 
   if (!access.confirmed) return <main className="container"><h1>Confirma tu correo</h1><p>Te enviamos un enlace de bienvenida. Ábrelo y vuelve a entrar desde Telegram para activar las aprobaciones.</p>{errorMessage&&<p className="message message-error">{errorMessage}</p>}{message&&<p className="message message-success">{message}</p>}</main>;
 
-  const filteredConductores = conductores.filter((c) =>
-    c.nombre.toLowerCase().includes(searchConductor.toLowerCase()) ||
-    (c.empresa || "").toLowerCase().includes(searchConductor.toLowerCase())
-  );
+  const totalConductores = conductores.length;
+  const conductoresAsignados = conductores.filter(c => c.id_vehiculo_asignado).length;
+  const conductoresSinAsignar = totalConductores - conductoresAsignados;
+  const totalVehiculos = vehiculos.length;
+
+  const filteredConductores = conductores.filter((c) => {
+    const matchesSearch = !searchConductor.trim() || (
+      c.nombre.toLowerCase().includes(searchConductor.toLowerCase()) ||
+      (c.empresa || "").toLowerCase().includes(searchConductor.toLowerCase())
+    );
+    if (!matchesSearch) return false;
+
+    if (assignmentFilter === "SIN_ASIGNAR") {
+      return !c.id_vehiculo_asignado;
+    }
+    if (assignmentFilter === "ASIGNADOS") {
+      return Boolean(c.id_vehiculo_asignado);
+    }
+    return true;
+  });
 
   const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
 
   return (
-    <main className="container">
-      {/* Barra Superior con Botón de Menú Desplegable */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "linear-gradient(135deg, #0f172a, #1e293b)",
-        color: "#ffffff",
-        borderRadius: "12px",
-        padding: "10px 14px",
-        marginBottom: "16px",
-        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.12)"
-      }}>
+    <main className="supervisor-portal-main">
+      {/* Segmented Tab Navigation Bar (Scrollable Pills) */}
+      <nav className="supervisor-tab-strip">
         <button
           type="button"
-          onClick={() => setShowSidebar(true)}
-          style={{
-            background: "#0284c7",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "8px",
-            padding: "8px 14px",
-            fontWeight: "bold",
-            fontSize: "0.88rem",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            boxShadow: "0 2px 8px rgba(2, 132, 199, 0.4)"
-          }}
+          className={`supervisor-tab-pill ${activeTab === "inspecciones" ? "active" : ""}`}
+          onClick={() => { setActiveTab("inspecciones"); setDetail(null); }}
         >
-          <IconMenu size={20} />
-          <span>Menú</span>
-          {(items.length + pendingGerenciamientos.length + pendingDrivers.length + manejoAuthorizations.length) > 0 && (
-            <span style={{
-              background: "#ef4444",
-              color: "#ffffff",
-              borderRadius: "999px",
-              padding: "2px 7px",
-              fontSize: "0.75rem",
-              fontWeight: "800"
-            }}>
-              {items.length + pendingGerenciamientos.length + pendingDrivers.length + manejoAuthorizations.length}
-            </span>
-          )}
+          <IconClipboard size={15} />
+          <span>Inspecciones</span>
+          {items.length > 0 && <span className="tab-pill-badge">{items.length}</span>}
         </button>
 
-        {/* Indicador de sección activa */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", fontWeight: "700" }}>
-          {activeTab === "inspecciones" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconClipboard size={18} /> Inspecciones {items.length > 0 ? `(${items.length})` : ""}</span>}
-          {activeTab === "gerenciamiento" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconMap size={18} /> Gerenciamiento {pendingGerenciamientos.length > 0 ? `(${pendingGerenciamientos.length})` : ""}</span>}
-          {activeTab === "conductores" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconIdCard size={18} /> Conductores {pendingDrivers.length > 0 ? `(${pendingDrivers.length})` : ""}</span>}
-          {activeTab === "manejo-comentado" && <span style={{ color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={18} /> Manejo Vencido {manejoAuthorizations.length > 0 ? `(${manejoAuthorizations.length})` : ""}</span>}
-          {activeTab === "asignaciones" && <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: "6px" }}><IconCar size={18} /> Asignaciones</span>}
-        </div>
-      </div>
+        <button
+          type="button"
+          className={`supervisor-tab-pill ${activeTab === "gerenciamiento" ? "active" : ""}`}
+          onClick={() => { setActiveTab("gerenciamiento"); setGerenciamientoDetail(null); }}
+        >
+          <IconMap size={15} />
+          <span>Gerenciamiento</span>
+          {pendingGerenciamientos.length > 0 && <span className="tab-pill-badge">{pendingGerenciamientos.length}</span>}
+        </button>
 
-      {/* Sidebar Desplegable (Drawer) */}
-      {showSidebar && (
-        <>
-          {/* Fondo oscuro traslúcido */}
-          <div
-            onClick={() => setShowSidebar(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(15, 23, 42, 0.65)",
-              backdropFilter: "blur(4px)",
-              zIndex: 99998
-            }}
-          />
+        <button
+          type="button"
+          className={`supervisor-tab-pill ${activeTab === "conductores" ? "active" : ""}`}
+          onClick={() => { setActiveTab("conductores"); setSelectedDriver(null); }}
+        >
+          <IconIdCard size={15} />
+          <span>Conductores</span>
+          {pendingDrivers.length > 0 && <span className="tab-pill-badge">{pendingDrivers.length}</span>}
+        </button>
 
-          {/* Panel Lateral Flotante */}
-          <aside style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: "85vw",
-            maxWidth: "320px",
-            background: "#ffffff",
-            zIndex: 99999,
-            display: "flex",
-            flexDirection: "column",
-            boxShadow: "6px 0 24px rgba(0,0,0,0.25)"
-          }}>
-            {/* Encabezado del Menú */}
-            <div style={{
-              background: "linear-gradient(135deg, #0f172a, #1e293b)",
-              color: "#ffffff",
-              padding: "20px 16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#0284c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <IconShield size={20} color="#ffffff" />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "1rem", color: "#ffffff", fontWeight: "800" }}>Supervisión</h3>
-                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8" }}>
-                    {access.user?.nombre || access.supervisorNombre || "Usuario"} · <span style={{ color: "#38bdf8", fontWeight: "600" }}>{currentUserRole}</span>
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSidebar(false)}
-                style={{ background: "transparent", border: "none", color: "#ffffff", cursor: "pointer", padding: "4px" }}
-              >
-                <IconCross size={22} color="#ffffff" />
-              </button>
-            </div>
+        {['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) && (
+          <button
+            type="button"
+            className={`supervisor-tab-pill ${activeTab === "manejo-comentado" ? "active" : ""}`}
+            onClick={() => { setActiveTab("manejo-comentado"); setSelectedManejoAuthorization(null); }}
+          >
+            <IconAlert size={15} />
+            <span>Manejo Vencido</span>
+            {manejoAuthorizations.length > 0 && <span className="tab-pill-badge warning">{manejoAuthorizations.length}</span>}
+          </button>
+        )}
 
-            {/* Opciones de Navegación */}
-            <div style={{ padding: "12px 8px", flex: 1, overflowY: "auto" }}>
-              <p style={{ fontSize: "0.72rem", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", margin: "8px 12px 12px 12px" }}>
-                Módulos de Gestión
-              </p>
-
-              {/* Opción 1: Inspecciones */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("inspecciones");
-                  setDetail(null);
-                  setGerenciamientoDetail(null);
-                  setSelectedDriver(null);
-                  setMessage("");
-                  setErrorMessage("");
-                  setShowSidebar(false);
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 14px",
-                  borderRadius: "10px",
-                  border: "none",
-                  marginBottom: "6px",
-                  cursor: "pointer",
-                  background: activeTab === "inspecciones" ? "#e0f2fe" : "transparent",
-                  color: activeTab === "inspecciones" ? "#0369a1" : "#334155",
-                  fontWeight: activeTab === "inspecciones" ? "700" : "600",
-                  borderLeft: activeTab === "inspecciones" ? "4px solid #0284c7" : "4px solid transparent",
-                  textAlign: "left"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <IconClipboard size={18} color={activeTab === "inspecciones" ? "#0284c7" : "#64748b"} />
-                  <span>Inspecciones vehiculares</span>
-                </div>
-                {items.length > 0 && (
-                  <span style={{ background: "#ef4444", color: "#ffffff", borderRadius: "999px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                    {items.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Opción 2: Gerenciamiento */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("gerenciamiento");
-                  setDetail(null);
-                  setGerenciamientoDetail(null);
-                  setSelectedDriver(null);
-                  setMessage("");
-                  setErrorMessage("");
-                  setShowSidebar(false);
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 14px",
-                  borderRadius: "10px",
-                  border: "none",
-                  marginBottom: "6px",
-                  cursor: "pointer",
-                  background: activeTab === "gerenciamiento" ? "#e0f2fe" : "transparent",
-                  color: activeTab === "gerenciamiento" ? "#0369a1" : "#334155",
-                  fontWeight: activeTab === "gerenciamiento" ? "700" : "600",
-                  borderLeft: activeTab === "gerenciamiento" ? "4px solid #0284c7" : "4px solid transparent",
-                  textAlign: "left"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <IconMap size={18} color={activeTab === "gerenciamiento" ? "#0284c7" : "#64748b"} />
-                  <span>Gerenciamiento de viajes</span>
-                </div>
-                {pendingGerenciamientos.length > 0 && (
-                  <span style={{ background: "#f59e0b", color: "#ffffff", borderRadius: "999px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                    {pendingGerenciamientos.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Opción 3: Conductores */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("conductores");
-                  setDetail(null);
-                  setGerenciamientoDetail(null);
-                  setSelectedDriver(null);
-                  setMessage("");
-                  setErrorMessage("");
-                  setShowSidebar(false);
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 14px",
-                  borderRadius: "10px",
-                  border: "none",
-                  marginBottom: "6px",
-                  cursor: "pointer",
-                  background: activeTab === "conductores" ? "#e0f2fe" : "transparent",
-                  color: activeTab === "conductores" ? "#0369a1" : "#334155",
-                  fontWeight: activeTab === "conductores" ? "700" : "600",
-                  borderLeft: activeTab === "conductores" ? "4px solid #0284c7" : "4px solid transparent",
-                  textAlign: "left"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <IconIdCard size={18} color={activeTab === "conductores" ? "#0284c7" : "#64748b"} />
-                  <span>Aprobación de conductores</span>
-                </div>
-                {pendingDrivers.length > 0 && (
-                  <span style={{ background: "#3b82f6", color: "#ffffff", borderRadius: "999px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                    {pendingDrivers.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Opción 4: Manejo Vencido (Sólo Gerentes / Administradores) */}
-              {['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("manejo-comentado");
-                    setDetail(null);
-                    setGerenciamientoDetail(null);
-                    setSelectedDriver(null);
-                    setSelectedManejoAuthorization(null);
-                    setMessage("");
-                    setErrorMessage("");
-                    setShowSidebar(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 14px",
-                    borderRadius: "10px",
-                    border: "none",
-                    marginBottom: "6px",
-                    cursor: "pointer",
-                    background: activeTab === "manejo-comentado" ? "#fef3c7" : "transparent",
-                    color: activeTab === "manejo-comentado" ? "#b45309" : "#334155",
-                    fontWeight: activeTab === "manejo-comentado" ? "700" : "600",
-                    borderLeft: activeTab === "manejo-comentado" ? "4px solid #d97706" : "4px solid transparent",
-                    textAlign: "left"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <IconAlert size={18} color={activeTab === "manejo-comentado" ? "#d97706" : "#64748b"} />
-                    <span>Manejo comentado vencido</span>
-                  </div>
-                  {manejoAuthorizations.length > 0 && (
-                    <span style={{ background: "#d97706", color: "#ffffff", borderRadius: "999px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                      {manejoAuthorizations.length}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* Opción 5: Asignaciones */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("asignaciones");
-                  setDetail(null);
-                  setGerenciamientoDetail(null);
-                  setSelectedDriver(null);
-                  setMessage("");
-                  setErrorMessage("");
-                  setShowSidebar(false);
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 14px",
-                  borderRadius: "10px",
-                  border: "none",
-                  marginBottom: "6px",
-                  cursor: "pointer",
-                  background: activeTab === "asignaciones" ? "#e0f2fe" : "transparent",
-                  color: activeTab === "asignaciones" ? "#0369a1" : "#334155",
-                  fontWeight: activeTab === "asignaciones" ? "700" : "600",
-                  borderLeft: activeTab === "asignaciones" ? "4px solid #0284c7" : "4px solid transparent",
-                  textAlign: "left"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <IconCar size={18} color={activeTab === "asignaciones" ? "#0284c7" : "#64748b"} />
-                  <span>Asignación de vehículos</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Pie de página del Menú */}
-            <div style={{ padding: "14px 16px", borderTop: "1px solid #f1f5f9", background: "#f8fafc", textAlign: "center" }}>
-              <small style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                AQUARIO · Control de Viajes
-              </small>
-            </div>
-          </aside>
-        </>
-      )}
+        <button
+          type="button"
+          className={`supervisor-tab-pill ${activeTab === "asignaciones" ? "active" : ""}`}
+          onClick={() => setActiveTab("asignaciones")}
+        >
+          <IconCar size={15} />
+          <span>Asignaciones</span>
+        </button>
+      </nav>
 
       {errorMessage && <p className="message message-error">{errorMessage}</p>}
       {message && <p className="message message-success">{message}</p>}
@@ -901,22 +641,48 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       {/* Pestaña: Inspecciones */}
       {activeTab === "inspecciones" && (
         <>
-          <h1>Inspecciones pendientes</h1>
+          <div className="supervisor-view-header">
+            <div>
+              <h1 className="supervisor-view-title">Inspecciones pendientes</h1>
+              <p className="supervisor-view-subtitle">Revisiones operativas enviadas por conductores</p>
+            </div>
+            <span className="supervisor-role-tag">{currentUserRole}</span>
+          </div>
+
           {!detail ? (
             <section>
-              {items.length ? items.map(item => (
-                <button type="button" key={item.id_inspeccion} className="result-card" onClick={() => openInspeccion(item.id_inspeccion)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
-                    <strong>{item.folio}</strong>
-                    {item.es_dia_siguiente && (
-                      <span style={{ background: "#2563eb", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <IconMoon size={12} /> Día Siguiente ({item.fecha_operativa})
-                      </span>
-                    )}
+              {items.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {items.map(item => (
+                    <button
+                      type="button"
+                      key={item.id_inspeccion}
+                      className="supervisor-inspection-item-card"
+                      onClick={() => openInspeccion(item.id_inspeccion)}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                        <strong style={{ color: "#0f172a", fontSize: "0.95rem" }}>{item.folio}</strong>
+                        {item.es_dia_siguiente && (
+                          <span style={{ background: "#2563eb", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <IconMoon size={12} /> Día Siguiente ({item.fecha_operativa})
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ color: "#475569", fontSize: "0.85rem" }}>
+                        {item.conductor} · <strong>{item.vehiculo}</strong> ({item.numero_economico})
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="supervisor-empty-card">
+                  <div className="empty-icon-circle">
+                    <IconClipboard size={22} color="#0284c7" />
                   </div>
-                  <div>{item.conductor} · {item.vehiculo} ({item.numero_economico})</div>
-                </button>
-              )) : <p>No hay inspecciones pendientes.</p>}
+                  <h3>Sin inspecciones pendientes</h3>
+                  <p>No hay inspecciones esperando autorización en este momento.</p>
+                </div>
+              )}
             </section>
           ) : (
             <section className="result-card">
@@ -1669,61 +1435,170 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
         </>
       )}
 
-      {/* Pestaña: Asignación Vehicular */}
+      {/* Pestaña: Asignación Vehicular (UI/UX PRO MAX Responsive) */}
       {activeTab === "asignaciones" && (
         <>
-          <h1>Asignación Vehicular</h1>
-          <p style={{ color: "#64748b", marginBottom: "16px" }}>
-            Asigna una unidad a un conductor. La unidad aparecerá pre-seleccionada automáticamente en su MiniApp.
-          </p>
-
-          <div style={{ marginBottom: "16px" }}>
-            <input
-              type="text"
-              placeholder="Buscar conductor..."
-              value={searchConductor}
-              onChange={(e) => setSearchConductor(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-            />
+          <div className="supervisor-view-header">
+            <div>
+              <h1 className="supervisor-view-title">Asignación Vehicular</h1>
+              <p className="supervisor-view-subtitle">Vinculación de unidades a conductores activos de la flota</p>
+            </div>
+            <span className="supervisor-role-tag">{currentUserRole}</span>
           </div>
 
-          <section>
-            {filteredConductores.length ? filteredConductores.map((c) => {
-              const assignedVehicle = vehiculos.find(v => String(v.id_vehiculos) === String(c.id_vehiculo_asignado));
-              return (
-                <div key={c.id_conductores} className="result-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div>
-                    <strong>{c.nombre}</strong> {c.empresa ? `(${c.empresa})` : ""}
-                  </div>
-                  <div style={{ fontSize: "0.9rem", color: assignedVehicle ? "#15803d" : "#64748b", display: "flex", alignItems: "center", gap: "6px" }}>
-                    {assignedVehicle ? (
-                      <>
-                        <IconCar size={16} color="#15803d" />
-                        <span>Asignado: <strong>{assignedVehicle.nombre}</strong> ({assignedVehicle.numero_economico})</span>
-                      </>
-                    ) : (
-                      <span>Sin unidad asignada</span>
-                    )}
-                  </div>
-                  <label style={{ margin: 0, fontWeight: "normal", fontSize: "0.85rem" }}>
-                    Seleccionar unidad:
-                    <select
-                      value={c.id_vehiculo_asignado || ""}
-                      onChange={(e) => handleAssignVehicle(c.id_conductores, e.target.value)}
-                      disabled={savingAssignmentId === c.id_conductores}
-                      style={{ marginTop: "4px", width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-                    >
-                      <option value="">-- Sin unidad asignada --</option>
-                      {vehiculos.map((v) => (
-                        <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                          {v.nombre} — {v.numero_economico} {v.placas ? `(${v.placas})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              );
-            }) : <p>No se encontraron conductores.</p>}
+          {/* KPI Dashboard */}
+          <div className="supervisor-kpi-grid">
+            <div className="supervisor-kpi-card">
+              <span className="kpi-label">Total Conductores</span>
+              <span className="kpi-value">{totalConductores}</span>
+              <span className="kpi-sub">En plantilla activa</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-success">
+              <span className="kpi-label">Con Unidad Asignada</span>
+              <span className="kpi-value">{conductoresAsignados}</span>
+              <span className="kpi-sub">{totalConductores > 0 ? Math.round((conductoresAsignados / totalConductores) * 100) : 0}% de cobertura</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-warning">
+              <span className="kpi-label">Sin Asignar</span>
+              <span className="kpi-value">{conductoresSinAsignar}</span>
+              <span className="kpi-sub">Pendientes de unidad</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-info">
+              <span className="kpi-label">Flota de Vehículos</span>
+              <span className="kpi-value">{totalVehiculos}</span>
+              <span className="kpi-sub">Unidades disponibles</span>
+            </div>
+          </div>
+
+          {/* Barra de Filtros y Búsqueda */}
+          <div className="supervisor-toolbar-compact">
+            <div className="supervisor-search-box">
+              <IconSearch className="search-icon" size={15} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Buscar por conductor o empresa..."
+                value={searchConductor}
+                onChange={(e) => setSearchConductor(e.target.value)}
+              />
+              {searchConductor && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchConductor("")}
+                  aria-label="Limpiar búsqueda"
+                >
+                  <IconCross size={11} />
+                </button>
+              )}
+            </div>
+
+            <div className="supervisor-filter-chips">
+              <button
+                type="button"
+                className={`filter-chip ${assignmentFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("ALL")}
+              >
+                Todos ({totalConductores})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip chip-warning ${assignmentFilter === "SIN_ASIGNAR" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("SIN_ASIGNAR")}
+              >
+                Sin Asignar ({conductoresSinAsignar})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip chip-success ${assignmentFilter === "ASIGNADOS" ? "active" : ""}`}
+                onClick={() => setAssignmentFilter("ASIGNADOS")}
+              >
+                Con Unidad ({conductoresAsignados})
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Responsivo de Tarjetas de Conductor */}
+          <section className="supervisor-assignment-grid">
+            {filteredConductores.length ? (
+              filteredConductores.map((c) => {
+                const assignedVehicle = vehiculos.find(
+                  (v) => String(v.id_vehiculos) === String(c.id_vehiculo_asignado)
+                );
+                const isSaving = savingAssignmentId === c.id_conductores;
+
+                return (
+                  <article
+                    key={c.id_conductores}
+                    className={`assignment-driver-card ${!c.id_vehiculo_asignado ? "card-unassigned" : ""}`}
+                  >
+                    <div className="driver-card-header">
+                      <div className="driver-info">
+                        <h3 className="driver-name">{c.nombre}</h3>
+                        {c.empresa && (
+                          <span className="driver-company-tag">{c.empresa}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="driver-status-row">
+                      {assignedVehicle ? (
+                        <div className="vehicle-assigned-badge">
+                          <IconCar size={15} color="#15803d" />
+                          <span>
+                            {assignedVehicle.nombre} · {assignedVehicle.numero_economico}
+                            {assignedVehicle.placas ? ` (${assignedVehicle.placas})` : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="vehicle-unassigned-badge">
+                          <IconAlert size={15} color="#d97706" />
+                          <span>Sin unidad asignada</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="driver-select-block">
+                      <label className="select-label">
+                        <span>Unidad Asignada</span>
+                        <select
+                          className="assignment-select"
+                          value={c.id_vehiculo_asignado || ""}
+                          onChange={(e) => handleAssignVehicle(c.id_conductores, e.target.value)}
+                          disabled={isSaving}
+                        >
+                          <option value="">-- Sin unidad asignada --</option>
+                          {vehiculos.map((v) => (
+                            <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                              {v.nombre} — {v.numero_economico}{v.placas ? ` (${v.placas})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {isSaving && (
+                        <span className="saving-indicator">Guardando cambios...</span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="no-results-box">
+                <IconSearch size={32} color="#94a3b8" />
+                <p>No se encontraron conductores con el criterio de búsqueda o filtro seleccionado.</p>
+                {(searchConductor || assignmentFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    className="filter-chip"
+                    onClick={() => {
+                      setSearchConductor("");
+                      setAssignmentFilter("ALL");
+                    }}
+                  >
+                    Restablecer filtros
+                  </button>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}
