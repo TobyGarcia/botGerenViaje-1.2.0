@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import aquarioLogo from '../assets/aquario-logo.png';
+import logoGv from '../assets/LOGOGV.png';
 
 export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -72,9 +72,9 @@ export default function PwaInstallPrompt() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img
-              src={aquarioLogo}
-              alt="AQUARIO"
-              style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: '6px' }}
+              src={logoGv}
+              alt="GV MOBILITY"
+              style={{ height: '34px', maxWidth: '80px', objectFit: 'contain' }}
             />
             <div>
               <strong style={{ fontSize: '0.92rem', color: '#60a5fa', display: 'block', lineHeight: '1.2' }}>
@@ -112,14 +112,14 @@ export default function PwaInstallPrompt() {
       <div style={{ ...cardStyle, border: '1px solid rgba(2, 132, 199, 0.4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
-            src={aquarioLogo}
-            alt="AQUARIO"
-            style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+            src={logoGv}
+            alt="GV MOBILITY"
+            style={{ height: '30px', maxWidth: '80px', objectFit: 'contain' }}
           />
           <strong style={{ color: '#38bdf8', fontSize: '0.88rem' }}>Instalar en iPhone / iPad (iOS)</strong>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-          Toca el botón <strong>Compartir</strong> ⎋ en Safari y elige <strong>"Agregar a inicio"</strong> para operar sin internet.
+          Toca el botón <strong>Compartir</strong> en Safari y elige <strong>"Agregar a inicio"</strong> para operar sin internet.
         </div>
       </div>
     );
@@ -131,14 +131,14 @@ export default function PwaInstallPrompt() {
       <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
-            src={aquarioLogo}
-            alt="AQUARIO"
-            style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+            src={logoGv}
+            alt="GV MOBILITY"
+            style={{ height: '30px', maxWidth: '80px', objectFit: 'contain' }}
           />
           <strong style={{ color: '#60a5fa', fontSize: '0.88rem' }}>¿Cómo usar sin internet?</strong>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-          Abre el menú de Chrome <strong>(⋮ 3 puntos arriba a la derecha)</strong> y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a inicio"</strong>.
+          Abre el menú de Chrome <strong>(3 puntos arriba a la derecha)</strong> y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a inicio"</strong>.
         </div>
       </div>
     );

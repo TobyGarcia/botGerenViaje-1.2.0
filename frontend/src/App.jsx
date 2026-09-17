@@ -35,6 +35,7 @@ import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
+import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import {
   IconCar,
   IconMap,
@@ -95,6 +96,21 @@ function formatDate(value) {
     month: "2-digit",
     day: "2-digit"
   });
+}
+
+function formatUrbanDate(d = new Date()) {
+  const day = d.getDate();
+  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sept", "Oct", "Nov", "Dic"];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+function getDriverInitials(name) {
+  if (!name) return "C";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function getCachedJson(key, fallback) {
@@ -276,14 +292,14 @@ const [cancelledTrip, setCancelledTrip] =
           if (res.data.estado === "APROBADO") {
             setGerenciamientoPendiente(null);
             safeStorage.removeItem("cached_gerenciamiento_pendiente");
-            setMessage("✅ ¡Gerenciamiento de viaje APROBADO por supervisión! Ya puedes iniciar el viaje.");
+            setMessage("¡Gerenciamiento de viaje APROBADO por supervisión! Ya puedes iniciar el viaje.");
             setMessageType("success");
           } else if (res.data.estado === "RECHAZADO") {
             setGerenciamientoPendiente(null);
             safeStorage.removeItem("cached_gerenciamiento_pendiente");
             setCreatedTrip(null);
             safeStorage.removeItem("cached_active_trip");
-            setMessage("⛔ Gerenciamiento de viaje RECHAZADO por supervisión.");
+            setMessage("Gerenciamiento de viaje RECHAZADO por supervisión.");
             setMessageType("error");
           }
         }
@@ -591,7 +607,7 @@ const [cancelledTrip, setCancelledTrip] =
   useEffect(() => {
     const cleanup = initSiniestroAutoSync((result) => {
       if (result.synced > 0) {
-        setMessage(`✅ ¡Se enviaron automáticamente ${result.synced} reporte(s) de siniestro que estaba(n) guardado(s) en caché local!`);
+        setMessage(`¡Se enviaron automáticamente ${result.synced} reporte(s) de siniestro que estaba(n) guardado(s) en caché local!`);
         setMessageType("success");
       }
     });
@@ -956,7 +972,7 @@ async function handleAddIntermediatePoint() {
   setMessage("");
   try {
     await captureIntermediatePoint(idViaje, note || "Punto Intermedio");
-    setMessage("📍 Punto intermedio registrado con éxito.");
+    setMessage("Punto intermedio registrado con éxito.");
     setMessageType("success");
   } catch (err) {
     setMessage(err.message || "Error al registrar el punto intermedio.");
@@ -1166,12 +1182,18 @@ function isOutsideOperatingHours() {
     event.preventDefault();
 
     if (isOutsideOperatingHours()) {
-      triggerModalError("⛔ El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
+      triggerModalError("El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
       setActiveTabMode("gerenciamiento");
       return;
     }
 
     if (savingRef.current) {
+      return;
+    }
+
+    if (!form.idVehiculo) {
+      setMessage("Por favor selecciona una unidad vehicular.");
+      setMessageType("error");
       return;
     }
 
@@ -1385,11 +1407,11 @@ function isOutsideOperatingHours() {
         if (doc.estado === "APROBADO") {
           setGerenciamientoPendiente(null);
           safeStorage.removeItem("cached_gerenciamiento_pendiente");
-          setMessage("🎉 Tu Gerenciamiento de Viaje ha sido AUTORIZADO por la supervisión. Ya puedes iniciar tu viaje.");
+          setMessage("Tu Gerenciamiento de Viaje ha sido AUTORIZADO por la supervisión. Ya puedes iniciar tu viaje.");
           setMessageType("success");
           if (window.Telegram?.WebApp?.showAlert) {
             try {
-              window.Telegram.WebApp.showAlert("🎉 ¡Gerenciamiento de Viaje APROBADO! Ya puedes iniciar el viaje.");
+              window.Telegram.WebApp.showAlert("¡Gerenciamiento de Viaje APROBADO! Ya puedes iniciar el viaje.");
             } catch {}
           }
           await loadInspection(idViaje);
@@ -1399,11 +1421,11 @@ function isOutsideOperatingHours() {
           setCreatedTrip(null);
           safeStorage.removeItem("cached_active_trip");
           const motivo = doc.observaciones ? `: ${doc.observaciones}` : "";
-          setMessage(`❌ Tu Gerenciamiento de Viaje fue RECHAZADO por supervisión${motivo}. Contacta a tu supervisor.`);
+          setMessage(`Tu Gerenciamiento de Viaje fue RECHAZADO por supervisión${motivo}. Contacta a tu supervisor.`);
           setMessageType("error");
           if (window.Telegram?.WebApp?.showAlert) {
             try {
-              window.Telegram.WebApp.showAlert(`❌ Gerenciamiento RECHAZADO${motivo}`);
+              window.Telegram.WebApp.showAlert(`Gerenciamiento RECHAZADO${motivo}`);
             } catch {}
           }
         }
@@ -1661,45 +1683,48 @@ function isOutsideOperatingHours() {
         onTabChange={setActiveTabMode}
       />
       <main className="container">
-        <PwaInstallPrompt />
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        <h1>
-          {createdTrip
-            ? "GERENCIAMIENTO DE VIAJE"
-            : activeTabMode === "gerenciamiento"
-              ? "GERENCIAMIENTO DE VIAJES"
-              : activeTabMode === "siniestro"
-                ? "REPORTAR SINIESTRO"
-                : activeTabMode === "perfil"
-                  ? "ACTUALIZACIÓN DE DATOS"
-                  : "Nuevo viaje"}
-        </h1>
+        {(createdTrip || gerenciamientoPendiente || activeTabMode !== "urban") && (
+          <>
+            <h1>
+              {createdTrip
+                ? "GERENCIAMIENTO DE VIAJE"
+                : activeTabMode === "gerenciamiento"
+                  ? "GERENCIAMIENTO DE VIAJES"
+                  : activeTabMode === "siniestro"
+                    ? "REPORTAR SINIESTRO"
+                    : activeTabMode === "perfil"
+                      ? "ACTUALIZACIÓN DE DATOS"
+                      : "Nuevo viaje"}
+            </h1>
 
-        <section className="summary-card" aria-label="Fecha actual">
-          <span>Fecha actual</span>
-          <strong>{currentDate}</strong>
-        </section>
+            <section className="summary-card" aria-label="Fecha actual">
+              <span>Fecha actual</span>
+              <strong>{currentDate}</strong>
+            </section>
 
-        <section className="information-panel">
-            <p>
-              <strong>Usuario Telegram:</strong>{" "}
-              {telegramAuth.usuario?.firstName || "Usuario autenticado"}
-            </p>
-
-            <p>
-              <strong>Registro:</strong>{" "}
-              {telegramAuth.registered
-                ? "COMPLETO"
-                : telegramAuth.estadoRegistro || "PENDIENTE"}
-            </p>
-
-            {telegramAuth.conductor && (
+            <section className="information-panel">
               <p>
-                <strong>Conductor:</strong>{" "}
-                {telegramAuth.conductor.nombre}
+                <strong>Usuario Telegram:</strong>{" "}
+                {telegramAuth.usuario?.firstName || "Usuario autenticado"}
               </p>
-            )}
-        </section>
+
+              <p>
+                <strong>Registro:</strong>{" "}
+                {telegramAuth.registered
+                  ? "COMPLETO"
+                  : telegramAuth.estadoRegistro || "PENDIENTE"}
+              </p>
+
+              {telegramAuth.conductor && (
+                <p>
+                  <strong>Conductor:</strong>{" "}
+                  {telegramAuth.conductor.nombre}
+                </p>
+              )}
+            </section>
+          </>
+        )}
 
         {!createdTrip && activeTabMode === "siniestro" && (
           <ReporteSiniestro
@@ -1707,7 +1732,7 @@ function isOutsideOperatingHours() {
             vehiculoAsignado={selectedVehicle}
             onComplete={() => {
               setActiveTabMode("urban");
-              setMessage("🚨 Reporte de siniestro registrado y enviado con éxito a supervisión.");
+              setMessage("Reporte de siniestro registrado y enviado con éxito a supervisión.");
               setMessageType("success");
             }}
             onCancel={() => setActiveTabMode("urban")}
@@ -1761,287 +1786,368 @@ function isOutsideOperatingHours() {
       )}
 
       {!createdTrip && !gerenciamientoPendiente && activeTabMode === "urban" && (
-        <>
+        <div className="urban-view-wrapper">
+          {/* Header de Pantalla y Fecha */}
+          <section className="urban-view-header">
+            <div>
+              <h1 className="urban-title">Nuevo viaje</h1>
+              <p className="urban-subtitle">Completa los datos para iniciar tu despacho</p>
+            </div>
+            <div className="urban-date-badge">
+              <span className="urban-date-label">FECHA</span>
+              <span className="urban-date-value">{formatUrbanDate()}</span>
+            </div>
+          </section>
+
+          {/* Tarjeta de Conductor Consolidada */}
+          <section className="urban-driver-card">
+            <div className="urban-driver-name-row">
+              <h2 className="urban-driver-name">
+                {telegramAuth?.conductor?.nombre || selectedDriver?.nombre || "Conductor"}
+              </h2>
+              <svg className="urban-verified-badge" fill="currentColor" viewBox="0 0 20 20">
+                <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fillRule="evenodd"></path>
+              </svg>
+            </div>
+
+            <div className="urban-license-strip">
+              <div>
+                <span className="urban-strip-label">No. Licencia:</span>
+                <span className="urban-strip-value mono">{selectedDriver?.licencia_numero || telegramAuth?.conductor?.licencia_numero || "No registrado"}</span>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span className="urban-strip-label">Vencimiento:</span>
+                <span className="urban-strip-value font-bold">
+                  {formatDate(selectedDriver?.licencia_vencimiento ?? selectedDriver?.licenciaVencimiento ?? telegramAuth?.conductor?.licencia_vencimiento)}
+                </span>
+              </div>
+            </div>
+            {!Boolean(selectedDriver?.licencia_vigente ?? telegramAuth?.conductor?.licencia_vigente) && (
+              <div className="urban-license-alert">
+                Este conductor no puede iniciar un viaje porque su licencia no está vigente.
+              </div>
+            )}
+          </section>
+
+          {/* Fuera de Horario Operativo Urbano Banner */}
           {isOutsideOperatingHours() && (
-            <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.88rem" }}>
-              <strong style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><IconAlert size={16} color="#ea580c" /> Fuera de Horario Operativo Urbano (6:30 AM - 6:00 PM)</strong>
-              <p style={{ margin: "4px 0 8px 0", fontSize: "0.82rem", color: "#475569" }}>
+            <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "14px", fontSize: "0.86rem" }}>
+              <strong style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <IconAlert size={16} color="#ea580c" /> Fuera de Horario Operativo Urbano (6:30 AM - 6:00 PM)
+              </strong>
+              <p style={{ margin: "4px 0 8px 0", fontSize: "0.8rem", color: "#475569" }}>
                 Los viajes locales solo pueden registrarse de 6:30 AM a 6:00 PM. Después de este horario se debe realizar un Gerenciamiento de Viaje.
               </p>
               <button
                 type="button"
                 onClick={() => setActiveTabMode("gerenciamiento")}
-                style={{ background: "#ea580c", color: "#ffffff", border: 0, padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                style={{ background: "#ea580c", color: "#ffffff", border: 0, padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
                 <IconMap size={16} /> Ir a Gerenciamiento de Viajes
               </button>
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-          <section className="information-panel" aria-label="Conductor autenticado">
-            <p><strong>Conductor:</strong> {telegramAuth.conductor.nombre}</p>
-            <p><strong>Licencia:</strong>{" "}
-              <span className={telegramAuth.conductor.licencia_vigente ? "status-valid" : "status-invalid"}>
-                {telegramAuth.conductor.licencia_vigente ? "Vigente" : "No vigente"}
-              </span>
-            </p>
-          </section>
+          <form id="urban-trip-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Paso 1: Unidad & Odómetro */}
+            {(() => {
+              const driverId = telegramAuth?.conductor?.id_conductores;
+              const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+              const assignedVehicle = vehiculos.find(
+                (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
+                       (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
+              );
 
-        {selectedDriver && (
-          <section className="information-panel" aria-label="Información de licencia">
-            <p><strong>Número de licencia:</strong> {selectedDriver.licencia_numero || "No registrado"}</p>
-            <p>
-              <strong>Estado:</strong>{" "}
-              <span className={selectedDriver.licencia_vigente ? "status-valid" : "status-invalid"}>
-                {selectedDriver.licencia_vigente ? "Vigente" : "No vigente"}
-              </span>
-            </p>
-            <p>
-              <strong>Vencimiento:</strong>{" "}
-              {formatDate(
-                selectedDriver.licencia_vencimiento ??
-                selectedDriver.licenciaVencimiento
-              )}
-            </p>
-            {!selectedDriver.licencia_vigente && (
-              <p className="validation-error" role="alert">
-                Este conductor no puede iniciar un viaje porque su licencia no está vigente.
-              </p>
-            )}
-          </section>
-        )}
+              return (
+                <section className="urban-step-card">
+                  <div className="urban-step-header">
+                    <span className="urban-step-badge">1</span>
+                    <h3 className="urban-step-title">Unidad &amp; Odómetro</h3>
+                  </div>
 
-        {(() => {
-          const driverId = telegramAuth?.conductor?.id_conductores;
-          const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
-          const assignedVehicle = vehiculos.find(
-            (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
-                   (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
-          );
-          return (
-            <>
-              {assignedVehicle && (
-                <div style={{ backgroundColor: "#e0f2fe", color: "#0369a1", padding: "10px 14px", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <IconPin size={18} color="#0369a1" /> Unidad pre-asignada por tu supervisor: {assignedVehicle.nombre} ({assignedVehicle.numero_economico})
-                </div>
-              )}
+                  {assignedVehicle && (
+                    <div className="urban-assigned-alert">
+                      <IconPin size={16} color="#0369a1" />
+                      <span>Unidad pre-asignada por tu supervisor: <strong>{assignedVehicle.nombre} ({assignedVehicle.numero_economico})</strong></span>
+                    </div>
+                  )}
 
-              <label>
-                Unidad
-                <select name="idVehiculo" value={form.idVehiculo} onChange={handleChange} required>
-                  <option value="">Seleccione una unidad</option>
-                  {vehiculos.map((vehiculo) => (
-                    <option key={vehiculo.id_vehiculos} value={vehiculo.id_vehiculos}>
-                      {vehiculo.nombre} — {vehiculo.numero_economico} {String(vehiculo.id_vehiculos) === String(assignedVehicle?.id_vehiculos) ? " (Asignada por supervisor)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          );
-        })()}
+                  <div className="urban-field-group">
+                    <label className="urban-field-label" htmlFor="unit-selector">
+                      Unidad Asignada <span className="urban-req-star">*</span>
+                    </label>
+                    <VehicleDropdown
+                      id="unit-selector"
+                      name="idVehiculo"
+                      value={form.idVehiculo}
+                      vehiculos={vehiculos}
+                      assignedVehicle={assignedVehicle}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
 
-        {selectedVehicle && (
-          <section className="information-panel" aria-label="Información del vehículo">
-            <p><strong>Unidad:</strong> {selectedVehicle.nombre}</p>
-            <p><strong>Número económico:</strong> {selectedVehicle.numero_economico}</p>
-            <p><strong>Placas:</strong> {selectedVehicle.placas || "No registradas"}</p>
-            <p><strong>Kilometraje registrado:</strong> {Number(selectedVehicle.kilometraje_actual).toLocaleString("es-MX")} km</p>
-          </section>
-        )}
+                  {selectedVehicle && (
+                    <div className="urban-vehicle-info-pill">
+                      <div><span>Placas:</span> <strong>{selectedVehicle.placas || "No registradas"}</strong></div>
+                      <div><span>Km registrado:</span> <strong>{Number(selectedVehicle.kilometraje_actual).toLocaleString("es-MX")} km</strong></div>
+                    </div>
+                  )}
 
-        <label>
-          Kilometraje inicial
-          <input
-            type="number"
-            name="kilometrajeInicial"
-            value={form.kilometrajeInicial}
-            onChange={handleChange}
-            min={selectedVehicle?.kilometraje_actual ?? 0}
-            step="1"
-            required
-          />
-          <small>Confirma el kilometraje mostrado en el odómetro.</small>
-        </label>
+                  <div className="urban-field-group">
+                    <div className="urban-field-label-row">
+                      <label className="urban-field-label" htmlFor="odometer-input">
+                        Kilometraje Inicial <span className="urban-req-star">*</span>
+                      </label>
+                      <span className="urban-field-hint-action">Lectura de odómetro</span>
+                    </div>
+                    <div className="urban-input-wrap">
+                      <span className="urban-input-icon">
+                        <svg className="urban-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"></path>
+                        </svg>
+                      </span>
+                      <input
+                        id="odometer-input"
+                        type="number"
+                        name="kilometrajeInicial"
+                        value={form.kilometrajeInicial}
+                        onChange={handleChange}
+                        min={selectedVehicle?.kilometraje_actual ?? 0}
+                        step="1"
+                        placeholder="0"
+                        required
+                        className="urban-input"
+                      />
+                      <span className="urban-input-suffix">KM</span>
+                    </div>
+                    <p className="urban-field-helper">
+                      <svg className="urban-helper-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                      </svg>
+                      Confirma el kilometraje mostrado en el tablero físico antes de iniciar.
+                    </p>
+                  </div>
+                </section>
+              );
+            })()}
 
-        <label>
-          Origen
-          <DestinationAutocomplete
-            lugares={lugares}
-            value={form.idOrigen}
-            onChange={(val) => handleChange({ target: { name: "idOrigen", value: val } })}
-            placeholder="Escribe para buscar origen..."
-            excludeId={form.idDestino}
-            required
-          />
-        </label>
-
-        <label>
-          Destino
-          <DestinationAutocomplete
-            lugares={lugares}
-            value={form.idDestino}
-            onChange={(val) => handleChange({ target: { name: "idDestino", value: val } })}
-            placeholder="Escribe para buscar destino..."
-            excludeId={form.idOrigen}
-            onAddNew={() => setShowAddDestinoModal(true)}
-            required
-          />
-          <div style={{ marginTop: "4px", textAlign: "right" }}>
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => setShowAddDestinoModal(true)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#2e81ab",
-                fontSize: "0.84rem",
-                fontWeight: "700",
-                cursor: "pointer",
-                padding: "2px 0",
-                textDecoration: "underline",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px"
-              }}
-            >
-              <IconPlus size={14} color="#2e81ab" /> ¿No encuentras tu destino? Agrégalo aquí
-            </button>
-          </div>
-        </label>
-
-        {(() => {
-          const selectedVehicle = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
-          const vehicleTypeStr = String(selectedVehicle?.tipo_vehiculo || selectedVehicle?.nombre || "").toLowerCase();
-
-          let maxAcompanantes = 4;
-          if (vehicleTypeStr.includes("maquinaria") || vehicleTypeStr.includes("retro") || vehicleTypeStr.includes("remolque") || vehicleTypeStr.includes("mecanica") || vehicleTypeStr.includes("tractor")) {
-            maxAcompanantes = 1;
-          } else if (vehicleTypeStr.includes("auto") || vehicleTypeStr.includes("sedan") || vehicleTypeStr.includes("hatchback") || vehicleTypeStr.includes("automovil")) {
-            maxAcompanantes = 3;
-          } else if (vehicleTypeStr.includes("camioneta") || vehicleTypeStr.includes("pickup") || vehicleTypeStr.includes("suv") || vehicleTypeStr.includes("van")) {
-            maxAcompanantes = 4;
-          }
-
-          const updateFormAcompanantes = (newList) => {
-            const joinedStr = newList.filter((s) => s.trim() !== "").join(", ");
-            setForm((cur) => ({ ...cur, acompanantes: joinedStr }));
-          };
-
-          const handleCompanionChange = (index, value) => {
-            const newList = [...listaAcompanantes];
-            newList[index] = value;
-            setListaAcompanantes(newList);
-            updateFormAcompanantes(newList);
-          };
-
-          const addCompanionField = () => {
-            if (listaAcompanantes.length < maxAcompanantes) {
-              const newList = [...listaAcompanantes, ""];
-              setListaAcompanantes(newList);
-              updateFormAcompanantes(newList);
-            }
-          };
-
-          const removeCompanionField = (index) => {
-            const newList = listaAcompanantes.filter((_, i) => i !== index);
-            const finalList = newList.length === 0 ? [""] : newList;
-            setListaAcompanantes(finalList);
-            updateFormAcompanantes(finalList);
-          };
-
-          const toggleViajaAcompanado = () => {
-            setForm((current) => {
-              const nextState = !current.viajaAcompanado;
-              if (!nextState) {
-                setListaAcompanantes([""]);
-                return { ...current, viajaAcompanado: false, acompanantes: "" };
-              }
-              return { ...current, viajaAcompanado: true };
-            });
-          };
-
-          return (
-            <div className="companions-container">
-              <div className="companions-header">
-                <div className="companions-title-group">
-                  <span>Acompañantes</span>
-                </div>
-                <div className="companions-controls">
-                  <button
-                    type="button"
-                    className={`companions-toggle ${form.viajaAcompanado ? "companions-toggle-active" : ""}`}
-                    role="switch"
-                    aria-checked={form.viajaAcompanado}
-                    onClick={toggleViajaAcompanado}
-                  >
-                    <span className="companions-toggle-track" aria-hidden="true">
-                      <span className="companions-toggle-thumb" />
-                    </span>
-                  </button>
-                </div>
+            {/* Paso 2: Ruta & Trayecto */}
+            <section className="urban-step-card">
+              <div className="urban-step-header">
+                <span className="urban-step-badge">2</span>
+                <h3 className="urban-step-title">Ruta &amp; Trayecto</h3>
               </div>
 
-              {form.viajaAcompanado && (
-                <div className="companions-inputs-wrapper">
-                  <div className="companions-sub-header">
-                    <small className="companions-rule-hint">
-                      {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
-                    </small>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span className="companions-count-badge">
-                        {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
-                      </span>
-                      <button
-                        type="button"
-                        className="add-companion-btn"
-                        onClick={addCompanionField}
-                        disabled={listaAcompanantes.length >= maxAcompanantes}
-                        title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
-                      >
-                        + Agregar
-                      </button>
-                    </div>
+              <div className="urban-route-container">
+                <div className="urban-route-connector-line"></div>
+
+                <div className="urban-field-group">
+                  <label className="urban-field-label">Origen</label>
+                  <div className="urban-autocomplete-wrap">
+                    <span className="urban-route-dot green"></span>
+                    <DestinationAutocomplete
+                      lugares={lugares}
+                      value={form.idOrigen}
+                      onChange={(val) => handleChange({ target: { name: "idOrigen", value: val } })}
+                      placeholder="Escribe para buscar origen..."
+                      excludeId={form.idDestino}
+                      required
+                    />
                   </div>
-                  {listaAcompanantes.map((nombre, index) => (
-                    <div key={index} className="companion-row">
-                      <input
-                        type="text"
-                        value={nombre}
-                        onChange={(e) => handleCompanionChange(index, e.target.value)}
-                        placeholder={`Nombre del acompañante ${index + 1}`}
-                        required={index === 0}
-                      />
-                      {listaAcompanantes.length > 1 && (
-                        <button
-                          type="button"
-                          className="remove-companion-btn"
-                          onClick={() => removeCompanionField(index)}
-                          title="Quitar acompañante"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
                 </div>
-              )}
+
+                <div className="urban-field-group">
+                  <label className="urban-field-label">Destino</label>
+                  <div className="urban-autocomplete-wrap">
+                    <span className="urban-route-pin red">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="urban-icon-pin-svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"></path>
+                      </svg>
+                    </span>
+                    <DestinationAutocomplete
+                      lugares={lugares}
+                      value={form.idDestino}
+                      onChange={(val) => handleChange({ target: { name: "idDestino", value: val } })}
+                      placeholder="Escribe para buscar destino..."
+                      excludeId={form.idOrigen}
+                      onAddNew={() => setShowAddDestinoModal(true)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Paso 3: Detalles Adicionales */}
+            {(() => {
+              const currentVeh = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
+              const vehicleTypeStr = String(currentVeh?.tipo_vehiculo || currentVeh?.nombre || "").toLowerCase();
+
+              const maxAcompanantes = 4;
+
+              const updateFormAcompanantes = (newList) => {
+                const joinedStr = newList.filter((s) => s.trim() !== "").join(", ");
+                setForm((cur) => ({ ...cur, acompanantes: joinedStr }));
+              };
+
+              const handleCompanionChange = (index, value) => {
+                const newList = [...listaAcompanantes];
+                newList[index] = value;
+                setListaAcompanantes(newList);
+                updateFormAcompanantes(newList);
+              };
+
+              const addCompanionField = () => {
+                if (listaAcompanantes.length < maxAcompanantes) {
+                  const newList = [...listaAcompanantes, ""];
+                  setListaAcompanantes(newList);
+                  updateFormAcompanantes(newList);
+                }
+              };
+
+              const removeCompanionField = (index) => {
+                const newList = listaAcompanantes.filter((_, i) => i !== index);
+                const finalList = newList.length === 0 ? [""] : newList;
+                setListaAcompanantes(finalList);
+                updateFormAcompanantes(finalList);
+              };
+
+              const toggleViajaAcompanado = () => {
+                setForm((current) => {
+                  const nextState = !current.viajaAcompanado;
+                  if (!nextState) {
+                    setListaAcompanantes([""]);
+                    return { ...current, viajaAcompanado: false, acompanantes: "" };
+                  }
+                  return { ...current, viajaAcompanado: true };
+                });
+              };
+
+              return (
+                <section className="urban-step-card">
+                  <div className="urban-step-header">
+                    <span className="urban-step-badge">3</span>
+                    <h3 className="urban-step-title">Detalles Adicionales</h3>
+                  </div>
+
+                  <div className="urban-toggle-row">
+                    <div>
+                      <span className="urban-toggle-label">Acompañantes</span>
+                      <span className="urban-toggle-sublabel">¿Viajan personas adicionales en la unidad?</span>
+                    </div>
+                    <label className="urban-switch">
+                      <input
+                        type="checkbox"
+                        checked={form.viajaAcompanado}
+                        onChange={toggleViajaAcompanado}
+                      />
+                      <span className="urban-switch-slider"></span>
+                    </label>
+                  </div>
+
+                  {form.viajaAcompanado && (
+                    <div className="urban-companions-panel">
+                      <div className="companions-sub-header">
+                        <small className="companions-rule-hint">
+                          Máximo 4 acompañantes permitidos.
+                        </small>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span className="companions-count-badge">
+                            {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
+                          </span>
+                          <button
+                            type="button"
+                            className="add-companion-btn"
+                            onClick={addCompanionField}
+                            disabled={listaAcompanantes.length >= maxAcompanantes}
+                            title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
+                          >
+                            + Agregar
+                          </button>
+                        </div>
+                      </div>
+                      {listaAcompanantes.map((nombre, index) => (
+                        <div key={index} className="companion-row">
+                          <input
+                            type="text"
+                            value={nombre}
+                            onChange={(e) => handleCompanionChange(index, e.target.value)}
+                            placeholder={`Nombre del acompañante ${index + 1}`}
+                            required={index === 0}
+                          />
+                          {listaAcompanantes.length > 1 && (
+                            <button
+                              type="button"
+                              className="remove-companion-btn"
+                              onClick={() => removeCompanionField(index)}
+                              title="Quitar acompañante"
+                            >
+                              x
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="urban-field-group">
+                    <div className="urban-field-label-row">
+                      <label className="urban-field-label" htmlFor="motivation-input">
+                        Motivo de movilización
+                      </label>
+                      <span className="urban-char-counter">{form.motivo?.length || 0} / 250</span>
+                    </div>
+                    <textarea
+                      id="motivation-input"
+                      name="motivo"
+                      value={form.motivo}
+                      onChange={handleChange}
+                      maxLength={250}
+                      rows={3}
+                      placeholder="Indica el motivo oficial o justificativo del traslado..."
+                      className="urban-textarea"
+                      required
+                    />
+                  </div>
+                </section>
+              );
+            })()}
+
+            {/* Footer flotante fijo */}
+            <div className="urban-floating-footer">
+              <button
+                type="button"
+                className="urban-btn-reset"
+                onClick={() => {
+                  setForm({
+                    idConductor: telegramAuth?.conductor?.id_conductores || "",
+                    idVehiculo: "",
+                    idOrigen: "",
+                    idDestino: "",
+                    acompanantes: "",
+                    viajaAcompanado: false,
+                    kilometrajeInicial: "",
+                    motivo: ""
+                  });
+                  setListaAcompanantes([""]);
+                }}
+              >
+                Limpiar
+              </button>
+              <button
+                type="submit"
+                className="urban-btn-submit"
+                disabled={saving || !selectedDriver?.licencia_vigente}
+              >
+                <span>{saving ? "Guardando..." : "Crear viaje"}</span>
+                <svg className="urban-btn-submit-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5"></path>
+                </svg>
+              </button>
             </div>
-          );
-        })()}
-
-        <label>
-          Motivo de movilización
-          <textarea name="motivo" value={form.motivo} onChange={handleChange} required />
-        </label>
-
-        <button type="submit" disabled={saving || !selectedDriver?.licencia_vigente}>
-          {saving ? "Guardando..." : "Crear viaje"}
-        </button>
-        </form>
-        </>
+          </form>
+        </div>
       )}
 
      
@@ -2586,7 +2692,7 @@ function isOutsideOperatingHours() {
                 vehiculoAsignado={selectedVehicle}
                 onComplete={() => {
                   setShowSiniestroModal(false);
-                  setMessage("🚨 Reporte de siniestro e incidencias registrado y transmitido con éxito a supervisión.");
+                  setMessage("Reporte de siniestro e incidencias registrado y transmitido con éxito a supervisión.");
                   setMessageType("success");
                 }}
                 onCancel={() => setShowSiniestroModal(false)}

@@ -74,14 +74,14 @@ class RootErrorBoundary extends Component {
             <div style={{
               display: 'inline-block',
               padding: '6px 14px',
-              background: '#e8f8fe',
-              borderRadius: '12px',
+              background: '#e0f2fe',
+              borderRadius: '20px',
               fontWeight: 700,
-              color: '#2e81ab',
+              color: '#0284c7',
               fontSize: '13px',
               marginBottom: '14px'
             }}>
-              AQUARIO · Panel Administrativo
+              GV MOBILITY · Panel Administrativo
             </div>
 
             <h2 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: '#0f172a', fontWeight: 800 }}>
@@ -113,7 +113,7 @@ class RootErrorBoundary extends Component {
                 type="button"
                 onClick={() => window.location.reload()}
                 style={{
-                  background: '#2e81ab',
+                  background: '#0284c7',
                   color: '#ffffff',
                   border: 'none',
                   padding: '12px 16px',
@@ -123,7 +123,7 @@ class RootErrorBoundary extends Component {
                   fontSize: '0.9rem'
                 }}
               >
-                🔄 Reintentar / Recargar Panel
+                Reintentar / Recargar Panel
               </button>
 
               <button
@@ -140,7 +140,7 @@ class RootErrorBoundary extends Component {
                   fontSize: '0.82rem'
                 }}
               >
-                🧹 Limpiar Caché y Reiniciar
+                Limpiar Caché y Reiniciar
               </button>
 
               <button
@@ -157,7 +157,7 @@ class RootErrorBoundary extends Component {
                   padding: '4px'
                 }}
               >
-                {this.state.copied ? "✓ Diagnóstico copiado al portapapeles" : "📋 Copiar reporte de error"}
+                {this.state.copied ? "Diagnóstico copiado al portapapeles" : "Copiar reporte de error"}
               </button>
             </div>
           </div>

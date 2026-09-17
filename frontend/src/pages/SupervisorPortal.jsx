@@ -13,6 +13,9 @@ import {
   decidirSupervisorConductor
   ,getAutorizacionesManejoComentado
   ,decidirAutorizacionManejoComentado
+  ,getMiUnidadTurnoStatus
+  ,finalizarTurnoVehiculo
+  ,iniciarTurnoVehiculo
 } from "../services/api.js";
 import {
   IconCheck,
@@ -35,7 +38,7 @@ import {
   IconSearch
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
-import logoAQR from "../assets/logoAQR.webp";
+import logoGvBlack from "../assets/LOGOGVBLACK.png";
 
 function SignaturePadModal({
   title = "Firma Digital de Autorización",
@@ -399,8 +402,76 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
     }
   }
 
+  // Control de Turno de Unidad Asignada state
+  const [miUnidadStatus, setMiUnidadStatus] = useState({ assigned: false, vehiculo: null, turnoActivo: null });
+  const [showFinTurnoModal, setShowFinTurnoModal] = useState(false);
+  const [showInicioTurnoModal, setShowInicioTurnoModal] = useState(false);
+  const [odometroInput, setOdometroInput] = useState("");
+  const [obsTurnoInput, setObsTurnoInput] = useState("");
+  const [savingTurno, setSavingTurno] = useState(false);
+
+  async function loadMiUnidadTurnoStatus() {
+    try {
+      const res = await getMiUnidadTurnoStatus();
+      if (res?.success && res.data) {
+        setMiUnidadStatus(res.data);
+      }
+    } catch (err) {
+      console.warn("Aviso al consultar turno de mi unidad:", err.message);
+    }
+  }
+
+  async function handleFinalizarTurnoSubmit(e) {
+    e.preventDefault();
+    if (!miUnidadStatus.vehiculo) return;
+    setSavingTurno(true);
+    setMessage("");
+    setErrorMessage("");
+    try {
+      const res = await finalizarTurnoVehiculo({
+        idVehiculo: miUnidadStatus.vehiculo.id_vehiculos,
+        odometroFinal: Number(odometroInput),
+        observaciones: obsTurnoInput
+      });
+      setMessage(res.message || "Turno finalizado correctamente.");
+      setShowFinTurnoModal(false);
+      setOdometroInput("");
+      setObsTurnoInput("");
+      await loadMiUnidadTurnoStatus();
+    } catch (err) {
+      setErrorMessage(err.message || "Error al finalizar turno.");
+    } finally {
+      setSavingTurno(false);
+    }
+  }
+
+  async function handleIniciarTurnoSubmit(e) {
+    e.preventDefault();
+    if (!miUnidadStatus.vehiculo) return;
+    setSavingTurno(true);
+    setMessage("");
+    setErrorMessage("");
+    try {
+      const res = await iniciarTurnoVehiculo({
+        idVehiculo: miUnidadStatus.vehiculo.id_vehiculos,
+        odometroInicial: Number(odometroInput),
+        observaciones: obsTurnoInput
+      });
+      setMessage(res.message || "Inicio de turno registrado.");
+      setShowInicioTurnoModal(false);
+      setOdometroInput("");
+      setObsTurnoInput("");
+      await loadMiUnidadTurnoStatus();
+    } catch (err) {
+      setErrorMessage(err.message || "Error al iniciar turno.");
+    } finally {
+      setSavingTurno(false);
+    }
+  }
+
   useEffect(() => {
     if (access.confirmed) {
+      loadMiUnidadTurnoStatus();
       loadPendingDrivers();
       loadGerenciamientos();
       if (activeTab === "inspecciones") loadInspecciones();
@@ -408,6 +479,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
       else if (activeTab === "asignaciones") loadAsignaciones();
       else if (activeTab === "conductores") loadPendingDrivers();
       else if (activeTab === "manejo-comentado") loadManejoAuthorizations();
+      else if (activeTab === "mi-unidad") loadMiUnidadTurnoStatus();
     }
   }, [access.confirmed, activeTab]);
 
@@ -633,7 +705,80 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
           <IconCar size={15} />
           <span>Asignaciones</span>
         </button>
+
+        {miUnidadStatus.assigned && (
+          <button
+            type="button"
+            className={`supervisor-tab-pill ${activeTab === "mi-unidad" ? "active" : ""}`}
+            onClick={() => setActiveTab("mi-unidad")}
+          >
+            <IconCar size={15} />
+            <span>Mi Unidad ({miUnidadStatus.vehiculo?.numero_economico})</span>
+            {miUnidadStatus.turnoActivo?.estado === "EN_TRASLADO_CASA" && (
+              <span className="tab-pill-badge warning">En Casa</span>
+            )}
+          </button>
+        )}
       </nav>
+
+      {miUnidadStatus.assigned && miUnidadStatus.vehiculo && (
+        <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ background: "#eff6ff", width: "44px", height: "44px", borderRadius: "10px", display: "grid", placeItems: "center", color: "#2563eb" }}>
+                <IconCar size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase", color: "#64748b", letterSpacing: "0.05em" }}>Unidad Asignada a Cargo</span>
+                <h3 style={{ margin: "2px 0 0", fontSize: "1.1rem", color: "#0f172a" }}>
+                  {miUnidadStatus.vehiculo.nombre} <span style={{ color: "#2563eb", fontWeight: "bold" }}>({miUnidadStatus.vehiculo.numero_economico})</span>
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: "0.82rem", color: "#64748b" }}>
+                  Placas: <strong>{miUnidadStatus.vehiculo.placas || "N/A"}</strong> | Odómetro Actual: <strong>{miUnidadStatus.vehiculo.kilometraje_actual} km</strong>
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {miUnidadStatus.turnoActivo?.estado === "EN_TRASLADO_CASA" ? (
+                <>
+                  <div style={{ padding: "6px 12px", background: "#fef3c7", border: "1px solid #fde047", borderRadius: "8px", fontSize: "0.82rem", color: "#92400e", fontWeight: 600 }}>
+                    🏠 En Domicilio (Salida: {miUnidadStatus.turnoActivo.odometro_final_turno} km)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOdometroInput(String(miUnidadStatus.vehiculo.kilometraje_actual || ""));
+                      setObsTurnoInput("");
+                      setShowInicioTurnoModal(true);
+                    }}
+                    style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", color: "#ffffff", border: 0, padding: "10px 18px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.88rem" }}
+                  >
+                    🏢 Iniciar Turno (Regreso a Base)
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ padding: "6px 12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px", fontSize: "0.82rem", color: "#166534", fontWeight: 600 }}>
+                    🏢 En Base / En Turno
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOdometroInput(String(miUnidadStatus.vehiculo.kilometraje_actual || ""));
+                      setObsTurnoInput("");
+                      setShowFinTurnoModal(true);
+                    }}
+                    style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "#ffffff", border: 0, padding: "10px 18px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.88rem" }}
+                  >
+                    🏠 Finalizar Turno (Salida a Casa)
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {errorMessage && <p className="message message-error">{errorMessage}</p>}
       {message && <p className="message message-success">{message}</p>}
@@ -895,7 +1040,7 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
                     {/* Encabezado Institucional SII-MX-23-LOG-003 */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", margin: "14px 0 10px 0", borderBottom: "2px solid #0284c7", paddingBottom: "10px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <img src={logoAQR} alt="AQUARIO" style={{ height: "38px" }} />
+                        <img src={logoGvBlack} alt="GV MOBILITY" style={{ height: "38px", maxWidth: "140px", objectFit: "contain" }} />
                         <div>
                           <h2 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>GERENCIAMIENTO DE VIAJE</h2>
                           <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Código: <strong>{gerenciamientoDetail.folio_documento || "SII-MX-23-LOG-003"}</strong> (Rev. {gerenciamientoDetail.version_documento || "3.0"})</span>
@@ -1601,6 +1746,110 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
             )}
           </section>
         </>
+      )}
+
+      {/* Modales de Control de Turno */}
+      {showFinTurnoModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.75)", zIndex: 999999, display: "grid", placeItems: "center", padding: "16px" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "24px", maxWidth: "480px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "#0f172a" }}>🏠 Finalizar Turno (Salida a Casa)</h3>
+            <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "#64748b" }}>
+              Ingresa el odómetro final al salir de la base con la unidad <strong>{miUnidadStatus.vehiculo?.numero_economico}</strong>.
+            </p>
+            <form onSubmit={handleFinalizarTurnoSubmit}>
+              <div style={{ marginBottom: "14px" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "4px" }}>
+                  Odómetro Final (km al salir de base) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={miUnidadStatus.vehiculo?.kilometraje_actual || 0}
+                  style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "1rem" }}
+                  value={odometroInput}
+                  onChange={(e) => setOdometroInput(e.target.value)}
+                />
+                <small style={{ color: "#64748b", fontSize: "0.78rem" }}>
+                  Kilometraje actual registrado: {miUnidadStatus.vehiculo?.kilometraje_actual} km
+                </small>
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "4px" }}>
+                  Observaciones (opcional)
+                </label>
+                <textarea
+                  style={{ width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.88rem", resize: "vertical" }}
+                  rows={2}
+                  value={obsTurnoInput}
+                  onChange={(e) => setObsTurnoInput(e.target.value)}
+                  placeholder="Notas de salida a casa..."
+                />
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowFinTurnoModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: 0, padding: "10px 18px", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingTurno} style={{ background: "#2563eb", color: "#ffffff", border: 0, padding: "10px 20px", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>
+                  {savingTurno ? "Guardando..." : "Confirmar Salida a Casa"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showInicioTurnoModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.75)", zIndex: 999999, display: "grid", placeItems: "center", padding: "16px" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "24px", maxWidth: "480px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "#0f172a" }}>🏢 Iniciar Turno (Regreso a Base)</h3>
+            <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "#64748b" }}>
+              Ingresa el odómetro inicial al llegar a la base con la unidad <strong>{miUnidadStatus.vehiculo?.numero_economico}</strong>.
+            </p>
+            <form onSubmit={handleIniciarTurnoSubmit}>
+              <div style={{ marginBottom: "14px" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "4px" }}>
+                  Odómetro Llegada a Base (km) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={miUnidadStatus.turnoActivo?.odometro_final_turno || miUnidadStatus.vehiculo?.kilometraje_actual || 0}
+                  style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "1rem" }}
+                  value={odometroInput}
+                  onChange={(e) => setOdometroInput(e.target.value)}
+                />
+                <small style={{ color: "#64748b", fontSize: "0.78rem" }}>
+                  Odómetro de salida a casa: {miUnidadStatus.turnoActivo?.odometro_final_turno} km.
+                  {Number(odometroInput) >= Number(miUnidadStatus.turnoActivo?.odometro_final_turno) && (
+                    <span style={{ color: "#16a34a", fontWeight: "bold", marginLeft: "6px" }}>
+                      ({Number(odometroInput) - Number(miUnidadStatus.turnoActivo?.odometro_final_turno)} km recorridos en traslado)
+                    </span>
+                  )}
+                </small>
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "4px" }}>
+                  Observaciones (opcional)
+                </label>
+                <textarea
+                  style={{ width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.88rem", resize: "vertical" }}
+                  rows={2}
+                  value={obsTurnoInput}
+                  onChange={(e) => setObsTurnoInput(e.target.value)}
+                  placeholder="Notas de regreso a base..."
+                />
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowInicioTurnoModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: 0, padding: "10px 18px", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingTurno} style={{ background: "#16a34a", color: "#ffffff", border: 0, padding: "10px 20px", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>
+                  {savingTurno ? "Guardando..." : "Confirmar Regreso a Base"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Modal de Firma Digital Compartido */}

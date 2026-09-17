@@ -183,6 +183,27 @@ export default function NavDrawer({
               );
             })}
           </div>
+
+          {/* Guia discreta de uso sin internet */}
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "12px 14px",
+              background: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+              fontSize: "0.8rem",
+              color: "#475569"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", color: "#0f2b46", marginBottom: "4px" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#0284c7" }}></span>
+              <span>¿Cómo usar sin internet?</span>
+            </div>
+            <p style={{ margin: 0, fontSize: "0.74rem", lineHeight: "1.4", color: "#64748b" }}>
+              En el menú de tu navegador (3 puntos arriba a la derecha), elige <strong>"Instalar aplicación"</strong> o <strong>"Añadir a inicio"</strong> para operar sin conexión.
+            </p>
+          </div>
         </div>
 
         {/* Pie de página del Drawer */}

@@ -30,6 +30,7 @@
 \ir ../migrations/027_fix_foreign_keys_usuarios_admin.sql
 \ir ../migrations/028_puesto_conductor.sql
 \ir ../migrations/029_siniestros.sql
+\ir ../migrations/030_control_turnos_vehiculo.sql
 
 
 

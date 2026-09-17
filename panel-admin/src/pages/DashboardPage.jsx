@@ -12,7 +12,8 @@ import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
-import logoAquarioBlanco from "../assets/page_assets/AQUARIO_BLANCO.png";
+import logoGv from "../assets/LOGOGV.png";
+import isologoGv from "../assets/ISOLOGO.png";
 import {
   IconInicio,
   IconInspecciones,
@@ -74,7 +75,7 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
   );
 }
 
-function ActiveTripsCardWidget({ viajesActivos = [] }) {
+function ActiveTripsCardWidget({ viajesActivos = [], onSelectTrip }) {
   const totalEnCurso = viajesActivos.filter((v) => v.estado === "EN_CURSO").length;
   const totalPendientes = viajesActivos.filter((v) => v.estado === "PENDIENTE").length;
 
@@ -101,7 +102,12 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
           {viajesActivos.map((item, index) => {
             const isEnCurso = item.estado === "EN_CURSO";
             return (
-              <li key={item.id_viajes || index} className="active-trips-mini-item">
+              <li
+                key={item.id_viajes || index}
+                className="active-trips-mini-item clickable"
+                onClick={() => onSelectTrip?.(item)}
+                title="Clic para ver detalle de viaje"
+              >
                 <div className="active-trips-mini-top">
                   <span className={`status-dot ${isEnCurso ? "dot-green-blinking" : "dot-yellow-fixed"}`} />
                   <span className="active-trips-mini-driver">{item.conductor}</span>
@@ -123,6 +129,65 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
     </article>
   );
 }
+
+function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
+  const totalFinalizados = viajesRecientes.filter((v) => v.estado === "FINALIZADO").length;
+
+  return (
+    <article className="kpi-card recent-trips-card">
+      <div className="recent-trips-card-header">
+        <span>Viajes recientes ({viajesRecientes.length})</span>
+        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px" }}>
+          <span className="recent-trips-card-count">
+            {viajesRecientes.length}
+          </span>
+          <small style={{ color: "#607986" }}>
+            {totalFinalizados} finalizados en registro
+          </small>
+        </div>
+      </div>
+
+      {viajesRecientes.length === 0 ? (
+        <div className="active-trips-empty-text">
+          <small>No hay viajes registrados recientemente</small>
+        </div>
+      ) : (
+        <ul className="active-trips-mini-list">
+          {viajesRecientes.map((item, index) => {
+            const isFinalizado = item.estado === "FINALIZADO";
+            const isCancelado = item.estado === "CANCELADO";
+            const dotClass = isFinalizado ? "dot-blue-fixed" : isCancelado ? "dot-red-fixed" : "dot-green-blinking";
+            const statusClass = isFinalizado ? "finalizado" : isCancelado ? "cancelado" : "en-curso";
+
+            return (
+              <li
+                key={item.id_viajes || index}
+                className="active-trips-mini-item clickable"
+                onClick={() => onSelectTrip?.(item)}
+                title="Clic para ver detalle de viaje"
+              >
+                <div className="active-trips-mini-top">
+                  <span className={`status-dot ${dotClass}`} />
+                  <span className="active-trips-mini-driver">{item.conductor}</span>
+                  <span className={`active-trips-mini-status-text ${statusClass}`}>
+                    {item.estado || "Finalizado"}
+                  </span>
+                </div>
+                <div className="active-trips-mini-details">
+                  <span>{item.origen} → {item.destino}</span>
+                  <span className="active-trips-mini-unit">
+                    {item.vehiculo} {item.numero_economico !== "N/A" ? `(${item.numero_economico})` : ""}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </article>
+  );
+}
+
 
 function DashboardOverview({ pendingInspections, pendingGerenciamientos, notificationError, onOpenInspections, onOpenGerenciamiento, onOpenManejoComentado }) {
   const [summary, setSummary] = useState(null);
@@ -619,8 +684,8 @@ function DashboardPage({ user, onLogout }) {
         <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <img className="sidebar-brand-logo" src={logoAquarioBlanco} alt="AQUARIO" />
-              <span className="sidebar-text sidebar-brand-title">Gerenciamiento viajes</span>
+              <img className="sidebar-brand-logo sidebar-brand-full" src={logoGv} alt="GV MOBILITY" />
+              <img className="sidebar-brand-logo sidebar-brand-isologo" src={isologoGv} alt="GV MOBILITY" />
             </div>
 
             {/* Botón de Menú Hamburguesa para Móviles */}

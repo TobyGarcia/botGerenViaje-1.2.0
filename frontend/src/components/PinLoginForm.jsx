@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { loginConductorConPin } from "../services/api";
-import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
 import PwaInstallPrompt from "./PwaInstallPrompt";
 import safeStorage from "../utils/safeStorage";
-import { IconAlert, IconFileText } from "./Icons.jsx";
+import { IconAlert, IconFileText, IconBackspace } from "./Icons.jsx";
 
 export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   const [pin, setPin] = useState("");
@@ -117,9 +116,8 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
   return (
     <div className="pin-login-wrapper">
       <div className="pin-login-card glass-panel">
-        {/* Header con Logo Blanco y Título */}
+        {/* Header con Titulo de Acceso por PIN */}
         <div className="pin-header">
-          <img src={aquarioBlanco} alt="AQUARIO" className="pin-aquario-logo" />
           <h2 className="pin-title">Ingreso por PIN</h2>
           <p className="pin-subtitle">
             Ingresa tu PIN de 4 dígitos para acceder al sistema
@@ -200,7 +198,9 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
             disabled={loading || pin.length === 0}
             title="Borrar último dígito"
           >
-            <span className="key-delete-icon">⌫</span>
+            <span className="key-delete-icon">
+              <IconBackspace size={20} color="#dc2626" />
+            </span>
           </button>
         </div>
 
@@ -218,24 +218,10 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
           <button
             type="button"
             onClick={onRegisterClick}
-            style={{
-              marginTop: "16px",
-              background: "none",
-              border: "none",
-              color: "#0284c7",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              textDecoration: "underline",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              width: "100%",
-              textAlign: "center"
-            }}
+            className="pin-register-card-btn"
           >
-            <IconFileText size={16} color="#0284c7" /> ¿Eres un conductor nuevo? Regístrate aquí
+            <IconFileText size={18} color="#0284c7" />
+            <span>¿Eres un conductor nuevo? Regístrate aquí</span>
           </button>
         )}
       </div>
