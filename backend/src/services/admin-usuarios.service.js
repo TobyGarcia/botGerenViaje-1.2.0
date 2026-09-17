@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { databasePool } from "../database/pool.js";
 
 const roles = new Set([
@@ -269,4 +270,18 @@ export async function updateOwnProfile(id, data) {
   } finally {
     client.release();
   }
+}
+
+export async function assignAdminUserPin(id, pin) {
+  const pinHash = await bcrypt.hash(String(pin).trim(), 10);
+  const result = await databasePool.query(
+    `UPDATE conductores c
+     SET pin_hash = $1, actualizado_en = CURRENT_TIMESTAMP
+     FROM usuarios_admin ua
+     WHERE ua.id_conductores = c.id_conductores
+       AND ua.id_usuarios_admin = $2
+     RETURNING c.id_conductores, c.nombre`,
+    [pinHash, id]
+  );
+  return result.rows[0] ?? null;
 }
