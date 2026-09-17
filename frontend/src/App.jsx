@@ -34,6 +34,7 @@ import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
+import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import {
   IconCar,
   IconMap,
@@ -1863,35 +1864,27 @@ function isOutsideOperatingHours() {
 
         <label>
           Origen
-          <select name="idOrigen" value={form.idOrigen} onChange={handleChange} required>
-            <option value="">Seleccione el origen</option>
-            {lugares.map((lugar) => (
-              <option
-                key={lugar.id_lugares}
-                value={lugar.id_lugares}
-                disabled={String(lugar.id_lugares) === form.idDestino}
-              >
-                {lugar.nombre}
-              </option>
-            ))}
-          </select>
+          <DestinationAutocomplete
+            lugares={lugares}
+            value={form.idOrigen}
+            onChange={(val) => handleChange({ target: { name: "idOrigen", value: val } })}
+            placeholder="Escribe para buscar origen..."
+            excludeId={form.idDestino}
+            required
+          />
         </label>
 
         <label>
           Destino
-          <select name="idDestino" value={form.idDestino} onChange={handleChange} required>
-            <option value="">Seleccione el destino</option>
-            {lugares.map((lugar) => (
-              <option
-                key={lugar.id_lugares}
-                value={lugar.id_lugares}
-                disabled={String(lugar.id_lugares) === form.idOrigen}
-              >
-                {lugar.nombre}
-              </option>
-            ))}
-            <option value="NUEVO_DESTINO">+ Agregar nuevo destino...</option>
-          </select>
+          <DestinationAutocomplete
+            lugares={lugares}
+            value={form.idDestino}
+            onChange={(val) => handleChange({ target: { name: "idDestino", value: val } })}
+            placeholder="Escribe para buscar destino..."
+            excludeId={form.idOrigen}
+            onAddNew={() => setShowAddDestinoModal(true)}
+            required
+          />
           <div style={{ marginTop: "4px", textAlign: "right" }}>
             <button
               type="button"

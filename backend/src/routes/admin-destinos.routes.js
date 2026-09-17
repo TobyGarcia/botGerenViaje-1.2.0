@@ -43,19 +43,19 @@ router.post(
 
 router.patch(
   "/:idDestino/estado",
-  requireAdminRoles("ADMINISTRADOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   updateAdminDestinationStatusController
 );
 
 router.patch(
   "/:idDestino",
-  requireAdminRoles("ADMINISTRADOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   updateAdminDestinationController
 );
 
 router.delete(
   "/:idDestino",
-  requireAdminRoles("ADMINISTRADOR"),
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   deleteAdminDestinationController
 );
 

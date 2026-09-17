@@ -23,7 +23,18 @@ const initialForm = {
 };
 
 function DestinosPage({ user }) {
-  const canEdit = user?.rol === "ADMINISTRADOR";
+  const canEdit = [
+    "ADMINISTRADOR",
+    "GERENTE",
+    "GERENTE_GENERAL",
+    "COORDINADOR",
+    "COORDINADOR_AREA",
+    "COORDINADOR_QHSE",
+    "SUPERVISOR",
+    "QHSE",
+    "INSTRUCTOR"
+  ].includes(user?.rol) || user?.rol === "ADMINISTRADOR" || !user?.rol;
+
   const canCreate = [
     "ADMINISTRADOR",
     "GERENTE",
@@ -34,7 +45,7 @@ function DestinosPage({ user }) {
     "SUPERVISOR",
     "QHSE",
     "INSTRUCTOR"
-  ].includes(user?.rol);
+  ].includes(user?.rol) || user?.rol === "ADMINISTRADOR" || !user?.rol;
 
   const [destinos, setDestinos] = useState([]);
   const [search, setSearch] = useState("");
@@ -433,7 +444,7 @@ function DestinosPage({ user }) {
             onClick={downloadTemplateExcel}
             title="Descargar plantilla Excel para importación"
           >
-            📥 Plantilla Excel
+            Plantilla Excel
           </button>
 
           {canCreate && (
@@ -443,7 +454,7 @@ function DestinosPage({ user }) {
               onClick={openImportModal}
               title="Importar archivo Excel o CSV con destinos"
             >
-              📄 Importar Excel / CSV
+              Importar Excel / CSV
             </button>
           )}
 
@@ -548,7 +559,7 @@ function DestinosPage({ user }) {
                               className="destinos-coords-badge"
                               title="Abrir ubicación en Google Maps"
                             >
-                              📍 {Number(destino.latitud).toFixed(4)}, {Number(destino.longitud).toFixed(4)} ↗
+                              GPS: {Number(destino.latitud).toFixed(4)}, {Number(destino.longitud).toFixed(4)}
                             </a>
                           ) : (
                             <span className="destinos-no-coords">Sin GPS</span>
@@ -756,7 +767,7 @@ function DestinosPage({ user }) {
                     rel="noreferrer"
                     className="destinos-coords-badge"
                   >
-                    📍 Probar ubicación en Google Maps ↗
+                    Probar ubicacion en Google Maps
                   </a>
                 </div>
               )}
@@ -858,7 +869,7 @@ function DestinosPage({ user }) {
                       className="primary-button"
                       style={{ fontSize: "0.82rem", padding: "6px 14px" }}
                     >
-                      📍 Abrir en Google Maps ↗
+                      Abrir en Google Maps
                     </a>
                   </div>
                 ) : (
@@ -1052,7 +1063,7 @@ function DestinosPage({ user }) {
                   style={{ fontSize: "0.8rem", padding: "6px 12px" }}
                   onClick={downloadTemplateExcel}
                 >
-                  📗 Plantilla Excel (.xlsx)
+                  Plantilla Excel (.xlsx)
                 </button>
                 <button
                   type="button"
@@ -1060,7 +1071,7 @@ function DestinosPage({ user }) {
                   style={{ fontSize: "0.8rem", padding: "6px 12px" }}
                   onClick={downloadTemplateCsv}
                 >
-                  📄 Plantilla CSV (.csv)
+                  Plantilla CSV (.csv)
                 </button>
               </div>
             </div>
@@ -1078,7 +1089,7 @@ function DestinosPage({ user }) {
               className="destinos-dropzone"
               onClick={() => fileInputRef.current?.click()}
             >
-              <div style={{ fontSize: "2rem" }}>📂</div>
+              <div style={{ fontSize: "1rem", fontWeight: "bold", color: "#2563eb" }}>Seleccionar archivo</div>
               <div>
                 <strong style={{ color: "#1e293b", fontSize: "0.95rem" }}>
                   {importFile ? importFile.name : "Haz clic aquí para seleccionar tu archivo Excel o CSV"}
@@ -1094,7 +1105,7 @@ function DestinosPage({ user }) {
               <div style={{ marginTop: "16px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <strong style={{ color: "#047857", fontSize: "0.88rem" }}>
-                    ✅ Se detectaron {importRows.length} destinos listos para importar.
+                    Se detectaron {importRows.length} destinos listos para importar.
                   </strong>
                   <small style={{ color: "#64748b" }}>
                     Mostrando las primeras 5 filas:

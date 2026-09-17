@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
 import logoAQR from "../assets/logoAQR.webp";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
+import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import { IconMapPin, IconStethoscope, IconClipboard, IconSearch, IconAlert, IconEdit, IconCheck, IconCross, IconCar, IconLock, IconRocket, IconMoon, IconRefresh, IconBan } from "./Icons.jsx";
 
 
@@ -562,58 +563,42 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
           <div className="geren-grid-2" style={{ marginBottom: "14px" }}>
             <div className="geren-field">
               <label className="geren-field-label">Provincia / Ubicación de Origen *</label>
-              <select
-                name="idOrigen"
+              <DestinationAutocomplete
+                lugares={lugares}
                 value={form.idOrigen}
-                onChange={handleInputChange}
-                className="geren-field-select"
-              >
-                <option value="">-- Selecciona Provincia u Origen --</option>
-                {lugares.map((l) => (
-                  <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
-                ))}
-                <option value="CUSTOM">+ Especificar provincia / ubicación...</option>
-              </select>
-              {(form.idOrigen === "CUSTOM" || (!form.idOrigen && form.origenTexto)) && (
-                <input
-                  type="text"
-                  name="origenTexto"
-                  value={form.origenTexto}
-                  onChange={handleInputChange}
-                  placeholder="Nombre de la provincia / ciudad de origen"
-                  required
-                  className="geren-field-input"
-                  style={{ marginTop: "6px" }}
-                />
-              )}
+                onChange={(id, lugarObj) => {
+                  handleInputChange({ target: { name: "idOrigen", value: id } });
+                  if (lugarObj) {
+                    handleInputChange({ target: { name: "origenTexto", value: lugarObj.nombre } });
+                  }
+                }}
+                excludeId={form.idDestino}
+                allowCustom={true}
+                customText={form.origenTexto}
+                onCustomTextChange={(txt) => handleInputChange({ target: { name: "origenTexto", value: txt } })}
+                placeholder="Buscar o escribir origen..."
+                required
+              />
             </div>
 
             <div className="geren-field">
               <label className="geren-field-label">Provincia / Ubicación de Destino *</label>
-              <select
-                name="idDestino"
+              <DestinationAutocomplete
+                lugares={lugares}
                 value={form.idDestino}
-                onChange={handleInputChange}
-                className="geren-field-select"
-              >
-                <option value="">-- Selecciona Provincia o Destino --</option>
-                {lugares.map((l) => (
-                  <option key={l.id_lugares} value={l.id_lugares}>{l.nombre}</option>
-                ))}
-                <option value="CUSTOM">+ Especificar provincia / ubicación...</option>
-              </select>
-              {(form.idDestino === "CUSTOM" || (!form.idDestino && form.destinoTexto)) && (
-                <input
-                  type="text"
-                  name="destinoTexto"
-                  value={form.destinoTexto}
-                  onChange={handleInputChange}
-                  placeholder="Nombre de la provincia / ciudad de destino"
-                  required
-                  className="geren-field-input"
-                  style={{ marginTop: "6px" }}
-                />
-              )}
+                onChange={(id, lugarObj) => {
+                  handleInputChange({ target: { name: "idDestino", value: id } });
+                  if (lugarObj) {
+                    handleInputChange({ target: { name: "destinoTexto", value: lugarObj.nombre } });
+                  }
+                }}
+                excludeId={form.idOrigen}
+                allowCustom={true}
+                customText={form.destinoTexto}
+                onCustomTextChange={(txt) => handleInputChange({ target: { name: "destinoTexto", value: txt } })}
+                placeholder="Buscar o escribir destino..."
+                required
+              />
             </div>
           </div>
 
