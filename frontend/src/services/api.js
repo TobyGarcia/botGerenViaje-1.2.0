@@ -245,6 +245,11 @@ export function getSupervisorConductoresPendientes() { return request("/api/supe
 export function decidirSupervisorConductor(idConductor, data) { return request(`/api/supervisor/inspecciones/conductores/${idConductor}/aprobar`, { method: "PATCH", body: JSON.stringify(data) }); }
 export function getAutorizacionesManejoComentado() { return request("/api/supervisor/inspecciones/autorizaciones-manejo-comentado"); }
 export function decidirAutorizacionManejoComentado(idAutorizacion, data) { return request(`/api/supervisor/inspecciones/autorizaciones-manejo-comentado/${idAutorizacion}/decision`, { method: "PATCH", body: JSON.stringify(data) }); }
+export function getMiUnidadTurnoStatus() { return request("/api/supervisor/inspecciones/turnos/mi-unidad"); }
+export function finalizarTurnoVehiculo({ idVehiculo, odometroFinal, observaciones }) { return request("/api/supervisor/inspecciones/turnos/finalizar", { method: "POST", body: JSON.stringify({ idVehiculo, odometroFinal, observaciones }) }); }
+export function iniciarTurnoVehiculo({ idVehiculo, odometroInicial, observaciones }) { return request("/api/supervisor/inspecciones/turnos/iniciar", { method: "POST", body: JSON.stringify({ idVehiculo, odometroInicial, observaciones }) }); }
+export function getHistorialTurnosVehiculo(idVehiculo) { return request(`/api/supervisor/inspecciones/turnos/historial/${idVehiculo}`); }
+
 
 export function crearGerenciamientoViaje(payload) {
   return request("/api/gerenciamiento-viajes", {

@@ -27,6 +27,8 @@
 \ir ../migrations/025_autorizaciones_manejo_comentado.sql
 \ir ../migrations/026_expand_admin_roles_and_conductor_link.sql
 \ir ../migrations/027_fix_foreign_keys_usuarios_admin.sql
+\ir ../migrations/030_control_turnos_vehiculo.sql
+
 
 
 

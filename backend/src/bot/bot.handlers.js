@@ -14,6 +14,13 @@ import {
   getPrivateTripKeyboard
 } from "./bot.keyboards.js";
 
+import { getSupervisorAccess } from "../services/supervisor-telegram.service.js";
+import {
+  getSupervisorAssignedVehicleTurnStatus,
+  finalizeSupervisorShift,
+  startSupervisorShift
+} from "../services/turnos-vehiculo.service.js";
+
 function isRegisteredDriver(user) {
   return Boolean(
     user &&
@@ -25,7 +32,158 @@ function isRegisteredDriver(user) {
 }
 
 export function registerBotHandlers(bot) {
+  bot.command("turno", async (context) => {
+    logCommand(context, "turno");
+    try {
+      const access = await getSupervisorAccess(context.from.id);
+      if (!access?.user?.id_usuarios_admin) {
+        await context.reply("⚠️ Tu cuenta de Telegram no está vinculada a un usuario supervisor registrado.");
+        return;
+      }
+
+      const status = await getSupervisorAssignedVehicleTurnStatus(access.user.id_usuarios_admin);
+      if (!status.assigned || !status.vehiculo) {
+        await context.reply("ℹ️ No tienes un vehículo asignado como supervisor a cargo en este momento.");
+        return;
+      }
+
+      const v = status.vehiculo;
+      const turn = status.turnoActivo;
+
+      if (turn && turn.estado === "EN_TRASLADO_CASA") {
+        await context.reply(
+          [
+            `🚗 *Unidad Asignada:* ${v.nombre} (${v.numero_economico})`,
+            `📌 *Placas:* ${v.placas || "N/A"}`,
+            `📍 *Estado Actual:* 🏠 EN TRASLADO A DOMICILIO (Fuera de turno)`,
+            `⏱️ *Odómetro de Salida:* ${turn.odometro_final_turno} km`,
+            "",
+            "🏢 *Para regresar a base e iniciar turno:*",
+            "Responde con: `/inicio_turno [odometro_inicial]`",
+            "Ejemplo: `/inicio_turno ${turn.odometro_final_turno + 20}`",
+            "",
+            "O bien abre la Mini App desde el menú *bot de viaje*."
+          ].join("\n"),
+          { parse_mode: "Markdown", ...getMiniAppKeyboard() }
+        );
+      } else {
+        await context.reply(
+          [
+            `🚗 *Unidad Asignada:* ${v.nombre} (${v.numero_economico})`,
+            `📌 *Placas:* ${v.placas || "N/A"}`,
+            `📍 *Estado Actual:* 🏢 EN BASE / EN TURNO`,
+            `⏱️ *Kilometraje Actual:* ${v.kilometraje_actual} km`,
+            "",
+            "🏠 *Para finalizar turno y llevar unidad a casa:*",
+            "Responde con: `/fin_turno [odometro_final]`",
+            "Ejemplo: `/fin_turno ${v.kilometraje_actual}`",
+            "",
+            "O bien abre la Mini App desde el menú *bot de viaje*."
+          ].join("\n"),
+          { parse_mode: "Markdown", ...getMiniAppKeyboard() }
+        );
+      }
+    } catch (err) {
+      console.error("Error en comando /turno:", err);
+      await context.reply("❌ Error al consultar el estado de turno de tu unidad.");
+    }
+  });
+
+  bot.command("fin_turno", async (context) => {
+    logCommand(context, "fin_turno");
+    try {
+      const access = await getSupervisorAccess(context.from.id);
+      if (!access?.user?.id_usuarios_admin) {
+        await context.reply("⚠️ No tienes permisos de supervisor o cuenta vinculada.");
+        return;
+      }
+
+      const status = await getSupervisorAssignedVehicleTurnStatus(access.user.id_usuarios_admin);
+      if (!status.assigned || !status.vehiculo) {
+        await context.reply("ℹ️ No tienes una unidad asignada a tu cargo.");
+        return;
+      }
+
+      const args = context.message.text.split(" ").slice(1).join(" ").trim();
+      const odometroFinal = Number(args);
+
+      if (!args || !Number.isInteger(odometroFinal) || odometroFinal < 0) {
+        await context.reply(
+          `⚠️ Indica el odómetro final al salir de base.\nEjemplo: \`/fin_turno ${status.vehiculo.kilometraje_actual}\``,
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
+
+      const res = await finalizeSupervisorShift({
+        idVehiculo: status.vehiculo.id_vehiculos,
+        idUsuarioAdmin: access.user.id_usuarios_admin,
+        odometroFinal
+      });
+
+      await context.reply(
+        [
+          "✅ *Turno Finalizado Correctamente*",
+          `🚗 *Vehículo:* ${status.vehiculo.nombre} (${status.vehiculo.numero_economico})`,
+          `⏱️ *Odómetro Final:* ${res.vehiculo.kilometraje_actual} km`,
+          "🏠 La unidad queda asentada en *traslado a domicilio*."
+        ].join("\n"),
+        { parse_mode: "Markdown" }
+      );
+    } catch (err) {
+      await context.reply(`❌ ${err.message || "Error al finalizar turno."}`);
+    }
+  });
+
+  bot.command("inicio_turno", async (context) => {
+    logCommand(context, "inicio_turno");
+    try {
+      const access = await getSupervisorAccess(context.from.id);
+      if (!access?.user?.id_usuarios_admin) {
+        await context.reply("⚠️ No tienes permisos de supervisor o cuenta vinculada.");
+        return;
+      }
+
+      const status = await getSupervisorAssignedVehicleTurnStatus(access.user.id_usuarios_admin);
+      if (!status.assigned || !status.vehiculo) {
+        await context.reply("ℹ️ No tienes una unidad asignada a tu cargo.");
+        return;
+      }
+
+      const args = context.message.text.split(" ").slice(1).join(" ").trim();
+      const odometroInicial = Number(args);
+
+      if (!args || !Number.isInteger(odometroInicial) || odometroInicial < 0) {
+        await context.reply(
+          "⚠️ Indica el odómetro inicial al regresar a base.\nEjemplo: `/inicio_turno 15230`",
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
+
+      const res = await startSupervisorShift({
+        idVehiculo: status.vehiculo.id_vehiculos,
+        idUsuarioAdmin: access.user.id_usuarios_admin,
+        odometroInicial
+      });
+
+      await context.reply(
+        [
+          "✅ *Inicio de Turno Registrado*",
+          `🚗 *Vehículo:* ${status.vehiculo.nombre} (${status.vehiculo.numero_economico})`,
+          `⏱️ *Odómetro Llegada:* ${res.vehiculo.kilometraje_actual} km`,
+          `📊 *Km Recorridos Traslado Casa:* ${res.kmRecorridosCasa} km`,
+          "🏢 La unidad regresa a estado *En Base / En Turno*."
+        ].join("\n"),
+        { parse_mode: "Markdown" }
+      );
+    } catch (err) {
+      await context.reply(`❌ ${err.message || "Error al iniciar turno."}`);
+    }
+  });
+
   bot.start(async (context) => {
+
     const startParameter =
       context.message?.text
         ?.split(" ")
