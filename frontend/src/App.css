@@ -2625,6 +2625,301 @@ form#urban-trip-form {
   align-items: center;
 }
 
+/* Gerenciamiento de Viaje - Template Styles (from templates/DESIGN.md and code.html) */
+.gv-screen-header {
+  padding-top: 4px;
+  margin-bottom: 16px;
+}
+
+.gv-screen-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 0 0 2px 0;
+}
+
+.gv-screen-subtitle {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Success Alert */
+.gv-success-alert {
+  background: rgba(236, 253, 245, 0.95);
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gv-alert-icon-box {
+  padding: 4px;
+  border-radius: 6px;
+  background: rgba(209, 250, 229, 0.8);
+  color: #047857;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.gv-alert-title {
+  font-weight: 700;
+  color: #064e3b;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.gv-alert-desc {
+  color: #047857;
+  font-size: 0.78rem;
+  margin: 2px 0 0 0;
+}
+
+.gv-alert-folio {
+  font-family: monospace;
+  font-weight: 700;
+  color: #022c22;
+}
+
+/* Trip Details Card */
+.gv-trip-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  padding: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #0f172a;
+}
+
+.gv-trip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.gv-trip-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gv-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gv-status-dot.pending {
+  background: #f59e0b;
+}
+
+.gv-status-dot.in-progress {
+  background: #10b981;
+}
+
+.gv-status-dot.finished {
+  background: #64748b;
+}
+
+.gv-status-dot.cancelled {
+  background: #ef4444;
+}
+
+.gv-trip-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.gv-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.gv-status-pill.pending {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.gv-status-pill.in-progress {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.gv-status-pill.finished {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.gv-status-pill.cancelled {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* DL List */
+.gv-trip-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.gv-trip-dl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.gv-trip-dl-row:last-child {
+  border-bottom: none;
+}
+
+.gv-trip-dt {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.gv-trip-dd {
+  margin: 0;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.gv-badge-mono {
+  font-family: monospace;
+  font-weight: 700;
+  color: #1e293b;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+}
+
+.gv-badge-km {
+  font-weight: 700;
+  color: #0369a1;
+  background: #f0f9ff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+/* Info Callout */
+.gv-trip-info-callout {
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #475569;
+}
+
+.gv-trip-info-text {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #475569;
+  margin: 0;
+}
+
+/* Action Buttons */
+.gv-trip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.gv-btn-primary {
+  width: 100% !important;
+  height: 46px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
+  background: #0369a1 !important;
+  color: #ffffff !important;
+  font-size: 0.84rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(3, 105, 161, 0.2) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.gv-btn-primary:hover:not(:disabled) {
+  background: #0284c7 !important;
+}
+
+.gv-btn-primary:active:not(:disabled) {
+  background: #075985 !important;
+  transform: scale(0.99) !important;
+}
+
+.gv-btn-primary:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.gv-btn-cancel {
+  width: 100% !important;
+  height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
+  background: #fff1f2 !important;
+  color: #be123c !important;
+  border: 1px solid #fecdd3 !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.gv-btn-cancel:hover:not(:disabled) {
+  background: #fee2e2 !important;
+}
+
+.gv-btn-cancel:active:not(:disabled) {
+  background: #fecdd3 !important;
+  transform: scale(0.99) !important;
+}
+
 
 
 

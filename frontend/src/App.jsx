@@ -33,7 +33,6 @@ import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
-import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import {
@@ -1684,18 +1683,21 @@ function isOutsideOperatingHours() {
       />
       <main className="container">
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        {(createdTrip || gerenciamientoPendiente || activeTabMode !== "urban") && (
+        {createdTrip ? (
+          <div className="gv-screen-header">
+            <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
+            <p className="gv-screen-subtitle">Control operativo y seguimiento de trayecto</p>
+          </div>
+        ) : (gerenciamientoPendiente || activeTabMode !== "urban") ? (
           <>
             <h1>
-              {createdTrip
-                ? "GERENCIAMIENTO DE VIAJE"
-                : activeTabMode === "gerenciamiento"
-                  ? "GERENCIAMIENTO DE VIAJES"
-                  : activeTabMode === "siniestro"
-                    ? "REPORTAR SINIESTRO"
-                    : activeTabMode === "perfil"
-                      ? "ACTUALIZACIÓN DE DATOS"
-                      : "Nuevo viaje"}
+              {activeTabMode === "gerenciamiento"
+                ? "GERENCIAMIENTO DE VIAJES"
+                : activeTabMode === "siniestro"
+                  ? "REPORTAR SINIESTRO"
+                  : activeTabMode === "perfil"
+                    ? "ACTUALIZACIÓN DE DATOS"
+                    : "Nuevo viaje"}
             </h1>
 
             <section className="summary-card" aria-label="Fecha actual">
@@ -1724,7 +1726,7 @@ function isOutsideOperatingHours() {
               )}
             </section>
           </>
-        )}
+        ) : null}
 
         {!createdTrip && activeTabMode === "siniestro" && (
           <ReporteSiniestro
@@ -2152,7 +2154,23 @@ function isOutsideOperatingHours() {
 
      
 
-      {message && (
+      {createdTrip && message && (
+        <section className="gv-success-alert" data-purpose="status-notification">
+          <div className="gv-alert-icon-box">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+            </svg>
+          </div>
+          <div>
+            <p className="gv-alert-title">Viaje creado correctamente.</p>
+            <p className="gv-alert-desc">
+              Folio asignado: <span className="gv-alert-folio">{createdTrip.folio}</span>
+            </p>
+          </div>
+        </section>
+      )}
+
+      {!createdTrip && message && (
         <p className={`message message-${messageType}`} role={messageType === "error" ? "alert" : "status"} aria-live="polite">
           {message}
         </p>
@@ -2188,172 +2206,226 @@ function isOutsideOperatingHours() {
 )}
 
 {createdTrip && (
-  <section className="result-card">
-    <h2>
-      {finishedTrip
-      ? "Viaje finalizado"
-      : cancelledTrip
-        ? "Viaje cancelado"
-      :startedTrip
-        ? "Viaje en curso"
-        : "Viaje registrado"}
-    </h2>
-
-    <p>
-      <strong>Folio:</strong>{" "}
-      {createdTrip.folio}
-    </p>
-
-    <p>
-      <strong>Conductor:</strong>{" "}
-      {startedTrip?.conductor ??
-        createdTrip.conductor}
-    </p>
-
-    <p>
-      <strong>Unidad:</strong>{" "}
-      {startedTrip?.vehiculo ??
-        createdTrip.vehiculo}
-    </p>
-
-    <p>
-      <strong>Número económico:</strong>{" "}
-      {startedTrip?.numeroEconomico ??
-        createdTrip.numeroEconomico}
-    </p>
-
-    <p>
-      <strong>Kilometraje inicial:</strong>{" "}
-      {Number(
-          startedTrip?.kilometrajeInicial ??
-          startedTrip?.kilometraje_inicial ??
-          createdTrip.kilometrajeInicial ??
-          createdTrip.kilometraje_inicial
-      ).toLocaleString("es-MX")}{" "}
-      km
-    </p>
-
-    <p>
-      <strong>Estado:</strong>{" "}
+  <section className="gv-trip-card">
+    {/* Header de la tarjeta con Estado */}
+    <div className="gv-trip-header">
+      <div className="gv-trip-title-group">
+        <span
+          className={`gv-status-dot ${
+            finishedTrip
+              ? "finished"
+              : cancelledTrip
+                ? "cancelled"
+                : startedTrip
+                  ? "in-progress"
+                  : "pending"
+          }`}
+        />
+        <h3 className="gv-trip-title">
+          {finishedTrip
+            ? "Viaje finalizado"
+            : cancelledTrip
+              ? "Viaje cancelado"
+              : startedTrip
+                ? "Viaje en curso"
+                : "Viaje registrado"}
+        </h3>
+      </div>
       <span
-        className={
+        className={`gv-status-pill ${
           finishedTrip
-          ? "status-finished"
-          : cancelledTrip
-            ? "status-cancelled"
-          : startedTrip
-            ? "status-in-progress"
-            : "status-pending"
-        }
+            ? "finished"
+            : cancelledTrip
+              ? "cancelled"
+              : startedTrip
+                ? "in-progress"
+                : "pending"
+        }`}
       >
         {finishedTrip
-        ? "FINALIZADO"
-        : cancelledTrip
-          ? "CANCELADO"
-        : startedTrip
-          ? "EN_CURSO"
-          : "PENDIENTE"}
+          ? "FINALIZADO"
+          : cancelledTrip
+            ? "CANCELADO"
+            : startedTrip
+              ? "EN_CURSO"
+              : "PENDIENTE"}
       </span>
-    </p>
+    </div>
 
-    {startedTrip?.horaSalida ? (
-      <p>
-        <strong>Hora de salida:</strong>{" "}
-        {new Date(
-          startedTrip.horaSalida
-        ).toLocaleString("es-MX", {
-          dateStyle: "medium",
-          timeStyle: "medium"
-        })}
-      </p>
-    ) : (
-      <p>
-        La hora de salida se registrará al
-        iniciar el viaje.
-      </p>
-    )}
+    {/* Tabla / Lista de Datos Clave */}
+    <dl className="gv-trip-dl">
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Folio:</dt>
+        <dd className="gv-badge-mono">{createdTrip.folio}</dd>
+      </div>
 
-    {finishedTrip?.horaLlegada && (
-      <p>
-        <strong>Hora de llegada:</strong>{" "}
-        {new Date(finishedTrip.horaLlegada).toLocaleString("es-MX", {
-          dateStyle: "medium",
-          timeStyle: "medium"
-        })}
-      </p>
-    )}
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Conductor:</dt>
+        <dd className="gv-trip-dd">{startedTrip?.conductor ?? createdTrip.conductor}</dd>
+      </div>
 
-    {finishedTrip?.kilometrosRecorridos !== undefined && (
-      <p>
-        <strong>Kilómetros recorridos:</strong>{" "}
-        {Number(finishedTrip.kilometrosRecorridos).toLocaleString("es-MX")} km
-      </p>
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Unidad:</dt>
+        <dd className="gv-trip-dd">{startedTrip?.vehiculo ?? createdTrip.vehiculo}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Número económico:</dt>
+        <dd className="gv-badge-mono">{startedTrip?.numeroEconomico ?? createdTrip.numeroEconomico}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Kilometraje inicial:</dt>
+        <dd className="gv-badge-km">
+          {Number(
+            startedTrip?.kilometrajeInicial ??
+              startedTrip?.kilometraje_inicial ??
+              createdTrip.kilometrajeInicial ??
+              createdTrip.kilometraje_inicial ??
+              0
+          ).toLocaleString("es-MX")}{" "}
+          km
+        </dd>
+      </div>
+
+      {startedTrip?.horaSalida && (
+        <div className="gv-trip-dl-row">
+          <dt className="gv-trip-dt">Hora de salida:</dt>
+          <dd className="gv-trip-dd">
+            {new Date(startedTrip.horaSalida).toLocaleString("es-MX", {
+              dateStyle: "medium",
+              timeStyle: "medium"
+            })}
+          </dd>
+        </div>
+      )}
+
+      {finishedTrip?.horaLlegada && (
+        <div className="gv-trip-dl-row">
+          <dt className="gv-trip-dt">Hora de llegada:</dt>
+          <dd className="gv-trip-dd">
+            {new Date(finishedTrip.horaLlegada).toLocaleString("es-MX", {
+              dateStyle: "medium",
+              timeStyle: "medium"
+            })}
+          </dd>
+        </div>
+      )}
+
+      {finishedTrip?.kilometrosRecorridos !== undefined && (
+        <div className="gv-trip-dl-row">
+          <dt className="gv-trip-dt">Kilómetros recorridos:</dt>
+          <dd className="gv-badge-km">
+            {Number(finishedTrip.kilometrosRecorridos).toLocaleString("es-MX")} km
+          </dd>
+        </div>
+      )}
+    </dl>
+
+    {/* Mensaje Informativo */}
+    {!startedTrip && !finishedTrip && !cancelledTrip && (
+      <div className="gv-trip-info-callout">
+        <svg
+          style={{ width: "16px", height: "16px", color: "#0284c7", flexShrink: 0, marginTop: "2px" }}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          />
+        </svg>
+        <p className="gv-trip-info-text">
+          La hora de salida se registrará de manera automática en el sistema al iniciar el viaje.
+        </p>
+      </div>
     )}
 
     {gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
-      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.9rem", fontWeight: "bold" }}>
+      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: "bold" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconClock size={18} color="#ea580c" /> ⌛ Gerenciamiento Registrado — Esperando Aprobación de Supervisión
+          <IconClock size={18} color="#ea580c" /> Gerenciamiento Registrado — Esperando Aprobación de Supervisión
         </span>
-        <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569", fontWeight: "normal" }}>
+        <p style={{ margin: "4px 0 0", fontSize: "0.78rem", color: "#475569", fontWeight: "normal" }}>
           Tu gerenciamiento de viaje fuera del estado fue enviado a supervisión. En cuanto sea aprobado, se activará el botón para iniciar el viaje.
         </p>
       </div>
     )}
 
-    {!startedTrip && !finishedTrip && !cancelledTrip && (
-      gerenciamientoPendiente ? (
-        <button
-          type="button"
-          className="start-trip-button inspection-required-button"
-          disabled
-          style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-        >
-          <IconClock size={18} color="#ffffff" className="spin" /> Esperando Autorización de Gerenciamiento...
-        </button>
-      ) : inspectionStatus === "loading" || inspectionStatus === "idle" ? <button
-        type="button"
-        className="start-trip-button inspection-required-button"
-        disabled
-      >
-        Validando inspección vehicular...
-      </button> : inspectionStatus === "error" ? <div className="inspection-load-error" role="alert">
-        <p>No se pudo cargar la inspección: {inspectionError}</p>
-        <button
-          type="button"
-          className="inspection-secondary-button"
-          onClick={() => loadInspection(createdTrip?.id_viajes ?? createdTrip?.idViaje)}
-        >
-          Reintentar inspección
-        </button>
-      </div> : inspection?.required ? <button
-        type="button"
-        className="start-trip-button inspection-required-button"
-        onClick={() => setInspectionOpen(true)}
-      >
-        {inspection.inspection?.estado === "PENDIENTE_APROBACION" ? "Ver estado de inspección" : "Completar inspección vehicular"}
-      </button> : <button
-        type="button"
-        className="start-trip-button"
-        onClick={handleStartTrip}
-        disabled={startingTrip}
-      >
-        {startingTrip
-          ? "Iniciando viaje..."
-          : "▶ Iniciar viaje"}
-      </button>
-    )}
+    {/* Botones de Acción */}
+    <div className="gv-trip-actions">
+      {!startedTrip && !finishedTrip && !cancelledTrip && (
+        gerenciamientoPendiente ? (
+          <button
+            type="button"
+            className="gv-btn-primary"
+            disabled
+            style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c" }}
+          >
+            <IconClock size={16} color="#ffffff" className="spin" /> Esperando Autorización de Gerenciamiento...
+          </button>
+        ) : inspectionStatus === "loading" || inspectionStatus === "idle" ? (
+          <button
+            type="button"
+            className="gv-btn-primary"
+            disabled
+          >
+            Validando inspección vehicular...
+          </button>
+        ) : inspectionStatus === "error" ? (
+          <div className="inspection-load-error" role="alert">
+            <p>No se pudo cargar la inspección: {inspectionError}</p>
+            <button
+              type="button"
+              className="gv-btn-primary"
+              onClick={() => loadInspection(createdTrip?.id_viajes ?? createdTrip?.idViaje)}
+            >
+              Reintentar inspección
+            </button>
+          </div>
+        ) : inspection?.required ? (
+          <button
+            type="button"
+            className="gv-btn-primary"
+            onClick={() => setInspectionOpen(true)}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+            </svg>
+            <span>{inspection.inspection?.estado === "PENDIENTE_APROBACION" ? "Ver estado de inspección" : "Completar inspección vehicular"}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="gv-btn-primary"
+            onClick={handleStartTrip}
+            disabled={startingTrip}
+          >
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            <span>{startingTrip ? "Iniciando viaje..." : "Iniciar viaje"}</span>
+          </button>
+        )
+      )}
 
-    {!finishedTrip && !cancelledTrip && (
-      <button
-        type="button"
-        className="cancel-trip-button"
-        onClick={handleCancelTrip}
-        disabled={cancellingTrip || startingTrip}
-      >
-        {cancellingTrip ? "Cancelando viaje..." : "Cancelar viaje"}
-      </button>
-    )}
+      {!finishedTrip && !cancelledTrip && (
+        <button
+          type="button"
+          className="gv-btn-cancel"
+          onClick={handleCancelTrip}
+          disabled={cancellingTrip || startingTrip}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+          </svg>
+          <span>{cancellingTrip ? "Cancelando viaje..." : "Cancelar viaje"}</span>
+        </button>
+      )}
+    </div>
 
     {startedTrip && !finishedTrip && !cancelledTrip && (
       <section className="gps-panel">
