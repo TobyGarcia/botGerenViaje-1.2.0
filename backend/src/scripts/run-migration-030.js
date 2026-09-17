@@ -40,7 +40,8 @@ function loadEnvFiles() {
 async function run() {
   try {
     loadEnvFiles();
-    const connStr = process.env.DATABASE_URL || "postgresql://viajes_admin_prod:viajes_password_prod@127.0.0.1:5432/gerenciamiento_viajes_prod";
+    let connStr = process.env.DATABASE_URL || "postgresql://viajes_admin_prod:viajes_password_prod@127.0.0.1:5432/gerenciamiento_viajes_prod";
+    connStr = connStr.replace("@postgres:", "@127.0.0.1:");
     console.log("Conectando a base de datos con URL:", connStr.replace(/:[^:@]+@/, ":****@"));
     
     const pool = new Pool({ connectionString: connStr });
