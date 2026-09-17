@@ -10397,3 +10397,112 @@ min-width: 0;
     justify-content: center !important;
   }
 }
+
+/* ==========================================================
+   DASHBOARD TRIPS GRID (Viajes Activos y Recientes Responsivo)
+   ========================================================== */
+
+.dashboard-trips-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-trips-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.recent-trips-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: hidden;
+  max-height: 250px;
+  border-left: 4px solid #0284c7 !important;
+}
+
+.recent-trips-card-header span {
+  font-size: 0.88rem;
+  color: #607986;
+  font-weight: 600;
+  display: block;
+}
+
+.recent-trips-card-count {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0284c7;
+  line-height: 1;
+}
+
+.active-trips-card {
+  max-height: 250px;
+}
+
+.active-trips-mini-item.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.active-trips-mini-item.clickable:hover {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+  transform: translateY(-1px);
+}
+
+.active-trips-mini-status-text.finalizado {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.15);
+}
+
+.active-trips-mini-status-text.cancelado {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-green-blinking {
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-green 1.8s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.dot-yellow-fixed {
+  background: #ca8a04;
+}
+
+.dot-blue-fixed {
+  background: #0284c7;
+}
+
+.dot-red-fixed {
+  background: #dc2626;
+}
