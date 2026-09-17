@@ -79,10 +79,16 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
     }
   }
 
+  function safeId(val) {
+    if (val === null || val === undefined || val === "" || val === "CUSTOM") return null;
+    const n = Number(val);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+
   // Resoluciones dinámicas de Vehículo, Origen y Destino para la creación del viaje base
-  let idVehiculo = data.idVehiculo ? Number(data.idVehiculo) : null;
-  let idOrigen = data.idOrigen ? Number(data.idOrigen) : null;
-  let idDestino = data.idDestino ? Number(data.idDestino) : null;
+  let idVehiculo = safeId(data.idVehiculo);
+  let idOrigen = safeId(data.idOrigen);
+  let idDestino = safeId(data.idDestino);
 
   if (!idVehiculo && (data.numeroUnidad || data.placa)) {
     try {
@@ -119,7 +125,7 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       if (dRes.rows[0]) idDestino = dRes.rows[0].id_lugares;
     } catch (dErr) {}
   }
-  if (!idDestino) {
+  if (!idDestino || idDestino === idOrigen) {
     try {
       const dFirst = await databasePool.query("SELECT id_lugares FROM lugares WHERE activo = TRUE AND id_lugares != $1 ORDER BY id_lugares DESC LIMIT 1", [idOrigen || 0]);
       if (dFirst.rows[0]) idDestino = dFirst.rows[0].id_lugares;
@@ -127,53 +133,45 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
   }
 
   // 1. Si no existe un id_viaje previo, crear el viaje base en estado PENDIENTE
-  let idViaje = data.idViaje || null;
+  let idViaje = safeId(data.idViaje);
   if (!idViaje && idVehiculo && idOrigen && idDestino) {
-    try {
-      const acompanantesFormateados = Array.isArray(data.acompanantes)
-        ? data.acompanantes.map((nombre) => (typeof nombre === 'string' ? { nombre } : nombre))
-        : [];
-      const newTrip = await createTrip({
-        idConductor,
-        idVehiculo,
-        idOrigen,
-        idDestino,
-        acompanantes: acompanantesFormateados,
-        kilometrajeInicial: Number(data.kilometraje || 0),
-        motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`,
-        esGerenciamiento: true
-      });
-      idViaje = newTrip.id_viajes || newTrip.idViaje || null;
-    } catch (tripErr) {
-      console.error("[Gerenciamiento] Error al crear automáticamente el viaje base:", tripErr.message);
-    }
+    const acompanantesFormateados = Array.isArray(data.acompanantes)
+      ? data.acompanantes.map((nombre) => (typeof nombre === 'string' ? { nombre } : nombre))
+      : [];
+    const newTrip = await createTrip({
+      idConductor,
+      idVehiculo,
+      idOrigen,
+      idDestino,
+      acompanantes: acompanantesFormateados,
+      kilometrajeInicial: Number(data.kilometraje || 0),
+      motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`,
+      esGerenciamiento: true
+    });
+    idViaje = newTrip.id_viajes || newTrip.idViaje || null;
   }
 
-  // 2. Si se incluyeron datos de Inspección Vehicular en el formato de Gerenciamiento, registrarlos automáticamente
+  // 2. Registros de Inspección Vehicular en el formato de Gerenciamiento
   if (idViaje && (data.inspeccionData || data.checklist)) {
-    try {
-      const rawTipo = String(data.tipoAsignacion || data.inspeccionData?.tipoAsignacion || "").toUpperCase();
-      const tipoAsignacion = rawTipo === "TEMPORAL" ? "TEMPORAL" : "PERMANENTE";
-      let combustible = data.inspeccionData?.combustible || data.combustible || "3/4";
-      if (!['E', '1/4', '1/2', '3/4', 'F'].includes(combustible)) {
-        combustible = "3/4";
-      }
-
-      const inspPayload = {
-        combustible,
-        tipoAsignacion,
-        asignacionInicio: data.inspeccionData?.asignacionInicio || null,
-        asignacionFin: data.inspeccionData?.asignacionFin || null,
-        checklist: data.inspeccionData?.checklist || data.checklist || {},
-        danos: data.inspeccionData?.danos || data.danos || {},
-        observaciones: data.inspeccionData?.observaciones || data.observacionesVehiculo || data.observaciones || null,
-        firma: data.inspeccionData?.firma || data.firmaConductor || null,
-        esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente)
-      };
-      await saveInspection({ idViaje, idConductor, data: inspPayload });
-    } catch (inspErr) {
-      console.error("[Gerenciamiento] Error al vincular la inspección vehicular:", inspErr.message);
+    const rawTipo = String(data.tipoAsignacion || data.inspeccionData?.tipoAsignacion || "").toUpperCase();
+    const tipoAsignacion = rawTipo === "TEMPORAL" ? "TEMPORAL" : "PERMANENTE";
+    let combustible = data.inspeccionData?.combustible || data.combustible || "3/4";
+    if (!['E', '1/4', '1/2', '3/4', 'F'].includes(combustible)) {
+      combustible = "3/4";
     }
+
+    const inspPayload = {
+      combustible,
+      tipoAsignacion,
+      asignacionInicio: data.inspeccionData?.asignacionInicio || null,
+      asignacionFin: data.inspeccionData?.asignacionFin || null,
+      checklist: data.inspeccionData?.checklist || data.checklist || {},
+      danos: data.inspeccionData?.danos || data.danos || {},
+      observaciones: data.inspeccionData?.observaciones || data.observacionesVehiculo || data.observaciones || null,
+      firma: data.inspeccionData?.firma || data.firmaConductor || null,
+      esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente)
+    };
+    await saveInspection({ idViaje, idConductor, data: inspPayload });
   }
 
   // Inicializar los sitios de reporte con la lista de puntos de ruta
@@ -282,13 +280,14 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
 export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
     SELECT g.*,
-      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
       COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
       COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
-      o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre,
+      COALESCE(o.nombre, g.origen_texto, 'Origen N/A') AS origen_nombre,
+      COALESCE(d.nombre, g.destino_texto, 'Destino N/A') AS destino_nombre,
       i.id_inspeccion,
       i.combustible AS inspeccion_combustible,
       i.checklist AS inspeccion_checklist,
@@ -366,13 +365,14 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
 
   const query = `
     SELECT g.*,
-      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS conductor_nombre,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
+      COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
       COALESCE(g.licencia_vencimiento, c.licencia_vencimiento) AS licencia_vencimiento,
       COALESCE(NULLIF(g.telefono_conductor, ''), c.telefono, 'N/A') AS telefono_conductor,
-      o.nombre AS origen_nombre,
-      d.nombre AS destino_nombre,
+      COALESCE(o.nombre, g.origen_texto, 'Origen N/A') AS origen_nombre,
+      COALESCE(d.nombre, g.destino_texto, 'Destino N/A') AS destino_nombre,
       i.id_inspeccion,
       i.combustible AS inspeccion_combustible,
       i.checklist AS inspeccion_checklist,
@@ -539,7 +539,7 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
 
 export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, horaReportada }) {
   const currentRes = await databasePool.query(`
-    SELECT sitios_reporte FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1
+    SELECT sitios_reporte, id_viaje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1
   `, [idGerenciamiento]);
 
   if (currentRes.rows.length === 0) {
@@ -547,9 +547,19 @@ export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, 
   }
 
   let sitios = currentRes.rows[0].sitios_reporte || [];
+  if (typeof sitios === "string") {
+    try { sitios = JSON.parse(sitios); } catch {}
+  }
   if (sitios[puntoIndex]) {
     sitios[puntoIndex].horaReportada = horaReportada || new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
+
+  const updateRes = await databasePool.query(`
+    UPDATE gerenciamiento_viajes
+    SET sitios_reporte = $1::jsonb, actualizado_en = CURRENT_TIMESTAMP
+    WHERE id_gerenciamiento = $2
+    RETURNING *
+  `, [JSON.stringify(sitios), idGerenciamiento]);
 
   return updateRes.rows[0];
 }

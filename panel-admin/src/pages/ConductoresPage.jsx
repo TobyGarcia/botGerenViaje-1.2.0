@@ -10,7 +10,9 @@ import {
   updateAdminConductorStatus,
   approveAdminConductor,
   setAdminConductorPin,
-  toggleAdminConductorActive
+  toggleAdminConductorActive,
+  getAdminConductorRole,
+  assignAdminConductorRole
 } from "../services/api.js";
 import { downloadPinCardImage } from "../utils/downloadPinCard.js";
 import {
@@ -31,7 +33,8 @@ import {
   IconTelegram,
   IconCalendar,
   IconExternalLink,
-  IconFileText
+  IconFileText,
+  IconManejoComentado
 } from "../components/Icons.jsx";
 import VehicleSelectDropdown from "../components/VehicleSelectDropdown.jsx";
 
@@ -104,7 +107,25 @@ function getLicenciaStatus(conductor) {
 }
 
 function getManejoComentadoStatus(conductor) {
-  if (!conductor?.fecha_manejo_comentado) {
+  const fecha = conductor?.fecha_vencimiento_manejo_comentado || conductor?.fecha_manejo_comentado;
+
+  if (conductor?.estado_manejo_comentado === "PENDIENTE") {
+    return {
+      status: "pendiente",
+      label: "Manejo comentado: Cálculo pendiente",
+      color: "#d97706"
+    };
+  }
+
+  if (conductor?.estado_manejo_comentado === "REPROBADO") {
+    return {
+      status: "reprobado",
+      label: "Manejo comentado reprobado",
+      color: "#dc2626"
+    };
+  }
+
+  if (!fecha || conductor?.estado_manejo_comentado === "SIN_REGISTRO") {
     return {
       status: "no_registrado",
       label: "Manejo comentado no registrado",
@@ -112,14 +133,14 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  const rawStr = String(conductor.fecha_manejo_comentado).trim();
+  const rawStr = String(fecha).trim();
   const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   let expDate;
   if (dateMatch) {
     const [, y, m, d] = dateMatch.map(Number);
     expDate = new Date(y, m - 1, d);
-  } else if (conductor.fecha_manejo_comentado instanceof Date) {
-    const d = conductor.fecha_manejo_comentado;
+  } else if (fecha instanceof Date) {
+    const d = fecha;
     expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   } else {
     const d = new Date(rawStr);
@@ -134,14 +155,12 @@ function getManejoComentadoStatus(conductor) {
     };
   }
 
-  // La fecha registrada ES la fecha de vigencia (no se agregan meses adicionales).
-  // El cálculo se realiza directamente desde la fecha actual hacia la fecha de vigencia.
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const diffTime = expDate.getTime() - todayMidnight.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  const formattedExp = formatDate(conductor.fecha_manejo_comentado);
+  const formattedExp = formatDate(fecha);
 
   if (diffDays < 0) {
     const diasPasados = Math.abs(diffDays);
@@ -201,6 +220,82 @@ function formatDate(value) {
   );
 }
 
+function getRoleBadge(rol, idConductor) {
+  const normalized = String(rol || "").toUpperCase();
+  const idTooltip = idConductor ? `ID: CON-${String(idConductor).padStart(4, "0")}` : "";
+
+  if (!normalized || normalized === "CONDUCTOR") {
+    return (
+      <span
+        className="conductor-role-badge badge-conductor"
+        title={idTooltip}
+        data-tooltip={idTooltip}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "2px 8px",
+          borderRadius: "6px",
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          letterSpacing: "0.03em",
+          background: "#eef2ff",
+          color: "#4338ca",
+          border: "1px solid #c7d2fe",
+          width: "fit-content"
+        }}
+      >
+        CONDUCTOR
+      </span>
+    );
+  }
+
+  let style = {
+    background: "#f1f5f9",
+    color: "#334155",
+    border: "1px solid #cbd5e1"
+  };
+
+  if (normalized === "ADMINISTRADOR") {
+    style = { background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" };
+  } else if (["GERENTE", "GERENTE_GENERAL"].includes(normalized)) {
+    style = { background: "#fce7f3", color: "#9d174d", border: "1px solid #fbcfe8" };
+  } else if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(normalized)) {
+    style = { background: "#fef9c3", color: "#854d0e", border: "1px solid #fef08a" };
+  } else if (normalized === "SUPERVISOR") {
+    style = { background: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" };
+  } else if (normalized === "QHSE") {
+    style = { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" };
+  } else if (normalized === "INSTRUCTOR") {
+    style = { background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" };
+  } else if (normalized === "OPERADOR") {
+    style = { background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" };
+  }
+
+  return (
+    <span
+      className={`conductor-role-badge badge-${normalized.toLowerCase()}`}
+      title={idTooltip ? `${normalized} (${idTooltip})` : normalized}
+      data-tooltip={idTooltip ? `${normalized} (${idTooltip})` : normalized}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "4px",
+        padding: "2px 8px",
+        borderRadius: "6px",
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        letterSpacing: "0.03em",
+        width: "fit-content",
+        ...style
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "currentColor" }} />
+      {normalized}
+    </span>
+  );
+}
+
 function ConductoresPage({ user }) {
   const [conductores, setConductores] =
     useState([]);
@@ -236,8 +331,10 @@ function ConductoresPage({ user }) {
     useState(null);
 
   const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState("TODOS");
   const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
   const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
+  const [onlyExpiringManejoComentado, setOnlyExpiringManejoComentado] = useState(false);
   const [onlyPendingApproval, setOnlyPendingApproval] = useState(false);
 
   // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
@@ -252,6 +349,19 @@ function ConductoresPage({ user }) {
 
   const [toggleActiveConductor, setToggleActiveConductor] = useState(null);
   const [deleteConfirmConductor, setDeleteConfirmConductor] = useState(null);
+
+  // Estados para Modal de Asignación y Gestión de Roles
+  const [roleModalConductor, setRoleModalConductor] = useState(null);
+  const [roleModalData, setRoleModalData] = useState(null);
+  const [roleModalLoading, setRoleModalLoading] = useState(false);
+  const [roleModalSaving, setRoleModalSaving] = useState(false);
+  const [roleModalError, setRoleModalError] = useState("");
+  const [roleForm, setRoleForm] = useState({
+    rol: "OPERADOR",
+    username: "",
+    correo: "",
+    activo: true
+  });
 
   async function loadVehiculos() {
     try {
@@ -348,7 +458,7 @@ function ConductoresPage({ user }) {
         pinMode === "manual" ? manualPin.trim() : null
       );
 
-      const generatedPin = res.data?.pin;
+      const generatedPin = res.data?.pinGenerado || res.data?.pin || (pinMode === "manual" ? manualPin.trim() : null);
       setPinModalConductor(null);
       setPinSuccessData({
         conductorNombre: pinModalConductor.nombre,
@@ -367,7 +477,10 @@ function ConductoresPage({ user }) {
 
   function handleDownloadPinCard() {
     if (!pinSuccessData) return;
-    downloadPinCardImage(pinSuccessData.conductorNombre, pinSuccessData.pin);
+    downloadPinCardImage({
+      nombre: pinSuccessData.conductorNombre,
+      pin: pinSuccessData.pin
+    });
   }
 
   function handleCopyPin() {
@@ -384,6 +497,191 @@ function ConductoresPage({ user }) {
   const canApprove =
     !user ||
     ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol);
+
+  const canAssignRole =
+    !user ||
+    ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user.rol);
+
+  const canDeleteConductor = (conductor) => {
+    if (!conductor) return false;
+    if (!user) return true;
+    const callerRol = user.rol || "";
+
+    // No permitir auto-eliminación
+    if (user.id_conductores && conductor.id_conductores && Number(user.id_conductores) === Number(conductor.id_conductores)) {
+      return false;
+    }
+    if (user.id_usuarios_admin && conductor.id_usuarios_admin && Number(user.id_usuarios_admin) === Number(conductor.id_usuarios_admin)) {
+      return false;
+    }
+
+    if (["ADMINISTRADOR", "GERENTE_GENERAL"].includes(callerRol)) {
+      return true;
+    }
+
+    const targetRol = conductor.rol_administrativo || null;
+    if (!targetRol) {
+      // Conductor regular sin rol administrativo:
+      // Gerente, Coordinador y Supervisor pueden eliminarlo
+      return [
+        "GERENTE",
+        "COORDINADOR",
+        "COORDINADOR_AREA",
+        "COORDINADOR_QHSE",
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR"
+      ].includes(callerRol);
+    }
+
+    // Conductor con rol administrativo asignado:
+    // Solo un Gerente puede eliminar a un Coordinador, Supervisor y roles operativos
+    if (["GERENTE"].includes(callerRol)) {
+      return [
+        "COORDINADOR",
+        "COORDINADOR_AREA",
+        "COORDINADOR_QHSE",
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR",
+        "OPERADOR",
+        "CONSULTA"
+      ].includes(targetRol);
+    }
+
+    // Un Coordinador puede eliminar a un Supervisor y roles operativos
+    if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(callerRol)) {
+      return [
+        "SUPERVISOR",
+        "QHSE",
+        "INSTRUCTOR",
+        "OPERADOR",
+        "CONSULTA"
+      ].includes(targetRol);
+    }
+
+    // Un Supervisor solo puede eliminar a cualquier conductor regular (sin rol)
+    return false;
+  };
+
+  const getAllowedRoleOptions = () => {
+    const callerRol = user?.rol || "ADMINISTRADOR";
+    if (["ADMINISTRADOR", "GERENTE_GENERAL"].includes(callerRol)) {
+      return [
+        { value: "ADMINISTRADOR", label: "👑 ADMINISTRADOR — Control y Acceso Total al Sistema" },
+        { value: "GERENTE", label: "GERENTE — Aprueba Viajes de Riesgo ALTO (> 23 pts)" },
+        { value: "COORDINADOR", label: "COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO (16-22 pts)" },
+        { value: "SUPERVISOR", label: "SUPERVISOR — Aprueba Viajes de Riesgo BAJO e Inspecciones" },
+        { value: "QHSE", label: "QHSE — Auditoría y Control de Riesgos" },
+        { value: "INSTRUCTOR", label: "INSTRUCTOR — Manejo Comentado y Capacitación" },
+        { value: "OPERADOR", label: "OPERADOR — Módulo de Operaciones Diarias" },
+        { value: "CONSULTA", label: "CONSULTA — Solo Lectura" }
+      ];
+    }
+    if (["GERENTE"].includes(callerRol)) {
+      return [
+        { value: "COORDINADOR", label: "COORDINADOR DE ÁREA — Aprueba Viajes de Riesgo MEDIO" },
+        { value: "SUPERVISOR", label: "SUPERVISOR — Aprueba Viajes de Riesgo BAJO e Inspecciones" },
+        { value: "QHSE", label: "QHSE — Auditoría y Control de Riesgos" },
+        { value: "INSTRUCTOR", label: "INSTRUCTOR — Manejo Comentado y Capacitación" },
+        { value: "OPERADOR", label: "OPERADOR — Módulo de Operaciones Diarias" },
+        { value: "CONSULTA", label: "CONSULTA — Solo Lectura" }
+      ];
+    }
+    if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(callerRol)) {
+      return [
+        { value: "SUPERVISOR", label: "SUPERVISOR — Aprueba Viajes de Riesgo BAJO e Inspecciones" },
+        { value: "QHSE", label: "QHSE — Auditoría y Control de Riesgos" },
+        { value: "INSTRUCTOR", label: "INSTRUCTOR — Manejo Comentado y Capacitación" },
+        { value: "OPERADOR", label: "OPERADOR — Módulo de Operaciones Diarias" },
+        { value: "CONSULTA", label: "CONSULTA — Solo Lectura" }
+      ];
+    }
+    return [];
+  };
+
+  async function handleOpenRoleModal(conductor) {
+    setRoleModalConductor(conductor);
+    setRoleModalData(null);
+    setRoleModalLoading(true);
+    setRoleModalError("");
+
+    // Generar sugerencia limpia de username a partir del nombre
+    const cleanUsername = (conductor.nombre || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, ".")
+      .replace(/\.+/g, ".")
+      .replace(/^\.|\.$/g, "")
+      .slice(0, 25);
+
+    let defaultRole = "OPERADOR";
+    if (user?.rol === "ADMINISTRADOR") defaultRole = "SUPERVISOR";
+    else if (["GERENTE", "GERENTE_GENERAL"].includes(user?.rol)) defaultRole = "COORDINADOR";
+    else if (["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user?.rol)) defaultRole = "SUPERVISOR";
+
+    setRoleForm({
+      rol: conductor.rol_administrativo || defaultRole,
+      username: conductor.admin_username || cleanUsername,
+      correo: conductor.admin_correo || "",
+      activo: conductor.admin_activo !== false
+    });
+
+    try {
+      const res = await getAdminConductorRole(conductor.id_conductores);
+      if (res?.data) {
+        setRoleModalData(res.data);
+        if (res.data.usuarioAdmin) {
+          setRoleForm({
+            rol: res.data.usuarioAdmin.rol || defaultRole,
+            username: res.data.usuarioAdmin.username || cleanUsername,
+            correo: res.data.usuarioAdmin.correo || "",
+            activo: res.data.usuarioAdmin.activo !== false
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error al cargar datos de rol:", err);
+      setRoleModalError(err.message || "No fue posible consultar el rol del conductor.");
+    } finally {
+      setRoleModalLoading(false);
+    }
+  }
+
+  async function handleSubmitRole(e, overrideModo = null) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!roleModalConductor) return;
+
+    const hasLinkedUser = Boolean(roleModalConductor.id_usuarios_admin || roleModalData?.usuarioAdmin);
+    const modo = overrideModo || (hasLinkedUser ? "ACTUALIZAR" : "NUEVO");
+
+    if (overrideModo === "REVOCAR") {
+      if (!window.confirm(`¿Estás seguro de revocar el rol administrativo de ${roleModalConductor.nombre}? El perfil volverá a ser exclusivamente conductor.`)) {
+        return;
+      }
+    }
+
+    setRoleModalSaving(true);
+    setRoleModalError("");
+
+    try {
+      const res = await assignAdminConductorRole(roleModalConductor.id_conductores, {
+        modo,
+        data: roleForm
+      });
+
+      setMessage(res.message || "Rol actualizado correctamente.");
+      setMessageType("success");
+      setRoleModalConductor(null);
+      await loadConductores();
+    } catch (err) {
+      console.error("Error asignando rol:", err);
+      setRoleModalError(err.message || "Ocurrió un error al procesar la asignación de rol.");
+    } finally {
+      setRoleModalSaving(false);
+    }
+  }
 
   function handleOpenToggleActive(conductor) {
     setToggleActiveConductor(conductor);
@@ -437,12 +735,24 @@ function ConductoresPage({ user }) {
   }, [search, status]);
 
   function handleOpenDelete(conductor) {
+    if (!canDeleteConductor(conductor)) {
+      setMessage("No tienes permisos suficientes para eliminar a este usuario.");
+      setMessageType("error");
+      return;
+    }
     setDeleteConfirmConductor(conductor);
   }
 
   async function confirmDeleteDriver() {
     if (!deleteConfirmConductor) return;
     const conductor = deleteConfirmConductor;
+
+    if (!canDeleteConductor(conductor)) {
+      setMessage("No tienes permisos suficientes para eliminar a este usuario.");
+      setMessageType("error");
+      setDeleteConfirmConductor(null);
+      return;
+    }
 
     setUpdatingId(conductor.id_conductores);
     setMessage("");
@@ -456,7 +766,7 @@ function ConductoresPage({ user }) {
       setConductores((current) =>
         current.filter((item) => item.id_conductores !== conductor.id_conductores)
       );
-      await loadConductores();
+      await Promise.all([loadConductores(), loadVehiculos()]);
 
       setMessage(response.message || "Conductor eliminado permanentemente.");
       setMessageType("success");
@@ -476,6 +786,18 @@ function ConductoresPage({ user }) {
 
   // Filtrado compuesto en cliente
   const filteredConductores = conductores.filter((conductor) => {
+    if (selectedRoleFilter !== "TODOS") {
+      const targetRol = conductor.rol_administrativo ? String(conductor.rol_administrativo).toUpperCase() : "";
+      if (selectedRoleFilter === "CONDUCTOR") {
+        if (targetRol) return false;
+      } else if (selectedRoleFilter === "GERENTE") {
+        if (!["GERENTE", "GERENTE_GENERAL"].includes(targetRol)) return false;
+      } else if (selectedRoleFilter === "COORDINADOR") {
+        if (!["COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(targetRol)) return false;
+      } else {
+        if (targetRol !== selectedRoleFilter) return false;
+      }
+    }
     if (selectedEmpresa !== "TODAS" && conductor.empresa !== selectedEmpresa) {
       return false;
     }
@@ -494,6 +816,12 @@ function ConductoresPage({ user }) {
         return false;
       }
     }
+    if (onlyExpiringManejoComentado) {
+      const mcStatus = getManejoComentadoStatus(conductor);
+      if (mcStatus.status !== "por_vencer" && mcStatus.status !== "vencido") {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -503,18 +831,24 @@ function ConductoresPage({ user }) {
   const aprobadosCount = conductores.filter((c) => c.aprobado_por_admin).length;
   const aprobadosPct = totalConductoresCount > 0 ? ((aprobadosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
   const unidadesAsignadasCount = conductores.filter((c) => c.id_vehiculo_asignado).length;
-  const unidadesSinAsignarCount = Math.max(0, totalConductoresCount - unidadesAsignadasCount);
+  const unidadesSinAsignarCount = vehiculosOptions.filter((v) => !v.id_conductor_asignado).length;
   const licenciasPorVencerCount = conductores.filter((c) => {
     const s = getLicenciaStatus(c).status;
     return s === "por_vencer" || s === "vencida";
+  }).length;
+  const manejosPorVencerCount = conductores.filter((c) => {
+    const s = getManejoComentadoStatus(c).status;
+    return s === "por_vencer" || s === "vencido";
   }).length;
 
   const handleResetFilters = () => {
     setSearch("");
     setStatus("TODOS");
     setSelectedEmpresa("TODAS");
+    setSelectedRoleFilter("TODOS");
     setSelectedUnidadFilter("TODAS");
     setOnlyExpiringLicenses(false);
+    setOnlyExpiringManejoComentado(false);
     setOnlyPendingApproval(false);
     setCurrentPage(1);
   };
@@ -646,6 +980,37 @@ function ConductoresPage({ user }) {
             <span className="kpi-sub-pill kpi-pill-amber">Plazo &lt; 30 días</span> {onlyExpiringLicenses ? "(Filtro activo)" : "requieren atención"}
           </div>
         </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyExpiringManejoComentado ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyExpiringManejoComentado(!onlyExpiringManejoComentado);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyExpiringManejoComentado(!onlyExpiringManejoComentado);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyExpiringManejoComentado ? "Click para mostrar todos los conductores" : "Click para filtrar conductores con manejo comentado por vencer o vencido"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Manejo Comentado</span>
+            <div className="kpi-icon-wrapper kpi-icon-purple">
+              <IconManejoComentado size={20} />
+            </div>
+          </div>
+          <div className={`kpi-card-value ${manejosPorVencerCount > 0 ? "kpi-val-purple" : ""}`}>{manejosPorVencerCount}</div>
+          <div className="kpi-card-subtext">
+            <span className={`kpi-sub-pill ${manejosPorVencerCount > 0 ? "kpi-pill-purple" : "kpi-pill-green"}`}>
+              {manejosPorVencerCount > 0 ? "Plazo < 30 días" : "Al día"}
+            </span>{" "}
+            {onlyExpiringManejoComentado ? "(Filtro activo)" : "por vencer"}
+          </div>
+        </div>
       </section>
 
       {/* Toolbar con filtros completos y botón de reset */}
@@ -693,6 +1058,28 @@ function ConductoresPage({ user }) {
                 {emp}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className="status-filter">
+          <span>Rol</span>
+          <select
+            value={selectedRoleFilter}
+            onChange={(event) => {
+              setSelectedRoleFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODOS">Rol: Todos</option>
+            <option value="CONDUCTOR">Solo Conductor</option>
+            <option value="ADMINISTRADOR">Administrador</option>
+            <option value="GERENTE">Gerente</option>
+            <option value="COORDINADOR">Coordinador</option>
+            <option value="SUPERVISOR">Supervisor</option>
+            <option value="QHSE">QHSE</option>
+            <option value="INSTRUCTOR">Instructor</option>
+            <option value="OPERADOR">Operador</option>
+            <option value="CONSULTA">Consulta</option>
           </select>
         </label>
 
@@ -767,6 +1154,16 @@ function ConductoresPage({ user }) {
         </div>
       )}
 
+      {onlyExpiringManejoComentado && (
+        <div className="filter-active-notice notice-purple">
+          <IconManejoComentado size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con manejo comentado vencido o por vencer en los próximos 30 días ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyExpiringManejoComentado(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
+
       <section className="table-panel">
         {loading ? (
           <p className="table-status">
@@ -807,9 +1204,7 @@ function ConductoresPage({ user }) {
                           <strong className="conductor-name-cell">
                             {conductor.nombre}
                           </strong>
-                          <span className="conductor-id-badge">
-                            ID: CON-{String(conductor.id_conductores).padStart(4, "0")}
-                          </span>
+                          {getRoleBadge(conductor.rol_administrativo, conductor.id_conductores)}
                         </div>
                       </td>
 
@@ -943,16 +1338,20 @@ function ConductoresPage({ user }) {
                               <IconKey size={16} />
                             </button>
 
-                            <button
-                              type="button"
-                              className="conductor-action-btn btn-role"
-                              data-tooltip="Asignar rol"
-                              aria-label="Asignar rol"
-                            >
-                              <IconRol size={16} />
-                            </button>
+                            {canAssignRole && (
+                              <button
+                                type="button"
+                                className="conductor-action-btn btn-role"
+                                disabled={updatingId === conductor.id_conductores}
+                                onClick={() => handleOpenRoleModal(conductor)}
+                                data-tooltip={conductor.rol_administrativo ? `Rol: ${conductor.rol_administrativo}` : "Asignar rol"}
+                                aria-label="Asignar rol"
+                              >
+                                <IconRol size={16} />
+                              </button>
+                            )}
 
-                            {(!user || ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(user.rol)) && (
+                            {canDeleteConductor(conductor) && (
                               <button
                                 type="button"
                                 className="conductor-action-btn btn-delete"
@@ -985,10 +1384,8 @@ function ConductoresPage({ user }) {
                   <header className="conductor-mobile-header">
                     <div>
                       <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
-                        <span className="conductor-id-badge">
-                          CON-{String(conductor.id_conductores).padStart(4, "0")}
-                        </span>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "4px", flexWrap: "wrap" }}>
+                        {getRoleBadge(conductor.rol_administrativo, conductor.id_conductores)}
                         <span className="empresa-pill-badge">
                           {conductor.empresa || "Sin empresa"}
                         </span>
@@ -1129,15 +1526,19 @@ function ConductoresPage({ user }) {
                       <span>{conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}</span>
                     </button>
 
-                    <button
-                      type="button"
-                      className="secondary-button btn-role-mobile"
-                      style={{ color: "#7c3aed", borderColor: "#ddd6fe", background: "#f5f3ff", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                    >
-                      <IconRol size={15} /> Asignar rol
-                    </button>
+                    {canAssignRole && (
+                      <button
+                        type="button"
+                        className="secondary-button btn-role-mobile"
+                        disabled={updatingId === conductor.id_conductores}
+                        onClick={() => handleOpenRoleModal(conductor)}
+                        style={{ color: "#7c3aed", borderColor: "#ddd6fe", background: "#f5f3ff", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      >
+                        <IconRol size={15} /> {conductor.rol_administrativo ? `Rol: ${conductor.rol_administrativo}` : "Asignar rol"}
+                      </button>
+                    )}
 
-                    {(!user || user.rol === "ADMINISTRADOR") && (
+                    {canDeleteConductor(conductor) && (
                       <button
                         type="button"
                         className="secondary-button"
@@ -1993,7 +2394,7 @@ function ConductoresPage({ user }) {
               </p>
               <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b", display: "flex", alignItems: "flex-start", gap: "8px" }}>
                 <IconAlerta size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
-                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.</span>
+                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram{deleteConfirmConductor.rol_administrativo ? ` y su cuenta administrativa con rol ${deleteConfirmConductor.rol_administrativo}` : ""}. Sus viajes históricos se conservarán para fines de auditoría.</span>
               </div>
             </div>
 
@@ -2015,6 +2416,272 @@ function ConductoresPage({ user }) {
                 {updatingId === deleteConfirmConductor.id_conductores ? "Eliminando..." : "Sí, eliminar"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Asignación y Gestión de Roles de Conductores */}
+      {roleModalConductor && (
+        <div
+          className="modal-overlay"
+          onClick={() => !roleModalSaving && setRoleModalConductor(null)}
+        >
+          <div
+            className="modal-card"
+            style={{ maxWidth: "580px", width: "100%", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="form-panel-header">
+              <div>
+                <h2>
+                  <IconRol size={20} style={{ verticalAlign: "middle", marginRight: 8, color: "#7c3aed" }} />
+                  {roleModalConductor.rol_administrativo ? "Gestión de Rol Administrativo" : "Asignar Rol a Conductor"}
+                </h2>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.85rem" }}>
+                  Personal: <strong>{roleModalConductor.nombre}</strong> {roleModalConductor.empresa ? `(${roleModalConductor.empresa})` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                disabled={roleModalSaving}
+                onClick={() => setRoleModalConductor(null)}
+              >
+                <IconCross size={16} />
+              </button>
+            </div>
+
+            {roleModalLoading ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "#64748b" }}>
+                <p>Consultando perfil y permisos del conductor...</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+                {/* Ficha Resumen del Conductor */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    fontSize: "0.85rem"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                    <span style={{ color: "#64748b" }}>Estado del Conductor:</span>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      {getRoleBadge(roleModalConductor.rol_administrativo, roleModalConductor.id_conductores)}
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          fontSize: "0.72rem",
+                          fontWeight: "bold",
+                          background: roleModalConductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
+                          color: roleModalConductor.aprobado_por_admin ? "#166534" : "#92400e",
+                          border: roleModalConductor.aprobado_por_admin ? "1px solid #bbf7d0" : "1px solid #fde68a"
+                        }}
+                      >
+                        {roleModalConductor.aprobado_por_admin ? "Aprobado" : "Pendiente de Aprobación"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "8px", color: "#334155" }}>
+                    <div>
+                      <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Teléfono:</span>
+                      <strong>{roleModalConductor.telefono || "No registrado"}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Telegram:</span>
+                      <strong>
+                        {roleModalConductor.telegram_username
+                          ? `@${roleModalConductor.telegram_username}`
+                          : (roleModalConductor.telegram_user_id ? `ID: ${roleModalConductor.telegram_user_id}` : "No vinculado")}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {!roleModalConductor.aprobado_por_admin && (
+                    <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "6px 10px", fontSize: "0.78rem", color: "#065f46", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <IconCheck size={14} />
+                      <span>Al asignar un rol, este conductor quedará <strong>aprobado automáticamente</strong> en el sistema.</span>
+                    </div>
+                  )}
+                </div>
+
+                {roleModalError && (
+                  <div style={{ background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", padding: "10px 12px", color: "#991b1b", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <IconAlerta size={16} style={{ flexShrink: 0 }} />
+                    <span>{roleModalError}</span>
+                  </div>
+                )}
+
+                {/* Si ya tiene rol administrativo vinculado */}
+                {roleModalConductor.rol_administrativo ? (
+                  <form onSubmit={(e) => handleSubmitRole(e, "ACTUALIZAR")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", padding: "10px 14px", fontSize: "0.85rem", color: "#5b21b6" }}>
+                      Cuenta vinculada: <strong>@{roleForm.username}</strong> {roleForm.correo ? `(${roleForm.correo})` : ""}
+                    </div>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                      Rol Administrativo *
+                      <select
+                        value={roleForm.rol}
+                        onChange={(e) => setRoleForm({ ...roleForm, rol: e.target.value })}
+                        style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
+                      >
+                        {getAllowedRoleOptions().map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Nombre de Usuario *
+                        <input
+                          type="text"
+                          required
+                          value={roleForm.username}
+                          onChange={(e) => setRoleForm({ ...roleForm, username: e.target.value })}
+                          placeholder="usuario"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Correo Electrónico
+                        <input
+                          type="email"
+                          value={roleForm.correo}
+                          onChange={(e) => setRoleForm({ ...roleForm, correo: e.target.value })}
+                          placeholder="usuario@empresa.com"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
+                    </div>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.88rem", cursor: "pointer", marginTop: "4px" }}>
+                      <input
+                        type="checkbox"
+                        checked={roleForm.activo}
+                        onChange={(e) => setRoleForm({ ...roleForm, activo: e.target.checked })}
+                      />
+                      <span style={{ fontWeight: 600, color: "#334155" }}>Acceso a plataforma activo</span>
+                    </label>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
+                      {roleModalData?.usuarioAdmin?.id_usuarios_admin === user?.idUsuarioAdmin ? (
+                        <span style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic" }}>
+                          (Tu propia sesión activa)
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                          disabled={roleModalSaving || (roleModalData?.usuarioAdmin?.rol === "ADMINISTRADOR" && user?.rol !== "ADMINISTRADOR")}
+                          onClick={(e) => handleSubmitRole(e, "REVOCAR")}
+                        >
+                          Revocar Rol Administrativo
+                        </button>
+                      )}
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={roleModalSaving}
+                          onClick={() => setRoleModalConductor(null)}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="primary-button"
+                          disabled={roleModalSaving}
+                        >
+                          {roleModalSaving ? "Guardando..." : "Guardar Cambios"}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  /* Conductor SIN rol administrativo aún - Formulario directo */
+                  <form onSubmit={(e) => handleSubmitRole(e, "NUEVO")} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                      Rol a Asignar *
+                      <select
+                        value={roleForm.rol}
+                        onChange={(e) => setRoleForm({ ...roleForm, rol: e.target.value })}
+                        style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem", background: "#ffffff" }}
+                      >
+                        {getAllowedRoleOptions().map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Nombre de Usuario *
+                        <input
+                          type="text"
+                          required
+                          value={roleForm.username}
+                          onChange={(e) => setRoleForm({ ...roleForm, username: e.target.value })}
+                          placeholder="carlos.ramirez"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                        Correo Electrónico
+                        <input
+                          type="email"
+                          value={roleForm.correo}
+                          onChange={(e) => setRoleForm({ ...roleForm, correo: e.target.value })}
+                          placeholder="usuario@itzamna.mx"
+                          style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #cadde6", fontSize: "0.9rem" }}
+                        />
+                      </label>
+                    </div>
+
+                    <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 12px", fontSize: "0.82rem", color: "#1e40af", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <IconKey size={16} style={{ flexShrink: 0 }} />
+                      <span>El <strong>PIN de 4 dígitos</strong> del conductor se sincronizará de forma inmediata para su inicio de sesión en plataforma o terminales.</span>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={roleModalSaving}
+                        onClick={() => setRoleModalConductor(null)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        style={{ background: "#7c3aed", borderColor: "#6d28d9" }}
+                        disabled={roleModalSaving}
+                      >
+                        {roleModalSaving ? "Asignando..." : "Asignar Rol y Habilitar"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

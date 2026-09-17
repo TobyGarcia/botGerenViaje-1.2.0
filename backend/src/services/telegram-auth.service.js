@@ -17,6 +17,7 @@ const conductorColumns = `
   licencia_numero,
   tipo_licencia,
   empresa,
+  puesto,
   licencia_vigente,
   licencia_vencimiento,
   fecha_manejo_comentado,
@@ -26,7 +27,6 @@ const conductorColumns = `
   licencia_url,
   licencia_reverso_url
 `;
-
 
 export async function findOrCreateTelegramUser({
   telegramUser
@@ -40,41 +40,7 @@ export async function findOrCreateTelegramUser({
     const result =
       await client.query(
         `
-          INSERT INTO usuarios_telegram (
-            telegram_user_id,
-            telegram_username,
-            telegram_first_name,
-            telegram_last_name,
-            ultimo_acceso_en
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            CURRENT_TIMESTAMP
-          )
-
-          ON CONFLICT (
-            telegram_user_id
-          )
-          DO UPDATE SET
-            telegram_username =
-              EXCLUDED.telegram_username,
-
-            telegram_first_name =
-              EXCLUDED.telegram_first_name,
-
-            telegram_last_name =
-              EXCLUDED.telegram_last_name,
-
-            ultimo_acceso_en =
-              CURRENT_TIMESTAMP,
-
-            actualizado_en =
-              CURRENT_TIMESTAMP
-
-          RETURNING
+          SELECT
             id_usuario_telegram,
             telegram_user_id,
             telegram_username,
@@ -83,40 +49,112 @@ export async function findOrCreateTelegramUser({
             id_conductores,
             rol,
             estado_registro,
-            activo,
-            ultimo_acceso_en
+            activo
+          FROM usuarios_telegram
+          WHERE telegram_user_id = $1
+          LIMIT 1
         `,
-        [
-          telegramUser.id,
-          telegramUser.username,
-          telegramUser.firstName,
-          telegramUser.lastName
-        ]
+        [telegramUser.id]
       );
 
-    const telegramDatabaseUser =
-      result.rows[0];
+    let row = result.rows[0];
+
+    if (!row) {
+      const insertResult =
+        await client.query(
+          `
+            INSERT INTO usuarios_telegram (
+              telegram_user_id,
+              telegram_username,
+              telegram_first_name,
+              telegram_last_name,
+              rol,
+              estado_registro,
+              activo
+            )
+            VALUES ($1, $2, $3, $4, 'CONDUCTOR', 'PENDIENTE', TRUE)
+            RETURNING
+              id_usuario_telegram,
+              telegram_user_id,
+              telegram_username,
+              telegram_first_name,
+              telegram_last_name,
+              id_conductores,
+              rol,
+              estado_registro,
+              activo
+          `,
+          [
+            telegramUser.id,
+            telegramUser.username ||
+              null,
+            telegramUser.first_name ||
+              null,
+            telegramUser.last_name ||
+              null
+          ]
+        );
+
+      row = insertResult.rows[0];
+    } else {
+      const updateResult =
+        await client.query(
+          `
+            UPDATE usuarios_telegram
+            SET telegram_username = $1,
+                telegram_first_name = $2,
+                telegram_last_name = $3,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE telegram_user_id = $4
+            RETURNING
+              id_usuario_telegram,
+              telegram_user_id,
+              telegram_username,
+              telegram_first_name,
+              telegram_last_name,
+              id_conductores,
+              rol,
+              estado_registro,
+              activo
+          `,
+          [
+            telegramUser.username ||
+              null,
+            telegramUser.first_name ||
+              null,
+            telegramUser.last_name ||
+              null,
+            telegramUser.id
+          ]
+        );
+
+      row = updateResult.rows[0];
+    }
 
     let conductor = null;
 
-    if (
-      telegramDatabaseUser.id_conductores
-    ) {
+    if (row.id_conductores) {
       const conductorResult =
         await client.query(
-          `SELECT ${conductorColumns} FROM conductores WHERE id_conductores = $1 LIMIT 1`,
-          [telegramDatabaseUser.id_conductores]
+          `
+            SELECT
+              ${conductorColumns}
+            FROM conductores
+            WHERE id_conductores = $1
+            LIMIT 1
+          `,
+          [row.id_conductores]
         );
 
-      conductor = conductorResult.rows[0] ?? null;
+      conductor =
+        conductorResult.rows[0] ||
+        null;
     }
 
     await client.query("COMMIT");
 
     return {
-      telegramUser:
-        telegramDatabaseUser,
-
+      telegramUser: row,
       conductor
     };
   } catch (error) {
@@ -128,16 +166,17 @@ export async function findOrCreateTelegramUser({
 }
 
 export async function registerTelegramDriver({
-  telegramUserId = null,
+  telegramUserId,
   nombre,
   telefono,
   licenciaNumero,
   tipoLicencia,
   empresa,
+  puesto,
   licenciaVencimiento,
-  fechaManejoComentado = null,
-  licenciaUrl = null,
-  licenciaReversoUrl = null
+  fechaManejoComentado,
+  licenciaUrl,
+  licenciaReversoUrl
 }) {
   const client = await databasePool.connect();
 
@@ -145,34 +184,36 @@ export async function registerTelegramDriver({
     await client.query("BEGIN");
 
     let telegramUser = null;
+    let targetConductorId = null;
+
     if (telegramUserId) {
-      const telegramUserResult = await client.query(
-        `SELECT id_usuario_telegram, telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, id_conductores, rol, estado_registro, activo
-         FROM usuarios_telegram WHERE telegram_user_id = $1 FOR UPDATE`,
+      const userResult = await client.query(
+        `SELECT id_usuario_telegram, id_conductores, estado_registro FROM usuarios_telegram WHERE telegram_user_id = $1 LIMIT 1`,
         [telegramUserId]
       );
-      telegramUser = telegramUserResult.rows[0] || null;
-
-      if (telegramUser && !telegramUser.activo) {
-        throw new TelegramRegistrationError("Tu acceso está restringido.", 403);
+      telegramUser = userResult.rows[0] || null;
+      if (telegramUser?.id_conductores) {
+        targetConductorId = telegramUser.id_conductores;
       }
     }
 
-    const licenciaVigente = licenciaVencimiento >= new Date().toISOString().slice(0, 10);
-    const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
-    const pinHash = await bcrypt.hash(generatedPin, 10);
-
-    // 1. Verificar si ya existe el conductor vinculado a este usuario de Telegram o por número de licencia
-    let targetConductorId = telegramUser?.id_conductores || null;
     if (!targetConductorId && licenciaNumero) {
       const existingLicense = await client.query(
-        `SELECT id_conductores FROM conductores WHERE LOWER(licencia_numero) = LOWER($1) LIMIT 1`,
+        `SELECT id_conductores FROM conductores WHERE licencia_numero = $1 LIMIT 1`,
         [licenciaNumero]
       );
       if (existingLicense.rows[0]) {
         targetConductorId = existingLicense.rows[0].id_conductores;
       }
     }
+
+    const parsedDate = new Date(`${licenciaVencimiento}T00:00:00Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const licenciaVigente = parsedDate >= today;
+
+    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const pinHash = await bcrypt.hash(generatedPin, 10);
 
     let conductor = null;
     if (targetConductorId) {
@@ -183,16 +224,17 @@ export async function registerTelegramDriver({
              telefono = $2,
              tipo_licencia = $3,
              empresa = $4,
-             licencia_vencimiento = $5,
-             licencia_vigente = $6,
-             fecha_manejo_comentado = COALESCE($7, fecha_manejo_comentado),
-             licencia_url = COALESCE($8, licencia_url),
-             licencia_reverso_url = COALESCE($9, licencia_reverso_url),
-             pin_hash = $10,
+             puesto = COALESCE($5, puesto),
+             licencia_vencimiento = $6,
+             licencia_vigente = $7,
+             fecha_manejo_comentado = COALESCE($8, fecha_manejo_comentado),
+             licencia_url = COALESCE($9, licencia_url),
+             licencia_reverso_url = COALESCE($10, licencia_reverso_url),
+             pin_hash = $11,
              actualizado_en = CURRENT_TIMESTAMP
-         WHERE id_conductores = $11
+         WHERE id_conductores = $12
          RETURNING ${conductorColumns}`,
-        [nombre, telefono, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash, targetConductorId]
+        [nombre, telefono, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash, targetConductorId]
       );
       conductor = updateResult.rows[0];
     } else {
@@ -200,12 +242,12 @@ export async function registerTelegramDriver({
       const conductorResult = await client.query(
         `
           INSERT INTO conductores (
-            nombre, telefono, licencia_numero, tipo_licencia, empresa, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
+            nombre, telefono, licencia_numero, tipo_licencia, empresa, puesto, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, FALSE, $11)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, FALSE, $12)
           RETURNING ${conductorColumns}
         `,
-        [nombre, telefono, licenciaNumero, tipoLicencia, empresa, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
+        [nombre, telefono, licenciaNumero, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
       );
       conductor = conductorResult.rows[0];
     }

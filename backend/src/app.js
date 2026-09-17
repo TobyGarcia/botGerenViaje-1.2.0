@@ -42,6 +42,7 @@ import manejoComentadoRoutes from "./routes/manejo-comentado.routes.js";
 import adminAnaliticaCombustibleRoutes from "./routes/admin-analitica-combustible.routes.js";
 import gerenciamientoViajesRoutes from "./routes/gerenciamiento-viajes.routes.js";
 import driverAuthRoutes from "./routes/driver-auth.routes.js";
+import siniestrosRoutes from "./routes/siniestros.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 
 
@@ -76,7 +77,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
 app.use(express.urlencoded({
@@ -111,6 +112,9 @@ app.use(
 app.use("/api/viajes/:idViaje/inspeccion", inspeccionesRoutes);
 
 app.use("/api/conductor/auth", driverAuthRoutes);
+app.use("/api/driver", driverAuthRoutes);
+app.use("/api/siniestros", siniestrosRoutes);
+app.use("/api/conductor/auth/siniestros", siniestrosRoutes);
 app.use(
   "/api/telegram",
   telegramAuthRoutes

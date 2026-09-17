@@ -22,6 +22,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          licencia_numero,
          tipo_licencia,
          empresa,
+         puesto,
          licencia_vigente,
          licencia_vencimiento,
          telefono,
@@ -64,6 +65,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          licencia_numero,
          tipo_licencia,
          empresa,
+         puesto,
          licencia_vigente,
          licencia_vencimiento,
          telefono,
@@ -108,6 +110,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
       licenciaNumero: conductor.licencia_numero,
       tipo_licencia: conductor.tipo_licencia,
       empresa: conductor.empresa,
+      puesto: conductor.puesto,
       licencia_vigente: conductor.licencia_vigente,
       licencia_vencimiento: conductor.licencia_vencimiento,
       telefono: conductor.telefono,
@@ -148,6 +151,7 @@ export async function findActiveDriverById(idConductor) {
        licencia_numero,
        tipo_licencia,
        empresa,
+       puesto,
        licencia_vigente,
        licencia_vencimiento,
        telefono,
@@ -170,9 +174,12 @@ export async function findDriverById(idConductor) {
        licencia_numero,
        tipo_licencia,
        empresa,
+       puesto,
        licencia_vigente,
        licencia_vencimiento,
        telefono,
+       licencia_url,
+       licencia_reverso_url,
        activo,
        aprobado_por_admin
      FROM conductores
@@ -181,6 +188,85 @@ export async function findDriverById(idConductor) {
     [idConductor]
   );
 
+  return result.rows[0] ?? null;
+}
+
+export async function updateDriverSelfProfile(idConductor, {
+  telefono,
+  licenciaNumero,
+  tipoLicencia,
+  puesto,
+  licenciaVencimiento,
+  licenciaUrl,
+  licenciaReversoUrl
+}) {
+  const updates = [];
+  const params = [idConductor];
+
+  if (telefono !== undefined) {
+    params.push(String(telefono).trim());
+    updates.push(`telefono = $${params.length}`);
+  }
+
+  if (licenciaNumero !== undefined) {
+    params.push(String(licenciaNumero).trim());
+    updates.push(`licencia_numero = $${params.length}`);
+  }
+
+  if (tipoLicencia !== undefined) {
+    params.push(String(tipoLicencia).trim());
+    updates.push(`tipo_licencia = $${params.length}`);
+  }
+
+  if (puesto !== undefined) {
+    params.push(puesto ? String(puesto).trim() : null);
+    updates.push(`puesto = $${params.length}`);
+  }
+
+  if (licenciaVencimiento !== undefined && String(licenciaVencimiento).trim()) {
+    const cleanDate = String(licenciaVencimiento).trim();
+    params.push(cleanDate);
+    updates.push(`licencia_vencimiento = $${params.length}::date`);
+    updates.push(`licencia_vigente = ($${params.length}::date >= CURRENT_DATE)`);
+  }
+
+  if (licenciaUrl !== undefined && licenciaUrl !== null) {
+    params.push(licenciaUrl);
+    updates.push(`licencia_url = $${params.length}`);
+  }
+
+  if (licenciaReversoUrl !== undefined && licenciaReversoUrl !== null) {
+    params.push(licenciaReversoUrl);
+    updates.push(`licencia_reverso_url = $${params.length}`);
+  }
+
+  if (updates.length === 0) {
+    return findDriverById(idConductor);
+  }
+
+  updates.push("actualizado_en = CURRENT_TIMESTAMP");
+
+  const query = `
+    UPDATE conductores
+    SET ${updates.join(", ")}
+    WHERE id_conductores = $1
+    RETURNING 
+      id_conductores,
+      nombre,
+      licencia_numero,
+      tipo_licencia,
+      empresa,
+      puesto,
+      licencia_vigente,
+      licencia_vencimiento,
+      telefono,
+      licencia_url,
+      licencia_reverso_url,
+      activo,
+      aprobado_por_admin
+  `;
+
+  const result = await databasePool.query(query, params);
   return result.rows[0] ?? null;
 }
 

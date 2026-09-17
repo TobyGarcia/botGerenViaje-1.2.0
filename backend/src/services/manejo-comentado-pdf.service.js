@@ -154,7 +154,7 @@ export function generateManejoComentadoPDF(data) {
   drawText(commands, "Firma del Instructor / Evaluador", MARGIN + 410, 95, 8, { bold: true, fill: primaryColor, align: "center" });
 
   // Footer Note
-  drawText(commands, "Este documento consta como registro histórico de la evaluación de manejo comentado (Validez: 6 meses).", PAGE_WIDTH / 2, 45, 7.5, { fill: "#64748b", align: "center" });
+  drawText(commands, "Este documento consta como registro histórico de la evaluación de manejo comentado.", PAGE_WIDTH / 2, 45, 7.5, { fill: "#64748b", align: "center" });
 
   const content = Buffer.from(commands.join("\n"), "latin1");
   const contentId = addObject(`<< /Length ${content.length} >>\nstream\n${commands.join("\n")}\nendstream`);

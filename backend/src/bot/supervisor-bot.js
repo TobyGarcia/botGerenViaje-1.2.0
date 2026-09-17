@@ -162,6 +162,40 @@ export async function startSupervisorBot() {
     { command: "ayuda", description: "Mostrar ayuda" }
   ]);
 
+  const supervisorWebAppUrl = process.env.TELEGRAM_SUPERVISOR_WEB_APP_URL || process.env.VITE_SUPERVISOR_APP_URL || process.env.TELEGRAM_WEB_APP_URL;
+  const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+
+  if (supervisorWebAppUrl) {
+    try {
+      await supervisorBotInstance.telegram.callApi("setChatMenuButton", {
+        menu_button: {
+          type: "web_app",
+          text: "bot supervisor",
+          web_app: { url: supervisorWebAppUrl }
+        }
+      });
+      console.log("Botón de menú global 'bot supervisor' configurado.");
+    } catch (err) {
+      console.warn("No se pudo configurar el botón de menú global 'bot supervisor':", err.message);
+    }
+
+    if (supervisorGroupId) {
+      try {
+        await supervisorBotInstance.telegram.callApi("setChatMenuButton", {
+          chat_id: supervisorGroupId,
+          menu_button: {
+            type: "web_app",
+            text: "bot supervisor",
+            web_app: { url: supervisorWebAppUrl }
+          }
+        });
+        console.log(`Botón de menú 'bot supervisor' configurado para el grupo Viajes_ITZ_supervisor (${supervisorGroupId}).`);
+      } catch (err) {
+        console.warn(`No se pudo configurar el botón de menú 'bot supervisor' en el grupo (${supervisorGroupId}):`, err.message);
+      }
+    }
+  }
+
   const started = await launchWithRetry(supervisorBotInstance);
 
   if (started) {
@@ -329,5 +363,73 @@ export async function notifyGerenciamientoCheckpoint({
     await bot.telegram.sendMessage(groupId, message);
   } catch (error) {
     console.error("No fue posible enviar la alerta de fichaje de hora al grupo de supervisores:", error);
+  }
+}
+
+export async function sendSiniestroSupervisorAlert({ siniestro, pdfBuffer }) {
+  const groupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_SUPERVISOR_ID;
+  if (!groupId) {
+    console.warn("No se envió la alerta de siniestro a supervisores: TELEGRAM_GROUP_SUPERVISOR_ID no está configurado.");
+    return;
+  }
+
+  const bot = getSupervisorBotInstance();
+  if (!bot) {
+    console.warn("No se envió la alerta de siniestro a supervisores: el bot de supervisión no está inicializado.");
+    return;
+  }
+
+  const message = [
+    `🚨 *ALERTA CRÍTICA DE SINIESTRO - BOT SUPERVISOR* 🚨`,
+    `----------------------------------------`,
+    `*Folio:* ${siniestro.folio || "N/A"}`,
+    `*Tipo de Incidentes:* ${siniestro.tipo_siniestro || "GENERAL"}`,
+    `*Conductor:* ${siniestro.conductor_nombre || "No especificado"}`,
+    `*Teléfono de Emergencia:* ${siniestro.conductor_telefono || "N/A"}`,
+    `*Empresa / Cargo:* ${siniestro.empresa || "ITZAMNA"} - ${siniestro.puesto || "N/A"}`,
+    `*Vehículo:* ${siniestro.vehiculo_nombre || "N/A"} (Eco: ${siniestro.numero_economico || "N/A"})`,
+    `*Placas:* ${siniestro.placas || "N/A"}`,
+    `----------------------------------------`,
+    `📍 *GPS:* Lat ${siniestro.latitud ?? "N/A"}, Lon ${siniestro.longitud ?? "N/A"}`,
+    siniestro.altitud ? `⛰️ *Altitud:* ${siniestro.altitud} m.s.n.m.` : null,
+    siniestro.latitud && siniestro.longitud ? `🗺️ [Google Maps Siniestro](https://www.google.com/maps?q=${siniestro.latitud},${siniestro.longitud})` : null,
+    `----------------------------------------`,
+    `📝 *Reporte del Conductor:* ${siniestro.descripcion || "Sin detalles"}`
+  ].filter(Boolean).join("\n");
+
+  try {
+    await bot.telegram.sendMessage(groupId, message, { parse_mode: "Markdown", disable_web_page_preview: false });
+
+    // Enviar fotos al grupo de supervisores
+    if (Array.isArray(siniestro.fotos) && siniestro.fotos.length > 0) {
+      const mediaGroup = siniestro.fotos.slice(0, 6).map((photo, index) => {
+        const base64Str = typeof photo === "string" ? photo : photo?.base64;
+        if (base64Str && base64Str.includes(";base64,")) {
+          const buf = Buffer.from(base64Str.split(",")[1], "base64");
+          return {
+            type: "photo",
+            media: { source: buf },
+            caption: index === 0 ? `🚨 Fotos Evidencia Siniestro Folio ${siniestro.folio}` : undefined
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (mediaGroup.length > 0) {
+        await bot.telegram.sendMediaGroup(groupId, mediaGroup);
+      }
+    }
+
+    // Enviar PDF del reporte al grupo de supervisores
+    if (pdfBuffer && Buffer.isBuffer(pdfBuffer)) {
+      await bot.telegram.sendDocument(groupId, {
+        source: pdfBuffer,
+        filename: `REPORTE_SINIESTRO_${siniestro.folio}.pdf`
+      }, {
+        caption: `📄 Reporte Oficial de Siniestro Folio ${siniestro.folio}`
+      });
+    }
+  } catch (error) {
+    console.error("Error al enviar alerta de siniestro al grupo de supervisores:", error.message);
   }
 }

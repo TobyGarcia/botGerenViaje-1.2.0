@@ -53,3 +53,17 @@ export function saveLicenseFileBase64(base64Data, originalName = "", prefix = "l
   return `/uploads/licencias/${fileName}`;
 }
 
+export function saveSiniestroPdfBuffer(pdfBuffer, folio) {
+  if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer)) return null;
+
+  const uploadDir = resolve(process.cwd(), "uploads", "siniestros");
+  mkdirSync(uploadDir, { recursive: true });
+
+  const safeFolio = String(folio || "SINIESTRO").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const fileName = `REPORTE_SINIESTRO_${safeFolio}_${Date.now()}.pdf`;
+  const filePath = join(uploadDir, fileName);
+
+  writeFileSync(filePath, pdfBuffer);
+  return `/uploads/siniestros/${fileName}`;
+}
+

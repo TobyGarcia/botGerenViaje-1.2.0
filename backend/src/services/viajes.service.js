@@ -1,5 +1,6 @@
 import { databasePool } from "../database/pool.js";
 import { registerMileageReading } from "./kilometraje.service.js";
+import { calculateValidityStatus } from "./manejo-comentado.service.js";
 
 function buildTripFolio(sequenceNumber) {
   const now = new Date();
@@ -353,30 +354,28 @@ export async function startTrip({
       );
     }
 
-    let evaluationDate = null;
-    if (trip.fecha_manejo_comentado) {
-      if (trip.fecha_manejo_comentado instanceof Date) {
-        evaluationDate = new Date(trip.fecha_manejo_comentado.getTime());
-      } else {
-        const rawStr = String(trip.fecha_manejo_comentado).trim();
-        const dateMatch = rawStr.match(/^\d{4}-\d{2}-\d{2}/);
-        if (dateMatch) {
-          const [y, m, d] = dateMatch[0].split("-").map(Number);
-          evaluationDate = new Date(y, m - 1, d);
-        } else {
-          evaluationDate = new Date(rawStr);
-        }
+    let evaluationDate = trip.fecha_manejo_comentado || null;
+    let score = null;
+    let evalStatus = null;
+
+    if (trip.id_conductores) {
+      const evalRes = await client.query(
+        `SELECT fecha_evaluacion, calificacion, estado_evaluacion
+         FROM evaluaciones_manejo_comentado
+         WHERE id_conductores = $1 AND estado_evaluacion = 'APROBADO'
+         ORDER BY fecha_evaluacion DESC
+         LIMIT 1`,
+        [trip.id_conductores]
+      );
+      if (evalRes.rows.length > 0) {
+        evaluationDate = evalRes.rows[0].fecha_evaluacion;
+        score = evalRes.rows[0].calificacion;
+        evalStatus = evalRes.rows[0].estado_evaluacion;
       }
     }
 
-    const isInvalid = !evaluationDate || Number.isNaN(evaluationDate.getTime());
-    const validUntil = !isInvalid ? new Date(evaluationDate.getTime()) : null;
-    if (validUntil) validUntil.setMonth(validUntil.getMonth() + 6);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const manejoComentadoVencido = isInvalid || !validUntil || validUntil < today;
+    const validity = calculateValidityStatus(evaluationDate, score, evalStatus);
+    const manejoComentadoVencido = validity.estado !== "VIGENTE" && validity.estado !== "PROXIMO_A_VENCER";
 
     if (manejoComentadoVencido) {
       const approvalResult = await client.query(

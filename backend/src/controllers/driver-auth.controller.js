@@ -1,5 +1,6 @@
-import { authenticateDriverWithPin, findActiveDriverById, findDriverById } from "../services/driver-auth.service.js";
+import { authenticateDriverWithPin, findActiveDriverById, findDriverById, updateDriverSelfProfile } from "../services/driver-auth.service.js";
 import { getDriverCookieName, getDriverCookieOptions, verifyDriverSessionToken } from "../utils/driver-session.js";
+import { saveLicenseFileBase64 } from "../utils/file-storage.js";
 
 export async function loginDriverWithPinController(request, response) {
   try {
@@ -113,9 +114,12 @@ export async function getDriverSessionController(request, response) {
           licenciaNumero: conductor.licencia_numero,
           tipo_licencia: conductor.tipo_licencia,
           empresa: conductor.empresa,
+          puesto: conductor.puesto,
           licencia_vigente: conductor.licencia_vigente,
           licencia_vencimiento: conductor.licencia_vencimiento,
           telefono: conductor.telefono,
+          licencia_url: conductor.licencia_url,
+          licencia_reverso_url: conductor.licencia_reverso_url,
           activo: conductor.activo,
           aprobado_por_admin: conductor.aprobado_por_admin
         }
@@ -135,5 +139,64 @@ export function logoutDriverController(request, response) {
     success: true,
     message: "Sesión cerrada correctamente."
   });
+}
+
+export async function updateDriverProfileController(request, response) {
+  try {
+    const idConductor = request.driverUser?.id_conductores;
+    if (!idConductor) {
+      return response.status(401).json({
+        success: false,
+        message: "No se encontró sesión de conductor válida."
+      });
+    }
+
+    const {
+      telefono,
+      licenciaNumero,
+      tipoLicencia,
+      puesto,
+      licenciaVencimiento,
+      licenciaArchivoBase64,
+      licenciaReversoBase64,
+      licenciaNombreArchivo,
+      licenciaReversoNombre
+    } = request.body || {};
+
+    let licenciaUrl = undefined;
+    let licenciaReversoUrl = undefined;
+
+    if (typeof licenciaArchivoBase64 === "string" && licenciaArchivoBase64.trim()) {
+      licenciaUrl = saveLicenseFileBase64(licenciaArchivoBase64, licenciaNombreArchivo || "", "licencia_frente");
+    }
+
+    if (typeof licenciaReversoBase64 === "string" && licenciaReversoBase64.trim()) {
+      licenciaReversoUrl = saveLicenseFileBase64(licenciaReversoBase64, licenciaReversoNombre || "", "licencia_reverso");
+    }
+
+    const updatedDriver = await updateDriverSelfProfile(idConductor, {
+      telefono,
+      licenciaNumero,
+      tipoLicencia,
+      puesto,
+      licenciaVencimiento,
+      licenciaUrl,
+      licenciaReversoUrl
+    });
+
+    return response.status(200).json({
+      success: true,
+      message: "Perfil de conductor actualizado exitosamente.",
+      data: {
+        conductor: updatedDriver
+      }
+    });
+  } catch (error) {
+    console.error("Error al actualizar perfil de conductor:", error);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "No fue posible actualizar los datos del conductor."
+    });
+  }
 }
 

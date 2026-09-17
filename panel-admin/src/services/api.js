@@ -224,6 +224,18 @@ export function setAdminConductorPin(idConductor, pin = null, autoGenerate = fal
   );
 }
 
+export function getAdminConductorRole(idConductor) {
+  return request(`/admin/conductores/${idConductor}/rol`);
+}
+
+export function assignAdminConductorRole(idConductor, { modo = "NUEVO", data = {} } = {}) {
+  return request(`/admin/conductores/${idConductor}/rol`, {
+    method: "POST",
+    body: JSON.stringify({ modo, data })
+  });
+}
+
+
 
 export function getAdminVehiculos({
   search = "",
@@ -360,7 +372,9 @@ export function createAdminDestino(
       method: "POST",
       body: JSON.stringify({
         nombre: destino.nombre,
-        direccion: destino.direccion
+        direccion: destino.direccion,
+        latitud: destino.latitud,
+        longitud: destino.longitud
       })
     }
   );
@@ -391,7 +405,30 @@ export function updateAdminDestino(
       method: "PATCH",
       body: JSON.stringify({
         nombre: destino.nombre,
-        direccion: destino.direccion
+        direccion: destino.direccion,
+        latitud: destino.latitud,
+        longitud: destino.longitud
+      })
+    }
+  );
+}
+
+export function deleteAdminDestino(idDestino) {
+  return request(
+    `/admin/destinos/${idDestino}`,
+    {
+      method: "DELETE"
+    }
+  );
+}
+
+export function importAdminDestinos(destinations) {
+  return request(
+    "/admin/destinos/importar",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        destinations
       })
     }
   );

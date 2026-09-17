@@ -11,7 +11,23 @@ export async function getConductores() {
       licencia_vigente,
       licencia_vencimiento,
       fecha_manejo_comentado,
-      (fecha_manejo_comentado IS NOT NULL AND fecha_manejo_comentado >= CURRENT_DATE - INTERVAL '6 months') AS manejo_comentado_vigente,
+      COALESCE(
+        (
+          SELECT 
+            CASE 
+              WHEN e.calificacion >= 85 THEN e.fecha_evaluacion >= CURRENT_DATE - INTERVAL '365 days'
+              WHEN e.calificacion >= 75 THEN e.fecha_evaluacion >= CURRENT_DATE - INTERVAL '180 days'
+              WHEN e.calificacion >= 50 THEN e.fecha_evaluacion >= CURRENT_DATE - INTERVAL '90 days'
+              ELSE FALSE
+            END
+          FROM evaluaciones_manejo_comentado e
+          WHERE e.id_conductores = conductores.id_conductores AND e.estado_evaluacion = 'APROBADO'
+          ORDER BY e.fecha_evaluacion DESC
+          LIMIT 1
+        ),
+        (fecha_manejo_comentado IS NOT NULL AND fecha_manejo_comentado >= CURRENT_DATE - INTERVAL '180 days'),
+        FALSE
+      ) AS manejo_comentado_vigente,
       telefono
     FROM conductores
     WHERE activo = TRUE

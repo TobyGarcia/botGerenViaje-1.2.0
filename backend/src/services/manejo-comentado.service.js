@@ -51,13 +51,43 @@ async function sendCourseNotificationToTelegramGroups({ titulo, fechaCursoOral, 
 }
 
 
-// Calcula estado de vigencia considerando la regla semestral (6 meses = 180 días)
-function calculateValidityStatus(fechaManejoComentado) {
+// Obtiene el periodo de vigencia en días según la calificación obtenida
+export function getPeriodoVigenciaByCalificacion(calificacion) {
+  const score = Number(calificacion ?? 0);
+  if (score >= 85) {
+    return { aprobado: true, diasPeriodo: 365, estado: "APROBADO", label: "365 días (1 año)" };
+  } else if (score >= 75) {
+    return { aprobado: true, diasPeriodo: 180, estado: "APROBADO", label: "180 días (6 meses)" };
+  } else if (score >= 50) {
+    return { aprobado: true, diasPeriodo: 90, estado: "APROBADO", label: "90 días (3 meses)" };
+  } else {
+    return { aprobado: false, diasPeriodo: 0, estado: "REPROBADO", label: "Reprobado (re-evaluación en 30 días)" };
+  }
+}
+
+// Calcula estado de vigencia considerando el periodo dinámico según la calificación
+export function calculateValidityStatus(fechaManejoComentado, calificacion, estadoEvaluacion) {
   if (!fechaManejoComentado) {
     return {
       estado: "SIN_REGISTRO",
       fechaVencimiento: null,
       diasParaVencer: null
+    };
+  }
+
+  if (estadoEvaluacion === "PENDIENTE") {
+    return {
+      estado: "PENDIENTE",
+      fechaVencimiento: null,
+      diasParaVencer: null
+    };
+  }
+
+  if (estadoEvaluacion === "REPROBADO" || (calificacion !== undefined && calificacion !== null && Number(calificacion) < 50)) {
+    return {
+      estado: "REPROBADO",
+      fechaVencimiento: null,
+      diasParaVencer: 0
     };
   }
 
@@ -83,8 +113,19 @@ function calculateValidityStatus(fechaManejoComentado) {
     };
   }
 
-  const expiryDate = new Date(evalDate);
-  expiryDate.setMonth(expiryDate.getMonth() + 6);
+  const score = (calificacion !== undefined && calificacion !== null) ? Number(calificacion) : 100;
+  const periodo = getPeriodoVigenciaByCalificacion(score);
+
+  if (!periodo.aprobado) {
+    return {
+      estado: "REPROBADO",
+      fechaVencimiento: null,
+      diasParaVencer: 0
+    };
+  }
+
+  const expiryDate = new Date(evalDate.getTime());
+  expiryDate.setDate(expiryDate.getDate() + periodo.diasPeriodo);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -106,7 +147,8 @@ function calculateValidityStatus(fechaManejoComentado) {
   return {
     estado,
     fechaVencimiento: `${yyyy}-${mm}-${dd}`,
-    diasParaVencer
+    diasParaVencer,
+    diasPeriodo: periodo.diasPeriodo
   };
 }
 
@@ -147,7 +189,8 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
             'calificacion', e.calificacion,
             'comentarios', e.comentarios,
             'documento_url', e.documento_url,
-            'fecha_evaluacion', e.fecha_evaluacion
+            'fecha_evaluacion', e.fecha_evaluacion,
+            'estado_evaluacion', e.estado_evaluacion
           )
           FROM evaluaciones_manejo_comentado e
           WHERE e.id_conductores = c.id_conductores
@@ -162,7 +205,11 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
   );
 
   const rows = result.rows.map((row) => {
-    const validity = calculateValidityStatus(row.fecha_manejo_comentado);
+    const validity = calculateValidityStatus(
+      row.fecha_manejo_comentado,
+      row.ultima_evaluacion?.calificacion,
+      row.ultima_evaluacion?.estado_evaluacion
+    );
     return {
       ...row,
       estado_vigencia: validity.estado,
@@ -274,7 +321,7 @@ export async function renewManejoComentadoDirect({
   calificacion = 100,
   comentarios = "Renovación directa registrada desde panel admin",
   idEvaluador = null,
-  estadoEvaluacion = "APROBADO",
+  estadoEvaluacion,
   rubrica = {}
 }) {
   const client = await databasePool.connect();
@@ -290,6 +337,10 @@ export async function renewManejoComentadoDirect({
     const conductor = conductorRes.rows[0];
     if (!conductor) throw new Error("Conductor no encontrado.");
 
+    const scoreNum = Number(calificacion);
+    const periodoInfo = getPeriodoVigenciaByCalificacion(scoreNum);
+    const finalEstadoEvaluacion = estadoEvaluacion || (periodoInfo.aprobado ? "APROBADO" : "REPROBADO");
+
     const evaluacionRes = await client.query(
       `
         INSERT INTO evaluaciones_manejo_comentado (
@@ -304,7 +355,7 @@ export async function renewManejoComentadoDirect({
         VALUES ($1, $2, COALESCE($3::timestamptz, CURRENT_TIMESTAMP), $4, $5, $6, $7)
         RETURNING *
       `,
-      [idConductor, idEvaluador, fechaEvaluacion || null, calificacion, estadoEvaluacion, comentarios, JSON.stringify(rubrica)]
+      [idConductor, idEvaluador, fechaEvaluacion || null, calificacion, finalEstadoEvaluacion, comentarios, JSON.stringify(rubrica)]
     );
 
     const evalRow = evaluacionRes.rows[0];
@@ -330,7 +381,7 @@ export async function renewManejoComentadoDirect({
       evalRow.documento_url = pdfUrl;
     }
 
-    if (estadoEvaluacion === "APROBADO") {
+    if (finalEstadoEvaluacion === "APROBADO") {
       const fechaActualizacion = fechaEvaluacion ? fechaEvaluacion.slice(0, 10) : new Date().toISOString().slice(0, 10);
       await client.query(
         `UPDATE conductores SET fecha_manejo_comentado = $1, actualizado_en = CURRENT_TIMESTAMP WHERE id_conductores = $2`,
@@ -341,7 +392,7 @@ export async function renewManejoComentadoDirect({
     await client.query("COMMIT");
 
     // Notificación al conductor
-    await notifyDriverResult(conductor, evalRow, estadoEvaluacion, calificacion, comentarios);
+    await notifyDriverResult(conductor, evalRow, finalEstadoEvaluacion, calificacion, comentarios);
 
     return evalRow;
   } catch (error) {
@@ -386,7 +437,8 @@ export async function submitInstructorEvaluation({
     const conductor = conductorRes.rows[0];
     if (!conductor) throw new Error("El conductor no existe.");
 
-    const estadoEvaluacion = Number(calificacion) >= 70 ? "APROBADO" : "REPROBADO";
+    const periodoInfo = getPeriodoVigenciaByCalificacion(calificacion);
+    const estadoEvaluacion = periodoInfo.aprobado ? "APROBADO" : "REPROBADO";
 
     let evalRow;
 
@@ -480,11 +532,12 @@ async function notifyDriverResult(conductor, evalRow, estadoEvaluacion, califica
 
     if (bot && telegramUser?.telegram_user_id) {
       if (estadoEvaluacion === "APROBADO") {
+        const periodoInfo = getPeriodoVigenciaByCalificacion(calificacion);
         const msg = `🎉 *¡FELICITACIONES, ${conductor.nombre.toUpperCase()}!*\n\n` +
           `Has APROBADO satisfactoriamente tu evaluación de *Manejo Comentado*.\n\n` +
           `⭐ *Puntaje:* ${calificacion} / 100\n` +
           `💬 *Comentarios del evaluador:* ${comentarios || "Desempeño adecuado."}\n` +
-          `📅 *Vigencia:* 6 meses a partir de hoy.`;
+          `📅 *Vigencia asignada:* ${periodoInfo.label}.`;
 
         await bot.telegram.sendMessage(telegramUser.telegram_user_id, msg, { parse_mode: "Markdown" }).catch(() => {});
       } else {
@@ -492,7 +545,7 @@ async function notifyDriverResult(conductor, evalRow, estadoEvaluacion, califica
           `Hola ${conductor.nombre}, tu evaluación ha sido registrada como *REPROBADA*.\n\n` +
           `📊 *Puntaje obtenido:* ${calificacion} / 100\n` +
           `💬 *Comentarios del evaluador:* ${comentarios || "Se requieren reforzar hábitos de conducción segura."}\n\n` +
-          `Tu instructor/evaluador se coordinará contigo para reprogramar tu evaluación.`;
+          `Tu instructor/evaluador se coordinará contigo para reprogramar tu evaluación al siguiente mes.`;
 
         await bot.telegram.sendMessage(telegramUser.telegram_user_id, msg, { parse_mode: "Markdown" }).catch(() => {});
       }

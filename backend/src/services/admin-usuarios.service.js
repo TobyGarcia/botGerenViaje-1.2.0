@@ -199,11 +199,30 @@ export async function updateAdminUser(id, data) {
 }
 
 export async function deleteAdminUser(id) {
-  const result = await databasePool.query(
-    "DELETE FROM usuarios_admin WHERE id_usuarios_admin = $1 RETURNING id_usuarios_admin",
-    [id]
-  );
-  return result.rows[0] ?? null;
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`UPDATE gerenciamiento_viajes SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [id]);
+    await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_admin_aprobador = NULL WHERE id_usuario_admin_aprobador = $1`, [id]);
+    await client.query(`UPDATE inspecciones_vehiculares SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [id]);
+
+    await client.query("SAVEPOINT sp_opcionales_admin_del");
+    try {
+      await client.query(`UPDATE autorizaciones_manejo_comentado_viaje SET id_usuario_autorizador = NULL WHERE id_usuario_autorizador = $1`, [id]);
+      await client.query("RELEASE SAVEPOINT sp_opcionales_admin_del");
+    } catch {
+      await client.query("ROLLBACK TO SAVEPOINT sp_opcionales_admin_del");
+    }
+
+    const result = await client.query("DELETE FROM usuarios_admin WHERE id_usuarios_admin=$1 RETURNING id_usuarios_admin", [id]);
+    await client.query("COMMIT");
+    return result.rows[0] ?? null;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function updateOwnProfile(id, data) {

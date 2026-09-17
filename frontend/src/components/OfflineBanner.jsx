@@ -1,36 +1,43 @@
 import { useState, useEffect } from 'react';
 import { countPendingLocations } from '../services/tracking-storage';
 import { syncPendingLocations } from '../services/tracking-service';
+import { countPendingSiniestros } from '../services/siniestro-storage';
+import { syncPendingSiniestros, onSiniestroSyncEvent } from '../services/siniestro-sync';
 import { IconRefresh, IconAlert } from './Icons.jsx';
 
 export default function OfflineBanner({ idViaje }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingSiniestroCount, setPendingSiniestroCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const checkPending = async () => {
-    if (!idViaje) {
-      setPendingCount(0);
-      return;
-    }
     try {
-      const count = await countPendingLocations(idViaje);
-      setPendingCount(count);
+      if (idViaje) {
+        const count = await countPendingLocations(idViaje);
+        setPendingCount(count);
+      } else {
+        setPendingCount(0);
+      }
+      const sCount = await countPendingSiniestros();
+      setPendingSiniestroCount(sCount);
     } catch {
       setPendingCount(0);
+      setPendingSiniestroCount(0);
     }
   };
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (idViaje) {
-        setIsSyncing(true);
-        syncPendingLocations(idViaje).finally(() => {
-          setIsSyncing(false);
-          checkPending();
-        });
-      }
+      setIsSyncing(true);
+      Promise.all([
+        idViaje ? syncPendingLocations(idViaje) : Promise.resolve(),
+        syncPendingSiniestros()
+      ]).finally(() => {
+        setIsSyncing(false);
+        checkPending();
+      });
     };
 
     const handleOffline = () => {
@@ -40,28 +47,38 @@ export default function OfflineBanner({ idViaje }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    const unsubscribe = onSiniestroSyncEvent(() => {
+      checkPending();
+    });
+
     const interval = setInterval(checkPending, 5000);
     checkPending();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      unsubscribe();
       clearInterval(interval);
     };
   }, [idViaje]);
 
   const handleManualSync = async () => {
-    if (!idViaje || isSyncing || !isOnline) return;
+    if (isSyncing || !isOnline) return;
     setIsSyncing(true);
     try {
-      await syncPendingLocations(idViaje);
+      await Promise.all([
+        idViaje ? syncPendingLocations(idViaje) : Promise.resolve(),
+        syncPendingSiniestros()
+      ]);
     } finally {
       setIsSyncing(false);
       checkPending();
     }
   };
 
-  if (isOnline && pendingCount === 0) {
+  const totalPending = pendingCount + pendingSiniestroCount;
+
+  if (isOnline && totalPending === 0) {
     return null;
   }
 
@@ -97,15 +114,18 @@ export default function OfflineBanner({ idViaje }) {
               <strong>Sincronizando datos...</strong>
             </div>
           )}
-          {pendingCount > 0 && (
+          {totalPending > 0 && (
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginTop: '2px' }}>
-              {pendingCount} {pendingCount === 1 ? 'lectura/punto pendiente' : 'lecturas/puntos pendientes'} por enviar
+              {pendingCount > 0 && <span>{pendingCount} {pendingCount === 1 ? 'punto GPS' : 'puntos GPS'}</span>}
+              {pendingCount > 0 && pendingSiniestroCount > 0 && <span> y </span>}
+              {pendingSiniestroCount > 0 && <span>🚨 {pendingSiniestroCount} {pendingSiniestroCount === 1 ? 'reporte de siniestro' : 'reportes de siniestros'}</span>}
+              <span> por enviar</span>
             </div>
           )}
         </div>
       </div>
 
-      {isOnline && pendingCount > 0 && (
+      {isOnline && totalPending > 0 && (
         <button
           onClick={handleManualSync}
           disabled={isSyncing}

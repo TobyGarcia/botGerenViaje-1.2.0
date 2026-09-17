@@ -82,10 +82,10 @@ export default function PerfilPage({ user, onUpdated }) {
           </button>
           <input
             ref={fileRef}
-            className="visually-hidden"
             type="file"
             accept="image/*"
             onChange={selectImage}
+            style={{ display: "none" }}
           />
           <span className="profile-photo-note">
             Formato recomendado: JPG, PNG o WEBP (máx 1.2 MB).

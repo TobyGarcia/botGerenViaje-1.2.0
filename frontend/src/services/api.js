@@ -17,7 +17,7 @@ async function request(path, options = {}) {
     : (driverToken || supervisorToken);
 
   const controller = new AbortController();
-  const timeoutMs = options.timeout || 8000;
+  const timeoutMs = options.timeout || 25000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -309,5 +309,19 @@ export function loginUsuarioConPin(pin) {
   return request("/api/admin/auth/pin-login", {
     method: "POST",
     body: JSON.stringify({ pin })
+  });
+}
+
+export function actualizarPerfilConductor(payload) {
+  return request("/api/conductor/auth/perfil", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function crearReporteSiniestro(payload) {
+  return request("/api/siniestros", {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
 }

@@ -313,7 +313,10 @@ export default function AnaliticaCombustiblePage() {
     total_inspecciones: 0,
     total_km_monitoreados: 0,
     promedio_combustible_inicial: 0,
-    total_vehiculos_analizados: 0
+    total_vehiculos_analizados: 0,
+    rendimiento_promedio_flota: null,
+    inspecciones_bajo_combustible: 0,
+    porcentaje_bajo_combustible: 0
   };
 
   const lecturas = data?.lecturas_lineales || [];
@@ -421,8 +424,8 @@ export default function AnaliticaCombustiblePage() {
 
       {error && <p className="module-message module-message-error">{error}</p>}
 
-      {/* Tarjetas KPI */}
-      <section className="kpi-grid">
+      {/* Tarjetas KPI (4 en 1 sola fila) */}
+      <section className="kpi-grid-4">
         <article className="kpi-card">
           <span>Total Inspecciones Analizadas</span>
           <strong>{kpis.total_inspecciones}</strong>

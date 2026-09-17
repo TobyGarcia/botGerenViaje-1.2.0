@@ -19,6 +19,7 @@ import {
   iniciarViaje,
   registrarUbicacion,
   getGerenciamientoViajePorViaje,
+  getGerenciamientoViaje,
   registrarReporteHoraGerenciamiento,
   getDriverSession,
   logoutDriver,
@@ -27,10 +28,13 @@ import {
 import RegistroConductor from "./pages/RegistroConductor.jsx";
 import InspeccionVehicular from "./pages/InspeccionVehicular.jsx";
 import GerenciamientoForm from "./components/GerenciamientoForm.jsx";
+import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConductor.jsx";
+import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
+import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import {
   IconCar,
   IconMap,
@@ -56,6 +60,7 @@ import {
   startSilentAudioKeepAlive,
   stopSilentAudioKeepAlive
 } from "./services/background-audio.js";
+import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
 
 const initialForm = {
@@ -155,6 +160,9 @@ const sendingLocationRef = useRef(false);
   const [newDestinoForm, setNewDestinoForm] = useState({ nombre: "", direccion: "" });
   const [savingNewDestino, setSavingNewDestino] = useState(false);
 
+  // Estado para modal de Reporte de Siniestro en viaje en curso
+  const [showSiniestroModal, setShowSiniestroModal] = useState(false);
+
   async function handleSaveNewDestino(e) {
     e.preventDefault();
     const nombre = newDestinoForm.nombre.trim();
@@ -253,6 +261,41 @@ const [cancelledTrip, setCancelledTrip] =
       setGerenciamientoDoc(null);
     }
   }, [startedTrip?.idViaje, startedTrip?.id_viajes, createdTrip?.idViaje, createdTrip?.id_viajes]);
+
+  // Sondeo continuo (polling) para detectar aprobación/rechazo del gerenciamiento de viaje por supervisión
+  useEffect(() => {
+    if (!gerenciamientoPendiente) return;
+
+    let timerId = null;
+    async function checkGerenciamientoStatus() {
+      try {
+        const idGeren = gerenciamientoPendiente.id_gerenciamiento || gerenciamientoPendiente.idGerenciamiento;
+        if (!idGeren) return;
+        const res = await getGerenciamientoViaje(idGeren);
+        if (res?.data) {
+          if (res.data.estado === "APROBADO") {
+            setGerenciamientoPendiente(null);
+            safeStorage.removeItem("cached_gerenciamiento_pendiente");
+            setMessage("✅ ¡Gerenciamiento de viaje APROBADO por supervisión! Ya puedes iniciar el viaje.");
+            setMessageType("success");
+          } else if (res.data.estado === "RECHAZADO") {
+            setGerenciamientoPendiente(null);
+            safeStorage.removeItem("cached_gerenciamiento_pendiente");
+            setCreatedTrip(null);
+            safeStorage.removeItem("cached_active_trip");
+            setMessage("⛔ Gerenciamiento de viaje RECHAZADO por supervisión.");
+            setMessageType("error");
+          }
+        }
+      } catch (err) {
+        // Ignorar errores de red temporales durante polling
+      }
+    }
+
+    checkGerenciamientoStatus();
+    timerId = setInterval(checkGerenciamientoStatus, 4000);
+    return () => { if (timerId) clearInterval(timerId); };
+  }, [gerenciamientoPendiente]);
 
   const [telegramAuth, setTelegramAuth] = useState(() => {
     const token = safeStorage.getItem("driver_token");
@@ -543,6 +586,16 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     return () => { active = false; clearTimeout(authTimeout); };
+  }, []);
+
+  useEffect(() => {
+    const cleanup = initSiniestroAutoSync((result) => {
+      if (result.synced > 0) {
+        setMessage(`✅ ¡Se enviaron automáticamente ${result.synced} reporte(s) de siniestro que estaba(n) guardado(s) en caché local!`);
+        setMessageType("success");
+      }
+    });
+    return cleanup;
   }, []);
 
   useEffect(() => {
@@ -1601,95 +1654,82 @@ function isOutsideOperatingHours() {
 
   return (
     <div className="app-shell">
-      <TopBar conductor={authenticatedDriver} onLogout={handleLogout} />
+      <TopBar
+        conductor={authenticatedDriver}
+        onLogout={handleLogout}
+        activeTabMode={activeTabMode}
+        onTabChange={setActiveTabMode}
+      />
       <main className="container">
         <PwaInstallPrompt />
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         <h1>
-        {createdTrip
-        ? "GERENCIAMIENTO DE VIAJE"
-        : activeTabMode === "gerenciamiento"
-          ? "GERENCIAMIENTO DE VIAJES"
-          : "Nuevo viaje"}
-      </h1>
+          {createdTrip
+            ? "GERENCIAMIENTO DE VIAJE"
+            : activeTabMode === "gerenciamiento"
+              ? "GERENCIAMIENTO DE VIAJES"
+              : activeTabMode === "siniestro"
+                ? "REPORTAR SINIESTRO"
+                : activeTabMode === "perfil"
+                  ? "ACTUALIZACIÓN DE DATOS"
+                  : "Nuevo viaje"}
+        </h1>
 
-      {/* Tabs Selector de Modo de Viaje */}
-      {!createdTrip && (
-        <div style={{ display: "flex", gap: "8px", marginBottom: "14px", background: "#e2e8f0", padding: "4px", borderRadius: "10px" }}>
-          <button
-            type="button"
-            onClick={() => setActiveTabMode("urban")}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              borderRadius: "8px",
-              border: 0,
-              fontWeight: "bold",
-              fontSize: "0.88rem",
-              background: activeTabMode === "urban" ? "#ffffff" : "transparent",
-              color: activeTabMode === "urban" ? "#0f172a" : "#64748b",
-              boxShadow: activeTabMode === "urban" ? "0 2px 6px rgba(0,0,0,0.1)" : "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px"
-            }}
-          >
-            <IconCar size={18} /> Viaje Urbano / Local
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTabMode("gerenciamiento")}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              borderRadius: "8px",
-              border: 0,
-              fontWeight: "bold",
-              fontSize: "0.88rem",
-              background: activeTabMode === "gerenciamiento" ? "linear-gradient(135deg, #1e3a8a, #0284c7)" : "transparent",
-              color: activeTabMode === "gerenciamiento" ? "#ffffff" : "#64748b",
-              boxShadow: activeTabMode === "gerenciamiento" ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px"
-            }}
-          >
-            <IconMap size={18} /> Gerenciamiento Fuera de Ciudad
-          </button>
-        </div>
-      )}
+        <section className="summary-card" aria-label="Fecha actual">
+          <span>Fecha actual</span>
+          <strong>{currentDate}</strong>
+        </section>
 
-      <section className="summary-card" aria-label="Fecha actual">
-        <span>Fecha actual</span>
-        <strong>{currentDate}</strong>
-      </section>
-
-      <section className="information-panel">
-          <p>
-            <strong>Usuario Telegram:</strong>{" "}
-            {telegramAuth.usuario?.firstName || "Usuario autenticado"}
-          </p>
-
-          <p>
-            <strong>Registro:</strong>{" "}
-            {telegramAuth.registered
-              ? "COMPLETO"
-              : telegramAuth.estadoRegistro || "PENDIENTE"}
-          </p>
-
-          {telegramAuth.conductor && (
+        <section className="information-panel">
             <p>
-              <strong>Conductor:</strong>{" "}
-              {telegramAuth.conductor.nombre}
+              <strong>Usuario Telegram:</strong>{" "}
+              {telegramAuth.usuario?.firstName || "Usuario autenticado"}
             </p>
-          )}
-      </section>
 
-      {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
+            <p>
+              <strong>Registro:</strong>{" "}
+              {telegramAuth.registered
+                ? "COMPLETO"
+                : telegramAuth.estadoRegistro || "PENDIENTE"}
+            </p>
+
+            {telegramAuth.conductor && (
+              <p>
+                <strong>Conductor:</strong>{" "}
+                {telegramAuth.conductor.nombre}
+              </p>
+            )}
+        </section>
+
+        {!createdTrip && activeTabMode === "siniestro" && (
+          <ReporteSiniestro
+            conductor={authenticatedDriver}
+            vehiculoAsignado={selectedVehicle}
+            onComplete={() => {
+              setActiveTabMode("urban");
+              setMessage("🚨 Reporte de siniestro registrado y enviado con éxito a supervisión.");
+              setMessageType("success");
+            }}
+            onCancel={() => setActiveTabMode("urban")}
+          />
+        )}
+
+        {!createdTrip && activeTabMode === "perfil" && (
+          <ActualizacionPerfilConductor
+            conductor={authenticatedDriver}
+            onProfileUpdated={(updatedConductor) => {
+              setTelegramAuth((prev) => ({
+                ...prev,
+                conductor: { ...prev?.conductor, ...updatedConductor }
+              }));
+              const currentCache = getCachedJson("cached_driver", {});
+              safeStorage.setJSON("cached_driver", { ...currentCache, ...updatedConductor });
+            }}
+            onCancel={() => setActiveTabMode("urban")}
+          />
+        )}
+
+        {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
         <GerenciamientoForm
           telegramAuth={telegramAuth}
           conductores={conductores}
@@ -1827,35 +1867,27 @@ function isOutsideOperatingHours() {
 
         <label>
           Origen
-          <select name="idOrigen" value={form.idOrigen} onChange={handleChange} required>
-            <option value="">Seleccione el origen</option>
-            {lugares.map((lugar) => (
-              <option
-                key={lugar.id_lugares}
-                value={lugar.id_lugares}
-                disabled={String(lugar.id_lugares) === form.idDestino}
-              >
-                {lugar.nombre}
-              </option>
-            ))}
-          </select>
+          <DestinationAutocomplete
+            lugares={lugares}
+            value={form.idOrigen}
+            onChange={(val) => handleChange({ target: { name: "idOrigen", value: val } })}
+            placeholder="Escribe para buscar origen..."
+            excludeId={form.idDestino}
+            required
+          />
         </label>
 
         <label>
           Destino
-          <select name="idDestino" value={form.idDestino} onChange={handleChange} required>
-            <option value="">Seleccione el destino</option>
-            {lugares.map((lugar) => (
-              <option
-                key={lugar.id_lugares}
-                value={lugar.id_lugares}
-                disabled={String(lugar.id_lugares) === form.idOrigen}
-              >
-                {lugar.nombre}
-              </option>
-            ))}
-            <option value="NUEVO_DESTINO">+ Agregar nuevo destino...</option>
-          </select>
+          <DestinationAutocomplete
+            lugares={lugares}
+            value={form.idDestino}
+            onChange={(val) => handleChange({ target: { name: "idDestino", value: val } })}
+            placeholder="Escribe para buscar destino..."
+            excludeId={form.idOrigen}
+            onAddNew={() => setShowAddDestinoModal(true)}
+            required
+          />
           <div style={{ marginTop: "4px", textAlign: "right" }}>
             <button
               type="button"
@@ -1936,24 +1968,8 @@ function isOutsideOperatingHours() {
               <div className="companions-header">
                 <div className="companions-title-group">
                   <span>Acompañantes</span>
-                  {form.viajaAcompanado && (
-                    <span className="companions-count-badge">
-                      {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
-                    </span>
-                  )}
                 </div>
                 <div className="companions-controls">
-                  {form.viajaAcompanado && (
-                    <button
-                      type="button"
-                      className="add-companion-btn"
-                      onClick={addCompanionField}
-                      disabled={listaAcompanantes.length >= maxAcompanantes}
-                      title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
-                    >
-                      + Agregar
-                    </button>
-                  )}
                   <button
                     type="button"
                     className={`companions-toggle ${form.viajaAcompanado ? "companions-toggle-active" : ""}`}
@@ -1970,9 +1986,25 @@ function isOutsideOperatingHours() {
 
               {form.viajaAcompanado && (
                 <div className="companions-inputs-wrapper">
-                  <small className="companions-rule-hint">
-                    {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
-                  </small>
+                  <div className="companions-sub-header">
+                    <small className="companions-rule-hint">
+                      {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
+                    </small>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span className="companions-count-badge">
+                        {listaAcompanantes.filter((s) => s.trim() !== "").length} / {maxAcompanantes} máx.
+                      </span>
+                      <button
+                        type="button"
+                        className="add-companion-btn"
+                        onClick={addCompanionField}
+                        disabled={listaAcompanantes.length >= maxAcompanantes}
+                        title={listaAcompanantes.length >= maxAcompanantes ? `Límite de ${maxAcompanantes} alcanzado` : "Agregar acompañante"}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  </div>
                   {listaAcompanantes.map((nombre, index) => (
                     <div key={index} className="companion-row">
                       <input
@@ -2152,6 +2184,17 @@ function isOutsideOperatingHours() {
       </p>
     )}
 
+    {gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
+      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", marginBottom: "14px", fontSize: "0.9rem", fontWeight: "bold" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <IconClock size={18} color="#ea580c" /> ⌛ Gerenciamiento Registrado — Esperando Aprobación de Supervisión
+        </span>
+        <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#475569", fontWeight: "normal" }}>
+          Tu gerenciamiento de viaje fuera del estado fue enviado a supervisión. En cuanto sea aprobado, se activará el botón para iniciar el viaje.
+        </p>
+      </div>
+    )}
+
     {!startedTrip && !finishedTrip && !cancelledTrip && (
       gerenciamientoPendiente ? (
         <button
@@ -2208,7 +2251,47 @@ function isOutsideOperatingHours() {
 
     {startedTrip && !finishedTrip && !cancelledTrip && (
       <section className="gps-panel">
-  <h3>Rastreo GPS</h3>
+        {/* Banner de Emergencia / Siniestro en Ruta */}
+        <div style={{ background: "#fef2f2", border: "2px solid #fca5a5", borderRadius: "14px", padding: "16px", marginBottom: "18px", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.12)", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div>
+              <strong style={{ color: "#991b1b", fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px", lineHeight: "1.3" }}>
+                <IconAlert size={22} color="#dc2626" style={{ shrink: 0 }} /> ¿Inconveniente o emergencia en la ruta?
+              </strong>
+              <p style={{ margin: "6px 0 0 0", fontSize: "0.85rem", color: "#7f1d1d", lineHeight: "1.4" }}>
+                Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSiniestroModal(true)}
+              style={{
+                width: "100%",
+                background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+                color: "#ffffff",
+                border: 0,
+                padding: "12px 16px",
+                borderRadius: "10px",
+                fontWeight: "800",
+                fontSize: "0.92rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(220, 38, 38, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                boxSizing: "border-box",
+                textAlign: "center",
+                lineHeight: "1.3"
+              }}
+            >
+              <IconAlert size={18} color="#ffffff" style={{ shrink: 0 }} />
+              <span>Reportar Siniestro / Incidente</span>
+            </button>
+          </div>
+        </div>
+
+        <h3>Rastreo GPS</h3>
 
   <p><strong>Seguimiento GPS:</strong> {trackingInfo.active ? "Activo" : "Detenido"}</p>
   <p><strong>Estado:</strong> {trackingInfo.status || gpsStatus}</p>
@@ -2418,6 +2501,97 @@ function isOutsideOperatingHours() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showSiniestroModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            padding: "16px",
+            overflowY: "auto"
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              maxWidth: "600px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              borderRadius: "16px",
+              background: "#ffffff",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              boxSizing: "border-box"
+            }}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "14px 20px",
+                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                color: "#ffffff",
+                borderTopLeftRadius: "16px",
+                borderTopRightRadius: "16px",
+                zIndex: 10,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)"
+              }}
+            >
+              <span style={{ fontWeight: "800", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                <IconAlert size={22} color="#ffffff" /> Reportar Siniestro / Incidente en Ruta
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSiniestroModal(false)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: 0,
+                  color: "#ffffff",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  fontSize: "1.3rem",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease"
+                }}
+                title="Cerrar modal"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Formulario de Siniestro */}
+            <div style={{ padding: "20px" }}>
+              <ReporteSiniestro
+                conductor={authenticatedDriver}
+                vehiculoAsignado={selectedVehicle}
+                onComplete={() => {
+                  setShowSiniestroModal(false);
+                  setMessage("🚨 Reporte de siniestro e incidencias registrado y transmitido con éxito a supervisión.");
+                  setMessageType("success");
+                }}
+                onCancel={() => setShowSiniestroModal(false)}
+              />
+            </div>
           </div>
         </div>
       )}

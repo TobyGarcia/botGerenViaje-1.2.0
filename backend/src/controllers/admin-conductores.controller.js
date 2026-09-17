@@ -4,7 +4,9 @@ import {
   listAdminDrivers,
   updateAdminDriverStatus,
   approveAdminDriver,
-  toggleAdminDriverActive
+  toggleAdminDriverActive,
+  getAdminConductorRole,
+  assignAdminConductorRole
 } from "../services/admin-conductores.service.js";
 import { setDriverPin } from "../services/driver-auth.service.js";
 import { saveLicenseFileBase64 } from "../utils/file-storage.js";
@@ -251,7 +253,8 @@ export async function updateAdminDriverStatusController(
     const updatedDriver =
       await updateAdminDriverStatus({
         idConductor,
-        activo
+        activo,
+        requestingUser: request.adminUser
       });
 
     if (!updatedDriver) {
@@ -276,6 +279,9 @@ export async function updateAdminDriverStatusController(
     if (["TRIP_IN_PROGRESS", "DRIVER_DELETED"].includes(error.code)) {
       return response.status(409).json({ success: false, message: error.message });
     }
+    if (error.code === "FORBIDDEN" || error.status === 403) {
+      return response.status(403).json({ success: false, message: error.message });
+    }
     console.error(
       "Error actualizando conductor:",
       error.message
@@ -286,7 +292,7 @@ export async function updateAdminDriverStatusController(
       .json({
         success: false,
         message:
-          "No fue posible actualizar el conductor."
+          error.message || "No fue posible actualizar el conductor."
       });
   }
 }
@@ -405,6 +411,7 @@ export async function setDriverPinAdminController(request, response) {
       message: `PIN del conductor actualizado correctamente: ${finalPin}`,
       data: {
         ...updated,
+        pin: finalPin,
         pinGenerado: finalPin
       }
     });
@@ -505,3 +512,86 @@ export async function toggleAdminDriverActiveController(request, response) {
     });
   }
 }
+
+export async function getAdminConductorRoleController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    const data = await getAdminConductorRole({ idConductor });
+    if (!data) {
+      return response.status(404).json({
+        success: false,
+        message: "Conductor no encontrado."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error("Error en getAdminConductorRoleController:", error);
+    return response.status(500).json({
+      success: false,
+      message: error.message || "Error al consultar el rol del conductor."
+    });
+  }
+}
+
+export async function assignAdminConductorRoleController(request, response) {
+  try {
+    const idConductor = Number(request.params.idConductor);
+    if (!Number.isInteger(idConductor) || idConductor <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del conductor no es válido."
+      });
+    }
+
+    const { modo, data } = request.body || {};
+    const requestingUserRol = request.adminUser?.rol || "ADMINISTRADOR";
+
+    const result = await assignAdminConductorRole({
+      idConductor,
+      modo: modo || "NUEVO",
+      data: data || {},
+      requestingUserRol
+    });
+
+    // Notificar si se generó un PIN nuevo por aprobación automática
+    if (result.conductor?.pinGenerado) {
+      try {
+        const telegramUser = await findTelegramUserByConductorId(idConductor);
+        if (telegramUser?.telegram_user_id) {
+          await sendDriverPinNotification({
+            telegramUserId: telegramUser.telegram_user_id,
+            pin: result.conductor.pinGenerado,
+            conductorNombre: result.conductor.nombre,
+            motivo: "APROBACION"
+          });
+        }
+      } catch (telegramErr) {
+        console.warn("No fue posible enviar notificación de PIN por Telegram tras asignar rol:", telegramErr.message);
+      }
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: result,
+      message: result.message
+    });
+  } catch (error) {
+    console.error("Error en assignAdminConductorRoleController:", error);
+    return response.status(400).json({
+      success: false,
+      message: error.message || "Error al asignar el rol al conductor."
+    });
+  }
+}
+

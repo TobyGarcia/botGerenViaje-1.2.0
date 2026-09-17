@@ -37,6 +37,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
     licenciaNumero: "",
     tipoLicencia: "",
     empresa: "",
+    puesto: "",
     licenciaVencimiento: "",
     vencimientoDia: "",
     vencimientoMes: "",
@@ -363,7 +364,11 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
         </label>
         <label>
           Tipo de licencia
-          <input name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} maxLength="50" placeholder="Ej. Federal B" required />
+          <select name="tipoLicencia" value={form.tipoLicencia} onChange={handleChange} required>
+            <option value="">Selecciona tipo de licencia</option>
+            <option value="AUTOMOVILISTA">AUTOMOVILISTA</option>
+            <option value="CHOFER">CHOFER</option>
+          </select>
         </label>
 
         {/* Sección Licencia Frente */}
@@ -437,6 +442,10 @@ export default function RegistroConductor({ telegramAuth, onRegistered }) {
           <span className="date-selects"><select value={form.mcDia} onChange={e=>updateManejoComentado("mcDia",e.target.value)}><option value="">dd</option>{Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(day=><option key={day}>{day}</option>)}</select><select value={form.mcMes} onChange={e=>updateManejoComentado("mcMes",e.target.value)}><option value="">mm</option>{Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(month=><option key={month}>{month}</option>)}</select><select value={form.mcAnio} onChange={e=>updateManejoComentado("mcAnio",e.target.value)}><option value="">yyyy</option>{Array.from({length:10},(_,i)=>String(anioActual - 5 + i)).map(year=><option key={year}>{year}</option>)}</select></span>
         </label>
         <label>Empresa<select name="empresa" value={form.empresa} onChange={handleChange} required><option value="">Selecciona una empresa</option>{["ITZAMNA", "MCCLICK", "AQUARIO", "ASPROMEX", "BALAM", "AGROKOOL"].map(empresa=><option key={empresa}>{empresa}</option>)}</select></label>
+        <label>
+          Puesto / Cargo
+          <input name="puesto" value={form.puesto} onChange={handleChange} maxLength="100" placeholder="Ej. Operador, Supervisor..." />
+        </label>
 
         <button type="submit" disabled={saving || licenciaFrente.compressing || licenciaReverso.compressing}>
           {saving ? "Guardando..." : "Completar registro"}

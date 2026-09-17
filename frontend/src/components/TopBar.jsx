@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import aquarioBlanco from "../assets/AQUARIO_BLANCO.png";
+import NavDrawer from "./NavDrawer.jsx";
+import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
 
-export default function TopBar({ conductor, onLogout }) {
+export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const isTelegram = Boolean(window.Telegram?.WebApp);
 
   const handleCloseMiniApp = () => {
@@ -14,30 +17,67 @@ export default function TopBar({ conductor, onLogout }) {
     }
   };
 
+  const getActiveTabMeta = () => {
+    switch (activeTabMode) {
+      case "gerenciamiento":
+        return { label: "Gerenciamiento", Icon: IconMap };
+      case "siniestro":
+        return { label: "Siniestro", Icon: IconAlert };
+      case "perfil":
+        return { label: "Datos", Icon: IconUser };
+      case "urban":
+      default:
+        return { label: "Viaje Urbano", Icon: IconCar };
+    }
+  };
+
+  const activeMeta = getActiveTabMeta();
+  const ActiveIcon = activeMeta.Icon;
+
   return (
-    <header className="app-topbar">
-      <div className="topbar-inner">
-        <div className="topbar-brand">
-          <img src={aquarioBlanco} alt="AQUARIO" className="topbar-logo-img" />
-          <div className="topbar-titles">
-            <span className="topbar-title">AQUARIO</span>
-            <span className="topbar-subtitle">Control de Viajes</span>
+    <>
+      <header className="app-topbar">
+        <div className="topbar-inner">
+          <div className="topbar-brand" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <img src={aquarioBlanco} alt="AQUARIO" className="topbar-logo-img" />
+
+            {/* Botón de Menú Estilo Pill y Módulo Activo (Captura de Pantalla) */}
+            {typeof onTabChange === "function" && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  style={{
+                    background: "#0284c7",
+                    color: "#ffffff",
+                    border: 0,
+                    borderRadius: "8px",
+                    padding: "6px 12px",
+                    fontSize: "0.82rem",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 6px rgba(2, 132, 199, 0.3)",
+                    transition: "all 0.15s ease"
+                  }}
+                  title="Abrir menú de navegación"
+                >
+                  <IconMenu size={16} color="#ffffff" /> Menú
+                </button>
+
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#38bdf8", fontSize: "0.82rem", fontWeight: "700" }}>
+                  <ActiveIcon size={15} color="#38bdf8" />
+                  <span>{activeMeta.label}</span>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
 
         <div className="topbar-actions">
           {conductor ? (
             <div className="topbar-user-area">
-              <span className="topbar-driver-pill" title={conductor.nombre}>
-                <svg className="driver-avatar-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span className="driver-name-text">
-                  {conductor.nombre ? conductor.nombre.split(" ").slice(0, 2).join(" ") : "Conductor"}
-                </span>
-              </span>
-
               <button
                 type="button"
                 className="topbar-btn-logout-icon"
@@ -80,5 +120,15 @@ export default function TopBar({ conductor, onLogout }) {
         </div>
       </div>
     </header>
+
+      {/* Drawer Navegador Lateral */}
+      <NavDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        activeTabMode={activeTabMode}
+        onSelectTab={onTabChange}
+        conductor={conductor}
+      />
+    </>
   );
 }

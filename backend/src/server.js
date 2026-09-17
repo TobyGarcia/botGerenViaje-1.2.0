@@ -125,7 +125,8 @@ async function initializeDependencies() {
             ADD COLUMN IF NOT EXISTS aprobado_por_admin BOOLEAN NOT NULL DEFAULT TRUE,
             ADD COLUMN IF NOT EXISTS fecha_aprobacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN IF NOT EXISTS licencia_url TEXT DEFAULT NULL,
-            ADD COLUMN IF NOT EXISTS licencia_reverso_url TEXT DEFAULT NULL;
+            ADD COLUMN IF NOT EXISTS licencia_reverso_url TEXT DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS puesto VARCHAR(100) DEFAULT NULL;
         `);
       } catch (mErr) {
         console.warn("Aviso en auto-migración de conductores:", mErr.message);
@@ -172,6 +173,64 @@ async function initializeDependencies() {
       } catch (mErr) {
         console.warn("Aviso en auto-migración de rol usuarios_admin:", mErr.message);
       }
+
+      // Auto-migración 5: Claves foráneas con ON DELETE SET NULL para usuarios_admin
+      try {
+        await databasePool.query(`
+          ALTER TABLE gerenciamiento_viajes
+            DROP CONSTRAINT IF EXISTS gerenciamiento_viajes_id_usuario_autorizador_fkey;
+          ALTER TABLE gerenciamiento_viajes
+            ADD CONSTRAINT gerenciamiento_viajes_id_usuario_autorizador_fkey
+              FOREIGN KEY (id_usuario_autorizador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+
+          ALTER TABLE inspecciones_vehiculares
+            DROP CONSTRAINT IF EXISTS inspecciones_vehiculares_id_usuario_admin_aprobador_fkey;
+          ALTER TABLE inspecciones_vehiculares
+            ADD CONSTRAINT inspecciones_vehiculares_id_usuario_admin_aprobador_fkey
+              FOREIGN KEY (id_usuario_admin_aprobador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+
+          ALTER TABLE inspecciones_vehiculares
+            DROP CONSTRAINT IF EXISTS inspecciones_vehiculares_id_usuario_autorizador_fkey;
+          ALTER TABLE inspecciones_vehiculares
+            ADD CONSTRAINT inspecciones_vehiculares_id_usuario_autorizador_fkey
+              FOREIGN KEY (id_usuario_autorizador)
+              REFERENCES usuarios_admin(id_usuarios_admin)
+              ON DELETE SET NULL;
+        `);
+      } catch (mErr) {
+        console.warn("Aviso en auto-migración de claves foráneas usuarios_admin:", mErr.message);
+      }
+
+      // Auto-migración 6: Siniestros
+      try {
+        await databasePool.query(`
+          CREATE TABLE IF NOT EXISTS siniestros (
+            id_siniestros SERIAL PRIMARY KEY,
+            folio VARCHAR(50) NOT NULL UNIQUE,
+            id_conductores INTEGER REFERENCES conductores(id_conductores),
+            id_vehiculo INTEGER REFERENCES vehiculos(id_vehiculos) ON DELETE SET NULL,
+            tipo_siniestro VARCHAR(100) NOT NULL,
+            descripcion TEXT,
+            latitud NUMERIC(10, 8),
+            longitud NUMERIC(11, 8),
+            altitud NUMERIC(10, 2),
+            fotos JSONB DEFAULT '[]'::jsonb,
+            pdf_url TEXT,
+            creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_siniestros_conductor ON siniestros(id_conductores);
+          CREATE INDEX IF NOT EXISTS idx_siniestros_creado_en ON siniestros(creado_en DESC);
+        `);
+      } catch (mErr) {
+        console.warn("Aviso en auto-migración de siniestros:", mErr.message);
+      }
+
       console.log("Conexión inicial con PostgreSQL y esquema verificados.");
       await startBots();
       return;
