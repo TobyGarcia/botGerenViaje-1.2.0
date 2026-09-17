@@ -8,6 +8,8 @@ const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
 const batchValue = Number(import.meta.env.VITE_GPS_SYNC_BATCH_SIZE);
 const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 1000 ? intervalValue : 30000;
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
+const MIN_CAPTURE_COOLDOWN_MS = 15000; // Mínimo 15 segundos entre capturas automáticas
+
 let intervalId = null;
 let activeTripId = null;
 let syncPromise = null;
@@ -16,12 +18,21 @@ let isStarting = false;
 let watchId = null;
 let workerTimer = null;
 
+let lastCapturedTime = 0;
+let lastCapturedLat = null;
+let lastCapturedLng = null;
+let isCapturing = false;
+
 function notify(update) {
-  statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
+  statusListener?.({ idViaje: activeTripId, active: isTrackingActive(), connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
 }
-async function notifyPending(idViaje, update = {}) { notify({ pending: await countPendingLocations(idViaje), ...update }); }
+
+async function notifyPending(idViaje, update = {}) { 
+  notify({ pending: await countPendingLocations(idViaje), ...update }); 
+}
+
 export function setTrackingStatusListener(listener) { statusListener = listener; }
-export function isTrackingActive() { return intervalId !== null; }
+export function isTrackingActive() { return intervalId !== null || workerTimer !== null || watchId !== null; }
 
 export async function syncPendingLocations(idViaje) {
   if (syncPromise) return syncPromise;
@@ -45,8 +56,31 @@ export async function syncPendingLocations(idViaje) {
 }
 
 export async function captureAndQueueLocation(idViaje, extraData = {}) {
+  const isIntermediate = Boolean(extraData.esPuntoIntermedio);
+  const now = Date.now();
+
+  // Control de cooldown y desduplicación para capturas automáticas
+  if (!isIntermediate) {
+    if (isCapturing) return null; // Evitar llamadas concurrentes solapadas
+    if (now - lastCapturedTime < MIN_CAPTURE_COOLDOWN_MS) {
+      return null; // Omitir si fue capturado hace menos de 15 segundos
+    }
+  }
+
+  isCapturing = true;
   try {
     const location = await getCurrentLocation();
+    
+    // Omitir si las coordenadas son idénticas y se capturó recientemente
+    if (!isIntermediate && lastCapturedLat === location.latitud && lastCapturedLng === location.longitud && (now - lastCapturedTime < 45000)) {
+      lastCapturedTime = now;
+      return null;
+    }
+
+    lastCapturedTime = now;
+    lastCapturedLat = location.latitud;
+    lastCapturedLng = location.longitud;
+
     const uuid = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -68,7 +102,12 @@ export async function captureAndQueueLocation(idViaje, extraData = {}) {
     });
     await syncPendingLocations(idViaje);
     return pendingLocation;
-  } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
+  } catch (error) { 
+    notify({ status: "Sin señal GPS", error: error.message }); 
+    return null; 
+  } finally {
+    isCapturing = false;
+  }
 }
 
 export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio", categoria = "") {
@@ -82,7 +121,7 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
 
 function startWorkerTimer(callback, intervalMs) {
   stopWorkerTimer();
-  if (typeof window === "undefined" || typeof Worker === "undefined") return;
+  if (typeof window === "undefined" || typeof Worker === "undefined") return false;
   try {
     const workerScript = `
       let timer = null;
@@ -107,8 +146,10 @@ function startWorkerTimer(callback, intervalMs) {
       }
     };
     workerTimer.postMessage({ action: "start", intervalMs });
+    return true;
   } catch (err) {
     console.warn("[TrackingService] No se pudo crear Web Worker Timer:", err?.message);
+    return false;
   }
 }
 
@@ -124,37 +165,36 @@ function stopWorkerTimer() {
 
 export async function startTracking(idViaje) {
   const normalizedId = Number(idViaje);
-  if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
+  if (isStarting || (isTrackingActive() && activeTripId === normalizedId)) return;
 
   isStarting = true;
   try {
     stopTracking({ clearState: false });
     activeTripId = normalizedId;
+    lastCapturedTime = 0;
+    lastCapturedLat = null;
+    lastCapturedLng = null;
+
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
     
-    // Iniciar bucle de ruido blanco y mantenimiento en segundo plano
+    // Iniciar mantenimiento de audio en segundo plano
     void startSilentAudioKeepAlive().catch(() => {});
 
     notify({ status: "Esperando permiso" });
     await captureAndQueueLocation(normalizedId);
     
-    // 1. Temporizador periódico de ventana principal
-    intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+    // Usar Web Worker Timer si está disponible; si no, recurrir a setInterval
+    const startedWorker = startWorkerTimer(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+    if (!startedWorker) {
+      intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+    }
 
-    // 2. Web Worker Timer (Hilo independiente resistente a throttling de ventana)
-    startWorkerTimer(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
-
-    // 3. Listener de hardware GPS del SO (watchPosition)
+    // Listener nativo del sistema operativo (watchPosition) para cambios de movimiento GPS
     if (typeof navigator !== "undefined" && "geolocation" in navigator && !watchId) {
-      let lastWatchTime = 0;
       try {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
-            const now = Date.now();
-            if (now - lastWatchTime >= 10000) { // mínimo 10s entre eventos de hardware
-              lastWatchTime = now;
-              captureAndQueueLocation(normalizedId);
-            }
+            captureAndQueueLocation(normalizedId);
           },
           (err) => {
             console.warn("[TrackingService] watchPosition aviso:", err?.message);
