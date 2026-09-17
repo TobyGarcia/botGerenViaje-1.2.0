@@ -139,6 +139,23 @@ function IconAlertTriangle({ size = 18, className = "" }) {
   );
 }
 
+function IconCheck({ size = 14, strokeWidth = 2.8, className = "" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function IconCross({ size = 14, strokeWidth = 2.8, className = "" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 function IconCheckCircle({ size = 18, className = "" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -904,8 +921,8 @@ function DestinosPage({ user }) {
                     <th>Lugar / Destino</th>
                     <th>Dirección</th>
                     <th>Geolocalización GPS</th>
-                    <th>Estado</th>
-                    <th style={{ textAlign: "right", paddingRight: "24px" }}>Acciones</th>
+                    <th className="col-estado">Estado</th>
+                    <th style={{ textAlign: "right", paddingRight: "18px" }}>Acciones</th>
                   </tr>
                 </thead>
 
@@ -979,19 +996,25 @@ function DestinosPage({ user }) {
                           )}
                         </td>
 
-                        {/* Celda Estado */}
-                        <td>
+                        {/* Celda Estado (Palomita verde / Tache rojo idéntico a otras pestañas) */}
+                        <td className="col-estado">
                           <span
-                            className={`destinos-status-pill ${
-                              destino.activo ? "active" : "inactive"
+                            className={`status-circle-icon ${
+                              destino.activo ? "status-circle-vigente" : "status-circle-inactivo"
                             }`}
+                            data-tooltip={destino.activo ? "Activo (Habilitado)" : "Inactivo (Dado de baja)"}
+                            title={destino.activo ? "Activo (Habilitado)" : "Inactivo (Dado de baja)"}
+                            aria-label={destino.activo ? "Activo" : "Inactivo"}
                           >
-                            <span className="destinos-status-dot" />
-                            {destino.activo ? "Activo" : "Inactivo"}
+                            {destino.activo ? (
+                              <IconCheck size={14} strokeWidth={2.8} />
+                            ) : (
+                              <IconCross size={14} strokeWidth={2.8} />
+                            )}
                           </span>
                         </td>
 
-                        {/* Celda Acciones */}
+                        {/* Celda Acciones (Solo botones con icono y tooltip emergente) */}
                         <td>
                           <div
                             className="destinos-actions-cell"
@@ -1001,10 +1024,11 @@ function DestinosPage({ user }) {
                               type="button"
                               className="destinos-action-btn destinos-btn-view"
                               onClick={() => setDetailDestino(destino)}
-                              title="Ver detalles completos del destino"
+                              data-tooltip="Ver detalles"
+                              title="Ver detalles completos"
+                              aria-label="Ver detalles"
                             >
-                              <IconEye size={15} />
-                              <span>Detalle</span>
+                              <IconEye size={16} />
                             </button>
 
                             {canEdit && (
@@ -1012,10 +1036,11 @@ function DestinosPage({ user }) {
                                 type="button"
                                 className="destinos-action-btn destinos-btn-edit"
                                 onClick={() => openEditForm(destino)}
-                                title="Editar nombre, dirección o coordenadas"
+                                data-tooltip="Editar destino"
+                                title="Editar destino"
+                                aria-label="Editar destino"
                               >
-                                <IconPencil size={15} />
-                                <span>Editar</span>
+                                <IconPencil size={16} />
                               </button>
                             )}
 
@@ -1028,16 +1053,19 @@ function DestinosPage({ user }) {
                                     : "destinos-btn-activate"
                                 }`}
                                 onClick={() => requestStatusChange(destino)}
+                                data-tooltip={
+                                  destino.activo
+                                    ? "Dar de baja temporalmente"
+                                    : "Reactivar destino"
+                                }
                                 title={
                                   destino.activo
                                     ? "Dar de baja temporalmente"
                                     : "Reactivar destino"
                                 }
+                                aria-label={destino.activo ? "Dar de baja" : "Reactivar"}
                               >
-                                <IconPower size={15} />
-                                <span>
-                                  {destino.activo ? "Baja" : "Reactivar"}
-                                </span>
+                                <IconPower size={16} />
                               </button>
                             )}
 
@@ -1046,10 +1074,11 @@ function DestinosPage({ user }) {
                                 type="button"
                                 className="destinos-action-btn destinos-btn-delete"
                                 onClick={() => requestDelete(destino)}
-                                title="Eliminar destino definitivamente"
+                                data-tooltip="Eliminar"
+                                title="Eliminar destino permanentemente"
+                                aria-label="Eliminar"
                               >
-                                <IconTrash size={15} />
-                                <span>Eliminar</span>
+                                <IconTrash size={16} />
                               </button>
                             )}
                           </div>
@@ -1325,14 +1354,21 @@ function DestinosPage({ user }) {
                     <div className="destinos-detail-item-label">Estado Operativo</div>
                     <div style={{ marginTop: "4px" }}>
                       <span
-                        className={`destinos-status-pill ${
-                          detailDestino.activo ? "active" : "inactive"
+                        className={`status-circle-icon ${
+                          detailDestino.activo ? "status-circle-vigente" : "status-circle-inactivo"
                         }`}
+                        data-tooltip={detailDestino.activo ? "Activo" : "Inactivo"}
+                        title={
+                          detailDestino.activo
+                            ? "Activo (Disponible para viajes)"
+                            : "Inactivo (Dado de baja temporal)"
+                        }
                       >
-                        <span className="destinos-status-dot" />
-                        {detailDestino.activo
-                          ? "Activo (Disponible para viajes)"
-                          : "Inactivo (Dado de baja temporal)"}
+                        {detailDestino.activo ? (
+                          <IconCheck size={14} strokeWidth={2.8} />
+                        ) : (
+                          <IconCross size={14} strokeWidth={2.8} />
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1523,7 +1559,11 @@ function DestinosPage({ user }) {
                     ? "destinos-btn-primary"
                     : "destinos-action-btn destinos-btn-deactivate"
                 }
-                style={{ padding: "10px 18px", fontSize: "0.88rem" }}
+                style={
+                  confirmAction.nextStatus
+                    ? { padding: "10px 18px", fontSize: "0.88rem" }
+                    : { width: "auto", padding: "10px 18px", fontSize: "0.88rem" }
+                }
                 onClick={executeConfirmAction}
                 disabled={Boolean(updatingId)}
               >

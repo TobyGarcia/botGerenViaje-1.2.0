@@ -9870,21 +9870,67 @@ min-width: 0;
 }
 
 .destinos-action-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: none;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  border-radius: 9px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
 }
 
 .destinos-action-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.destinos-action-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.destinos-action-btn[data-tooltip]::after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border-width: 6px 5px 0 5px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.15s ease;
+  z-index: 100;
+}
+
+.destinos-action-btn[data-tooltip]:hover::before,
+.destinos-action-btn[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .destinos-btn-view {
@@ -10180,4 +10226,283 @@ min-width: 0;
   font-size: 0.92rem;
   font-weight: 600;
   color: #0f172a;
+}
+
+/* ==========================================================
+   DESTINOS PRO MAX: Reglas Responsivas y Columna de Estado
+   ========================================================== */
+
+.destinos-table th.col-estado,
+.destinos-table td.col-estado {
+  text-align: center;
+  width: 70px;
+}
+
+.destinos-table td.col-estado .status-circle-icon {
+  margin: 0 auto;
+}
+
+/* Tooltip para status-circle-icon en Destinos */
+.status-circle-icon[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.status-circle-icon[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 880px) {
+  .destinos-header-promax {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .destinos-header-btns {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .destinos-header-btns button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .destinos-toolbar-promax {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .destinos-search-box {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .destinos-filters-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .destinos-filter-field {
+    flex: 1 1 140px;
+  }
+
+  .destinos-filter-select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .destinos-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .destinos-kpi-card {
+    padding: 12px 14px !important;
+  }
+
+  .destinos-kpi-label {
+    font-size: 0.72rem !important;
+  }
+
+  .destinos-kpi-val {
+    font-size: 1.35rem !important;
+  }
+
+  .destinos-kpi-subtext {
+    display: none;
+  }
+
+  .destinos-kpi-icon-box {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+  }
+
+  .destinos-modal-card-promax {
+    width: 96vw !important;
+    margin: 8px auto !important;
+    border-radius: 16px !important;
+    max-height: 94vh !important;
+  }
+
+  .destinos-modal-header-promax {
+    padding: 14px 16px !important;
+  }
+
+  .destinos-modal-header-icon {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .destinos-modal-titles h2 {
+    font-size: 1.1rem !important;
+  }
+
+  .destinos-modal-body-promax {
+    padding: 14px 16px !important;
+    gap: 14px !important;
+  }
+
+  .destinos-modal-footer-promax {
+    padding: 12px 16px !important;
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+
+  .destinos-modal-footer-promax button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .destinos-coords-2col {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .table-pagination {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .pagination-controls {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ==========================================================
+   DASHBOARD TRIPS GRID (Viajes Activos y Recientes Responsivo)
+   ========================================================== */
+
+.dashboard-trips-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-trips-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.recent-trips-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: hidden;
+  max-height: 250px;
+  border-left: 4px solid #0284c7 !important;
+}
+
+.recent-trips-card-header span {
+  font-size: 0.88rem;
+  color: #607986;
+  font-weight: 600;
+  display: block;
+}
+
+.recent-trips-card-count {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0284c7;
+  line-height: 1;
+}
+
+.active-trips-card {
+  max-height: 250px;
+}
+
+.active-trips-mini-item.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.active-trips-mini-item.clickable:hover {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+  transform: translateY(-1px);
+}
+
+.active-trips-mini-status-text.finalizado {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.15);
+}
+
+.active-trips-mini-status-text.cancelado {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-green-blinking {
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-green 1.8s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.dot-yellow-fixed {
+  background: #ca8a04;
+}
+
+.dot-blue-fixed {
+  background: #0284c7;
+}
+
+.dot-red-fixed {
+  background: #dc2626;
 }

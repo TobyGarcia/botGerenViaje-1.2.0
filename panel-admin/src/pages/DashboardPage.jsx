@@ -9,6 +9,7 @@ import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
 import PerfilPage from "./PerfilPage.jsx";
 import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
+import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
 import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import logoAquarioBlanco from "../assets/page_assets/AQUARIO_BLANCO.png";
@@ -109,7 +110,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
                   </span>
                 </div>
                 <div className="active-trips-mini-details">
-                  <span>{item.origen} ➔ {item.destino}</span>
+                  <span>{item.origen} → {item.destino}</span>
                   <span className="active-trips-mini-unit">
                     {item.vehiculo} {item.numero_economico !== "N/A" ? `(${item.numero_economico})` : ""}
                   </span>
@@ -126,6 +127,7 @@ function ActiveTripsCardWidget({ viajesActivos = [] }) {
 function DashboardOverview({ pendingInspections, pendingGerenciamientos, notificationError, onOpenInspections, onOpenGerenciamiento, onOpenManejoComentado }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
+  const [selectedTripId, setSelectedTripId] = useState(null);
 
   useEffect(() => {
     getAdminDashboardSummary()
@@ -153,7 +155,18 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
           <strong style={{ color: "#0284c7" }}>{pendingGerenciamientos}</strong>
           <small>{pendingGerenciamientos ? "Viajes fuera de ciudad requieren aprobación" : "No hay gerenciamientos pendientes"}</small>
         </button>
-        <ActiveTripsCardWidget viajesActivos={summary.viajes_activos || []} />
+      </section>
+
+      {/* Grid de 2 Columnas para Viajes Activos y Viajes Recientes */}
+      <section className="dashboard-trips-grid">
+        <ActiveTripsCardWidget
+          viajesActivos={summary.viajes_activos || []}
+          onSelectTrip={(trip) => setSelectedTripId(trip.id_viajes)}
+        />
+        <RecentTripsCardWidget
+          viajesRecientes={summary.viajes_recientes || []}
+          onSelectTrip={(trip) => setSelectedTripId(trip.id_viajes)}
+        />
       </section>
 
       {notificationError && <p className="module-message module-message-error">No se pudo actualizar el contador de inspecciones: {notificationError}</p>}
@@ -166,6 +179,14 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
       />
 
       <ActivityHeatmapCard actividad={summary.actividad} />
+
+      {/* Modal de Detalle de Viaje */}
+      {selectedTripId && (
+        <TripDetailModal
+          idViaje={selectedTripId}
+          onClose={() => setSelectedTripId(null)}
+        />
+      )}
     </section>
   );
 }
@@ -609,7 +630,18 @@ function DashboardPage({ user, onLogout }) {
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
               aria-label="Abrir menú de navegación"
             >
-              {isMobileMenuOpen ? "✕" : "☰"}
+              {isMobileMenuOpen ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
               {(pendingInspections > 0 || pendingGerenciamientos > 0) && !isMobileMenuOpen && (
                 <span className="mobile-badge-dot">{pendingInspections + pendingGerenciamientos}</span>
               )}
