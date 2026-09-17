@@ -159,6 +159,9 @@ const sendingLocationRef = useRef(false);
   const [newDestinoForm, setNewDestinoForm] = useState({ nombre: "", direccion: "" });
   const [savingNewDestino, setSavingNewDestino] = useState(false);
 
+  // Estado para modal de Reporte de Siniestro en viaje en curso
+  const [showSiniestroModal, setShowSiniestroModal] = useState(false);
+
   async function handleSaveNewDestino(e) {
     e.preventDefault();
     const nombre = newDestinoForm.nombre.trim();
@@ -2255,7 +2258,42 @@ function isOutsideOperatingHours() {
 
     {startedTrip && !finishedTrip && !cancelledTrip && (
       <section className="gps-panel">
-  <h3>Rastreo GPS</h3>
+        {/* Banner de Emergencia / Siniestro en Ruta */}
+        <div style={{ background: "#fef2f2", border: "2px solid #ef4444", borderRadius: "12px", padding: "14px", marginBottom: "18px", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.15)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div>
+              <strong style={{ color: "#991b1b", fontSize: "0.98rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                <IconAlert size={20} color="#dc2626" /> ¿Inconveniente o emergencia en la ruta?
+              </strong>
+              <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#7f1d1d" }}>
+                Reporta embotellamientos, ponchaduras, fallas mecánicas o colisiones al instante.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSiniestroModal(true)}
+              style={{
+                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                color: "#ffffff",
+                border: 0,
+                padding: "10px 18px",
+                borderRadius: "8px",
+                fontWeight: "800",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(220, 38, 38, 0.35)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                whiteSpace: "nowrap"
+              }}
+            >
+              <IconAlert size={18} color="#ffffff" /> 🚨 Reportar Siniestro / Incidente
+            </button>
+          </div>
+        </div>
+
+        <h3>Rastreo GPS</h3>
 
   <p><strong>Seguimiento GPS:</strong> {trackingInfo.active ? "Activo" : "Detenido"}</p>
   <p><strong>Estado:</strong> {trackingInfo.status || gpsStatus}</p>
@@ -2465,6 +2503,97 @@ function isOutsideOperatingHours() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showSiniestroModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            padding: "16px",
+            overflowY: "auto"
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              maxWidth: "600px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              borderRadius: "16px",
+              background: "#ffffff",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              boxSizing: "border-box"
+            }}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "14px 20px",
+                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                color: "#ffffff",
+                borderTopLeftRadius: "16px",
+                borderTopRightRadius: "16px",
+                zIndex: 10,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)"
+              }}
+            >
+              <span style={{ fontWeight: "800", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                <IconAlert size={22} color="#ffffff" /> Reportar Siniestro / Incidente en Ruta
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSiniestroModal(false)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: 0,
+                  color: "#ffffff",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  fontSize: "1.3rem",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease"
+                }}
+                title="Cerrar modal"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Formulario de Siniestro */}
+            <div style={{ padding: "20px" }}>
+              <ReporteSiniestro
+                conductor={authenticatedDriver}
+                vehiculoAsignado={selectedVehicle}
+                onComplete={() => {
+                  setShowSiniestroModal(false);
+                  setMessage("🚨 Reporte de siniestro e incidencias registrado y transmitido con éxito a supervisión.");
+                  setMessageType("success");
+                }}
+                onCancel={() => setShowSiniestroModal(false)}
+              />
+            </div>
           </div>
         </div>
       )}
