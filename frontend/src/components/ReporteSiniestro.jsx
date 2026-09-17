@@ -20,6 +20,7 @@ const TIPOS_SINIESTRO = [
   { label: "🚗 Rozón / Llegada Lateral", value: "ROZÓN / LLEGADA" },
   { label: "🛞 Ponchadura de Llanta", value: "PONCHADURA DE LLANTA" },
   { label: "🔧 Falla Mecánica Grave", value: "FALLA MECÁNICA GRAVE" },
+  { label: "🚦 Embotellamiento / Tráfico Pesado", value: "EMBOTELLAMIENTO / TRÁFICO" },
   { label: "⚠️ Volcadura", value: "VOLCADURA" },
   { label: "⚡ Otro Incidente de Riesgo", value: "OTRO INCIDENTE" }
 ];
