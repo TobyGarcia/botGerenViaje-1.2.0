@@ -1676,7 +1676,6 @@ function isOutsideOperatingHours() {
         onTabChange={setActiveTabMode}
       />
       <main className="container">
-        <PwaInstallPrompt />
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         {(createdTrip || gerenciamientoPendiente || activeTabMode !== "urban") && (
           <>
@@ -1996,14 +1995,7 @@ function isOutsideOperatingHours() {
               const currentVeh = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
               const vehicleTypeStr = String(currentVeh?.tipo_vehiculo || currentVeh?.nombre || "").toLowerCase();
 
-              let maxAcompanantes = 4;
-              if (vehicleTypeStr.includes("maquinaria") || vehicleTypeStr.includes("retro") || vehicleTypeStr.includes("remolque") || vehicleTypeStr.includes("mecanica") || vehicleTypeStr.includes("tractor")) {
-                maxAcompanantes = 1;
-              } else if (vehicleTypeStr.includes("auto") || vehicleTypeStr.includes("sedan") || vehicleTypeStr.includes("hatchback") || vehicleTypeStr.includes("automovil")) {
-                maxAcompanantes = 3;
-              } else if (vehicleTypeStr.includes("camioneta") || vehicleTypeStr.includes("pickup") || vehicleTypeStr.includes("suv") || vehicleTypeStr.includes("van")) {
-                maxAcompanantes = 4;
-              }
+              const maxAcompanantes = 4;
 
               const updateFormAcompanantes = (newList) => {
                 const joinedStr = newList.filter((s) => s.trim() !== "").join(", ");
@@ -2069,7 +2061,7 @@ function isOutsideOperatingHours() {
                     <div className="urban-companions-panel">
                       <div className="companions-sub-header">
                         <small className="companions-rule-hint">
-                          {maxAcompanantes === 4 ? "Camioneta: Máximo 4 acompañantes." : maxAcompanantes === 3 ? "Auto: Máximo 3 acompañantes." : "Maquinaria: Máximo 1 acompañante."}
+                          Máximo 4 acompañantes permitidos.
                         </small>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span className="companions-count-badge">
