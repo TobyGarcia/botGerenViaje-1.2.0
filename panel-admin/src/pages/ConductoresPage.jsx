@@ -16,11 +16,162 @@ import { downloadPinCardImage } from "../utils/downloadPinCard.js";
 import {
   IconVerDetalle,
   IconCheck,
+  IconCross,
   IconKey,
   IconPower,
   IconReactivar,
-  IconEliminar
+  IconEliminar,
+  IconUsuarios,
+  IconAlerta,
+  IconSwap,
+  IconReset,
+  IconRol,
+  IconPhone,
+  IconIdCard,
+  IconTelegram,
+  IconCalendar,
+  IconExternalLink,
+  IconFileText
 } from "../components/Icons.jsx";
+import VehicleSelectDropdown from "../components/VehicleSelectDropdown.jsx";
+
+function getLicenciaStatus(conductor) {
+  if (!conductor?.licencia_vencimiento) {
+    return {
+      status: "sin_fecha",
+      label: "Sin fecha de vencimiento",
+      color: "#64748b"
+    };
+  }
+
+  const rawStr = String(conductor.licencia_vencimiento).trim();
+  const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let expirationDate;
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch.map(Number);
+    expirationDate = new Date(y, m - 1, d);
+  } else if (conductor.licencia_vencimiento instanceof Date) {
+    const d = conductor.licencia_vencimiento;
+    expirationDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  } else {
+    const d = new Date(rawStr);
+    expirationDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  if (Number.isNaN(expirationDate.getTime())) {
+    return {
+      status: "invalida",
+      label: "Fecha inválida",
+      color: "#64748b"
+    };
+  }
+
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const diffTime = expirationDate.getTime() - todayMidnight.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const formattedExp = formatDate(conductor.licencia_vencimiento);
+
+  if (diffDays < 0) {
+    const diasPasados = Math.abs(diffDays);
+    return {
+      status: "vencida",
+      label: `Licencia vencida el ${formattedExp} (${diasPasados} ${diasPasados === 1 ? "día atrás" : "días atrás"})`,
+      days: diffDays,
+      color: "#dc2626"
+    };
+  }
+
+  if (diffDays <= 30) {
+    return {
+      status: "por_vencer",
+      label:
+        diffDays === 0
+          ? `Licencia por vencer el ${formattedExp} (vence hoy)`
+          : `Licencia por vencer el ${formattedExp} (${diffDays} ${diffDays === 1 ? "día restante" : "días restantes"})`,
+      days: diffDays,
+      color: "#d97706"
+    };
+  }
+
+  return {
+    status: "vigente",
+    label: `Licencia vigente (Vence: ${formattedExp} - quedan ${diffDays} días)`,
+    days: diffDays,
+    color: "#16a34a"
+  };
+}
+
+function getManejoComentadoStatus(conductor) {
+  if (!conductor?.fecha_manejo_comentado) {
+    return {
+      status: "no_registrado",
+      label: "Manejo comentado no registrado",
+      color: "#dc2626"
+    };
+  }
+
+  const rawStr = String(conductor.fecha_manejo_comentado).trim();
+  const dateMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let expDate;
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch.map(Number);
+    expDate = new Date(y, m - 1, d);
+  } else if (conductor.fecha_manejo_comentado instanceof Date) {
+    const d = conductor.fecha_manejo_comentado;
+    expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  } else {
+    const d = new Date(rawStr);
+    expDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  if (Number.isNaN(expDate.getTime())) {
+    return {
+      status: "no_registrado",
+      label: "Fecha de manejo comentado no válida",
+      color: "#dc2626"
+    };
+  }
+
+  // La fecha registrada ES la fecha de vigencia (no se agregan meses adicionales).
+  // El cálculo se realiza directamente desde la fecha actual hacia la fecha de vigencia.
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const diffTime = expDate.getTime() - todayMidnight.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const formattedExp = formatDate(conductor.fecha_manejo_comentado);
+
+  if (diffDays < 0) {
+    const diasPasados = Math.abs(diffDays);
+    return {
+      status: "vencido",
+      label: `Manejo comentado vencido (${formattedExp} - hace ${diasPasados} ${diasPasados === 1 ? "día" : "días"})`,
+      days: diffDays,
+      color: "#dc2626"
+    };
+  }
+
+  if (diffDays <= 30) {
+    return {
+      status: "por_vencer",
+      label:
+        diffDays === 0
+          ? `Manejo comentado por vencer (${formattedExp} - vence hoy)`
+          : `Manejo comentado por vencer (${formattedExp} - ${diffDays === 1 ? "queda 1 día" : `quedan ${diffDays} días`})`,
+      days: diffDays,
+      color: "#d97706"
+    };
+  }
+
+  return {
+    status: "vigente",
+    label: `Manejo comentado vigente (Vence: ${formattedExp} - quedan ${diffDays} días)`,
+    days: diffDays,
+    color: "#16a34a"
+  };
+}
 
 function formatDate(value) {
   if (!value) {
@@ -83,6 +234,11 @@ function ConductoresPage({ user }) {
 
   const [approveModalConductor, setApproveModalConductor] =
     useState(null);
+
+  const [selectedEmpresa, setSelectedEmpresa] = useState("TODAS");
+  const [selectedUnidadFilter, setSelectedUnidadFilter] = useState("TODAS");
+  const [onlyExpiringLicenses, setOnlyExpiringLicenses] = useState(false);
+  const [onlyPendingApproval, setOnlyPendingApproval] = useState(false);
 
   // Estados para modales personalizados (reemplazan window.alert, window.confirm y window.prompt)
   const [pinModalConductor, setPinModalConductor] = useState(null);
@@ -184,42 +340,50 @@ function ConductoresPage({ user }) {
       }
     }
 
-    setSavingPin(true);
-    setPinModalError("");
     try {
-      setUpdatingId(pinModalConductor.id_conductores);
+      setSavingPin(true);
+      setPinModalError("");
       const res = await setAdminConductorPin(
         pinModalConductor.id_conductores,
-        pinMode === "manual" ? manualPin.trim() : null,
-        pinMode === "auto"
+        pinMode === "manual" ? manualPin.trim() : null
       );
-      const pinFinal = res.data?.pinGenerado || manualPin.trim();
-      const conductorTarget = pinModalConductor;
+
+      const generatedPin = res.data?.pin;
       setPinModalConductor(null);
       setPinSuccessData({
-        conductorNombre: conductorTarget.nombre,
-        pin: pinFinal,
+        conductorNombre: pinModalConductor.nombre,
+        pin: generatedPin,
         isApproval: false
       });
-      setMessage(res.message || `PIN asignado correctamente a ${conductorTarget.nombre}: ${pinFinal}`);
+      setMessage(res.message || "PIN asignado exitosamente.");
       setMessageType("success");
       await loadConductores();
     } catch (err) {
-      setPinModalError(err.message || "Error al asignar el PIN.");
+      setPinModalError(err.message || "Error al asignar PIN.");
     } finally {
       setSavingPin(false);
-      setUpdatingId(null);
     }
   }
 
-  const canToggleActive = !user || [
-    "ADMINISTRADOR",
-    "GERENTE",
-    "GERENTE_GENERAL",
-    "COORDINADOR",
-    "COORDINADOR_AREA",
-    "COORDINADOR_QHSE"
-  ].includes(user?.rol);
+  function handleDownloadPinCard() {
+    if (!pinSuccessData) return;
+    downloadPinCardImage(pinSuccessData.conductorNombre, pinSuccessData.pin);
+  }
+
+  function handleCopyPin() {
+    if (!pinSuccessData?.pin) return;
+    navigator.clipboard.writeText(pinSuccessData.pin);
+    setCopiedSuccessPin(true);
+    setTimeout(() => setCopiedSuccessPin(false), 2000);
+  }
+
+  const canToggleActive =
+    !user ||
+    ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE"].includes(user.rol);
+
+  const canApprove =
+    !user ||
+    ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol);
 
   function handleOpenToggleActive(conductor) {
     setToggleActiveConductor(conductor);
@@ -231,13 +395,19 @@ function ConductoresPage({ user }) {
     const nuevoEstado = !conductor.activo;
     const accionTexto = nuevoEstado ? "reactivar" : "desactivar";
 
+    setUpdatingId(conductor.id_conductores);
+    setMessage("");
+
     try {
-      setUpdatingId(conductor.id_conductores);
       const res = await toggleAdminConductorActive(conductor.id_conductores, nuevoEstado);
       setMessage(res.message || `Conductor ${nuevoEstado ? "reactivado" : "desactivado"} correctamente.`);
       setMessageType("success");
-      await loadConductores();
-      if (approveModalConductor && approveModalConductor.id_conductores === conductor.id_conductores) {
+
+      setConductores((prev) =>
+        prev.map((c) => (c.id_conductores === conductor.id_conductores ? { ...c, activo: nuevoEstado } : c))
+      );
+
+      if (approveModalConductor?.id_conductores === conductor.id_conductores) {
         setApproveModalConductor((prev) => (prev ? { ...prev, activo: nuevoEstado } : null));
       }
       setToggleActiveConductor(null);
@@ -248,8 +418,6 @@ function ConductoresPage({ user }) {
       setUpdatingId(null);
     }
   }
-
-
 
   useEffect(() => {
     loadVehiculos();
@@ -267,8 +435,6 @@ function ConductoresPage({ user }) {
       );
     };
   }, [search, status]);
-
-
 
   function handleOpenDelete(conductor) {
     setDeleteConfirmConductor(conductor);
@@ -303,9 +469,59 @@ function ConductoresPage({ user }) {
     }
   }
 
-  const totalFiltered = conductores.length;
+  // Lista única de empresas para el filtro
+  const empresasList = Array.from(
+    new Set(conductores.map((c) => c.empresa).filter(Boolean))
+  ).sort();
+
+  // Filtrado compuesto en cliente
+  const filteredConductores = conductores.filter((conductor) => {
+    if (selectedEmpresa !== "TODAS" && conductor.empresa !== selectedEmpresa) {
+      return false;
+    }
+    if (selectedUnidadFilter === "CON_UNIDAD" && !conductor.id_vehiculo_asignado) {
+      return false;
+    }
+    if (selectedUnidadFilter === "SIN_UNIDAD" && conductor.id_vehiculo_asignado) {
+      return false;
+    }
+    if (onlyPendingApproval && conductor.aprobado_por_admin) {
+      return false;
+    }
+    if (onlyExpiringLicenses) {
+      const licStatus = getLicenciaStatus(conductor);
+      if (licStatus.status !== "por_vencer" && licStatus.status !== "vencida") {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Métricas para KPI Cards
+  const totalConductoresCount = conductores.length;
+  const pendientesAprobacionCount = conductores.filter((c) => !c.aprobado_por_admin).length;
+  const aprobadosCount = conductores.filter((c) => c.aprobado_por_admin).length;
+  const aprobadosPct = totalConductoresCount > 0 ? ((aprobadosCount / totalConductoresCount) * 100).toFixed(1) : "0.0";
+  const unidadesAsignadasCount = conductores.filter((c) => c.id_vehiculo_asignado).length;
+  const unidadesSinAsignarCount = Math.max(0, totalConductoresCount - unidadesAsignadasCount);
+  const licenciasPorVencerCount = conductores.filter((c) => {
+    const s = getLicenciaStatus(c).status;
+    return s === "por_vencer" || s === "vencida";
+  }).length;
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setStatus("TODOS");
+    setSelectedEmpresa("TODAS");
+    setSelectedUnidadFilter("TODAS");
+    setOnlyExpiringLicenses(false);
+    setOnlyPendingApproval(false);
+    setCurrentPage(1);
+  };
+
+  const totalFiltered = filteredConductores.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
-  const paginatedConductores = conductores.slice(
+  const paginatedConductores = filteredConductores.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -321,17 +537,121 @@ function ConductoresPage({ user }) {
           <h1>Conductores</h1>
 
           <p>
-            Consulta, registra y controla
-            el acceso de los conductores.
+            Consulta, registra y controla el acceso y la vigencia operativa de los conductores.
           </p>
         </div>
-
       </header>
 
-      <section className="module-toolbar">
+      {/* KPI Cards Grid */}
+      <section className="conductores-kpis-grid" aria-label="Métricas de conductores">
+        <div className="conductor-kpi-card">
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Total Conductores</span>
+            <div className="kpi-icon-wrapper kpi-icon-blue">
+              <IconUsuarios size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{totalConductoresCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-blue">Registrados</span> en plataforma
+          </div>
+        </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyPendingApproval ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyPendingApproval(!onlyPendingApproval);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyPendingApproval(!onlyPendingApproval);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyPendingApproval ? "Click para ver todos" : "Click para filtrar solo pendientes por aprobar"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Pendientes por Aprobar</span>
+            <div className="kpi-icon-wrapper kpi-icon-amber">
+              <IconAlerta size={20} />
+            </div>
+          </div>
+          <div className={`kpi-card-value ${pendientesAprobacionCount > 0 ? "kpi-val-amber" : ""}`}>
+            {pendientesAprobacionCount}
+          </div>
+          <div className="kpi-card-subtext">
+            <span className={`kpi-sub-pill ${pendientesAprobacionCount > 0 ? "kpi-pill-amber" : "kpi-pill-green"}`}>
+              {pendientesAprobacionCount > 0 ? "Por revisar" : "Al día"}
+            </span>{" "}
+            {onlyPendingApproval ? "(Filtro activo)" : `${aprobadosPct}% aprobados`}
+          </div>
+        </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${selectedUnidadFilter === "CON_UNIDAD" ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setSelectedUnidadFilter((prev) => (prev === "CON_UNIDAD" ? "TODAS" : "CON_UNIDAD"));
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setSelectedUnidadFilter((prev) => (prev === "CON_UNIDAD" ? "TODAS" : "CON_UNIDAD"));
+              setCurrentPage(1);
+            }
+          }}
+          title={selectedUnidadFilter === "CON_UNIDAD" ? "Click para mostrar todas las unidades" : "Click para filtrar conductores con unidad asignada"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Unidades Asignadas</span>
+            <div className="kpi-icon-wrapper kpi-icon-indigo">
+              <IconSwap size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value">{unidadesAsignadasCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-gray">{unidadesSinAsignarCount} sin asignar</span>{" "}
+            {selectedUnidadFilter === "CON_UNIDAD" ? "(Filtro activo)" : ""}
+          </div>
+        </div>
+
+        <div
+          className={`conductor-kpi-card kpi-card-clickable ${onlyExpiringLicenses ? "kpi-card-active" : ""}`}
+          onClick={() => {
+            setOnlyExpiringLicenses(!onlyExpiringLicenses);
+            setCurrentPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOnlyExpiringLicenses(!onlyExpiringLicenses);
+              setCurrentPage(1);
+            }
+          }}
+          title={onlyExpiringLicenses ? "Click para mostrar todos los conductores" : "Click para filtrar solo conductores con licencia por vencer o vencida"}
+        >
+          <div className="kpi-card-header">
+            <span className="kpi-card-title">Licencias por Vencer</span>
+            <div className="kpi-icon-wrapper kpi-icon-amber">
+              <IconAlerta size={20} />
+            </div>
+          </div>
+          <div className="kpi-card-value kpi-val-amber">{licenciasPorVencerCount}</div>
+          <div className="kpi-card-subtext">
+            <span className="kpi-sub-pill kpi-pill-amber">Plazo &lt; 30 días</span> {onlyExpiringLicenses ? "(Filtro activo)" : "requieren atención"}
+          </div>
+        </div>
+      </section>
+
+      {/* Toolbar con filtros completos y botón de reset */}
+      <section className="module-toolbar conductores-filter-toolbar">
         <label className="search-field">
           <span>Buscar</span>
-
           <input
             type="search"
             value={search}
@@ -339,13 +659,12 @@ function ConductoresPage({ user }) {
               setSearch(event.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Nombre, licencia o teléfono"
+            placeholder="Buscar por nombre, licencia..."
           />
         </label>
 
         <label className="status-filter">
           <span>Estado</span>
-
           <select
             value={status}
             onChange={(event) => {
@@ -353,19 +672,56 @@ function ConductoresPage({ user }) {
               setCurrentPage(1);
             }}
           >
-            <option value="TODOS">
-              Todos
-            </option>
-
-            <option value="ACTIVOS">
-              Activos
-            </option>
-
-            <option value="INACTIVOS">
-              Inactivos
-            </option>
+            <option value="TODOS">Todos</option>
+            <option value="ACTIVOS">Activos</option>
+            <option value="INACTIVOS">Inactivos</option>
           </select>
         </label>
+
+        <label className="status-filter">
+          <span>Empresa</span>
+          <select
+            value={selectedEmpresa}
+            onChange={(event) => {
+              setSelectedEmpresa(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODAS">Empresa: Todas</option>
+            {empresasList.map((emp) => (
+              <option key={emp} value={emp}>
+                {emp}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="status-filter">
+          <span>Unidades</span>
+          <select
+            value={selectedUnidadFilter}
+            onChange={(event) => {
+              setSelectedUnidadFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="TODAS">Unidades: Todas</option>
+            <option value="CON_UNIDAD">Con unidad</option>
+            <option value="SIN_UNIDAD">Sin unidad</option>
+          </select>
+        </label>
+
+        <div className="toolbar-reset-wrapper">
+          <button
+            type="button"
+            className="filter-reset-btn"
+            onClick={handleResetFilters}
+            data-tooltip="Restablecer filtros"
+            aria-label="Restablecer filtros"
+          >
+            <IconReset size={16} />
+          </button>
+        </div>
       </section>
 
       {message && (
@@ -381,16 +737,44 @@ function ConductoresPage({ user }) {
         </p>
       )}
 
+      {onlyPendingApproval && (
+        <div className="filter-active-notice">
+          <IconAlerta size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores pendientes de aprobación ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyPendingApproval(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
+      {selectedUnidadFilter === "CON_UNIDAD" && (
+        <div className="filter-active-notice">
+          <IconSwap size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con unidad vehicular asignada ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setSelectedUnidadFilter("TODAS")}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
+
+      {onlyExpiringLicenses && (
+        <div className="filter-active-notice">
+          <IconAlerta size={16} className="notice-icon" />
+          <span>Mostrando únicamente conductores con licencia vencida o por vencer en los próximos 30 días ({totalFiltered}).</span>
+          <button type="button" className="notice-clear-btn" onClick={() => setOnlyExpiringLicenses(false)}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
       <section className="table-panel">
         {loading ? (
           <p className="table-status">
             Cargando conductores...
           </p>
-        ) : conductores.length === 0 ? (
+        ) : filteredConductores.length === 0 ? (
           <p className="table-status">
-            No se encontraron conductores.
+            No se encontraron conductores con los criterios seleccionados.
           </p>
         ) : (
           <>
@@ -399,14 +783,11 @@ function ConductoresPage({ user }) {
               <thead>
                 <tr>
                   <th className="col-conductor">Conductor</th>
-                  <th className="col-telefono">Teléfono</th>
                   <th className="col-empresa">Empresa</th>
                   <th className="col-unidad">Unidad Asignada</th>
                   <th className="col-licencia">Licencia</th>
                   <th className="col-vencimiento">Vencimiento</th>
                   <th className="col-mc">Manejo Comentado</th>
-                  <th className="col-telegram">Telegram</th>
-                  <th className="col-aprobacion">Aprobación</th>
                   <th className="col-estado">Estado</th>
                   {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                     <th className="col-acciones">Acciones</th>
@@ -415,172 +796,161 @@ function ConductoresPage({ user }) {
               </thead>
 
               <tbody>
-                {paginatedConductores.map(
-                  (conductor) => (
-                    <tr
-                      key={
-                        conductor.id_conductores
-                      }
-                    >
-                      <td className="col-conductor">
-                        <strong className="conductor-name-cell">
-                          {conductor.nombre}
-                        </strong>
-                      </td>
+                {paginatedConductores.map((conductor) => {
+                  const licStatus = getLicenciaStatus(conductor);
+                  const mcStatus = getManejoComentadoStatus(conductor);
 
-                      <td className="col-telefono">
-                        <span className="conductor-tel-cell">
-                          {conductor.telefono || "No registrado"}
-                        </span>
+                  return (
+                    <tr key={conductor.id_conductores}>
+                      <td className="col-conductor">
+                        <div className="conductor-name-group">
+                          <strong className="conductor-name-cell">
+                            {conductor.nombre}
+                          </strong>
+                          <span className="conductor-id-badge">
+                            ID: CON-{String(conductor.id_conductores).padStart(4, "0")}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-empresa">
-                        <span className="conductor-empresa-cell" title={conductor.empresa || "No registrada"}>
-                          {conductor.empresa || "No registrada"}
+                        <span className="empresa-pill-badge" title={conductor.empresa || "No registrada"}>
+                          {conductor.empresa || "Sin registrar"}
                         </span>
                       </td>
 
                       <td className="col-unidad">
-                        <select
-                          className="conductor-unit-select"
+                        <VehicleSelectDropdown
                           value={conductor.id_vehiculo_asignado || ""}
-                          onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                          disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                          title={conductor.id_vehiculo_asignado ? "Cambiar unidad asignada" : "Asignar unidad"}
-                        >
-                          <option value="">-- Sin asignar --</option>
-                          {vehiculosOptions.map((v) => (
-                            <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                              {v.nombre} — {v.numero_economico}
-                            </option>
-                          ))}
-                        </select>
+                          options={vehiculosOptions}
+                          onChange={(newVehiculoId) => handleAssignVehicle(conductor.id_conductores, newVehiculoId)}
+                          disabled={!conductor.activo}
+                          loading={assigningId === conductor.id_conductores}
+                        />
                       </td>
 
                       <td className="col-licencia">
-                        <div className="conductor-licencia-cell">
-                          <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
-                          <small
-                            className={
-                              conductor.licencia_vigente
-                                ? "license-valid"
-                                : "license-expired"
-                            }
-                          >
-                            {conductor.licencia_vigente
-                              ? "Vigente"
-                              : "Vencida"}
-                          </small>
-                        </div>
+                        <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
                       </td>
 
                       <td className="col-vencimiento">
-                        <span className="date-cell">
-                          {formatDate(conductor.licencia_vencimiento)}
-                        </span>
+                        <div className="status-cell-center">
+                          <span
+                            className={`status-circle-icon status-circle-${licStatus.status}`}
+                            data-tooltip={licStatus.label}
+                            aria-label={licStatus.label}
+                          >
+                            {licStatus.status === "vigente" ? (
+                              <IconCheck size={13} strokeWidth={2.8} />
+                            ) : licStatus.status === "por_vencer" ? (
+                              <IconAlerta size={13} strokeWidth={2.2} />
+                            ) : (
+                              <IconCross size={13} strokeWidth={2.8} />
+                            )}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-mc">
-                        <span className="date-cell">
-                          {formatDate(conductor.fecha_manejo_comentado)}
-                        </span>
-                      </td>
-
-                      <td className="col-telegram">
-                        {conductor.telegram_user_id
-                          ? (
-                              <span className="telegram-linked">
-                                Vinculado
-                              </span>
-                            )
-                          : (
-                              <span className="telegram-unlinked">
-                                Sin vínculo
-                              </span>
+                        <div className="status-cell-center">
+                          <span
+                            className={`status-circle-icon status-circle-${mcStatus.status}`}
+                            data-tooltip={mcStatus.label}
+                            aria-label={mcStatus.label}
+                          >
+                            {mcStatus.status === "vigente" ? (
+                              <IconCheck size={13} strokeWidth={2.8} />
+                            ) : mcStatus.status === "por_vencer" ? (
+                              <IconAlerta size={13} strokeWidth={2.2} />
+                            ) : (
+                              <IconCross size={13} strokeWidth={2.8} />
                             )}
-                      </td>
-
-                      <td className="col-aprobacion">
-                        <span
-                          className={
-                            conductor.aprobado_por_admin
-                              ? "status-badge status-active"
-                              : "status-badge status-inactive"
-                          }
-                          style={{
-                            backgroundColor: conductor.aprobado_por_admin ? "#dcfce7" : "#fef3c7",
-                            color: conductor.aprobado_por_admin ? "#166534" : "#92400e"
-                          }}
-                        >
-                          {conductor.aprobado_por_admin
-                            ? "Aprobado"
-                            : "Pendiente"}
-                        </span>
+                          </span>
+                        </div>
                       </td>
 
                       <td className="col-estado">
-                        <span
-                          className={
-                            conductor.activo
-                              ? "status-badge status-active"
-                              : "status-badge status-inactive"
-                          }
-                        >
-                          {conductor.activo
-                            ? "Activo"
-                            : "Inactivo"}
-                        </span>
+                        <div className="status-cell-center">
+                          {!conductor.aprobado_por_admin ? (
+                            canApprove ? (
+                              <div className="aprobacion-actions-group">
+                                <button
+                                  type="button"
+                                  className="conductor-action-btn btn-approve"
+                                  disabled={updatingId === conductor.id_conductores}
+                                  onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                                  data-tooltip="Aprobar conductor"
+                                  aria-label="Aprobar conductor"
+                                >
+                                  <IconCheck size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="conductor-action-btn btn-reject"
+                                  disabled={updatingId === conductor.id_conductores}
+                                  onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                                  data-tooltip="Rechazar conductor"
+                                  aria-label="Rechazar conductor"
+                                >
+                                  <IconCross size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span
+                                className="status-circle-icon status-circle-por_vencer"
+                                data-tooltip="Pendiente de aprobación"
+                                aria-label="Pendiente de aprobación"
+                              >
+                                <IconAlerta size={13} strokeWidth={2.2} />
+                              </span>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              className={`estado-toggle-btn estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                              onClick={() => handleOpenToggleActive(conductor)}
+                              disabled={updatingId === conductor.id_conductores}
+                              data-tooltip={conductor.activo ? "Activo (Clic para desactivar)" : "Inactivo (Clic para activar)"}
+                              aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                            >
+                              <span className="estado-inner-dot" />
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                         <td className="col-acciones">
                           <div className="conductor-actions-cell">
-                            {!conductor.aprobado_por_admin ? (
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-approve"
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => setApproveModalConductor(conductor)}
-                                title="Aprobar conductor"
-                                aria-label="Aprobar conductor"
-                              >
-                                <IconCheck size={16} />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="conductor-action-btn btn-view-license"
-                                onClick={() => setApproveModalConductor(conductor)}
-                                title="Ver Licencia"
-                                aria-label="Ver Licencia"
-                              >
-                                <IconVerDetalle size={16} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-view-license"
+                              onClick={() => setApproveModalConductor(conductor)}
+                              data-tooltip="Ver Licencia"
+                              aria-label="Ver Licencia"
+                            >
+                              <IconVerDetalle size={16} />
+                            </button>
 
                             <button
                               type="button"
                               className="conductor-action-btn btn-pin"
                               disabled={updatingId === conductor.id_conductores}
                               onClick={() => handleOpenPinModal(conductor)}
-                              title={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
+                              data-tooltip={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                               aria-label={conductor.tiene_pin ? "Generar nuevo PIN" : "Asignar PIN"}
                             >
                               <IconKey size={16} />
                             </button>
 
-                            {canToggleActive && (
-                              <button
-                                type="button"
-                                className={`conductor-action-btn ${conductor.activo ? "btn-deactivate" : "btn-reactivate"}`}
-                                disabled={updatingId === conductor.id_conductores}
-                                onClick={() => handleOpenToggleActive(conductor)}
-                                title={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
-                                aria-label={conductor.activo ? "Desactivar conductor" : "Reactivar conductor"}
-                              >
-                                {conductor.activo ? <IconPower size={16} /> : <IconReactivar size={16} />}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-role"
+                              data-tooltip="Asignar rol"
+                              aria-label="Asignar rol"
+                            >
+                              <IconRol size={16} />
+                            </button>
 
                             {(!user || ["ADMINISTRADOR", "GERENTE_GENERAL"].includes(user.rol)) && (
                               <button
@@ -588,8 +958,8 @@ function ConductoresPage({ user }) {
                                 className="conductor-action-btn btn-delete"
                                 disabled={updatingId === conductor.id_conductores}
                                 onClick={() => handleOpenDelete(conductor)}
-                                title="Eliminar conductor permanentemente"
-                                aria-label="Eliminar conductor permanentemente"
+                                data-tooltip="Eliminar permanentemente"
+                                aria-label="Eliminar permanentemente"
                               >
                                 <IconEliminar size={16} />
                               </button>
@@ -598,133 +968,174 @@ function ConductoresPage({ user }) {
                         </td>
                       )}
                     </tr>
-                  )
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Vista móvil en tarjetas responsivas (pantallas <= 900px) */}
           <div className="conductores-cards-mobile">
-            {paginatedConductores.map((conductor) => (
-              <article key={conductor.id_conductores} className="conductor-mobile-card">
-                <header className="conductor-mobile-header">
-                  <div>
-                    <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
-                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                      {conductor.empresa || "Sin empresa"}
-                    </span>
-                  </div>
-                  <div className="conductor-mobile-badges">
-                    <span className={`status-badge ${conductor.activo ? "status-active" : "status-inactive"}`}>
-                      {conductor.activo ? "Activo" : "Inactivo"}
-                    </span>
-                    <span className={`status-badge ${conductor.aprobado_por_admin ? "status-active" : "status-pending"}`}>
-                      {conductor.aprobado_por_admin ? "Aprobado" : "Pendiente"}
-                    </span>
-                  </div>
-                </header>
+            {paginatedConductores.map((conductor) => {
+              const licStatus = getLicenciaStatus(conductor);
+              const mcStatus = getManejoComentadoStatus(conductor);
 
-                <div className="conductor-mobile-grid">
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Teléfono</span>
-                    <span className="conductor-mobile-value">{conductor.telefono || "No registrado"}</span>
-                  </div>
+              return (
+                <article key={conductor.id_conductores} className="conductor-mobile-card">
+                  <header className="conductor-mobile-header">
+                    <div>
+                      <h3 className="conductor-mobile-name">{conductor.nombre}</h3>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
+                        <span className="conductor-id-badge">
+                          CON-{String(conductor.id_conductores).padStart(4, "0")}
+                        </span>
+                        <span className="empresa-pill-badge">
+                          {conductor.empresa || "Sin empresa"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="conductor-mobile-badges">
+                      {!conductor.aprobado_por_admin ? (
+                        canApprove ? (
+                          <div className="aprobacion-actions-group">
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-approve"
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleApproveDriver(conductor.id_conductores, true)}
+                              data-tooltip="Aprobar conductor"
+                              aria-label="Aprobar conductor"
+                            >
+                              <IconCheck size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="conductor-action-btn btn-reject"
+                              disabled={updatingId === conductor.id_conductores}
+                              onClick={() => handleApproveDriver(conductor.id_conductores, false)}
+                              data-tooltip="Rechazar conductor"
+                              aria-label="Rechazar conductor"
+                            >
+                              <IconCross size={13} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className="status-circle-icon status-circle-por_vencer"
+                            data-tooltip="Pendiente de aprobación"
+                            aria-label="Pendiente de aprobación"
+                          >
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          </span>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className={`estado-toggle-btn estado-pill-halo ${conductor.activo ? "halo-active" : "halo-inactive"}`}
+                          onClick={() => handleOpenToggleActive(conductor)}
+                          disabled={updatingId === conductor.id_conductores}
+                          data-tooltip={conductor.activo ? "Activo (Clic para desactivar)" : "Inactivo (Clic para activar)"}
+                          aria-label={conductor.activo ? "Activo" : "Inactivo"}
+                        >
+                          <span className="estado-inner-dot" />
+                        </button>
+                      )}
+                    </div>
+                  </header>
 
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Licencia</span>
-                    <span className="conductor-mobile-value">
-                      {conductor.licencia_numero || "N/A"}{" "}
-                      <small className={conductor.licencia_vigente ? "license-valid" : "license-expired"}>
-                        ({conductor.licencia_vigente ? "Vigente" : "Vencida"})
-                      </small>
-                    </span>
-                  </div>
+                  <div className="conductor-mobile-grid">
+                    <div className="conductor-mobile-field">
+                      <span className="conductor-mobile-label">Licencia</span>
+                      <span className="conductor-mobile-value" style={{ fontWeight: 600 }}>
+                        {conductor.licencia_numero || "N/A"}
+                      </span>
+                    </div>
 
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Vencimiento</span>
-                    <span className="conductor-mobile-value">{formatDate(conductor.licencia_vencimiento)}</span>
-                  </div>
+                    <div className="conductor-mobile-field">
+                      <span className="conductor-mobile-label">Vencimiento</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span
+                          className={`status-circle-icon status-circle-${licStatus.status}`}
+                          data-tooltip={licStatus.label}
+                          aria-label={licStatus.label}
+                        >
+                          {licStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : licStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                        </span>
+                        <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                          {licStatus.status === "vigente" ? "Vigente" : licStatus.status === "por_vencer" ? "Por vencer" : "Vencida"}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Manejo Comentado</span>
-                    <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
-                  </div>
+                    <div className="conductor-mobile-field full-width">
+                      <span className="conductor-mobile-label">Manejo Comentado</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span className="conductor-mobile-value">{formatDate(conductor.fecha_manejo_comentado)}</span>
+                        <span
+                          className={`status-circle-icon status-circle-${mcStatus.status}`}
+                          data-tooltip={mcStatus.label}
+                          aria-label={mcStatus.label}
+                        >
+                          {mcStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : mcStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="conductor-mobile-field">
-                    <span className="conductor-mobile-label">Telegram</span>
-                    <span className={`conductor-mobile-value ${conductor.telegram_id ? "telegram-linked" : "telegram-unlinked"}`}>
-                      {conductor.telegram_id ? "Vinculado" : "Sin vínculo"}
-                    </span>
+                    <div className="conductor-mobile-field full-width">
+                      <span className="conductor-mobile-label">Unidad Asignada</span>
+                      <div style={{ marginTop: "4px", width: "100%" }}>
+                        <VehicleSelectDropdown
+                          value={conductor.id_vehiculo_asignado || ""}
+                          options={vehiculosOptions}
+                          onChange={(newVehiculoId) => handleAssignVehicle(conductor.id_conductores, newVehiculoId)}
+                          disabled={!conductor.activo}
+                          loading={assigningId === conductor.id_conductores}
+                          className="vehicle-select-mobile-full"
+                        />
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="conductor-mobile-field full-width">
-                    <span className="conductor-mobile-label">Unidad Asignada</span>
-                    <select
-                      value={conductor.id_vehiculo_asignado || ""}
-                      onChange={(e) => handleAssignVehicle(conductor.id_conductores, e.target.value)}
-                      disabled={assigningId === conductor.id_conductores || !conductor.activo}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
-                        fontSize: "0.85rem",
-                        background: "#ffffff"
-                      }}
-                    >
-                      <option value="">-- Sin asignar --</option>
-                      {vehiculosOptions.map((v) => (
-                        <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                          {v.nombre} — {v.numero_economico}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
                 {(!user || ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE"].includes(user.rol)) && (
                   <footer className="conductor-mobile-actions">
-                    {!conductor.aprobado_por_admin ? (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        style={{ backgroundColor: "#16a34a" }}
-                        disabled={updatingId === conductor.id_conductores}
-                        onClick={() => setApproveModalConductor(conductor)}
-                      >
-                        Aprobar
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => setApproveModalConductor(conductor)}
-                      >
-                        Ver Licencia
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setApproveModalConductor(conductor)}
+                    >
+                      Ver Licencia
+                    </button>
 
                     <button
                       type="button"
                       className="secondary-button"
                       disabled={updatingId === conductor.id_conductores}
                       onClick={() => handleOpenPinModal(conductor)}
-                      title="Generar automáticamente o cambiar PIN"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
-                      {conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}
+                      <IconKey size={15} />
+                      <span>{conductor.tiene_pin ? "Nuevo PIN" : "Asignar PIN"}</span>
                     </button>
 
-                    {canToggleActive && (
-                      <button
-                        type="button"
-                        className={conductor.activo ? "danger-button" : "reactivate-button"}
-                        disabled={updatingId === conductor.id_conductores}
-                        onClick={() => handleOpenToggleActive(conductor)}
-                      >
-                        {conductor.activo ? "Desactivar" : "Reactivar"}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="secondary-button btn-role-mobile"
+                      style={{ color: "#7c3aed", borderColor: "#ddd6fe", background: "#f5f3ff", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <IconRol size={15} /> Asignar rol
+                    </button>
 
                     {(!user || user.rol === "ADMINISTRADOR") && (
                       <button
@@ -740,8 +1151,9 @@ function ConductoresPage({ user }) {
                   </footer>
                 )}
               </article>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
             {totalFiltered > 0 && (
               <div className="table-pagination">
@@ -775,173 +1187,427 @@ function ConductoresPage({ user }) {
         )}
       </section>
 
-      {approveModalConductor && (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onMouseDown={() => setApproveModalConductor(null)}
-        >
-          <section
-            className="modal-card"
-            style={{ maxWidth: "720px", width: "95%", maxHeight: "90vh", overflowY: "auto" }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="approve-modal-title"
-            onMouseDown={(e) => e.stopPropagation()}
+      {approveModalConductor && (() => {
+        const modalLicStatus = getLicenciaStatus(approveModalConductor);
+        const modalMcStatus = getManejoComentadoStatus(approveModalConductor);
+
+        return (
+          <div
+            className="modal-overlay"
+            role="presentation"
+            onMouseDown={() => setApproveModalConductor(null)}
           >
-            <div className="form-panel-header">
-              <div>
-                <h2 id="approve-modal-title">Revisión de Conductor</h2>
-                <p>Verifica los datos personales y el documento de licencia antes de aprobar.</p>
-              </div>
-              <button
-                type="button"
-                className="close-button"
-                onClick={() => setApproveModalConductor(null)}
-                aria-label="Cerrar modal"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="driver-approval-body" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", padding: "16px 0" }}>
-              <div className="driver-info-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.9rem", lineHeight: "1.7" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0 0 12px 0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px" }}>
-                  📋 Información General
-                </h3>
-                <p style={{ margin: "4px 0" }}><strong>Nombre:</strong> {approveModalConductor.nombre}</p>
-                <p style={{ margin: "4px 0" }}><strong>Teléfono:</strong> {approveModalConductor.telefono || "No registrado"}</p>
-                <p style={{ margin: "4px 0" }}><strong>Empresa:</strong> <span className="status-badge" style={{ background: "#e0f2fe", color: "#0369a1" }}>{approveModalConductor.empresa || "Sin asignar"}</span></p>
-                <p style={{ margin: "4px 0" }}><strong>No. Licencia:</strong> {approveModalConductor.licencia_numero}</p>
-                <p style={{ margin: "4px 0" }}><strong>Tipo de Licencia:</strong> {approveModalConductor.tipo_licencia || "No especificado"}</p>
-                <p style={{ margin: "4px 0" }}>
-                  <strong>Vencimiento:</strong> {formatDate(approveModalConductor.licencia_vencimiento)}{" "}
-                  {approveModalConductor.licencia_vigente ? (
-                    <span style={{ color: "#16a34a", fontWeight: "600", fontSize: "0.8rem" }}>✓ Vigente</span>
-                  ) : (
-                    <span style={{ color: "#dc2626", fontWeight: "600", fontSize: "0.8rem" }}>⚠ Vencida</span>
-                  )}
-                </p>
-                <p style={{ margin: "4px 0" }}><strong>Manejo Comentado:</strong> {formatDate(approveModalConductor.fecha_manejo_comentado)}</p>
-                <p style={{ margin: "4px 0" }}><strong>Telegram:</strong> {approveModalConductor.telegram_user_id ? "✅ Vinculado" : "⚪ Sin vincular"}</p>
-                <p style={{ margin: "4px 0" }}>
-                  <strong>Estatus Aprobación:</strong>{" "}
-                  <span style={{ fontWeight: "600", color: approveModalConductor.aprobado_por_admin ? "#15803d" : "#b45309" }}>
-                    {approveModalConductor.aprobado_por_admin ? "Aprobado" : "Pendiente de Aprobación"}
-                  </span>
-                </p>
-              </div>
-
-              <div className="driver-license-panel" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: "0", borderBottom: "2px solid #cbd5e1", paddingBottom: "6px", width: "100%" }}>
-                  🪪 Documentos de Licencia
-                </h3>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", width: "100%" }}>
-                  {/* Licencia Frente */}
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
-                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Frente</p>
-                    {approveModalConductor.licencia_url ? (
-                      approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
-                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
-                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
-                          <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
-                        </div>
-                      ) : (
-                        <a href={approveModalConductor.licencia_url} target="_blank" rel="noreferrer" title="Ver Frente a tamaño completo">
-                          <img
-                            src={approveModalConductor.licencia_url}
-                            alt={`Licencia frente de ${approveModalConductor.nombre}`}
-                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
-                          />
-                        </a>
-                      )
-                    ) : (
-                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Frente</p>
-                    )}
+            <section
+              className="modal-card driver-review-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="approve-modal-title"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="driver-review-header">
+                <div className="driver-review-header-left">
+                  <div className="driver-review-icon-box">
+                    <IconIdCard size={22} />
                   </div>
-
-                  {/* Licencia Reverso */}
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
-                    <p style={{ fontSize: "0.82rem", fontWeight: "600", color: "#334155", margin: "0 0 6px 0" }}>📷 Reverso / Trasero</p>
-                    {approveModalConductor.licencia_reverso_url ? (
-                      approveModalConductor.licencia_reverso_url.toLowerCase().endsWith(".pdf") ? (
-                        <div style={{ padding: "12px 8px", background: "#eff6ff", borderRadius: "6px" }}>
-                          <span style={{ fontSize: "1.8rem", display: "block" }}>📄</span>
-                          <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: "600" }}>Abrir PDF ↗</a>
-                        </div>
-                      ) : (
-                        <a href={approveModalConductor.licencia_reverso_url} target="_blank" rel="noreferrer" title="Ver Reverso a tamaño completo">
-                          <img
-                            src={approveModalConductor.licencia_reverso_url}
-                            alt={`Licencia reverso de ${approveModalConductor.nombre}`}
-                            style={{ width: "100%", maxHeight: "160px", borderRadius: "6px", border: "1px solid #cbd5e1", objectFit: "contain", background: "#fff" }}
-                          />
-                        </a>
-                      )
-                    ) : (
-                      <p style={{ fontSize: "0.78rem", color: "#94a3b8", padding: "20px 0" }}>Sin foto Reverso</p>
-                    )}
+                  <div className="driver-review-title-group">
+                    <h2 id="approve-modal-title">Revisión de Conductor</h2>
+                    <p>Verifica los datos personales y el documento de licencia antes de autorizar la operación.</p>
                   </div>
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "2px 0 0 0", textAlign: "center" }}>🔍 Haz clic en las imágenes para ampliarlas</p>
+
+                <div className="driver-review-header-right">
+                  <span className="conductor-id-badge">
+                    CON-{String(approveModalConductor.id_conductores).padStart(4, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    className="driver-review-close-btn"
+                    onClick={() => setApproveModalConductor(null)}
+                    aria-label="Cerrar modal"
+                  >
+                    <IconCross size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="form-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "12px", display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setApproveModalConductor(null)}
-                disabled={updatingId === approveModalConductor.id_conductores}
-              >
-                Cerrar
-              </button>
+              <div className="driver-review-content">
+                {/* Columna Izquierda: Información General */}
+                <div className="driver-review-card">
+                  <div className="driver-review-card-header">
+                    <div className="driver-review-card-title">
+                      <IconUsuarios size={18} className="card-title-icon" />
+                      <span>Información General</span>
+                    </div>
 
-              {canToggleActive && (
-                <button
-                  type="button"
-                  className={approveModalConductor.activo ? "danger-button" : "reactivate-button"}
-                  style={{ fontSize: "0.85rem", padding: "8px 16px" }}
-                  disabled={updatingId === approveModalConductor.id_conductores}
-                  onClick={() => handleOpenToggleActive(approveModalConductor)}
-                >
-                  {approveModalConductor.activo ? "Desactivar Conductor" : "✓ Reactivar Conductor"}
-                </button>
-              )}
+                    <span
+                      className={`estado-pill-halo ${approveModalConductor.activo ? "halo-active" : "halo-inactive"}`}
+                      data-tooltip={approveModalConductor.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                      aria-label={approveModalConductor.activo ? "Activo" : "Inactivo"}
+                    >
+                      <span className="estado-inner-dot" />
+                    </span>
+                  </div>
 
-              {!approveModalConductor.aprobado_por_admin && (
-                <>
+                  <div className="driver-review-fields-grid">
+                    <div className="driver-field-item driver-field-full">
+                      <span className="driver-field-label">Nombre Completo</span>
+                      <span className="driver-field-value driver-field-name">
+                        {approveModalConductor.nombre}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Teléfono</span>
+                      <span className="driver-field-value">
+                        <IconPhone size={14} style={{ color: "#64748b" }} />
+                        {approveModalConductor.telefono || "No registrado"}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Empresa</span>
+                      <span className="driver-field-value">
+                        <span className="empresa-pill-badge">
+                          {approveModalConductor.empresa || "Sin asignar"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">No. Licencia</span>
+                      <span className="driver-field-value">
+                        <span className="licencia-num">
+                          {approveModalConductor.licencia_numero || "N/A"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Tipo de Licencia</span>
+                      <span className="driver-field-value">
+                        {approveModalConductor.tipo_licencia || "No especificado"}
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Vencimiento Licencia</span>
+                      <span className="driver-field-value">
+                        <span style={{ fontWeight: 600 }}>
+                          {formatDate(approveModalConductor.licencia_vencimiento)}
+                        </span>
+                        <span className={`driver-status-badge badge-${modalLicStatus.status}`}>
+                          {modalLicStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : modalLicStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                          <span>
+                            {modalLicStatus.status === "vigente"
+                              ? "Vigente"
+                              : modalLicStatus.status === "por_vencer"
+                              ? "Por vencer"
+                              : "Vencida"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Manejo Comentado</span>
+                      <span className="driver-field-value">
+                        <span style={{ fontWeight: 600 }}>
+                          {formatDate(approveModalConductor.fecha_manejo_comentado)}
+                        </span>
+                        <span className={`driver-status-badge badge-${modalMcStatus.status}`}>
+                          {modalMcStatus.status === "vigente" ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : modalMcStatus.status === "por_vencer" ? (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          ) : (
+                            <IconCross size={12} strokeWidth={2.8} />
+                          )}
+                          <span>
+                            {modalMcStatus.status === "vigente"
+                              ? "Vigente"
+                              : modalMcStatus.status === "por_vencer"
+                              ? "Por vencer"
+                              : modalMcStatus.status === "vencido"
+                              ? "Vencido"
+                              : "Sin registrar"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Telegram Bot</span>
+                      <span className="driver-field-value">
+                        <span
+                          className={`driver-status-badge ${
+                            approveModalConductor.telegram_user_id
+                              ? "badge-telegram-linked"
+                              : "badge-telegram-unlinked"
+                          }`}
+                        >
+                          <IconTelegram size={13} />
+                          <span>
+                            {approveModalConductor.telegram_user_id ? "Vinculado" : "Sin vincular"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">Estatus Aprobación</span>
+                      <span className="driver-field-value">
+                        <span
+                          className={`driver-status-badge ${
+                            approveModalConductor.aprobado_por_admin
+                              ? "badge-vigente"
+                              : "badge-por_vencer"
+                          }`}
+                        >
+                          {approveModalConductor.aprobado_por_admin ? (
+                            <IconCheck size={12} strokeWidth={2.8} />
+                          ) : (
+                            <IconAlerta size={12} strokeWidth={2.2} />
+                          )}
+                          <span>
+                            {approveModalConductor.aprobado_por_admin
+                              ? "Aprobado"
+                              : "Pendiente de Aprobación"}
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="driver-field-item">
+                      <span className="driver-field-label">PIN de Acceso</span>
+                      <span className="driver-field-value">
+                        <IconKey size={14} style={{ color: "#64748b" }} />
+                        <span style={{ fontWeight: 600, color: approveModalConductor.tiene_pin ? "#059669" : "#64748b" }}>
+                          {approveModalConductor.tiene_pin ? "PIN Asignado" : "Sin PIN"}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna Derecha: Documentos de Licencia */}
+                <div className="driver-review-card">
+                  <div className="driver-review-card-header">
+                    <div className="driver-review-card-title">
+                      <IconIdCard size={18} className="card-title-icon" />
+                      <span>Documentos de Licencia</span>
+                    </div>
+                    <span className="driver-status-badge badge-sin_fecha">
+                      2 Vistas
+                    </span>
+                  </div>
+
+                  <div className="driver-doc-grid">
+                    {/* Licencia Frente */}
+                    <div className="driver-doc-slot">
+                      <span className="driver-doc-slot-label">
+                        <IconIdCard size={13} /> Frente
+                      </span>
+                      <div className="driver-doc-preview-box">
+                        {approveModalConductor.licencia_url ? (
+                          approveModalConductor.licencia_url.toLowerCase().endsWith(".pdf") ? (
+                            <div className="driver-doc-pdf">
+                              <IconFileText size={28} style={{ color: "#0284c7" }} />
+                              <a
+                                href={approveModalConductor.licencia_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="driver-doc-pdf-link"
+                              >
+                                <span>Abrir PDF</span>
+                                <IconExternalLink size={13} />
+                              </a>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={approveModalConductor.licencia_url}
+                                alt={`Licencia frente de ${approveModalConductor.nombre}`}
+                                className="driver-doc-img"
+                              />
+                              <div className="driver-doc-overlay">
+                                <a
+                                  href={approveModalConductor.licencia_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="driver-doc-overlay-btn"
+                                >
+                                  <span>Ampliar</span>
+                                  <IconExternalLink size={13} />
+                                </a>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          <div className="driver-doc-empty">
+                            <IconIdCard size={28} />
+                            <span>Sin foto Frente</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Licencia Reverso */}
+                    <div className="driver-doc-slot">
+                      <span className="driver-doc-slot-label">
+                        <IconIdCard size={13} /> Reverso
+                      </span>
+                      <div className="driver-doc-preview-box">
+                        {approveModalConductor.licencia_reverso_url ? (
+                          approveModalConductor.licencia_reverso_url.toLowerCase().endsWith(".pdf") ? (
+                            <div className="driver-doc-pdf">
+                              <IconFileText size={28} style={{ color: "#0284c7" }} />
+                              <a
+                                href={approveModalConductor.licencia_reverso_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="driver-doc-pdf-link"
+                              >
+                                <span>Abrir PDF</span>
+                                <IconExternalLink size={13} />
+                              </a>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={approveModalConductor.licencia_reverso_url}
+                                alt={`Licencia reverso de ${approveModalConductor.nombre}`}
+                                className="driver-doc-img"
+                              />
+                              <div className="driver-doc-overlay">
+                                <a
+                                  href={approveModalConductor.licencia_reverso_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="driver-doc-overlay-btn"
+                                >
+                                  <span>Ampliar</span>
+                                  <IconExternalLink size={13} />
+                                </a>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          <div className="driver-doc-empty">
+                            <IconIdCard size={28} />
+                            <span>Sin foto Reverso</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="driver-doc-footer-hint">
+                    <IconVerDetalle size={14} style={{ color: "#0284c7", flexShrink: 0 }} />
+                    <span>Haz clic en una imagen para abrirla en resolución completa.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="driver-review-footer">
+                <div>
+                  <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                    Registro verificado en plataforma
+                  </span>
+                </div>
+
+                <div className="driver-review-footer-actions">
                   <button
                     type="button"
-                    className="danger-button"
-                    style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+                    className="secondary-button"
+                    onClick={() => setApproveModalConductor(null)}
                     disabled={updatingId === approveModalConductor.id_conductores}
-                    onClick={async () => {
-                      await handleApproveDriver(approveModalConductor.id_conductores, false);
-                      setApproveModalConductor(null);
-                    }}
                   >
-                    Rechazar
+                    Cerrar
                   </button>
+
                   <button
                     type="button"
-                    className="primary-button"
-                    style={{ backgroundColor: "#16a34a", fontSize: "0.85rem", padding: "8px 16px" }}
+                    className="secondary-button"
+                    style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
                     disabled={updatingId === approveModalConductor.id_conductores}
-                    onClick={async () => {
-                      await handleApproveDriver(approveModalConductor.id_conductores, true);
+                    onClick={() => {
+                      const cond = approveModalConductor;
                       setApproveModalConductor(null);
+                      handleOpenPinModal(cond);
                     }}
                   >
-                    {updatingId === approveModalConductor.id_conductores ? "Procesando..." : "✓ Aprobar Conductor"}
+                    <IconKey size={15} />
+                    <span>{approveModalConductor.tiene_pin ? "Generar Nuevo PIN" : "Asignar PIN"}</span>
                   </button>
-                </>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
+
+                  {canToggleActive && (
+                    <button
+                      type="button"
+                      className={approveModalConductor.activo ? "danger-button" : "reactivate-button"}
+                      style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      disabled={updatingId === approveModalConductor.id_conductores}
+                      onClick={() => handleOpenToggleActive(approveModalConductor)}
+                    >
+                      {approveModalConductor.activo ? (
+                        <>
+                          <IconPower size={15} />
+                          <span>Desactivar Conductor</span>
+                        </>
+                      ) : (
+                        <>
+                          <IconReactivar size={15} />
+                          <span>Reactivar Conductor</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {!approveModalConductor.aprobado_por_admin && (
+                    <>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        style={{ fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        disabled={updatingId === approveModalConductor.id_conductores}
+                        onClick={async () => {
+                          await handleApproveDriver(approveModalConductor.id_conductores, false);
+                          setApproveModalConductor(null);
+                        }}
+                      >
+                        <IconCross size={15} />
+                        <span>Rechazar</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        style={{ backgroundColor: "#16a34a", fontSize: "0.85rem", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        disabled={updatingId === approveModalConductor.id_conductores}
+                        onClick={async () => {
+                          await handleApproveDriver(approveModalConductor.id_conductores, true);
+                          setApproveModalConductor(null);
+                        }}
+                      >
+                        <IconCheck size={15} />
+                        <span>
+                          {updatingId === approveModalConductor.id_conductores
+                            ? "Procesando..."
+                            : "Aprobar Conductor"}
+                        </span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
 
       {/* Modal 1: Asignar / Cambiar PIN */}
       {pinModalConductor && (
@@ -964,7 +1630,7 @@ function ConductoresPage({ user }) {
                 disabled={savingPin}
                 onClick={() => setPinModalConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -999,7 +1665,7 @@ function ConductoresPage({ user }) {
                   />
                   <div>
                     <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
-                      🎲 Generar automáticamente
+                      Generar automáticamente
                     </strong>
                     <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
                       El sistema creará un PIN aleatorio y seguro de 4 dígitos.
@@ -1032,7 +1698,7 @@ function ConductoresPage({ user }) {
                   />
                   <div style={{ width: "100%" }}>
                     <strong style={{ fontSize: "0.9rem", color: "#1e293b", display: "block" }}>
-                      ✏️ Ingresar PIN manual
+                      Ingresar PIN manual
                     </strong>
                     <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
                       Escribe un código numérico de exactamente 4 dígitos.
@@ -1071,8 +1737,9 @@ function ConductoresPage({ user }) {
               </div>
 
               {pinModalError && (
-                <div style={{ padding: "8px 12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontSize: "0.82rem" }}>
-                  ⚠️ {pinModalError}
+                <div style={{ padding: "8px 12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <IconAlerta size={14} />
+                  <span>{pinModalError}</span>
                 </div>
               )}
             </div>
@@ -1107,7 +1774,22 @@ function ConductoresPage({ user }) {
             style={{ maxWidth: "420px", width: "100%", textAlign: "center" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: "3rem", margin: "10px 0 6px 0" }}>🎉</div>
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                background: "#ecfdf5",
+                border: "1px solid #a7f3d0",
+                color: "#059669",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "8px auto 14px auto"
+              }}
+            >
+              <IconCheck size={28} strokeWidth={2.8} />
+            </div>
             <h2 style={{ fontSize: "1.25rem", color: "#1e293b", margin: "0 0 6px 0" }}>
               {pinSuccessData.isApproval ? "¡Conductor Aprobado!" : "¡PIN Asignado con Éxito!"}
             </h2>
@@ -1159,7 +1841,7 @@ function ConductoresPage({ user }) {
                     setTimeout(() => setCopiedSuccessPin(false), 2000);
                   }}
                 >
-                  {copiedSuccessPin ? "✓ ¡Copiado!" : "📋 Copiar PIN"}
+                  {copiedSuccessPin ? "¡Copiado!" : "Copiar PIN"}
                 </button>
 
                 <button
@@ -1181,13 +1863,13 @@ function ConductoresPage({ user }) {
                   }}
                   title="Descargar imagen digital con el PIN y nombre del conductor"
                 >
-                  📥 Guardar Imagen
+                  Guardar Imagen
                 </button>
               </div>
             </div>
 
             <p style={{ fontSize: "0.8rem", color: "#475569", margin: "0 0 20px 0" }}>
-              💡 Entrégale este PIN al conductor para que pueda iniciar sesión en el bot de Telegram de la empresa.
+              Entrégale este PIN al conductor para que pueda iniciar sesión en el bot de Telegram de la empresa.
             </p>
 
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -1225,7 +1907,7 @@ function ConductoresPage({ user }) {
                 disabled={updatingId === toggleActiveConductor.id_conductores}
                 onClick={() => setToggleActiveConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -1273,7 +1955,7 @@ function ConductoresPage({ user }) {
                   ? "Procesando..."
                   : toggleActiveConductor.activo
                   ? "Sí, desactivar"
-                  : "✓ Sí, reactivar"}
+                  : "Sí, reactivar"}
               </button>
             </div>
           </div>
@@ -1301,7 +1983,7 @@ function ConductoresPage({ user }) {
                 disabled={updatingId === deleteConfirmConductor.id_conductores}
                 onClick={() => setDeleteConfirmConductor(null)}
               >
-                ✕
+                <IconCross size={16} />
               </button>
             </div>
 
@@ -1309,8 +1991,9 @@ function ConductoresPage({ user }) {
               <p style={{ margin: "0 0 10px 0" }}>
                 ¿Estás seguro de que deseas eliminar permanentemente a <strong>{deleteConfirmConductor.nombre}</strong>?
               </p>
-              <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b" }}>
-                ⚠️ <strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.
+              <div style={{ padding: "10px", background: "#fef2f2", borderLeft: "4px solid #ef4444", borderRadius: "4px", fontSize: "0.82rem", color: "#991b1b", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                <IconAlerta size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <span><strong>Advertencia:</strong> Se desvinculará y eliminará su usuario de Telegram. Sus viajes históricos se conservarán para fines de auditoría.</span>
               </div>
             </div>
 
