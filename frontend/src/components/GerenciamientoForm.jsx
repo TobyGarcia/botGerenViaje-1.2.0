@@ -3,6 +3,7 @@ import { crearGerenciamientoViaje } from "../services/api.js";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
+import VehicleDropdown from "./VehicleDropdown.jsx";
 import { IconMapPin, IconStethoscope, IconClipboard, IconSearch, IconAlert, IconEdit, IconCheck, IconCross, IconCar, IconLock, IconRocket, IconMoon, IconRefresh, IconBan } from "./Icons.jsx";
 
 
@@ -437,7 +438,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     setSuccessMessage("");
 
     if (!inspeccionCompleted) {
-      setErrorMessage("⛔ Debes realizar y completar la Inspección Vehicular Interactiva antes de registrar el Gerenciamiento de Viaje.");
+      setErrorMessage("Debes realizar y completar la Inspección Vehicular Interactiva antes de registrar el Gerenciamiento de Viaje.");
       return;
     }
     if (!form.idOrigen && !form.origenTexto) {
@@ -453,7 +454,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       return;
     }
     if (esBloqueante) {
-      setErrorMessage("⛔ Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
+      setErrorMessage("Las Horas trabajadas + Viaje resultan en >= 16h: NO CONDUCIR (Riesgo Bloqueante).");
       return;
     }
 
@@ -497,7 +498,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
       const res = await crearGerenciamientoViaje(payload);
       if (res.success) {
-        setSuccessMessage("✅ Gerenciamiento e Inspección Vehicular registrados exitosamente en un solo paso. Notificando a supervisión...");
+        setSuccessMessage("Gerenciamiento e Inspección Vehicular registrados exitosamente en un solo paso. Notificando a supervisión...");
         setTimeout(() => {
           if (onComplete) onComplete(res.data);
         }, 1500);
@@ -617,20 +618,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
             <div className="geren-field">
               <label className="geren-field-label">Seleccionar Vehículo *</label>
-              <select
+              <VehicleDropdown
                 name="idVehiculo"
                 value={form.idVehiculo}
+                vehiculos={vehiculos}
                 onChange={handleInputChange}
                 required
-                className="geren-field-select"
-              >
-                <option value="">-- Selecciona Vehículo --</option>
-                {vehiculos.map((v) => (
-                  <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                    {v.nombre} ({v.numero_economico}) - Placa: {v.placas}
-                  </option>
-                ))}
-              </select>
+                placeholder="-- Selecciona Vehículo --"
+              />
             </div>
 
             <div className="geren-field">
@@ -748,7 +743,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                         style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
                         title="Eliminar punto"
                       >
-                        ✕
+                        <IconCross size={16} color="#ffffff" />
                       </button>
                     )}
                   </div>
@@ -818,7 +813,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                           style={{ width: "42px", height: "42px", flexShrink: 0, background: "#ef4444", color: "#ffffff", border: 0, borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "grid", placeItems: "center" }}
                           title="Quitar acompañante"
                         >
-                          ✕
+                          <IconCross size={16} color="#ffffff" />
                         </button>
                       )}
                     </div>

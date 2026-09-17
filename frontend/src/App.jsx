@@ -35,6 +35,7 @@ import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import PwaInstallPrompt from "./components/PwaInstallPrompt.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
+import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import {
   IconCar,
   IconMap,
@@ -1190,6 +1191,12 @@ function isOutsideOperatingHours() {
       return;
     }
 
+    if (!form.idVehiculo) {
+      setMessage("Por favor selecciona una unidad vehicular.");
+      setMessageType("error");
+      return;
+    }
+
     const kilometrajeInicial = Number(form.kilometrajeInicial);
     const kilometrajeRegistrado = Number(selectedVehicle?.kilometraje_actual);
 
@@ -1869,33 +1876,15 @@ function isOutsideOperatingHours() {
                     <label className="urban-field-label" htmlFor="unit-selector">
                       Unidad Asignada <span className="urban-req-star">*</span>
                     </label>
-                    <div className="urban-input-wrap">
-                      <span className="urban-input-icon">
-                        <svg className="urban-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 17a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4m-9-4h10m-11 0l1.5-6h13l1.5 6m-16 0v4a1 1 0 001 1h1m12 0h1a1 1 0 001-1v-4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"></path>
-                        </svg>
-                      </span>
-                      <select
-                        id="unit-selector"
-                        name="idVehiculo"
-                        value={form.idVehiculo}
-                        onChange={handleChange}
-                        required
-                        className="urban-select"
-                      >
-                        <option value="">Seleccione una unidad vehicular</option>
-                        {vehiculos.map((vehiculo) => (
-                          <option key={vehiculo.id_vehiculos} value={vehiculo.id_vehiculos}>
-                            {vehiculo.nombre} — {vehiculo.numero_economico} {String(vehiculo.id_vehiculos) === String(assignedVehicle?.id_vehiculos) ? " (Asignada por supervisor)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="urban-select-arrow">
-                        <svg className="urban-icon-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                        </svg>
-                      </span>
-                    </div>
+                    <VehicleDropdown
+                      id="unit-selector"
+                      name="idVehiculo"
+                      value={form.idVehiculo}
+                      vehiculos={vehiculos}
+                      assignedVehicle={assignedVehicle}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
 
                   {selectedVehicle && (
