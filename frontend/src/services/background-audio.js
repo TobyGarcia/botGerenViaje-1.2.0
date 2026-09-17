@@ -159,14 +159,14 @@ export async function startSilentAudioKeepAlive() {
   isAudioActive = true;
   setupGestureUnlock();
 
-  // 1. Iniciar HTML5 Audio Element (ruido blanco audible a bajo volumen para Xiaomi HyperOS/MIUI)
+  // 1. Iniciar HTML5 Audio Element (volumen imperceptible a 0.001 para mantener la sesión de audio activa sin estática)
   try {
     if (!audioElement) {
       const src = getOrCreateWhiteNoiseAudioUrl();
       audioElement = new Audio(src);
       audioElement.loop = true;
       audioElement.preload = "auto";
-      audioElement.volume = 0.15; // 15% de volumen para forzar al SO Xiaomi a mantener activa la sesión de audio
+      audioElement.volume = 0.001; // 0.1% de volumen: imperceptible al oído pero la pista sigue activa para el SO
 
       audioElement.addEventListener("ended", () => {
         if (isAudioActive && audioElement) {
@@ -179,7 +179,7 @@ export async function startSilentAudioKeepAlive() {
     console.warn("[BackgroundAudio] HTML5 Audio intentará reproducirse al primer toque:", errHtml?.message);
   }
 
-  // 2. Iniciar Web Audio API (Oscilador subsónico 25Hz)
+  // 2. Iniciar Web Audio API (Oscilador subsónico 25Hz con ganancia imperceptible)
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) {
@@ -194,7 +194,7 @@ export async function startSilentAudioKeepAlive() {
         audioGain = audioCtx.createGain();
         audioOscillator.type = "sine";
         audioOscillator.frequency.setValueAtTime(25, audioCtx.currentTime);
-        audioGain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+        audioGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
         audioOscillator.connect(audioGain);
         audioGain.connect(audioCtx.destination);
         audioOscillator.start();
