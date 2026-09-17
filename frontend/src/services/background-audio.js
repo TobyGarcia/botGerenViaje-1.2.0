@@ -1,8 +1,11 @@
 /**
- * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA Móvil
- * Combina un elemento de audio HTML5 (<audio loop>), un sintetizador Web Audio a 25Hz,
- * MediaSession API y WakeLock para máxima resistencia en dispositivos con capas agresivas
- * de gestión de batería (Xiaomi MIUI/HyperOS, Samsung, Huawei).
+ * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA y Navegadores Móviles.
+ * Combina:
+ * 1. Elemento HTML5 <audio loop> con ruido blanco de amplitud mínima (inaudible pero detectado por el SO como audio activo).
+ * 2. Sintetizador Web Audio API con oscilador a 25Hz.
+ * 3. MediaSession API (Notificación de reproducción persistente en Android).
+ * 4. Screen Wake Lock API.
+ * 5. Desbloqueo automático por cualquier gesto táctil/clic del usuario.
  */
 
 let audioElement = null;
@@ -12,10 +15,29 @@ let audioOscillator = null;
 let audioGain = null;
 let wakeLockSentinel = null;
 let isAudioActive = false;
+let gestureListenersAttached = false;
 
-/**
- * Detecta si el entorno actual es un navegador o PWA móvil.
- */
+function setupGestureUnlock() {
+  if (gestureListenersAttached || typeof window === "undefined") return;
+  gestureListenersAttached = true;
+
+  const unlockHandler = () => {
+    if (isAudioActive) {
+      if (audioElement && audioElement.paused) {
+        audioElement.play().catch(() => {});
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+      acquireWakeLock();
+    }
+  };
+
+  window.addEventListener("click", unlockHandler, { capture: true, passive: true });
+  window.addEventListener("touchstart", unlockHandler, { capture: true, passive: true });
+  window.addEventListener("pointerdown", unlockHandler, { capture: true, passive: true });
+}
+
 export function isMobileDevice() {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -23,16 +45,17 @@ export function isMobileDevice() {
   const ua = navigator.userAgent || "";
   const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const isTouchDevice =
-    (navigator.maxTouchPoints > 1 || "ontouchstart" in window) &&
-    window.innerWidth <= 1024;
+    (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
 
   return Boolean(isMobileUa || isTouchDevice);
 }
 
 /**
- * Genera un Blob de audio WAV de silencio puro (PCM 8-bit mono a 8kHz, 2 segundos).
+ * Genera un Blob de audio WAV con ruido blanco de amplitud mínima (inaudible).
+ * PCM 8-bit mono a 8kHz, 2 segundos.
+ * La variación de 1-bit evita que los controladores de audio de Android/iOS identifiquen el canal como silencio digital y apaguen el procesador de audio.
  */
-function getOrCreateSilentAudioUrl() {
+function getOrCreateWhiteNoiseAudioUrl() {
   if (audioBlobUrl) return audioBlobUrl;
 
   try {
@@ -54,8 +77,8 @@ function getOrCreateSilentAudioUrl() {
     writeString(8, "WAVE");
     writeString(12, "fmt ");
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, sampleRate, true);
     view.setUint16(32, 1, true);
@@ -63,20 +86,21 @@ function getOrCreateSilentAudioUrl() {
     writeString(36, "data");
     view.setUint32(40, dataSize, true);
 
-    new Uint8Array(buffer, 44).fill(128);
+    const dataView8 = new Uint8Array(buffer, 44);
+    for (let i = 0; i < dataSize; i++) {
+      // Ruido blanco inaudible con variación leve de 1 bit (127/129)
+      dataView8[i] = 128 + (Math.random() > 0.5 ? 1 : -1);
+    }
 
     const blob = new Blob([buffer], { type: "audio/wav" });
     audioBlobUrl = URL.createObjectURL(blob);
     return audioBlobUrl;
   } catch (error) {
-    console.warn("[BackgroundAudio] Fallback a Data URI para audio silencioso:", error);
+    console.warn("[BackgroundAudio] Fallback a Data URI para ruido blanco:", error);
     return "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
   }
 }
 
-/**
- * Solicita Wake Lock de pantalla si está disponible.
- */
 async function acquireWakeLock() {
   if (typeof navigator !== "undefined" && "wakeLock" in navigator && !wakeLockSentinel) {
     try {
@@ -90,23 +114,17 @@ async function acquireWakeLock() {
   }
 }
 
-/**
- * Libera el Wake Lock.
- */
 function releaseWakeLock() {
   if (wakeLockSentinel) {
     try {
       wakeLockSentinel.release().catch(() => {});
     } catch {
-      // Ignorar error al liberar
+      // Ignorar error
     }
     wakeLockSentinel = null;
   }
 }
 
-/**
- * Configura la sesión multimedia (MediaSession API) en la barra de Android.
- */
 function setupMediaSession() {
   if (typeof navigator !== "undefined" && "mediaSession" in navigator && window.MediaMetadata) {
     try {
@@ -137,24 +155,18 @@ function setupMediaSession() {
   }
 }
 
-/**
- * Inicia la reproducción híbrida: HTML5 Audio + Web Audio 25Hz.
- */
 export async function startSilentAudioKeepAlive() {
-  if (!isMobileDevice()) {
-    return false;
-  }
-
   isAudioActive = true;
+  setupGestureUnlock();
 
-  // 1. Iniciar HTML5 Audio Element (Requerido por Xiaomi/MIUI para notificaciones de medios)
+  // 1. Iniciar HTML5 Audio Element
   try {
     if (!audioElement) {
-      const src = getOrCreateSilentAudioUrl();
+      const src = getOrCreateWhiteNoiseAudioUrl();
       audioElement = new Audio(src);
       audioElement.loop = true;
       audioElement.preload = "auto";
-      audioElement.volume = 0.05;
+      audioElement.volume = 0.02;
 
       audioElement.addEventListener("ended", () => {
         if (isAudioActive && audioElement) {
@@ -164,7 +176,7 @@ export async function startSilentAudioKeepAlive() {
     }
     await audioElement.play();
   } catch (errHtml) {
-    console.warn("[BackgroundAudio] HTML5 Audio warning:", errHtml);
+    console.warn("[BackgroundAudio] HTML5 Audio intentará reproducirse al primer toque:", errHtml?.message);
   }
 
   // 2. Iniciar Web Audio API (Oscilador subsónico 25Hz)
@@ -198,9 +210,6 @@ export async function startSilentAudioKeepAlive() {
   return true;
 }
 
-/**
- * Detiene y libera completamente todos los recursos de audio.
- */
 export function stopSilentAudioKeepAlive() {
   isAudioActive = false;
 
@@ -209,7 +218,7 @@ export function stopSilentAudioKeepAlive() {
       audioElement.pause();
       audioElement.currentTime = 0;
     } catch {
-      // Ignorar error al pausar
+      // Ignorar error
     }
   }
 
@@ -228,28 +237,24 @@ export function stopSilentAudioKeepAlive() {
       audioCtx = null;
     }
   } catch {
-    // Ignorar errores de cierre
+    // Ignorar
   }
 
   if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
     try {
       navigator.mediaSession.playbackState = "none";
     } catch {
-      // Ignorar error al limpiar estado
+      // Ignorar
     }
   }
 
   releaseWakeLock();
 }
 
-/**
- * Retorna true si el mantenimiento de segundo plano está activo.
- */
 export function isSilentAudioActive() {
   return isAudioActive;
 }
 
-// Escuchar cambios de visibilidad para reanudar si el SO intenta pausar
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && isAudioActive) {
@@ -263,3 +268,4 @@ if (typeof document !== "undefined") {
     }
   });
 }
+

@@ -1297,16 +1297,17 @@ function isOutsideOperatingHours() {
       return;
     }
 
+    // Iniciar bucle de audio silencioso en respuesta directa al clic del conductor (antes de que confirm() consuma el gesto)
+    void startSilentAudioKeepAlive().catch(() => {});
+
     const confirmed = window.confirm(
       "¿Confirmas que deseas iniciar este viaje? La hora de salida se registrará automáticamente."
     );
 
     if (!confirmed) {
+      stopSilentAudioKeepAlive();
       return;
     }
-
-    // Iniciar bucle de audio silencioso en móvil en respuesta directa al clic del conductor
-    void startSilentAudioKeepAlive().catch(() => {});
 
     startingTripRef.current = true;
     setStartingTrip(true);

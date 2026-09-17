@@ -78,6 +78,8 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
   });
 }
 
+let watchId = null;
+
 export async function startTracking(idViaje) {
   const normalizedId = Number(idViaje);
   if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
@@ -88,12 +90,38 @@ export async function startTracking(idViaje) {
     activeTripId = normalizedId;
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
     
-    // Iniciar bucle de audio silencioso estrictamente en móvil para evitar que el SO duerma el GPS
+    // Iniciar bucle de ruido blanco y mantenimiento en segundo plano
     void startSilentAudioKeepAlive().catch(() => {});
 
     notify({ status: "Esperando permiso" });
     await captureAndQueueLocation(normalizedId);
+    
+    // 1. Temporizador periódico por intervalo
     intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+
+    // 2. Listener de hardware GPS del SO (watchPosition)
+    // El SO envía actualizaciones asíncronas de ubicación aun cuando los timers de JS estén pausados por pantalla apagada
+    if (typeof navigator !== "undefined" && "geolocation" in navigator && !watchId) {
+      let lastWatchTime = 0;
+      try {
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const now = Date.now();
+            if (now - lastWatchTime >= 10000) { // mínimo 10s entre eventos de hardware
+              lastWatchTime = now;
+              captureAndQueueLocation(normalizedId);
+            }
+          },
+          (err) => {
+            console.warn("[TrackingService] watchPosition aviso:", err?.message);
+          },
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 25000 }
+        );
+      } catch (e) {
+        console.warn("[TrackingService] Error al registrar watchPosition:", e?.message);
+      }
+    }
+
     await notifyPending(normalizedId, { status: "Activo" });
   } finally {
     isStarting = false;
@@ -102,6 +130,10 @@ export async function startTracking(idViaje) {
 
 export function stopTracking({ clearState = true } = {}) {
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
+  if (watchId !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
+    try { navigator.geolocation.clearWatch(watchId); } catch {}
+    watchId = null;
+  }
   if (clearState) clearTrackingState();
   activeTripId = null;
   // Detener y liberar audio silencioso y estado de multimedia en móvil
