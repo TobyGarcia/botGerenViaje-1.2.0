@@ -3349,6 +3349,177 @@ button.estado-toggle-btn:disabled {
 .destination-note strong {
   color: #2e81ab;
 }
+
+/* ==========================================================
+   DESTINOS: Modales, Importación y Badges de Coordenadas
+   ========================================================== */
+.destinos-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.destinos-coords-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 540px) {
+  .destinos-coords-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.destinos-coords-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.destinos-coords-badge:hover {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #6ee7b7;
+}
+
+.destinos-no-coords {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.destinos-detail-modal-card {
+  width: min(640px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.destinos-detail-grid {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+
+.destinos-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.destinos-detail-row span {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.destinos-detail-row strong {
+  font-size: 0.92rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.destinos-import-modal-card {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.destinos-template-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.destinos-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 20px;
+  border: 2px dashed #93c5fd;
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.destinos-dropzone:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.destinos-preview-table-wrapper {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 14px;
+}
+
+.destinos-confirm-modal-card {
+  width: min(500px, 100%);
+}
+
+.view-detail-button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 7px;
+  color: #0284c7;
+  background: #e0f2fe;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.view-detail-button:hover {
+  background: #bae6fd;
+}
+
+.delete-destino-button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 7px;
+  color: #dc2626;
+  background: #fee2e2;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.delete-destino-button:hover {
+  background: #fecaca;
+}
+
 .locations-page {
   width: 100%;
   max-width: 100%;

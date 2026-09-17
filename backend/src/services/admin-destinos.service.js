@@ -1,6 +1,7 @@
 import {
   databasePool
 } from "../database/pool.js";
+import { importDestinationsFromRows } from "../scripts/import-destinos-csv.js";
 
 export async function listAdminDestinations({
   search = "",
@@ -40,7 +41,10 @@ export async function listAdminDestinations({
         l.id_lugares,
         l.nombre,
         l.direccion,
-        l.activo
+        l.latitud,
+        l.longitud,
+        l.activo,
+        l.creado_en
       FROM lugares l
       ${whereClause}
       ORDER BY l.activo DESC, l.nombre ASC
@@ -53,7 +57,9 @@ export async function listAdminDestinations({
 
 export async function createAdminDestination({
   nombre,
-  direccion
+  direccion,
+  latitud = null,
+  longitud = null
 }) {
   const client = await databasePool.connect();
 
@@ -88,11 +94,11 @@ export async function createAdminDestination({
 
     const result = await client.query(
       `
-        INSERT INTO lugares (nombre, direccion, activo)
-        VALUES ($1, $2, TRUE)
-        RETURNING id_lugares, nombre, direccion, activo
+        INSERT INTO lugares (nombre, direccion, latitud, longitud, activo)
+        VALUES ($1, $2, $3, $4, TRUE)
+        RETURNING id_lugares, nombre, direccion, latitud, longitud, activo, creado_en
       `,
-      [nombre, direccion]
+      [nombre, direccion, latitud, longitud]
     );
 
     await client.query("COMMIT");
@@ -108,7 +114,9 @@ export async function createAdminDestination({
 export async function updateAdminDestination({
   idDestino,
   nombre,
-  direccion
+  direccion,
+  latitud = null,
+  longitud = null
 }) {
   const existingResult = await databasePool.query(
     `
@@ -132,11 +140,15 @@ export async function updateAdminDestination({
   const result = await databasePool.query(
     `
       UPDATE lugares
-      SET nombre = $1, direccion = $2
-      WHERE id_lugares = $3
-      RETURNING id_lugares, nombre, direccion, activo
+      SET nombre = $1,
+          direccion = $2,
+          latitud = $3,
+          longitud = $4,
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id_lugares = $5
+      RETURNING id_lugares, nombre, direccion, latitud, longitud, activo, actualizado_en
     `,
-    [nombre, direccion, idDestino]
+    [nombre, direccion, latitud, longitud, idDestino]
   );
 
   return result.rows[0] ?? null;
@@ -149,12 +161,52 @@ export async function updateAdminDestinationStatus({
   const result = await databasePool.query(
     `
       UPDATE lugares
-      SET activo = $1
+      SET activo = $1,
+          actualizado_en = CURRENT_TIMESTAMP
       WHERE id_lugares = $2
-      RETURNING id_lugares, nombre, direccion, activo
+      RETURNING id_lugares, nombre, direccion, latitud, longitud, activo
     `,
     [activo, idDestino]
   );
 
   return result.rows[0] ?? null;
 }
+
+export async function deleteAdminDestination(idDestino) {
+  const usageCheck = await databasePool.query(
+    `
+      SELECT
+        (SELECT COUNT(*) FROM viajes WHERE id_origen = $1 OR id_destino = $1) AS viajes_count,
+        (SELECT COUNT(*) FROM gerenciamiento_viajes WHERE id_origen = $1 OR id_destino = $1) AS gerenciamiento_count
+    `,
+    [idDestino]
+  );
+
+  const viajesCount = Number(usageCheck.rows[0]?.viajes_count || 0);
+  const gerenciamientoCount = Number(usageCheck.rows[0]?.gerenciamiento_count || 0);
+  const totalUsos = viajesCount + gerenciamientoCount;
+
+  if (totalUsos > 0) {
+    const error = new Error(
+      `No se puede eliminar este destino porque está asociado a ${totalUsos} viaje(s) en el historial. Puedes darlo de baja para que no aparezca en nuevos viajes.`
+    );
+    error.code = "DESTINATION_HAS_TRIPS";
+    throw error;
+  }
+
+  const result = await databasePool.query(
+    `
+      DELETE FROM lugares
+      WHERE id_lugares = $1
+      RETURNING id_lugares, nombre
+    `,
+    [idDestino]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function importAdminDestinations(destinations) {
+  return await importDestinationsFromRows(destinations);
+}
+

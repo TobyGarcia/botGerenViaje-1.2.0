@@ -4,6 +4,8 @@ import {
 
 import {
   createAdminDestinationController,
+  deleteAdminDestinationController,
+  importAdminDestinationsController,
   listAdminDestinationsController,
   updateAdminDestinationController,
   updateAdminDestinationStatusController
@@ -33,6 +35,12 @@ router.post(
   createAdminDestinationController
 );
 
+router.post(
+  "/importar",
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
+  importAdminDestinationsController
+);
+
 router.patch(
   "/:idDestino/estado",
   requireAdminRoles("ADMINISTRADOR"),
@@ -43,6 +51,12 @@ router.patch(
   "/:idDestino",
   requireAdminRoles("ADMINISTRADOR"),
   updateAdminDestinationController
+);
+
+router.delete(
+  "/:idDestino",
+  requireAdminRoles("ADMINISTRADOR"),
+  deleteAdminDestinationController
 );
 
 export default router;
