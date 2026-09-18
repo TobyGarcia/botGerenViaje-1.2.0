@@ -157,7 +157,7 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
   }
 
   return createPortal(
-    <div className="signature-dialog" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+    <div className="signature-dialog" role="dialog" aria-modal="true" style={{ zIndex: 2147483002 }}>
       <div className="signature-dialog-card" style={{ maxWidth: "750px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         
         {/* Encabezado */}
