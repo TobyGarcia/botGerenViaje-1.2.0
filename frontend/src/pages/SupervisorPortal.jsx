@@ -731,44 +731,6 @@ export default function SupervisorPortal({
 
   return (
     <main className="supervisor-portal-main">
-      {/* Barra de Módulo Activo con disparador de Menú tipo Hamburguesa */}
-      <div className="supervisor-active-module-bar">
-        <div className="supervisor-module-info">
-          <div className="supervisor-module-icon-wrap">
-            {activeTab === "inspecciones" && <IconClipboard size={20} />}
-            {activeTab === "gerenciamiento" && <IconMap size={20} />}
-            {activeTab === "conductores" && <IconIdCard size={20} />}
-            {activeTab === "manejo-comentado" && <IconAlert size={20} />}
-            {activeTab === "asignaciones" && <IconCar size={20} />}
-            {activeTab === "mi-unidad" && <IconCar size={20} />}
-          </div>
-          <div>
-            <span className="supervisor-module-tag">MÓDULO ACTIVO</span>
-            <h2 className="supervisor-module-title">
-              {activeTab === "inspecciones" && "Inspecciones de Unidades"}
-              {activeTab === "gerenciamiento" && "Gerenciamiento de Viajes"}
-              {activeTab === "conductores" && "Conductores Pendientes"}
-              {activeTab === "manejo-comentado" && "Autorizaciones Manejo Vencido"}
-              {activeTab === "asignaciones" && "Asignaciones de Vehículos"}
-              {activeTab === "mi-unidad" && `Mi Unidad (${miUnidadStatus.vehiculo?.numero_economico || "Asignada"})`}
-            </h2>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="supervisor-btn-open-menu"
-          onClick={handleOpenDrawer}
-          title="Abrir menú de módulos"
-          aria-label="Abrir menú de módulos"
-        >
-          <IconMenu size={18} />
-          <span>Módulos</span>
-          {totalPendingBadges > 0 && (
-            <span className="supervisor-menu-badge">{totalPendingBadges}</span>
-          )}
-        </button>
-      </div>
 
       {miUnidadStatus.assigned && miUnidadStatus.vehiculo && (
         <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>

@@ -107,11 +107,14 @@ textarea {
 
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: #0284c7;
+}
+
 button:focus-visible {
-  outline: 3px solid rgba(35, 169, 207, 0.22);
+  outline: 2px solid #0284c7;
   outline-offset: 2px;
-  border-color: var(--accent-cyan);
 }
 
 textarea {
