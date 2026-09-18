@@ -3,7 +3,14 @@ import logoGv from "../assets/LOGOGV.png";
 import NavDrawer from "./NavDrawer.jsx";
 import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
 
-export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange }) {
+export default function TopBar({
+  conductor,
+  onLogout,
+  activeTabMode,
+  onTabChange,
+  isRegisterMode = false,
+  onLoginClick
+}) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isTelegram = Boolean(window.Telegram?.WebApp);
 
@@ -94,6 +101,62 @@ export default function TopBar({ conductor, onLogout, activeTabMode, onTabChange
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            </div>
+          ) : isRegisterMode ? (
+            <div className="topbar-register-controls" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={onLoginClick}
+                className="topbar-btn-login-pill"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 14px",
+                  borderRadius: "9999px",
+                  fontSize: "0.75rem",
+                  fontWeight: "700",
+                  color: "#ffffff",
+                  background: "rgba(30, 41, 59, 0.9)",
+                  border: "1px solid #334155",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.12)",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+                <span>Iniciar sesión</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onLoginClick}
+                title="Cerrar"
+                aria-label="Cerrar"
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  color: "#94a3b8",
+                  background: "rgba(30, 41, 59, 0.9)",
+                  border: "1px solid #334155",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease",
+                  padding: 0
+                }}
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>

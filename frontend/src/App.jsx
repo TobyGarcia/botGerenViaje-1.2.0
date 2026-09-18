@@ -1482,17 +1482,14 @@ function isOutsideOperatingHours() {
   if (showPinLogin || !telegramAuth?.authenticated || !telegramAuth?.conductor) {
     if (showConductorRegister) {
       return (
-        <div className="app-shell" style={{ minHeight: "100vh", overflowY: "auto" }}>
-          <TopBar conductor={null} onLogout={handleLogout} />
-          <main className="container" style={{ paddingBottom: "40px" }}>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setShowConductorRegister(false)}
-              style={{ marginBottom: "16px", background: "#ffffff", color: "#334155", border: "1px solid #cbd5e1" }}
-            >
-              ← Volver al inicio por PIN
-            </button>
+        <div className="app-shell" style={{ minHeight: "100vh", overflowY: "auto", background: "#eff4ff" }}>
+          <TopBar
+            conductor={null}
+            onLogout={handleLogout}
+            isRegisterMode={true}
+            onLoginClick={() => setShowConductorRegister(false)}
+          />
+          <main className="container" style={{ paddingBottom: "40px", paddingTop: "16px" }}>
             <RegistroConductor
               telegramAuth={telegramAuth}
               onRegistered={(data) => {
@@ -1502,6 +1499,7 @@ function isOutsideOperatingHours() {
                   handlePinLoginSuccess(data.conductor);
                 }
               }}
+              onCancel={() => setShowConductorRegister(false)}
             />
           </main>
         </div>
