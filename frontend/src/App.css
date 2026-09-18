@@ -1887,7 +1887,8 @@
 .urban-select:focus {
   background: #ffffff;
   border-color: #0284c7;
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .urban-select-arrow {
@@ -1910,7 +1911,7 @@
   width: 100%;
   height: 46px;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 12px;
   padding-left: 44px;
   padding-right: 56px;
@@ -1925,7 +1926,8 @@
 .urban-input:focus {
   background: #ffffff;
   border-color: #0284c7;
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .urban-input-suffix {
@@ -2054,10 +2056,13 @@ form#urban-trip-form {
 
 .urban-view-wrapper input:focus,
 .urban-view-wrapper select:focus,
-.urban-view-wrapper textarea:focus {
+.urban-view-wrapper textarea:focus,
+.urban-view-wrapper input:focus-visible,
+.urban-view-wrapper select:focus-visible,
+.urban-view-wrapper textarea:focus-visible {
   outline: none !important;
   border-color: #0284c7 !important;
-  box-shadow: 0 0 0 1.5px #0284c7 !important;
+  box-shadow: none !important;
   background: #ffffff !important;
 }
 
@@ -2066,25 +2071,31 @@ form#urban-trip-form {
   position: relative;
 }
 
-.urban-autocomplete-wrap .destination-autocomplete-container input {
+.urban-autocomplete-wrap .destination-autocomplete-container input,
+.destination-autocomplete-container input {
   padding-left: 42px !important;
   padding-right: 36px !important;
   background: #f8fafc !important;
   border-radius: 12px !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #cbd5e1 !important;
   font-size: 0.88rem !important;
   color: #1e293b !important;
   height: 46px !important;
   box-sizing: border-box !important;
-  transition: all 0.2s ease !important;
+  transition: border-color 0.15s ease, background 0.15s ease !important;
   outline: none !important;
   box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 
-.urban-autocomplete-wrap .destination-autocomplete-container input:focus {
+.urban-autocomplete-wrap .destination-autocomplete-container input:focus,
+.urban-autocomplete-wrap .destination-autocomplete-container input:focus-visible,
+.destination-autocomplete-container input:focus,
+.destination-autocomplete-container input:focus-visible {
   background: #ffffff !important;
   border-color: #0284c7 !important;
-  box-shadow: 0 0 0 1.5px #0284c7 !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
@@ -2193,10 +2204,11 @@ form#urban-trip-form {
   box-shadow: none !important;
 }
 
-.urban-textarea:focus {
+.urban-textarea:focus,
+.urban-textarea:focus-visible {
   background: #ffffff !important;
   border-color: #0284c7 !important;
-  box-shadow: 0 0 0 1.5px #0284c7 !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
