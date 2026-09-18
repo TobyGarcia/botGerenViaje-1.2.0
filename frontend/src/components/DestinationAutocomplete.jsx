@@ -139,12 +139,13 @@ export default function DestinationAutocomplete({
             padding: "12px 36px 12px 14px",
             borderRadius: "12px",
             border: "1px solid #cbd5e1",
-            background: "#f8fafc",
+            background: "#ffffff",
             color: "#1e293b",
             fontSize: "0.88rem",
             fontWeight: "500",
             outline: "none",
             boxShadow: "none",
+            WebkitBoxShadow: "none",
             WebkitAppearance: "none",
             appearance: "none"
           }}
