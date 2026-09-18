@@ -157,8 +157,6 @@ async function initializeDependencies() {
       } catch (mErr) {
         console.warn("Aviso en auto-migración de inspecciones_remolque:", mErr.message);
       }
-        console.warn("Aviso en auto-migración de gerenciamiento_viajes:", mErr.message);
-      }
 
       // Auto-migración 4: Inspecciones y Usuarios Admin
       try {
