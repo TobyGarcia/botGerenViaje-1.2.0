@@ -40,7 +40,13 @@ export default function NavDrawer({
   onClose,
   activeTabMode,
   onSelectTab,
-  conductor
+  conductor,
+  items = NAV_ITEMS,
+  userTitle = "Conductor",
+  userRole = "CONDUCTOR AUTENTICADO",
+  sectionTitle = "MÓDULOS DE NAVEGACIÓN",
+  showOfflineGuide = true,
+  footerText = "AQUARIO · Control de Viajes"
 }) {
   if (!isOpen) return null;
 
@@ -110,10 +116,10 @@ export default function NavDrawer({
             </div>
             <div>
               <div style={{ fontSize: "0.95rem", fontWeight: "800", color: "#ffffff" }}>
-                {conductor?.nombre ? conductor.nombre.split(" ").slice(0, 2).join(" ") : "Conductor"}
+                {conductor?.nombre ? conductor.nombre.split(" ").slice(0, 2).join(" ") : userTitle}
               </div>
               <div style={{ fontSize: "0.72rem", color: "#38bdf8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                CONDUCTOR AUTENTICADO
+                {userRole}
               </div>
             </div>
           </div>
@@ -141,11 +147,11 @@ export default function NavDrawer({
         {/* Cuerpo con Opciones del Menú */}
         <div style={{ flex: 1, padding: "20px 16px", overflowY: "auto" }}>
           <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "14px" }}>
-            MÓDULOS DE NAVEGACIÓN
+            {sectionTitle}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {NAV_ITEMS.map((item) => {
+            {items.map((item) => {
               const IconComp = item.icon;
               const isActive = activeTabMode === item.id;
 
@@ -178,6 +184,21 @@ export default function NavDrawer({
                 >
                   <IconComp size={20} color={isActive ? "#0284c7" : item.color} />
                   <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge !== undefined && item.badge !== null && item.badge !== "" && item.badge !== 0 && (
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "9999px",
+                        fontSize: "0.72rem",
+                        fontWeight: "800",
+                        background: item.badgeType === "warning" ? "#fef3c7" : "#ef4444",
+                        color: item.badgeType === "warning" ? "#92400e" : "#ffffff",
+                        border: item.badgeType === "warning" ? "1px solid #fde047" : "none"
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                   {isActive && <IconCheck size={16} color="#0284c7" />}
                 </button>
               );
@@ -185,25 +206,27 @@ export default function NavDrawer({
           </div>
 
           {/* Guia discreta de uso sin internet */}
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "12px 14px",
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-              fontSize: "0.8rem",
-              color: "#475569"
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", color: "#0f2b46", marginBottom: "4px" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#0284c7" }}></span>
-              <span>¿Cómo usar sin internet?</span>
+          {showOfflineGuide && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "12px 14px",
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                fontSize: "0.8rem",
+                color: "#475569"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", color: "#0f2b46", marginBottom: "4px" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#0284c7" }}></span>
+                <span>¿Cómo usar sin internet?</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.74rem", lineHeight: "1.4", color: "#64748b" }}>
+                En el menú de tu navegador (3 puntos arriba a la derecha), elige <strong>"Instalar aplicación"</strong> o <strong>"Añadir a inicio"</strong> para operar sin conexión.
+              </p>
             </div>
-            <p style={{ margin: 0, fontSize: "0.74rem", lineHeight: "1.4", color: "#64748b" }}>
-              En el menú de tu navegador (3 puntos arriba a la derecha), elige <strong>"Instalar aplicación"</strong> o <strong>"Añadir a inicio"</strong> para operar sin conexión.
-            </p>
-          </div>
+          )}
         </div>
 
         {/* Pie de página del Drawer */}
@@ -217,7 +240,7 @@ export default function NavDrawer({
             fontWeight: "600"
           }}
         >
-          AQUARIO · Control de Viajes
+          {footerText}
         </div>
       </div>
     </div>

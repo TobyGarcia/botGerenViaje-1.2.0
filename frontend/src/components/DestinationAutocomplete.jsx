@@ -88,6 +88,7 @@ export default function DestinationAutocomplete({
     setQuery(lugar.nombre);
     setIsOpen(false);
     onChange(String(lugar.id_lugares), lugar);
+    inputRef.current?.blur();
   }
 
   function handleClear() {
@@ -120,6 +121,7 @@ export default function DestinationAutocomplete({
           disabled={disabled}
           placeholder={placeholder}
           required={required && !value && !isCustomMode}
+          autoComplete="off"
           onFocus={() => {
             if (!disabled) setIsOpen(true);
           }}
@@ -135,12 +137,16 @@ export default function DestinationAutocomplete({
             width: "100%",
             boxSizing: "border-box",
             padding: "12px 36px 12px 14px",
-            borderRadius: "10px",
-            border: "1px solid #cadde6",
-            background: "#f9fcfd",
-            color: "#173c4d",
-            fontSize: "0.95rem",
-            outline: "none"
+            borderRadius: "12px",
+            border: "1px solid #cbd5e1",
+            background: "#f8fafc",
+            color: "#1e293b",
+            fontSize: "0.88rem",
+            fontWeight: "500",
+            outline: "none",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            appearance: "none"
           }}
         />
 
