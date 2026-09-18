@@ -1688,15 +1688,9 @@ function isOutsideOperatingHours() {
             <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
             <p className="gv-screen-subtitle">Control operativo y seguimiento de trayecto</p>
           </div>
-        ) : (gerenciamientoPendiente || (activeTabMode !== "urban" && activeTabMode !== "gerenciamiento")) ? (
+        ) : (gerenciamientoPendiente && activeTabMode !== "siniestro" && activeTabMode !== "perfil") ? (
           <>
-            <h1>
-              {activeTabMode === "siniestro"
-                ? "REPORTAR SINIESTRO"
-                : activeTabMode === "perfil"
-                  ? "ACTUALIZACIÓN DE DATOS"
-                  : "Nuevo viaje"}
-            </h1>
+            <h1>Nuevo viaje</h1>
 
             <section className="summary-card" aria-label="Fecha actual">
               <span>Fecha actual</span>
