@@ -11,6 +11,7 @@ export default function SupervisorApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [authenticatingMs, setAuthenticatingMs] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const getAzureAuthRedirectUri = () => {
     return window.location.origin + "/";
@@ -130,7 +131,11 @@ export default function SupervisorApp() {
 
   return (
     <div className="pin-view-shell">
-      <TopBar conductor={supervisorUser} onLogout={handleLogout} />
+      <TopBar
+        conductor={supervisorUser}
+        onLogout={handleLogout}
+        onMenuClick={access?.user ? () => setDrawerOpen(true) : null}
+      />
 
       {loading ? (
         <main className="pin-view-main">
@@ -187,7 +192,13 @@ export default function SupervisorApp() {
           </div>
         </main>
       ) : (
-        <SupervisorPortal access={access} onAccessChanged={loadAccess} />
+        <SupervisorPortal
+          access={access}
+          onAccessChanged={loadAccess}
+          drawerOpen={drawerOpen}
+          onCloseDrawer={() => setDrawerOpen(false)}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
       )}
     </div>
   );

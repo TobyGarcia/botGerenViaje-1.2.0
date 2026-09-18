@@ -38,6 +38,7 @@ import {
   IconSearch
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
+import NavDrawer from "../components/NavDrawer.jsx";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
 
 function SignaturePadModal({
@@ -292,11 +293,29 @@ class ErrorBoundary extends Component {
   }
 }
 
-export default function SupervisorPortal({ access, onAccessChanged }) {
+export default function SupervisorPortal({
+  access,
+  onAccessChanged,
+  drawerOpen,
+  onCloseDrawer,
+  onOpenDrawer
+}) {
   const [tenantEmail, setTenantEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("inspecciones"); // "inspecciones" | "gerenciamiento" | "asignaciones"
   const [showSidebar, setShowSidebar] = useState(false);
+
+  const isDrawerOpen = drawerOpen !== undefined ? drawerOpen : showSidebar;
+  const handleCloseDrawer = onCloseDrawer || (() => setShowSidebar(false));
+  const handleOpenDrawer = onOpenDrawer || (() => setShowSidebar(true));
+
+  const handleSelectNavTab = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === "inspecciones") setDetail(null);
+    else if (tabId === "gerenciamiento") setGerenciamientoDetail(null);
+    else if (tabId === "conductores") setSelectedDriver(null);
+    else if (tabId === "manejo-comentado") setSelectedManejoAuthorization(null);
+  };
 
   // Inspecciones state
   const [items, setItems] = useState([]);
@@ -651,75 +670,105 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
   const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
 
+  const supervisorNavItems = [
+    {
+      id: "inspecciones",
+      label: "Inspecciones",
+      icon: IconClipboard,
+      color: "#0284c7",
+      badge: items.length > 0 ? items.length : null,
+      badgeType: "danger"
+    },
+    {
+      id: "gerenciamiento",
+      label: "Gerenciamiento",
+      icon: IconMap,
+      color: "#0284c7",
+      badge: pendingGerenciamientos.length > 0 ? pendingGerenciamientos.length : null,
+      badgeType: "danger"
+    },
+    {
+      id: "conductores",
+      label: "Conductores",
+      icon: IconIdCard,
+      color: "#0284c7",
+      badge: pendingDrivers.length > 0 ? pendingDrivers.length : null,
+      badgeType: "danger"
+    },
+    ...( ['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) ? [
+      {
+        id: "manejo-comentado",
+        label: "Manejo Vencido",
+        icon: IconAlert,
+        color: "#d97706",
+        badge: manejoAuthorizations.length > 0 ? manejoAuthorizations.length : null,
+        badgeType: "warning"
+      }
+    ] : [] ),
+    {
+      id: "asignaciones",
+      label: "Asignaciones",
+      icon: IconCar,
+      color: "#0284c7"
+    },
+    ...( miUnidadStatus.assigned ? [
+      {
+        id: "mi-unidad",
+        label: `Mi Unidad (${miUnidadStatus.vehiculo?.numero_economico || "Asignada"})`,
+        icon: IconCar,
+        color: "#16a34a",
+        badge: miUnidadStatus.turnoActivo?.estado === "EN_TRASLADO_CASA" ? "En Casa" : null,
+        badgeType: "warning"
+      }
+    ] : [] )
+  ];
+
+  const totalPendingBadges =
+    (items.length || 0) +
+    (pendingGerenciamientos.length || 0) +
+    (pendingDrivers.length || 0) +
+    (['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) ? (manejoAuthorizations.length || 0) : 0);
+
   return (
     <main className="supervisor-portal-main">
-      {/* Segmented Tab Navigation Bar (Scrollable Pills) */}
-      <nav className="supervisor-tab-strip">
-        <button
-          type="button"
-          className={`supervisor-tab-pill ${activeTab === "inspecciones" ? "active" : ""}`}
-          onClick={() => { setActiveTab("inspecciones"); setDetail(null); }}
-        >
-          <IconClipboard size={15} />
-          <span>Inspecciones</span>
-          {items.length > 0 && <span className="tab-pill-badge">{items.length}</span>}
-        </button>
+      {/* Barra de Módulo Activo con disparador de Menú tipo Hamburguesa */}
+      <div className="supervisor-active-module-bar">
+        <div className="supervisor-module-info">
+          <div className="supervisor-module-icon-wrap">
+            {activeTab === "inspecciones" && <IconClipboard size={20} />}
+            {activeTab === "gerenciamiento" && <IconMap size={20} />}
+            {activeTab === "conductores" && <IconIdCard size={20} />}
+            {activeTab === "manejo-comentado" && <IconAlert size={20} />}
+            {activeTab === "asignaciones" && <IconCar size={20} />}
+            {activeTab === "mi-unidad" && <IconCar size={20} />}
+          </div>
+          <div>
+            <span className="supervisor-module-tag">MÓDULO ACTIVO</span>
+            <h2 className="supervisor-module-title">
+              {activeTab === "inspecciones" && "Inspecciones de Unidades"}
+              {activeTab === "gerenciamiento" && "Gerenciamiento de Viajes"}
+              {activeTab === "conductores" && "Conductores Pendientes"}
+              {activeTab === "manejo-comentado" && "Autorizaciones Manejo Vencido"}
+              {activeTab === "asignaciones" && "Asignaciones de Vehículos"}
+              {activeTab === "mi-unidad" && `Mi Unidad (${miUnidadStatus.vehiculo?.numero_economico || "Asignada"})`}
+            </h2>
+          </div>
+        </div>
 
         <button
           type="button"
-          className={`supervisor-tab-pill ${activeTab === "gerenciamiento" ? "active" : ""}`}
-          onClick={() => { setActiveTab("gerenciamiento"); setGerenciamientoDetail(null); }}
+          className="supervisor-btn-open-menu"
+          onClick={handleOpenDrawer}
+          title="Abrir menú de módulos"
+          aria-label="Abrir menú de módulos"
         >
-          <IconMap size={15} />
-          <span>Gerenciamiento</span>
-          {pendingGerenciamientos.length > 0 && <span className="tab-pill-badge">{pendingGerenciamientos.length}</span>}
+          <IconMenu size={18} />
+          <span>Módulos</span>
+          {totalPendingBadges > 0 && (
+            <span className="supervisor-menu-badge">{totalPendingBadges}</span>
+          )}
         </button>
-
-        <button
-          type="button"
-          className={`supervisor-tab-pill ${activeTab === "conductores" ? "active" : ""}`}
-          onClick={() => { setActiveTab("conductores"); setSelectedDriver(null); }}
-        >
-          <IconIdCard size={15} />
-          <span>Conductores</span>
-          {pendingDrivers.length > 0 && <span className="tab-pill-badge">{pendingDrivers.length}</span>}
-        </button>
-
-        {['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) && (
-          <button
-            type="button"
-            className={`supervisor-tab-pill ${activeTab === "manejo-comentado" ? "active" : ""}`}
-            onClick={() => { setActiveTab("manejo-comentado"); setSelectedManejoAuthorization(null); }}
-          >
-            <IconAlert size={15} />
-            <span>Manejo Vencido</span>
-            {manejoAuthorizations.length > 0 && <span className="tab-pill-badge warning">{manejoAuthorizations.length}</span>}
-          </button>
-        )}
-
-        <button
-          type="button"
-          className={`supervisor-tab-pill ${activeTab === "asignaciones" ? "active" : ""}`}
-          onClick={() => setActiveTab("asignaciones")}
-        >
-          <IconCar size={15} />
-          <span>Asignaciones</span>
-        </button>
-
-        {miUnidadStatus.assigned && (
-          <button
-            type="button"
-            className={`supervisor-tab-pill ${activeTab === "mi-unidad" ? "active" : ""}`}
-            onClick={() => setActiveTab("mi-unidad")}
-          >
-            <IconCar size={15} />
-            <span>Mi Unidad ({miUnidadStatus.vehiculo?.numero_economico})</span>
-            {miUnidadStatus.turnoActivo?.estado === "EN_TRASLADO_CASA" && (
-              <span className="tab-pill-badge warning">En Casa</span>
-            )}
-          </button>
-        )}
-      </nav>
+      </div>
 
       {miUnidadStatus.assigned && miUnidadStatus.vehiculo && (
         <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
@@ -1864,6 +1913,21 @@ export default function SupervisorPortal({ access, onAccessChanged }) {
           onClose={() => setShowSignatureModal(false)}
         />
       )}
+
+      {/* Drawer Navegador Lateral (Estilo Conductor) */}
+      <NavDrawer
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        activeTabMode={activeTab}
+        onSelectTab={handleSelectNavTab}
+        conductor={{ nombre: access.user?.nombre || access.supervisorNombre || "Supervisor" }}
+        userTitle="Supervisor"
+        userRole={currentUserRole}
+        sectionTitle="MÓDULOS DE SUPERVISIÓN"
+        items={supervisorNavItems}
+        showOfflineGuide={false}
+        footerText="AQUARIO · Portal de Supervisión"
+      />
     </main>
   );
 }

@@ -8,6 +8,7 @@ export default function TopBar({
   onLogout,
   activeTabMode,
   onTabChange,
+  onMenuClick,
   isRegisterMode = false,
   onLoginClick
 }) {
@@ -49,10 +50,10 @@ export default function TopBar({
           </div>
 
         <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {typeof onTabChange === "function" && (
+          {(typeof onTabChange === "function" || typeof onMenuClick === "function") && (
             <button
               type="button"
-              onClick={() => setDrawerOpen(true)}
+              onClick={onMenuClick ? onMenuClick : () => setDrawerOpen(true)}
               title="Abrir menú"
               aria-label="Abrir menú"
               style={{
@@ -188,14 +189,16 @@ export default function TopBar({
       </div>
     </header>
 
-      {/* Drawer Navegador Lateral */}
-      <NavDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        activeTabMode={activeTabMode}
-        onSelectTab={onTabChange}
-        conductor={conductor}
-      />
+      {/* Drawer Navegador Lateral (solo para modo conductor sin onMenuClick externo) */}
+      {!onMenuClick && typeof onTabChange === "function" && (
+        <NavDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          activeTabMode={activeTabMode}
+          onSelectTab={onTabChange}
+          conductor={conductor}
+        />
+      )}
     </>
   );
 }
