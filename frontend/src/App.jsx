@@ -1483,17 +1483,14 @@ function isOutsideOperatingHours() {
   if (showPinLogin || !telegramAuth?.authenticated || !telegramAuth?.conductor) {
     if (showConductorRegister) {
       return (
-        <div className="app-shell" style={{ minHeight: "100vh", overflowY: "auto" }}>
-          <TopBar conductor={null} onLogout={handleLogout} />
-          <main className="container" style={{ paddingBottom: "40px" }}>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setShowConductorRegister(false)}
-              style={{ marginBottom: "16px", background: "#ffffff", color: "#334155", border: "1px solid #cbd5e1" }}
-            >
-              ← Volver al inicio por PIN
-            </button>
+        <div className="app-shell" style={{ minHeight: "100vh", overflowY: "auto", background: "#eff4ff" }}>
+          <TopBar
+            conductor={null}
+            onLogout={handleLogout}
+            isRegisterMode={true}
+            onLoginClick={() => setShowConductorRegister(false)}
+          />
+          <main className="container" style={{ paddingBottom: "40px", paddingTop: "16px" }}>
             <RegistroConductor
               telegramAuth={telegramAuth}
               onRegistered={(data) => {
@@ -1503,6 +1500,7 @@ function isOutsideOperatingHours() {
                   handlePinLoginSuccess(data.conductor);
                 }
               }}
+              onCancel={() => setShowConductorRegister(false)}
             />
           </main>
         </div>
@@ -1689,15 +1687,9 @@ function isOutsideOperatingHours() {
             <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
             <p className="gv-screen-subtitle">Control operativo y seguimiento de trayecto</p>
           </div>
-        ) : (gerenciamientoPendiente || (activeTabMode !== "urban" && activeTabMode !== "gerenciamiento")) ? (
+        ) : (gerenciamientoPendiente && activeTabMode !== "siniestro" && activeTabMode !== "perfil") ? (
           <>
-            <h1>
-              {activeTabMode === "siniestro"
-                ? "REPORTAR SINIESTRO"
-                : activeTabMode === "perfil"
-                  ? "ACTUALIZACIÓN DE DATOS"
-                  : "Nuevo viaje"}
-            </h1>
+            <h1>Nuevo viaje</h1>
 
             <section className="summary-card" aria-label="Fecha actual">
               <span>Fecha actual</span>
