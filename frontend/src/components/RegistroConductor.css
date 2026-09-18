@@ -60,71 +60,113 @@
   height: 2px;
   background: #e2e8f0;
   z-index: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
+.registro-stepper-grid button.registro-step-tab,
+button.registro-step-tab,
 .registro-step-tab {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  outline: none;
+  position: relative !important;
+  z-index: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.registro-stepper-grid button.registro-step-tab:hover,
+.registro-stepper-grid button.registro-step-tab:focus,
+.registro-stepper-grid button.registro-step-tab:active,
+.registro-stepper-grid button.registro-step-tab:focus-visible,
+button.registro-step-tab:hover,
+button.registro-step-tab:focus,
+button.registro-step-tab:active,
+button.registro-step-tab:focus-visible,
+.registro-step-tab:hover,
+.registro-step-tab:focus,
+.registro-step-tab:active,
+.registro-step-tab:focus-visible {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  filter: none !important;
 }
 
 .registro-step-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  transition: all 0.2s ease;
+  position: relative;
+  z-index: 2;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  border-radius: 9999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
 }
 
 .registro-step-icon.active {
-  background: #0369a1;
-  color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.25);
-  box-shadow: 0 0 0 4px #e0f2fe;
+  background: #0369a1 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 4px #e0f2fe, 0 4px 6px -1px rgba(3, 105, 161, 0.25) !important;
+  border: none !important;
 }
 
 .registro-step-icon.completed {
-  background: #059669;
-  color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: #059669 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  border: none !important;
 }
 
 .registro-step-icon.inactive {
-  background: #f1f5f9;
-  color: #94a3b8;
-  border: 1px solid #cbd5e1;
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
 }
 
 .registro-step-label {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  transition: color 0.15s ease;
+  margin-top: 0.5rem !important;
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+  white-space: nowrap !important;
+  transition: color 0.15s ease !important;
 }
 
 .registro-step-label.active {
-  font-weight: 700;
-  color: #0369a1;
+  font-weight: 700 !important;
+  color: #0369a1 !important;
 }
 
 .registro-step-label.completed {
-  font-weight: 600;
-  color: #059669;
+  font-weight: 600 !important;
+  color: #059669 !important;
 }
 
 .registro-step-label.inactive {
-  font-weight: 500;
-  color: #64748b;
+  font-weight: 500 !important;
+  color: #64748b !important;
 }
 
 /* Barra de Progreso */

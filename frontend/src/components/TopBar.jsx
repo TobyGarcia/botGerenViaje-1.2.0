@@ -39,7 +39,6 @@ export default function TopBar({
   };
 
   const activeMeta = getActiveTabMeta();
-  const ActiveIcon = activeMeta.Icon;
 
   return (
     <>
