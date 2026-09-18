@@ -347,7 +347,146 @@ export function buildInspectionPdf(data) {
   const content = Buffer.from(commands.join("\n"), "latin1");
   const contentId = addObject(streamObject("", content));
   const pageId = addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 ${regularFont} 0 R /F2 ${boldFont} 0 R >> /XObject << ${Object.values(imageReferences).map((reference) => `/${reference.name} ${reference.id} 0 R`).join(" ")} >> >> /Contents ${contentId} 0 R >>`);
-  objects[2] = `<< /Type /Pages /Kids [${pageId} 0 R] /Count 1 >>`;
+
+  const pageIds = [pageId];
+
+  // PÁGINA 2: INSPECCIÓN DE REMOLQUE (si lleva_remolque es true)
+  if (data.lleva_remolque) {
+    const remolqueData = typeof data.inspeccion_remolque === "string"
+      ? JSON.parse(data.inspeccion_remolque)
+      : (data.inspeccion_remolque || {});
+    const remolqueChecklist = remolqueData.checklist || {};
+    const remolqueDanos = remolqueData.danos || {};
+    const remolqueObs = remolqueData.observaciones || "";
+
+    const commandsP2 = [];
+
+    // Header Remolque (Y: 748 a 780)
+    rect(commandsP2, MARGIN, 748, 540, 32, { fill: darkNavy, stroke: border, lineWidth: 0.8 });
+    drawText(commandsP2, "INSPECCIÓN DE REMOLQUE", PAGE_WIDTH / 2, 765, 13, { bold: true, fill: textWhite, align: "center" });
+    drawText(commandsP2, "Checklist previo a traslado | Logística / Infraestructura", PAGE_WIDTH / 2, 752, 8, { bold: true, fill: "#51c8f3", align: "center" });
+
+    // Metadatos Remolque (Y: 690 a 744)
+    const fieldsP2 = [
+      ["Fecha", formatShortDate(data.aprobado_en || data.creado_en || Date.now())],
+      ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })],
+      ["Folio", data.folio],
+      ["No. remolque / ID", data.remolque_numero_economico || ("ID " + data.id_remolque)],
+      ["Responsable", data.conductor],
+      ["Unidad que remolca", `${data.numero_economico} - ${data.vehiculo}`],
+      ["Placas unidad", data.placas || "N/A"],
+      ["Placas remolque", data.remolque_placas || "N/A"],
+      ["Destino", data.destino || "Registrado en viaje"],
+      ["Autorizó movimiento", data.aprobador || "Pendiente"]
+    ];
+
+    fieldsP2.forEach(([label, value], index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const x = MARGIN + col * 270;
+      const y = 730 - row * 13.5;
+      addLabeledField(commandsP2, label, value, x, y, 270);
+    });
+
+    // Banner checklist remolque (Y: 660)
+    rect(commandsP2, MARGIN, 660, 540, 10, { fill: brandBlue, stroke: border });
+    drawText(commandsP2, "CHECKLIST DE CONTROL DE REMOLQUE (Bueno: B, Regular: R, Malo: M, No Aplica: N/A)", PAGE_WIDTH / 2, 662.5, 6.3, { bold: true, fill: textWhite, align: "center" });
+
+    // Checklist Remolque en 2 Columnas (Y: 420 a 655)
+    const remolqueColumns = [
+      {
+        title: "COLUMNA 1: ENGANCHE, SOPORTES Y LLANTAS",
+        sections: [
+          { title: "DOCUMENTACIÓN / CONTROL", items: ["Identificación o número económico visible", "Placa del remolque (si aplica)", "Tarjeta de circulación vigente (si aplica)", "Movimiento solicitado previamente", "Supervisora vehicular notificada", "Destino y responsable registrados"] },
+          { title: "SISTEMA DE ENGANCHE Y SEGURIDAD", items: ["Acoplador / enganche sin deformaciones", "Seguro o pasador del acoplador", "Cadenas de seguridad", "Ganchos de cadenas", "Cable de seguridad / breakaway (si aplica)", "Conector eléctrico", "Punto de enganche libre de fisuras", "Tornillería y fijaciones del enganche"] },
+          { title: "SOPORTES Y ELEVACIÓN", items: ["Gato / soporte de elevación recto y funcional", "Manivela del gato", "Base / zapata del soporte", "Soportes estabilizadores (si aplica)", "Pasadores y seguros", "Soldaduras sin fisuras o deformaciones"] },
+          { title: "LLANTAS, RINES Y EJES", items: ["Llanta delantera derecha", "Llanta delantera izquierda", "Llanta trasera derecha (si aplica)", "Llanta trasera izquierda (si aplica)", "Presión visual / inflado adecuado", "Desgaste o cortes en neumáticos", "Rines sin golpes o deformaciones", "Birlos completos y firmes", "Ejes / suspensión sin daño visible", "Llanta de refacción (si aplica)"] }
+        ]
+      },
+      {
+        title: "COLUMNA 2: LUCES, CARROCERÍA Y CARGA",
+        sections: [
+          { title: "LUCES Y SISTEMA ELÉCTRICO", items: ["Calavera trasera derecha", "Calavera trasera izquierda", "Luces direccionales", "Luces de freno", "Luces de posición / cuartos", "Luces de placa (si aplica)", "Reflectores", "Cableado sin exposición o daño", "Conector y terminales en buen estado"] },
+          { title: "ESTRUCTURA Y CARROCERÍA", items: ["Chasis sin golpes o deformaciones", "Piso / plataforma", "Laterales / barandales (si aplica)", "Salpicaderas", "Defensa / parte posterior", "Soldaduras visibles", "Rampas / compuertas (si aplica)", "Bisagras y seguros", "Ausencia de piezas flojas"] },
+          { title: "CARGA Y OPERACIÓN", items: ["Carga correctamente distribuida", "Carga asegurada con cinchos/cadenas (si aplica)", "Capacidad de carga respetada", "Sin objetos sueltos", "Rampas aseguradas antes del traslado", "Freno de remolque funcional (si aplica)"] },
+          { title: "LIMPIEZA Y CONDICIÓN GENERAL", items: ["Interior / plataforma limpia", "Exterior limpio", "Sin residuos, lodo o materiales sueltos", "Condición general apta para traslado"] }
+        ]
+      }
+    ];
+
+    const tableTopP2 = 650;
+    const rowHeightP2 = 6.4;
+    remolqueColumns.forEach((column, columnIndex) => {
+      const x = MARGIN + columnIndex * 270;
+      rect(commandsP2, x, tableTopP2, 270, 8.5, { fill: darkNavy, stroke: border });
+      drawText(commandsP2, column.title, x + 135, tableTopP2 + 2.2, 5.0, { bold: true, fill: textWhite, align: "center" });
+      let y = tableTopP2;
+      column.sections.forEach((section) => {
+        y -= rowHeightP2;
+        rect(commandsP2, x, y, 270, rowHeightP2, { fill: lightCyan, stroke: border });
+        drawText(commandsP2, section.title, x + 135, y + 1.5, 4.4, { bold: true, fill: darkNavy, align: "center" });
+        section.items.forEach((item) => {
+          y -= rowHeightP2;
+          rect(commandsP2, x, y, 270, rowHeightP2, { stroke: border });
+          line(commandsP2, x + 18, y, x + 18, y + rowHeightP2, 0.4, border);
+          const stateVal = remolqueChecklist[item] || "B";
+          drawText(commandsP2, stateVal, x + 3, y + 1.3, 4.5, { bold: true, fill: darkNavy });
+          drawText(commandsP2, truncate(item, 58), x + 21, y + 1.3, 4.5, { fill: textDark });
+        });
+      });
+    });
+
+    // Diagrama 4 Vistas del Remolque (Y: 260 a 410)
+    rect(commandsP2, MARGIN, 410, 540, 10, { fill: darkNavy, stroke: border });
+    drawText(commandsP2, "VISTAS DEL REMOLQUE - DAÑOS DETECTADOS MARCADOS EN DIAGRAMA", PAGE_WIDTH / 2, 412.5, 6.3, { bold: true, fill: textWhite, align: "center" });
+
+    rect(commandsP2, MARGIN, 260, 540, 150, { fill: "#ffffff", stroke: border });
+
+    const trailerDiagramViews = [
+      { id: "frontal", label: "VISTA FRONTAL", x: 45, y: 340, w: 110, h: 60 },
+      { id: "derecha", label: "VISTA LATERAL DERECHA", x: 180, y: 340, w: 370, h: 60 },
+      { id: "trasera", label: "VISTA TRASERA", x: 45, y: 270, w: 110, h: 60 },
+      { id: "izquierda", label: "VISTA LATERAL IZQUIERDA", x: 180, y: 270, w: 370, h: 60 }
+    ];
+
+    trailerDiagramViews.forEach(({ id, label, x, y, w, h }) => {
+      rect(commandsP2, x, y, w, h, { fill: "#f8fafc", stroke: border });
+      drawText(commandsP2, label, x + w / 2, y + h - 8, 5.5, { bold: true, fill: darkNavy, align: "center" });
+      const pts = remolqueDanos[id] || [];
+      pts.forEach((pt, idx) => {
+        const mx = x + (Number(pt.x) / 100) * w;
+        const my = y + (1 - Number(pt.y) / 100) * h;
+        circle(commandsP2, mx, my, 4.5);
+        drawText(commandsP2, String(idx + 1), mx - 1.5, my - 1.5, 3.8, { bold: true, fill: "#d93838" });
+      });
+    });
+
+    // Observaciones y Firmas Remolque (Y: 36 a 250)
+    rect(commandsP2, MARGIN, 245, 540, 9, { fill: brandBlue, stroke: border });
+    drawText(commandsP2, "OBSERVACIONES / DAÑOS DETECTADOS EN REMOLQUE", PAGE_WIDTH / 2, 247.2, 5.6, { bold: true, fill: textWhite, align: "center" });
+
+    rect(commandsP2, MARGIN, 185, 540, 60, { fill: "#ffffff", stroke: border });
+    const remText = truncate(remolqueObs || "Sin daños ni observaciones reportadas en remolque.", 220);
+    drawText(commandsP2, remText, 42, 230, 6.0, { fill: textDark });
+
+    // Firmas P2
+    drawText(commandsP2, "Responsable del Traslado:", 150, 165, 6.0, { bold: true, fill: darkNavy });
+    drawText(commandsP2, "Supervisor Vehicular / Logística:", 430, 165, 6.0, { bold: true, fill: darkNavy, align: "center" });
+    line(commandsP2, 54, 138, 282, 138, 0.7, border);
+    line(commandsP2, 330, 138, 558, 138, 0.7, border);
+    if (signature && imageReferences.firma) drawImage(commandsP2, imageReferences.firma.name, signature, 58, 140, 220, 22);
+    if (supervisorSignature && imageReferences.firmaSupervisor) drawImage(commandsP2, imageReferences.firmaSupervisor.name, supervisorSignature, 334, 140, 220, 22);
+
+    drawText(commandsP2, truncate(data.conductor, 42), 168, 126, 5.2, { bold: true, fill: darkNavy, align: "center" });
+    drawText(commandsP2, truncate(data.aprobador, 42), 444, 126, 5.2, { bold: true, fill: darkNavy, align: "center" });
+
+    const contentP2 = Buffer.from(commandsP2.join("\n"), "latin1");
+    const contentId2 = addObject(streamObject("", contentP2));
+    const pageId2 = addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 ${regularFont} 0 R /F2 ${boldFont} 0 R >> /XObject << ${Object.values(imageReferences).map((reference) => `/${reference.name} ${reference.id} 0 R`).join(" ")} >> >> /Contents ${contentId2} 0 R >>`);
+    pageIds.push(pageId2);
+  }
+
+  objects[2] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
   let pdf = Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "latin1");
   const offsets = [0];
   for (let id = 1; id < objects.length; id += 1) {

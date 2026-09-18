@@ -3,12 +3,12 @@
 ## Flujo
 
 1. El conductor crea un viaje en estado `PENDIENTE`.
-2. La API comprueba si la unidad ya tiene una inspección aprobada para el día operativo.
+2. La API comprueba si la unidad/conductor ya tiene una inspección registrada para el día operativo.
 3. Si no existe, la Mini App muestra carátula, cuatro vistas de daños, checklist, observaciones y firma.
-4. Al enviar, la inspección queda en `PENDIENTE_APROBACION` y aparece en la campana del panel administrativo.
-5. Un usuario `ADMINISTRADOR` o `SUPERVISOR` aprueba o rechaza.
-6. Al aprobar, el backend genera el PDF, lo guarda en PostgreSQL y habilita el inicio del viaje.
-7. Los siguientes viajes de esa unidad durante el mismo día operativo reutilizan la aprobación.
+4. Al enviar, la inspección queda en `PENDIENTE_APROBACION` y habilita de inmediato el inicio del viaje para el personal.
+5. Un usuario `ADMINISTRADOR`, `COORDINADOR`, `GERENTE` o `SUPERVISOR` puede revisar y firmar/aprobar las inspecciones pendientes posteriormente.
+6. Al aprobar, el backend genera el PDF oficial firmado y actualiza el estado a `APROBADA`.
+7. Los siguientes viajes del mismo conductor/unidad durante el mismo día operativo reutilizan la inspección registrada.
 
 El día operativo usa la zona `America/Mexico_City` y cambia a las 22:00. Las inspecciones enviadas fuera de 07:00 a 12:00 se marcan para autorización fuera de horario.
 

@@ -776,6 +776,33 @@ export default function InspeccionesPage({ user, onPendingChange }) {
                     <DamageViewer damages={detail.danos} vehicle={detail.vehiculo} />
                   </div>
 
+                  {/* Sección Remolque (si aplica) */}
+                  {detail.lleva_remolque && (
+                    <div className="modal-section-card" style={{ borderLeft: "4px solid #2563eb", background: "#f8fafc", padding: "16px", borderRadius: "8px", marginTop: "12px" }}>
+                      <div className="section-card-title">
+                        <h3 style={{ color: "#1e293b", margin: 0 }}>🚛 Inspección de Remolque Asignado</h3>
+                        <p style={{ margin: "4px 0 10px", color: "#64748b" }}>
+                          Unidad de Remolque: <strong>{detail.remolque_numero_economico || ("ID " + detail.id_remolque)} - {detail.remolque_nombre || "Remolque"}</strong> (Placas: {detail.remolque_placas || "N/A"})
+                        </p>
+                      </div>
+
+                      {(() => {
+                        const remData = typeof detail.inspeccion_remolque === "string" ? JSON.parse(detail.inspeccion_remolque) : (detail.inspeccion_remolque || {});
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {remData.checklist && renderChecklistByCategories(remData.checklist)}
+                            {remData.observaciones && (
+                              <div className="observations-callout" style={{ marginTop: "6px" }}>
+                                <strong>Observaciones de remolque:</strong>
+                                <p>{remData.observaciones}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* Checklist por Categorías */}
                   <div className="modal-section-card">
                     <div className="section-card-title">

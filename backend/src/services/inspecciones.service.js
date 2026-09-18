@@ -37,24 +37,30 @@ export async function saveInspection({ idViaje, idConductor, data }) {
       : `SELECT ${operationalDateSql}::date AS fecha, EXTRACT(HOUR FROM ${mexicoNowSql}) AS hora`
   );
   const { fecha, hora } = now.rows[0];
+  const levaRemolque = Boolean(data.llevaRemolque);
+  const idRemolque = levaRemolque && data.idRemolque ? Number(data.idRemolque) : null;
+  const inspeccionRemolque = levaRemolque && data.inspeccionRemolque ? JSON.stringify(data.inspeccionRemolque) : null;
+
   const result = await databasePool.query(`
     INSERT INTO inspecciones_vehiculares (
       id_viajes, id_vehiculos, id_conductores, fecha_operativa, combustible,
       tipo_asignacion, asignacion_inicio, asignacion_fin, danos, checklist,
       observaciones_conductor, firma_conductor, estado, requiere_autorizacion_fuera_horario,
-      es_dia_siguiente, actualizado_en
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,'PENDIENTE_APROBACION',$13,$14,CURRENT_TIMESTAMP)
+      es_dia_siguiente, lleva_remolque, id_remolque, inspeccion_remolque, actualizado_en
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,'PENDIENTE_APROBACION',$13,$14,$15,$16,$17::jsonb,CURRENT_TIMESTAMP)
     ON CONFLICT (id_viajes) DO UPDATE SET fecha_operativa=EXCLUDED.fecha_operativa,
       combustible=EXCLUDED.combustible,
       tipo_asignacion=EXCLUDED.tipo_asignacion, asignacion_inicio=EXCLUDED.asignacion_inicio,
       asignacion_fin=EXCLUDED.asignacion_fin, danos=EXCLUDED.danos, checklist=EXCLUDED.checklist,
       observaciones_conductor=EXCLUDED.observaciones_conductor, firma_conductor=EXCLUDED.firma_conductor,
       estado='PENDIENTE_APROBACION', requiere_autorizacion_fuera_horario=EXCLUDED.requiere_autorizacion_fuera_horario,
-      es_dia_siguiente=EXCLUDED.es_dia_siguiente, actualizado_en=CURRENT_TIMESTAMP
+      es_dia_siguiente=EXCLUDED.es_dia_siguiente, lleva_remolque=EXCLUDED.lleva_remolque,
+      id_remolque=EXCLUDED.id_remolque, inspeccion_remolque=EXCLUDED.inspeccion_remolque, actualizado_en=CURRENT_TIMESTAMP
     RETURNING *`, [idViaje, context.id_vehiculos, idConductor, fecha, data.combustible,
       data.tipoAsignacion, data.asignacionInicio || null, data.asignacionFin || null,
       JSON.stringify(data.danos || {}), JSON.stringify(data.checklist || {}),
-      data.observaciones || null, data.firma, Number(hora) < 7 || Number(hora) >= 16, isNextDay]);
+      data.observaciones || null, data.firma, Number(hora) < 7 || Number(hora) >= 16, isNextDay,
+      levaRemolque, idRemolque, inspeccionRemolque]);
   return result.rows[0];
 }
 
@@ -70,21 +76,20 @@ export async function getApprovalForStart(idViaje, idConductor) {
         OR i.fecha_operativa = CURRENT_DATE
         OR (i.es_dia_siguiente = TRUE AND i.fecha_operativa >= CURRENT_DATE - INTERVAL '1 day')
       )
-      AND i.estado = 'APROBADA'
+      AND i.estado IN ('PENDIENTE_APROBACION', 'APROBADA')
     WHERE v.id_viajes = $1
-    ORDER BY i.aprobado_en DESC NULLS LAST LIMIT 1`, [idViaje, idConductor]);
+    ORDER BY i.actualizado_en DESC NULLS LAST LIMIT 1`, [idViaje, idConductor]);
   return result.rows[0] ?? null;
 }
 
 export async function getInspectionRequirement({ idViaje, idConductor }) {
   const context = await getInspectionContext({ idViaje, idConductor });
   if (!context) return null;
-  // La aprobación es por conductor/usuario y fecha operativa, no por unidad.
-  // Un segundo conductor que tome el mismo vehículo debe inspeccionarlo.
-  const approved = await getApprovalForStart(idViaje, idConductor);
+  const inspection = await getApprovalForStart(idViaje, idConductor);
   return {
-    required: !approved?.id_inspeccion,
-    approved: Boolean(approved?.id_inspeccion),
+    required: !inspection?.id_inspeccion,
+    approved: inspection?.estado === "APROBADA",
+    submitted: Boolean(inspection?.id_inspeccion),
     inspection: context.id_inspeccion ? {
       idInspeccion: context.id_inspeccion,
       estado: context.estado,
@@ -97,12 +102,14 @@ export async function getInspectionRequirement({ idViaje, idConductor }) {
 export async function listPendingInspections() {
   const result = await databasePool.query(`
     SELECT i.id_inspeccion, i.estado, i.creado_en, i.requiere_autorizacion_fuera_horario,
-      i.fecha_operativa, i.es_dia_siguiente,
-      v.folio, c.nombre AS conductor, vh.nombre AS vehiculo, vh.numero_economico
+      i.fecha_operativa, i.es_dia_siguiente, i.lleva_remolque, i.id_remolque,
+      v.folio, c.nombre AS conductor, vh.nombre AS vehiculo, vh.numero_economico,
+      rem.nombre AS remolque_nombre, rem.numero_economico AS remolque_numero_economico
     FROM inspecciones_vehiculares i
     INNER JOIN viajes v ON v.id_viajes=i.id_viajes
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
+    LEFT JOIN vehiculos rem ON rem.id_vehiculos=i.id_remolque
     ORDER BY CASE WHEN i.estado='PENDIENTE_APROBACION' THEN 0 ELSE 1 END, i.creado_en DESC`);
   return result.rows;
 }
@@ -114,16 +121,20 @@ export async function getAdminInspection(idInspeccion) {
       i.asignacion_fin, i.danos, i.checklist, i.observaciones_conductor,
       i.firma_conductor, i.firma_supervisor, i.estado, i.requiere_autorizacion_fuera_horario,
       i.comentario_aprobacion, i.aprobado_en, i.pdf_generado_en, i.pdf_nombre,
-      i.creado_en, i.actualizado_en, v.folio, v.kilometraje_inicial, c.nombre AS conductor,
+      i.creado_en, i.actualizado_en, i.lleva_remolque, i.id_remolque, i.inspeccion_remolque,
+      v.folio, v.kilometraje_inicial, c.nombre AS conductor,
       c.licencia_numero, c.tipo_licencia, c.licencia_vigente, c.licencia_vencimiento,
       vh.nombre AS vehiculo, vh.marca, vh.modelo, vh.tipo_vehiculo,
       vh.numero_economico, vh.placas, vh.numero_serie, vh.numero_poliza,
       vh.seguro_vencimiento,
+      vh_rem.nombre AS remolque_nombre, vh_rem.marca AS remolque_marca, vh_rem.modelo AS remolque_modelo,
+      vh_rem.numero_economico AS remolque_numero_economico, vh_rem.placas AS remolque_placas,
       COALESCE(NULLIF(gv.nombre_autorizador_firma, ''), ua.nombre, 'N/A') AS aprobador
     FROM inspecciones_vehiculares i
     INNER JOIN viajes v ON v.id_viajes=i.id_viajes
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
+    LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos=i.id_remolque
     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin=i.id_usuario_admin_aprobador
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);

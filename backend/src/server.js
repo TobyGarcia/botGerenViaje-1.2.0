@@ -143,6 +143,20 @@ async function initializeDependencies() {
             ADD COLUMN IF NOT EXISTS pdf_documento BYTEA;
         `);
       } catch (mErr) {
+        console.warn("Aviso en auto-migración de gerenciamiento:", mErr.message);
+      }
+
+      // Auto-migración 4: Inspección de Remolque
+      try {
+        await databasePool.query(`
+          ALTER TABLE inspecciones_vehiculares
+            ADD COLUMN IF NOT EXISTS lleva_remolque BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS id_remolque INTEGER REFERENCES vehiculos(id_vehiculos) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS inspeccion_remolque JSONB DEFAULT NULL;
+        `);
+      } catch (mErr) {
+        console.warn("Aviso en auto-migración de inspecciones_remolque:", mErr.message);
+      }
         console.warn("Aviso en auto-migración de gerenciamiento_viajes:", mErr.message);
       }
 

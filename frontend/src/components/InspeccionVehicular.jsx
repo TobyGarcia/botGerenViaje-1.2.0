@@ -4,6 +4,7 @@ import conductorImage from "../assets/conductor.png";
 import frontalImage from "../assets/frontal.png";
 import pasajeroImage from "../assets/pasajero.png";
 import traseraImage from "../assets/trasera.png";
+import InspeccionRemolqueModal from "./InspeccionRemolqueModal.jsx";
 
 const views = [
   ["frontal", "🚘 Vista frontal", frontalImage],
@@ -138,12 +139,13 @@ function SignaturePad({ onSave, onCancel }) {
   );
 }
 
-export default function InspeccionVehicular({ context, estado, onSubmit, saving, onClose }) {
+export default function InspeccionVehicular({ context, estado, vehiculos = [], onSubmit, saving, onClose }) {
   const [step, setStep] = useState(0);
   const [signatureOpen, setSignatureOpen] = useState(false);
+  const [showRemolqueModal, setShowRemolqueModal] = useState(false);
   const [lastMarked, setLastMarked] = useState("");
   const [tirePressures, setTirePressures] = useState({ di: "32", dd: "32", ti: "35", td: "35" });
-  const [form, setForm] = useState({ combustible: "", tipoAsignacion: "PERMANENTE", asignacionInicio: "", asignacionFin: "", danos: {}, checklist: {}, observaciones: "", firma: "", esDiaSiguiente: false });
+  const [form, setForm] = useState({ combustible: "", tipoAsignacion: "PERMANENTE", asignacionInicio: "", asignacionFin: "", danos: {}, checklist: {}, observaciones: "", firma: "", esDiaSiguiente: false, llevaRemolque: false, idRemolque: null, inspeccionRemolque: null });
   const totalSteps = 8;
   const currentView = step >= 1 && step <= 4 ? views[step - 1] : null;
 
@@ -195,13 +197,17 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
   }
 
   function canContinue() {
-    if (step === 0) return form.combustible && form.tipoAsignacion && (form.tipoAsignacion !== "TEMPORAL" || (form.asignacionInicio && form.asignacionFin));
+    if (step === 0) {
+      const basicOk = form.combustible && form.tipoAsignacion && (form.tipoAsignacion !== "TEMPORAL" || (form.asignacionInicio && form.asignacionFin));
+      const remolqueOk = !form.llevaRemolque || (Boolean(form.idRemolque) && Boolean(form.inspeccionRemolque));
+      return basicOk && remolqueOk;
+    }
     if (step === 5) return Object.values(checklistGroups).flat().every((item) => (form.checklist[item] || "B"));
     if (step === 7) return Boolean(form.firma);
     return true;
   }
 
-  if (estado === "PENDIENTE_APROBACION") return <section className="inspection-card inspection-complete"><h2>Inspección enviada</h2><p>La unidad está esperando aprobación administrativa. Puedes cerrar esta ventana y consultar el estado desde el viaje.</p><button type="button" className="inspection-primary-button" onClick={onClose}>Cerrar</button></section>;
+  if (estado === "PENDIENTE_APROBACION") return <section className="inspection-card inspection-complete"><h2>Inspección enviada</h2><p>La inspección fue registrada correctamente. Puedes cerrar esta ventana e iniciar tu viaje; la supervisión firmará los pendientes posteriormente.</p><button type="button" className="inspection-primary-button" onClick={onClose}>Cerrar</button></section>;
 
   return <section className="inspection-card">
     <header className="inspection-header"><div><span>Inspección vehicular diaria</span><h2>Paso {step + 1} de {totalSteps}</h2></div><button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar inspección">×</button><progress value={step + 1} max={totalSteps} /></header>
@@ -224,6 +230,93 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
           </p>
         </div>
       </label>
+
+      {/* Sección Remolque */}
+      <div style={{ gridColumn: "1 / -1", background: form.llevaRemolque ? "#eff6ff" : "#f8fafc", border: `1px solid ${form.llevaRemolque ? "#3b82f6" : "#cbd5e1"}`, borderRadius: "8px", padding: "12px", marginTop: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <strong style={{ fontSize: "0.95rem", color: "#1e293b" }}>🚛 ¿El viaje lleva Remolque asignado?</strong>
+            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+              Marca "Sí" para seleccionar la unidad de remolque y realizar su inspección.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={() => updateForm({ llevaRemolque: false, idRemolque: null, inspeccionRemolque: null })}
+              style={{
+                padding: "6px 14px",
+                borderRadius: "6px",
+                border: !form.llevaRemolque ? "2px solid #64748b" : "1px solid #cbd5e1",
+                background: !form.llevaRemolque ? "#64748b" : "#ffffff",
+                color: !form.llevaRemolque ? "#ffffff" : "#475569",
+                fontWeight: "700",
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                updateForm({ llevaRemolque: true });
+                setShowRemolqueModal(true);
+              }}
+              style={{
+                padding: "6px 14px",
+                borderRadius: "6px",
+                border: form.llevaRemolque ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                background: form.llevaRemolque ? "#2563eb" : "#ffffff",
+                color: form.llevaRemolque ? "#ffffff" : "#475569",
+                fontWeight: "700",
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+            >
+              Sí
+            </button>
+          </div>
+        </div>
+
+        {form.llevaRemolque && (
+          <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #dbeafe" }}>
+            {form.inspeccionRemolque ? (
+              <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "6px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <span style={{ fontWeight: "800", color: "#166534", fontSize: "0.85rem" }}>
+                    ✅ Remolque Inspeccionado: {form.inspeccionRemolque?.remolqueObj?.numero_economico || "ID " + form.idRemolque} - {form.inspeccionRemolque?.remolqueObj?.nombre || "Remolque"}
+                  </span>
+                  <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#15803d" }}>
+                    Checklist de remolque y diagrama de 4 vistas completados.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRemolqueModal(true)}
+                  style={{ background: "#166534", color: "#ffffff", border: "none", borderRadius: "6px", padding: "6px 12px", fontSize: "0.78rem", fontWeight: "700", cursor: "pointer" }}
+                >
+                  Ver / Editar Remolque
+                </button>
+              </div>
+            ) : (
+              <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", borderRadius: "6px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ color: "#9a3412", fontWeight: "700", fontSize: "0.82rem" }}>
+                  ⚠️ Inspección de remolque pendiente.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowRemolqueModal(true)}
+                  style={{ background: "#ea580c", color: "#ffffff", border: "none", borderRadius: "6px", padding: "6px 14px", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer" }}
+                >
+                  Abrir Inspección de Remolque
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Asignación<select value={form.tipoAsignacion} onChange={(event) => updateForm({ tipoAsignacion: event.target.value, asignacionInicio: "", asignacionFin: "" })}><option value="PERMANENTE">Permanente</option><option value="TEMPORAL">Temporal</option></select></label></div>{form.tipoAsignacion === "TEMPORAL" && <div className="date-range"><label>Inicio<input type="date" value={form.asignacionInicio} onChange={(event) => updateForm({ asignacionInicio: event.target.value })} /></label><label>Fin<input type="date" value={form.asignacionFin} onChange={(event) => updateForm({ asignacionFin: event.target.value })} /></label></div>}</div>}
     {currentView && (() => { const [key, label, image] = currentView; const points = form.danos[key] || []; const removePoint = (index, event) => { event.preventDefault(); event.stopPropagation(); setForm((current) => ({ ...current, danos: { ...current.danos, [key]: current.danos[key].filter((_, pointIndex) => pointIndex !== index) } })); setLastMarked("Marca eliminada."); }; return <div className="inspection-visual"><div className="inspection-section-heading"><div><h3>{label}</h3><p>Toca el diagrama para encerrar un daño. El círculo rojo confirma el punto marcado.</p></div><button type="button" className="inspection-secondary-button" onClick={() => clearView(key)} disabled={!points.length}>Limpiar vista</button></div><div className={`damage-map damage-map-${key}`}><div className="damage-stage" onPointerDown={(event) => markDamage(key, event)} role="application" aria-label={`${label}. Toca para marcar daños`}><img src={image} alt={`Diagrama de ${label}`} />{points.map((point, index) => <button key={`${point.x}-${point.y}-${index}`} type="button" className="damage-point" style={{ left: `${point.x}%`, top: `${point.y}%` }} onPointerDown={(event) => removePoint(index, event)} aria-label={`Eliminar marca ${index + 1}`} />)}</div></div><p className="damage-feedback" role="status" aria-live="polite">{lastMarked || "Aún no has marcado daños en esta vista."}</p></div>; })()}
     {step === 5 && <div className="inspection-checklist">
@@ -338,5 +431,20 @@ export default function InspeccionVehicular({ context, estado, onSubmit, saving,
       onSubmit(finalForm);
     }}>{saving ? "Enviando..." : "Enviar a aprobación"}</button>}</footer>
     {signatureOpen && <SignaturePad onCancel={() => setSignatureOpen(false)} onSave={saveSignature} />}
+    {showRemolqueModal && (
+      <InspeccionRemolqueModal
+        vehiculos={vehiculos}
+        initialData={form.inspeccionRemolque || { idRemolque: form.idRemolque }}
+        onClose={() => setShowRemolqueModal(false)}
+        onSave={(remolqueData) => {
+          updateForm({
+            llevaRemolque: true,
+            idRemolque: remolqueData.idRemolque,
+            inspeccionRemolque: remolqueData
+          });
+          setShowRemolqueModal(false);
+        }}
+      />
+    )}
   </section>;
 }

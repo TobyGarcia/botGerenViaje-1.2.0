@@ -1375,7 +1375,7 @@ function isOutsideOperatingHours() {
       await enviarInspeccionVehicular(idViaje, data);
       await loadInspection(idViaje);
       setInspectionOpen(false);
-      setMessage("Inspección enviada. Espera la aprobación administrativa."); setMessageType("success");
+      setMessage("Inspección enviada correctamente. Ya puedes iniciar tu viaje."); setMessageType("success");
     } catch (error) { setMessage(error.message); setMessageType("error"); }
     finally { setInspectionSaving(false); }
   }
@@ -1663,6 +1663,7 @@ function isOutsideOperatingHours() {
           <InspeccionVehicular
             context={inspection.context}
             estado={inspection.inspection?.estado}
+            vehiculos={vehiculos}
             onSubmit={submitInspection}
             saving={inspectionSaving}
             onClose={() => setInspectionOpen(false)}

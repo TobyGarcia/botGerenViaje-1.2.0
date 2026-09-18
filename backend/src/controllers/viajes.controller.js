@@ -281,7 +281,7 @@ export async function startTripController(
 
     const inspection = await getApprovalForStart(idViaje, telegramUser.id_conductores);
     if (!inspection?.id_inspeccion) {
-      return response.status(409).json({ success: false, message: "La inspección vehicular diaria debe estar aprobada antes de iniciar el viaje." });
+      return response.status(409).json({ success: false, message: "La inspección vehicular diaria debe completarse y enviarse antes de iniciar el viaje." });
     }
 
     const trip = await startTrip({

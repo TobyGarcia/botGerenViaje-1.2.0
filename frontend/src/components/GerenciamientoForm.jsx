@@ -1554,6 +1554,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
             <InspeccionVehicular
               context={inspectionContextObj}
               estado="NUEVA"
+              vehiculos={vehiculos}
               onSubmit={handleInspectionCompleted}
               onClose={() => setShowInspectionModal(false)}
             />
