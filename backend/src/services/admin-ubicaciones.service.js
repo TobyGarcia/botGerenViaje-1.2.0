@@ -181,3 +181,86 @@ export async function getAdminTripLocationDetail(idViaje, idConductor = null) {
     locations: locationsResult.rows
   };
 }
+
+export async function getActiveTripsLiveLocations({ idConductor = null } = {}) {
+  const values = [];
+  let conductorFilter = "";
+
+  if (idConductor) {
+    values.push(idConductor);
+    conductorFilter = `AND v.id_conductores = $${values.length}`;
+  }
+
+  const result = await databasePool.query(
+    `
+      SELECT
+        v.id_viajes,
+        v.folio,
+        v.fecha,
+        v.hora_salida,
+        v.hora_llegada,
+        ev.nombre AS estado,
+        c.id_conductores,
+        c.nombre AS conductor,
+        c.telefono AS conductor_telefono,
+        vh.id_vehiculos,
+        vh.nombre AS vehiculo,
+        vh.numero_economico,
+        vh.placas,
+        vh.marca,
+        vh.modelo,
+        o.id_lugares AS origen_id,
+        o.nombre AS origen,
+        d.id_lugares AS destino_id,
+        d.nombre AS destino,
+        uu.id_ubicaciones_viaje AS ultima_ubicacion_id,
+        uu.latitud AS ultima_latitud,
+        uu.longitud AS ultima_longitud,
+        uu.precision_metros AS ultima_precision_metros,
+        uu.velocidad AS ultima_velocidad,
+        uu.direccion AS ultima_direccion_grados,
+        uu.fecha_gps AS ultima_fecha_gps,
+        uu.creado_en AS ultima_creado_en,
+        EXTRACT(EPOCH FROM (NOW() - uu.fecha_gps))::INTEGER AS segundos_desde_ultimo_gps,
+        (
+          SELECT COUNT(*)::INTEGER 
+          FROM ubicaciones_viaje uv_cnt 
+          WHERE uv_cnt.id_viajes = v.id_viajes
+        ) AS total_ubicaciones
+      FROM viajes v
+      INNER JOIN estados_viaje ev
+        ON ev.id_estado_viaje = v.id_estado_viaje
+      INNER JOIN conductores c
+        ON c.id_conductores = v.id_conductores
+      INNER JOIN vehiculos vh
+        ON vh.id_vehiculos = v.id_vehiculos
+      INNER JOIN lugares o
+        ON o.id_lugares = v.id_origen
+      INNER JOIN lugares d
+        ON d.id_lugares = v.id_destino
+      LEFT JOIN LATERAL (
+        SELECT
+          uv.id_ubicaciones_viaje,
+          uv.latitud,
+          uv.longitud,
+          uv.precision_metros,
+          uv.velocidad,
+          uv.direccion,
+          uv.fecha_gps,
+          uv.creado_en
+        FROM ubicaciones_viaje uv
+        WHERE uv.id_viajes = v.id_viajes
+        ORDER BY uv.fecha_gps DESC, uv.id_ubicaciones_viaje DESC
+        LIMIT 1
+      ) uu ON true
+      WHERE ev.nombre IN ('EN_CURSO', 'PAUSADO')
+        ${conductorFilter}
+      ORDER BY
+        COALESCE(uu.fecha_gps, v.creado_en) DESC,
+        v.id_viajes DESC
+    `,
+    values
+  );
+
+  return result.rows;
+}

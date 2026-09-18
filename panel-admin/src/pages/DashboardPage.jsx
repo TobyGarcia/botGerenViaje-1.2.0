@@ -4,6 +4,7 @@ import VehiculosPage from "./VehiculosPage.jsx";
 import DestinosPage from "./DestinosPage.jsx";
 import UbicacionesPage from "./UbicacionesPage.jsx";
 import ViajesPage from "./ViajesPage.jsx";
+import MonitoreoActivoPage from "./MonitoreoActivoPage.jsx";
 import InspeccionesPage from "./InspeccionesPage.jsx";
 import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
 import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
@@ -24,6 +25,7 @@ import {
   IconDestinos,
   IconUbicaciones,
   IconViajes,
+  IconRadar,
   IconConfiguracion,
   IconCerrarSesion,
   IconToggleSidebar
@@ -658,6 +660,7 @@ function DashboardPage({ user, onLogout }) {
   }, [user.rol]);
 
   const modules = [
+    { id: "monitoreo-activo", label: "Monitoreo en Vivo", icon: IconRadar, roles: rolesTodos },
     { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: rolesSupervisorYSuperior },
     { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: rolesSupervisorYSuperior },
     { id: "conductores", label: "Conductores", icon: IconConductores, roles: rolesSupervisorYSuperior },
@@ -819,6 +822,7 @@ function DashboardPage({ user, onLogout }) {
           </>
         )}
 
+        {activeModule === "monitoreo-activo" && <MonitoreoActivoPage />}
         {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
         {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
         {activeModule === "conductores" && <ConductoresPage user={user} />}
@@ -833,6 +837,7 @@ function DashboardPage({ user, onLogout }) {
         {modules
           .filter(
             (module) =>
+              module.id !== "monitoreo-activo" &&
               module.id !== "analitica-combustible" &&
               module.id !== "manejo-comentado" &&
               module.id !== "conductores" &&

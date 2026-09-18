@@ -475,6 +475,12 @@ export function getAdminUbicacionesViajeDetalle(
   );
 }
 
+export function getAdminMonitoreoActivo() {
+  return request(
+    "/admin/ubicaciones-viaje/monitoreo-activo"
+  );
+}
+
 export function getAdminViajes({
   search = "",
   status = "TODOS",
