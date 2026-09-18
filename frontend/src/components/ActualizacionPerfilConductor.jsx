@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 import { actualizarPerfilConductor } from "../services/api.js";
+import "./ActualizacionPerfilConductor.css";
 
 const TIPOS_LICENCIA_OPCIONES = [
-  "AUTOMOVILISTA",
-  "CHOFER"
+  { value: "AUTOMOVILISTA", label: "AUTOMOVILISTA" },
+  { value: "CHOFER", label: "CHOFER DE TRANSPORTE" },
+  { value: "FEDERAL", label: "FEDERAL TIPO B" },
+  { value: "MOTOCICLISTA", label: "MOTOCICLISTA" }
 ];
 
 function formatDateForInput(dateStr) {
@@ -21,7 +24,9 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
   const [licenciaNumero, setLicenciaNumero] = useState(conductor?.licencia_numero || conductor?.licenciaNumero || "");
   const [tipoLicencia, setTipoLicencia] = useState(conductor?.tipo_licencia || "AUTOMOVILISTA");
   const [puesto, setPuesto] = useState(conductor?.puesto || "");
-  const [licenciaVencimiento, setLicenciaVencimiento] = useState(formatDateForInput(conductor?.licencia_vencimiento || conductor?.licenciaVencimiento));
+  const [licenciaVencimiento, setLicenciaVencimiento] = useState(
+    formatDateForInput(conductor?.licencia_vencimiento || conductor?.licenciaVencimiento)
+  );
 
   const [licenciaArchivoBase64, setLicenciaArchivoBase64] = useState("");
   const [licenciaNombreArchivo, setLicenciaNombreArchivo] = useState("");
@@ -109,225 +114,315 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
     }
   };
 
-  const isExpired = licenciaVencimiento ? new Date(`${licenciaVencimiento}T00:00:00`) < new Date(new Date().setHours(0,0,0,0)) : false;
+  const isExpired = licenciaVencimiento
+    ? new Date(`${licenciaVencimiento}T00:00:00`) < new Date(new Date().setHours(0, 0, 0, 0))
+    : false;
 
   return (
-    <div className="profile-update-card" style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", border: "1px solid #cbd5e1", boxShadow: "0 4px 14px rgba(0,0,0,0.06)", margin: "0 auto 20px auto", maxWidth: "560px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
-        <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#e0f2fe", color: "#0284c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </div>
-        <div>
-          <h2 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: "800" }}>Actualización de Datos del Conductor</h2>
-          <small style={{ color: "#64748b" }}>Modifica tu contacto de emergencia y datos de la licencia de conducir.</small>
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", color: "#991b1b", padding: "10px 12px", borderRadius: "8px", fontSize: "0.88rem", marginBottom: "14px" }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {message && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", padding: "10px 12px", borderRadius: "8px", fontSize: "0.88rem", marginBottom: "14px", fontWeight: "600" }}>
-          ✅ {message}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-        <div>
-          <label style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.88rem", marginBottom: "4px" }}>
-            Nombre Completo
-          </label>
-          <input
-            type="text"
-            value={conductor?.nombre || ""}
-            disabled
-            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b", fontWeight: "600" }}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="input-tel-emergencia" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.88rem", marginBottom: "4px" }}>
-            📞 Teléfono / Contacto de Emergencia *
-          </label>
-          <input
-            id="input-tel-emergencia"
-            type="tel"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Ej. 9931234567"
-            required
-            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #0284c7", fontSize: "0.95rem", fontWeight: "600", color: "#0f172a" }}
-          />
-          <small style={{ color: "#64748b", fontSize: "0.78rem" }}>Número al cual avisar en caso de alguna incidencia durante los viajes.</small>
-        </div>
-
-        <div>
-          <label htmlFor="input-puesto" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.88rem", marginBottom: "4px" }}>
-            💼 Puesto / Cargo
-          </label>
-          <input
-            id="input-puesto"
-            type="text"
-            value={puesto}
-            onChange={(e) => setPuesto(e.target.value)}
-            placeholder="Ej. Operador, Supervisor..."
-            maxLength={100}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.95rem", fontWeight: "600", color: "#0f172a" }}
-          />
-        </div>
-
-        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
-          <h3 style={{ margin: "0 0 10px 0", fontSize: "0.98rem", color: "#1e293b", fontWeight: "700" }}>🪪 Datos de Licencia de Conducir</h3>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <div>
-              <label htmlFor="input-lic-num" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.82rem", marginBottom: "4px" }}>
-                N° de Licencia *
-              </label>
-              <input
-                id="input-lic-num"
-                type="text"
-                value={licenciaNumero}
-                onChange={(e) => setLicenciaNumero(e.target.value)}
-                placeholder="Ej. LIC-12345"
-                required
-                style={{ width: "100%", padding: "9px 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", fontWeight: "600" }}
+    <div className="perfil-wrapper">
+      <section className="perfil-card-container">
+        {/* Encabezado: Ícono de usuario y títulos */}
+        <div className="perfil-header">
+          <div className="perfil-header-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path
+                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </div>
-
-            <div>
-              <label htmlFor="input-lic-venc" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.82rem", marginBottom: "4px" }}>
-                Vencimiento *
-              </label>
-              <input
-                id="input-lic-venc"
-                type="date"
-                value={licenciaVencimiento}
-                onChange={(e) => setLicenciaVencimiento(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: "8px",
-                  border: isExpired ? "2px solid #dc2626" : "1px solid #cbd5e1",
-                  fontSize: "0.9rem",
-                  fontWeight: "600",
-                  color: isExpired ? "#dc2626" : "#0f172a"
-                }}
-              />
-            </div>
+            </svg>
           </div>
+          <div>
+            <h2 className="perfil-header-title">Actualización de Datos del Conductor</h2>
+            <p className="perfil-header-desc">
+              Modifica tu contacto de emergencia y datos de la licencia de conducir.
+            </p>
+          </div>
+        </div>
 
-          {isExpired && (
-            <small style={{ color: "#dc2626", fontWeight: "700", display: "block", marginTop: "4px" }}>
-              ⚠️ Esta fecha indica que la licencia está vencida. Actualiza con la fecha vigente.
-            </small>
-          )}
+        {/* Alertas */}
+        {error && (
+          <div className="perfil-alert-error">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
 
-          <div style={{ marginTop: "10px" }}>
-            <label htmlFor="select-lic-tipo" style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.82rem", marginBottom: "4px" }}>
-              Tipo de Licencia *
+        {message && (
+          <div className="perfil-alert-success">
+            <span>✅</span>
+            <span>{message}</span>
+          </div>
+        )}
+
+        {/* Formulario */}
+        <form className="perfil-form" onSubmit={handleSubmit}>
+          {/* Nombre Completo (Solo Lectura) */}
+          <div className="perfil-field">
+            <label className="perfil-label" htmlFor="full-name">
+              Nombre Completo
             </label>
-            <select
-              id="select-lic-tipo"
-              value={tipoLicencia}
-              onChange={(e) => setTipoLicencia(e.target.value)}
-              style={{ width: "100%", padding: "9px 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", fontWeight: "600" }}
-            >
-              {TIPOS_LICENCIA_OPCIONES.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Fotos de la Licencia */}
-        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
-          <label style={{ display: "block", fontWeight: "700", color: "#334155", fontSize: "0.88rem", marginBottom: "8px" }}>
-            📷 Fotografías de la Licencia (Frente y Reverso)
-          </label>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {/* Frente */}
-            <div style={{ border: "1px dashed #cbd5e1", borderRadius: "10px", padding: "10px", textAlign: "center", background: "#f8fafc" }}>
-              <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "#475569", display: "block", marginBottom: "6px" }}>Frente de Licencia</span>
-              {previewFrente ? (
-                <div style={{ marginBottom: "6px" }}>
-                  <img src={previewFrente} alt="Frente Licencia" style={{ width: "100%", maxHeight: "90px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e2e8f0" }} />
-                </div>
-              ) : (
-                <div style={{ height: "60px", background: "#e2e8f0", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: "0.76rem", marginBottom: "6px" }}>
-                  Sin foto cargada
-                </div>
-              )}
+            <div className="perfil-input-wrapper">
               <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileChange(e, "frente")}
-                style={{ fontSize: "0.75rem", width: "100%" }}
+                id="full-name"
+                type="text"
+                className="perfil-input-readonly"
+                value={conductor?.nombre || ""}
+                readOnly
               />
-            </div>
-
-            {/* Reverso */}
-            <div style={{ border: "1px dashed #cbd5e1", borderRadius: "10px", padding: "10px", textAlign: "center", background: "#f8fafc" }}>
-              <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "#475569", display: "block", marginBottom: "6px" }}>Reverso de Licencia</span>
-              {previewReverso ? (
-                <div style={{ marginBottom: "6px" }}>
-                  <img src={previewReverso} alt="Reverso Licencia" style={{ width: "100%", maxHeight: "90px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e2e8f0" }} />
-                </div>
-              ) : (
-                <div style={{ height: "60px", background: "#e2e8f0", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: "0.76rem", marginBottom: "6px" }}>
-                  Sin foto cargada
-                </div>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileChange(e, "reverso")}
-                style={{ fontSize: "0.75rem", width: "100%" }}
-              />
+              <div className="perfil-input-icon-right">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path
+                    d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-          {typeof onCancel === "function" && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="secondary-button"
-              style={{ flex: 1, padding: "11px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#ffffff", color: "#334155", fontWeight: "700", cursor: "pointer" }}
-            >
-              Cancelar
+          {/* Teléfono / Contacto de Emergencia */}
+          <div className="perfil-field">
+            <label className="perfil-label" htmlFor="emergency-phone">
+              <svg width="14" height="14" className="text-rose-500" fill="none" stroke="#f43f5e" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Teléfono / Contacto de Emergencia</span>
+              <span className="perfil-required">*</span>
+            </label>
+            <input
+              id="emergency-phone"
+              type="tel"
+              className="perfil-input-primary"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              placeholder="Ej. 9811695579"
+              required
+            />
+            <p className="perfil-helper-text">
+              Número al cual avisar en caso de alguna incidencia durante los viajes.
+            </p>
+          </div>
+
+          {/* Puesto / Cargo */}
+          <div className="perfil-field">
+            <label className="perfil-label" htmlFor="job-title">
+              <svg width="14" height="14" fill="none" stroke="#64748b" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Puesto / Cargo</span>
+            </label>
+            <input
+              id="job-title"
+              type="text"
+              className="perfil-input"
+              value={puesto}
+              onChange={(e) => setPuesto(e.target.value)}
+              placeholder="Ej. Operador, Supervisor..."
+              maxLength={100}
+            />
+          </div>
+
+          {/* Sección de Licencia */}
+          <div className="perfil-section-divider">
+            <div className="perfil-section-title">
+              <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Datos de Licencia de Conducir</span>
+            </div>
+
+            {/* Fila con Número y Vencimiento */}
+            <div className="perfil-grid-two-cols">
+              <div className="perfil-field">
+                <label className="perfil-label" htmlFor="license-number">
+                  <span>N° de Licencia</span>
+                  <span className="perfil-required">*</span>
+                </label>
+                <input
+                  id="license-number"
+                  type="text"
+                  className="perfil-input-compact"
+                  value={licenciaNumero}
+                  onChange={(e) => setLicenciaNumero(e.target.value)}
+                  placeholder="Ej. LIC-12345"
+                  required
+                />
+              </div>
+
+              <div className="perfil-field">
+                <label className="perfil-label" htmlFor="license-expiration">
+                  <span>Vencimiento</span>
+                  <span className="perfil-required">*</span>
+                </label>
+                <input
+                  id="license-expiration"
+                  type="date"
+                  className={`perfil-input-compact ${isExpired ? "expired" : ""}`}
+                  value={licenciaVencimiento}
+                  onChange={(e) => setLicenciaVencimiento(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {isExpired && (
+              <small style={{ color: "#dc2626", fontWeight: "700", display: "block" }}>
+                ⚠️ Esta fecha indica que la licencia está vencida. Actualiza con la fecha vigente.
+              </small>
+            )}
+
+            {/* Tipo de Licencia */}
+            <div className="perfil-field">
+              <label className="perfil-label" htmlFor="license-type">
+                <span>Tipo de Licencia</span>
+                <span className="perfil-required">*</span>
+              </label>
+              <div className="perfil-select-wrapper">
+                <select
+                  id="license-type"
+                  className="perfil-select"
+                  value={tipoLicencia}
+                  onChange={(e) => setTipoLicencia(e.target.value)}
+                >
+                  {TIPOS_LICENCIA_OPCIONES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="perfil-select-chevron">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Fotografías de la Licencia (Frente y Reverso) */}
+          <div className="perfil-section-divider">
+            <div className="perfil-section-title">
+              <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Fotografías de la Licencia (Frente y Reverso)</span>
+            </div>
+
+            <div className="perfil-upload-grid">
+              {/* Frente */}
+              <div className="perfil-upload-card">
+                <span className="perfil-upload-card-title">Frente de Licencia</span>
+
+                {previewFrente ? (
+                  <div className="perfil-upload-preview-box">
+                    <img src={previewFrente} alt="Frente Licencia" className="perfil-upload-preview-img" />
+                  </div>
+                ) : (
+                  <div className="perfil-upload-placeholder-box">
+                    <svg width="24" height="24" fill="none" stroke="#0ea5e9" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                )}
+
+                <label className="perfil-upload-btn-label">
+                  <span>Seleccionar archivo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, "frente")}
+                    style={{ display: "none" }}
+                  />
+                </label>
+
+                <span className="perfil-upload-filename">
+                  {licenciaNombreArchivo || (previewFrente ? "Cargado" : "Ningún archivo")}
+                </span>
+              </div>
+
+              {/* Reverso */}
+              <div className="perfil-upload-card">
+                <span className="perfil-upload-card-title">Reverso de Licencia</span>
+
+                {previewReverso ? (
+                  <div className="perfil-upload-preview-box">
+                    <img src={previewReverso} alt="Reverso Licencia" className="perfil-upload-preview-img" />
+                  </div>
+                ) : (
+                  <div className="perfil-upload-placeholder-box">
+                    <svg width="24" height="24" fill="none" stroke="#0ea5e9" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                )}
+
+                <label className="perfil-upload-btn-label">
+                  <span>Seleccionar archivo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, "reverso")}
+                    style={{ display: "none" }}
+                  />
+                </label>
+
+                <span className="perfil-upload-filename">
+                  {licenciaReversoNombre || (previewReverso ? "Cargado" : "Ningún archivo")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="perfil-actions-row">
+            {typeof onCancel === "function" ? (
+              <button type="button" className="perfil-btn-cancel" onClick={onCancel}>
+                Cancelar
+              </button>
+            ) : (
+              <div style={{ width: "33.33%" }} />
+            )}
+
+            <button type="submit" disabled={saving} className="perfil-btn-submit">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
             </button>
-          )}
-          <button
-            type="submit"
-            disabled={saving}
-            className="primary-button"
-            style={{
-              flex: 2,
-              padding: "11px",
-              borderRadius: "8px",
-              border: 0,
-              background: saving ? "#94a3b8" : "linear-gradient(135deg, #0284c7, #0369a1)",
-              color: "#ffffff",
-              fontWeight: "800",
-              fontSize: "0.95rem",
-              cursor: saving ? "wait" : "pointer",
-              boxShadow: "0 4px 12px rgba(2, 132, 199, 0.25)"
-            }}
-          >
-            {saving ? "Guardando cambios..." : "💾 Guardar Cambios"}
-          </button>
-        </div>
-      </form>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

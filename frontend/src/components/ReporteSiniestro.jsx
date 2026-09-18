@@ -4,28 +4,18 @@ import { compressImageToMaxKb } from "../utils/imageCompressor.js";
 import { savePendingSiniestro, countPendingSiniestros } from "../services/siniestro-storage.js";
 import { syncPendingSiniestros, onSiniestroSyncEvent } from "../services/siniestro-sync.js";
 import CameraModal from "./CameraModal.jsx";
-import {
-  IconCamera,
-  IconFolder,
-  IconRefresh,
-  IconCheck,
-  IconMapPin,
-  IconAlert,
-  IconPlus,
-  IconCross
-} from "./Icons.jsx";
+import "./ReporteSiniestro.css";
 
 const TIPOS_SINIESTRO = [
-  { label: "💥 Choque / Colisión", value: "CHOQUE / COLISIÓN" },
-  { label: "🚗 Rozón / Llegada Lateral", value: "ROZÓN / LLEGADA" },
-  { label: "🛞 Ponchadura de Llanta", value: "PONCHADURA DE LLANTA" },
-  { label: "🔧 Falla Mecánica Grave", value: "FALLA MECÁNICA GRAVE" },
-  { label: "🚦 Embotellamiento / Tráfico Pesado", value: "EMBOTELLAMIENTO / TRÁFICO" },
-  { label: "⚠️ Volcadura", value: "VOLCADURA" },
-  { label: "⚡ Otro Incidente de Riesgo", value: "OTRO INCIDENTE" }
+  { label: "Choque / Colisión", value: "Choque / Colisión" },
+  { label: "Ponchadura de Neumático", value: "Ponchadura de Neumático" },
+  { label: "Falla Mecánica de Emergencia", value: "Falla Mecánica de Emergencia" },
+  { label: "Robo / Intento de Vandalismo", value: "Robo / Intento de Vandalismo" },
+  { label: "Condición Climática Severa", value: "Condición Climática Severa" },
+  { label: "Otro Incidente Grave", value: "Otro Incidente Grave" }
 ];
 
-export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComplete, onCancel }) {
+export default function ReporteSiniestro({ _conductor, vehiculoAsignado, onComplete, onCancel }) {
   const [tipoSiniestro, setTipoSiniestro] = useState(TIPOS_SINIESTRO[0].value);
   const [descripcion, setDescripcion] = useState("");
 
@@ -47,15 +37,6 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
   const [successMsg, setSuccessMsg] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
-
-  const checkPendingCount = async () => {
-    try {
-      const c = await countPendingCount();
-      setPendingCount(c);
-    } catch {
-      setPendingCount(0);
-    }
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -87,7 +68,7 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     try {
       const res = await syncPendingSiniestros();
       if (res.synced > 0) {
-        setSuccessMsg(`✅ ¡Se sincronizaron exitosamente ${res.synced} reporte(s) de siniestro que estaba(n) guardado(s) localmente!`);
+        setSuccessMsg(`✅ ¡Se sincronizaron exitosamente ${res.synced} reporte(s) guardado(s) localmente!`);
       }
       const c = await countPendingSiniestros();
       setPendingCount(c);
@@ -219,7 +200,7 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
         await savePendingSiniestro(payload);
         const newCount = await countPendingSiniestros();
         setPendingCount(newCount);
-        setSuccessMsg("📱 Reporte guardado localmente en la caché de tu teléfono (Modo Offline). Se enviará automáticamente a supervisión en cuanto se restablezca tu conexión a internet.");
+        setSuccessMsg("📱 Reporte guardado localmente (Modo Offline). Se enviará automáticamente a supervisión en cuanto recuperes conexión a internet.");
         if (typeof onComplete === "function") {
           setTimeout(() => {
             onComplete({ ...payload, offlinePending: true });
@@ -249,7 +230,6 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
       }
     } catch (err) {
       console.warn("Fallo al enviar siniestro en línea, haciendo fallback a caché local:", err);
-      // Fallback a almacenamiento local si falla por error de red o timeout
       if (!navigator.onLine || err.code === "NETWORK_ERROR" || err.code === "NETWORK_TIMEOUT" || err.status === 0 || err.message?.includes("fetch")) {
         try {
           await savePendingSiniestro(payload);
@@ -272,316 +252,425 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
     }
   }
 
+  // Cálculos de slots en la grilla para coincidir fielmente con el diseño
+  const maxSlots = 3;
+  const currentTotal = photos.length + (compressingNew ? 1 : 0) + (photos.length < 6 && !compressingNew ? 1 : 0);
+  const placeholderCount = Math.max(0, maxSlots - currentTotal);
+
   return (
-    <div className="siniestro-card" style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", border: "2px solid #ef4444", boxShadow: "0 6px 20px rgba(239, 68, 68, 0.15)", margin: "0 auto 24px auto", maxWidth: "580px" }}>
-      {/* Encabezado */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", borderBottom: "1px solid #fee2e2", paddingBottom: "12px" }}>
-        <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", shrink: 0 }}>
-          <IconAlert size={28} color="#dc2626" />
-        </div>
-        <div>
-          <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#991b1b", fontWeight: "800" }}>Reporte de Siniestro e Incidencias</h2>
-          <small style={{ color: "#7f1d1d", fontSize: "0.82rem" }}>Reporta colisiones, ponchaduras o fallas mecánicas de emergencia.</small>
-        </div>
-      </div>
-
-      <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", borderRadius: "10px", padding: "10px 12px", marginBottom: "16px", fontSize: "0.84rem", color: "#c2410c", lineHeight: "1.4" }}>
-        <strong>⚠️ Nota de Emergencia:</strong> Al enviar este formulario se generará automáticamente la **alerta oficial con ubicación GPS, fotos y reporte PDF** a los canales de supervisión y gerencia. Si no tienes internet en este momento, el reporte se guardará localmente y se enviará automáticamente en cuanto recuperes señal.
-      </div>
-
-      {pendingCount > 0 && (
-        <div style={{ background: "#fef3c7", border: "1px solid #fde047", borderRadius: "10px", padding: "12px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", fontSize: "0.85rem", color: "#854d0e" }}>
+    <div className="siniestro-wrapper">
+      <div className="siniestro-card-container">
+        {/* Encabezado: Ícono y Título */}
+        <div className="siniestro-header">
+          <div className="siniestro-header-icon">
+            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
           <div>
-            <strong>📱 Reportes offline pendientes ({pendingCount}):</strong>
-            <div style={{ fontSize: "0.78rem", opacity: 0.9 }}>
-              Tienes {pendingCount} reporte(s) guardado(s) en tu teléfono esperando conexión a internet.
-            </div>
+            <h2 className="siniestro-header-title">Reporte de Siniestro e Incidencias</h2>
+            <p className="siniestro-header-desc">Reporta colisiones, ponchaduras o fallas mecánicas de emergencia.</p>
           </div>
-          {navigator.onLine && (
-            <button
-              type="button"
-              onClick={handleManualSync}
-              disabled={isManualSyncing}
-              style={{ background: "#d97706", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontWeight: "700", fontSize: "0.78rem", cursor: isManualSyncing ? "wait" : "pointer", whiteSpace: "nowrap" }}
-            >
-              {isManualSyncing ? "Enviando..." : "⚡ Sincronizar ahora"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", color: "#991b1b", padding: "10px 12px", borderRadius: "8px", fontSize: "0.88rem", marginBottom: "14px", fontWeight: "600" }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {successMsg && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", padding: "10px 12px", borderRadius: "8px", fontSize: "0.88rem", marginBottom: "14px", fontWeight: "700" }}>
-          ✅ {successMsg}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {/* Tipo de Siniestro */}
-        <div>
-          <label htmlFor="select-tipo-siniestro" style={{ display: "block", fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", marginBottom: "6px" }}>
-            1. Tipo de Siniestro / Incidente *
-          </label>
-          <select
-            id="select-tipo-siniestro"
-            value={tipoSiniestro}
-            onChange={(e) => setTipoSiniestro(e.target.value)}
-            required
-            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "2px solid #ef4444", fontSize: "0.95rem", fontWeight: "700", color: "#991b1b", background: "#fef2f2" }}
-          >
-            {TIPOS_SINIESTRO.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
         </div>
 
-        {/* Descripción */}
-        <div>
-          <label htmlFor="input-desc-siniestro" style={{ display: "block", fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", marginBottom: "6px" }}>
-            2. Descripción del Incidente
-          </label>
-          <textarea
-            id="input-desc-siniestro"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Describe brevemente lo sucedido (estado de ocupantes, daños visibles, causa)..."
-            rows={3}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", color: "#0f172a", fontFamily: "inherit" }}
-          />
-        </div>
-
-        {/* Ubicación GPS y Altitud */}
-        <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px", background: "#f8fafc" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
-            <span style={{ fontWeight: "700", fontSize: "0.88rem", color: "#334155", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <IconMapPin size={18} color="#0284c7" /> 3. Ubicación GPS y Altitud
-            </span>
-            <button
-              type="button"
-              onClick={captureGpsLocation}
-              disabled={location.loading}
-              style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "700", cursor: location.loading ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-            >
-              {location.loading ? <IconRefresh size={14} className="spin" /> : <IconMapPin size={14} />}
-              {location.loading ? "Obteniendo GPS..." : "📍 Capturar Ubicación GPS"}
-            </button>
+        {/* Nota de Emergencia */}
+        <div className="siniestro-emergency-notice">
+          <div className="siniestro-emergency-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path
+                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>Nota de Emergencia</span>
           </div>
-
-          {location.latitude ? (
-            <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "8px 10px", fontSize: "0.82rem", color: "#065f46" }}>
-              <div><strong>Coordenadas:</strong> Lat {location.latitude.toFixed(6)}, Lon {location.longitude.toFixed(6)}</div>
-              {location.altitude !== null && <div><strong>Altitud:</strong> ⛰️ {location.altitude} m.s.n.m.</div>}
-              {location.accuracy !== null && <div><strong>Precisión:</strong> ±{location.accuracy} metros</div>}
-            </div>
-          ) : (
-            <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
-              {location.error ? (
-                <span style={{ color: "#dc2626", fontWeight: "600" }}>⚠️ {location.error}</span>
-              ) : (
-                "Presiona el botón para incluir tus coordenadas y altitud en el reporte."
-              )}
-            </div>
-          )}
+          <p className="siniestro-emergency-text">
+            Al enviar este formulario se generará automáticamente la{" "}
+            <strong>alerta oficial con ubicación GPS, fotos y reporte PDF</strong> a los canales de supervisión y
+            gerencia. Si no tienes internet en este momento, el reporte se guardará localmente y se enviará
+            automáticamente en cuanto recuperes señal.
+          </p>
         </div>
 
-        {/* Evidencias Fotográficas (Hasta 6 fotos) */}
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <label style={{ fontWeight: "700", color: "#1e293b", fontSize: "0.88rem", margin: 0 }}>
-              📷 4. Evidencias Fotográficas ({photos.length}/6 Fotos)
-            </label>
-            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
-              Máx. 70KB / foto
-            </span>
-          </div>
-
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
-            {/* Lista de Fotos en Formato Thumbnail */}
-            {photos.map((photo, idx) => (
-              <div
-                key={idx}
-                style={{
-                  width: "95px",
-                  height: "95px",
-                  borderRadius: "12px",
-                  border: "2px solid #22c55e",
-                  background: "#000000",
-                  position: "relative",
-                  overflow: "hidden",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                  boxSizing: "border-box"
-                }}
-              >
-                <img
-                  src={photo.preview}
-                  alt={`Evidencia ${idx + 1}`}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: "rgba(0, 0, 0, 0.7)",
-                    color: "#ffffff",
-                    fontSize: "0.65rem",
-                    fontWeight: "700",
-                    textAlign: "center",
-                    padding: "2px 0"
-                  }}
-                >
-                  ✓ {photo.sizeKb} KB
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removePhoto(idx)}
-                  title="Eliminar foto"
-                  style={{
-                    position: "absolute",
-                    top: "4px",
-                    right: "4px",
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "50%",
-                    background: "#ef4444",
-                    color: "#ffffff",
-                    border: "1.5px solid #ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)"
-                  }}
-                >
-                  <IconCross size={12} color="#ffffff" />
-                </button>
-              </div>
-            ))}
-
-            {/* Thumbnail de Carga durante la compresión */}
-            {compressingNew && (
-              <div
-                style={{
-                  width: "95px",
-                  height: "95px",
-                  borderRadius: "12px",
-                  border: "2px dashed #0284c7",
-                  background: "#f0f9ff",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#0284c7",
-                  fontSize: "0.7rem",
-                  gap: "4px",
-                  boxSizing: "border-box"
-                }}
-              >
-                <IconRefresh size={20} className="spin" />
-                <span style={{ fontWeight: "700" }}>Procesando...</span>
-              </div>
-            )}
-
-            {/* Un solo Cuadro Blanco con el símbolo PLUS en medio */}
-            {photos.length < 6 && !compressingNew && (
+        {/* Banner de Pendientes Offline */}
+        {pendingCount > 0 && (
+          <div className="siniestro-offline-banner">
+            <div>
+              <strong>📱 Reportes offline pendientes ({pendingCount})</strong>
+              <div style={{ fontSize: "0.7rem", opacity: 0.9 }}>Esperando conexión para transmitirse a supervisión.</div>
+            </div>
+            {navigator.onLine && (
               <button
                 type="button"
-                onClick={() => setShowPickerModal(true)}
-                style={{
-                  width: "95px",
-                  height: "95px",
-                  borderRadius: "12px",
-                  border: "2px dashed #94a3b8",
-                  background: "#ffffff",
-                  color: "#0284c7",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  gap: "4px",
-                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-                  boxSizing: "border-box",
-                  transition: "all 0.15s ease"
-                }}
+                className="siniestro-offline-btn"
+                onClick={handleManualSync}
+                disabled={isManualSyncing}
               >
-                <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <IconPlus size={20} color="#0284c7" />
-                </div>
-                <span style={{ fontSize: "0.72rem", fontWeight: "700", color: "#334155" }}>Agregar</span>
+                {isManualSyncing ? "Enviando..." : "⚡ Sincronizar"}
               </button>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Botones de Acción */}
-        <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-          {typeof onCancel === "function" && (
+        {/* Alerta de Error */}
+        {error && (
+          <div className="siniestro-alert-error">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Alerta de Éxito */}
+        {successMsg && (
+          <div className="siniestro-alert-success">
+            <span>✅</span>
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Formulario */}
+        <form className="siniestro-form" onSubmit={handleSubmit}>
+          {/* Campo 1: Tipo de Siniestro / Incidente */}
+          <div className="siniestro-field">
+            <label className="siniestro-label" htmlFor="incident-type">
+              <span>1. Tipo de Siniestro / Incidente</span>
+              <span className="siniestro-required">*</span>
+            </label>
+            <div className="siniestro-select-wrapper">
+              <div className="siniestro-select-icon">
+                {/* Crash/Impact Icon SVG */}
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path
+                    d="M12 3v3m6.364 1.636l-2.121 2.121M21 12h-3m1.636 6.364l-2.121-2.121M12 21v-3m-6.364 1.636l2.121-2.121M3 12h3m-1.636-6.364l2.121 2.121"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <select
+                id="incident-type"
+                className="siniestro-select"
+                value={tipoSiniestro}
+                onChange={(e) => setTipoSiniestro(e.target.value)}
+                required
+              >
+                {TIPOS_SINIESTRO.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <div className="siniestro-select-chevron">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Campo 2: Descripción del Incidente */}
+          <div className="siniestro-field">
+            <label className="siniestro-label" htmlFor="incident-desc">
+              2. Descripción del Incidente
+            </label>
+            <textarea
+              id="incident-desc"
+              className="siniestro-textarea"
+              rows={3}
+              placeholder="Describe brevemente lo sucedido (estado de ocupantes, daños visibles, causa)..."
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+            />
+          </div>
+
+          {/* Campo 3: Ubicación GPS y Altitud */}
+          <div className="siniestro-gps-card">
+            <div className="siniestro-gps-header">
+              <div className="siniestro-gps-title">
+                <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span>3. Ubicación GPS y Altitud</span>
+              </div>
+
+              {/* Status Pill */}
+              {location.loading ? (
+                <span className="siniestro-gps-pill loading">
+                  <span className="siniestro-pill-dot loading" />
+                  Obteniendo GPS...
+                </span>
+              ) : location.latitude ? (
+                <span className="siniestro-gps-pill success">
+                  <span className="siniestro-pill-dot success" />
+                  GPS Capturado
+                </span>
+              ) : location.error ? (
+                <span className="siniestro-gps-pill error">
+                  <span className="siniestro-pill-dot error" />
+                  Sin Coordenadas
+                </span>
+              ) : (
+                <span className="siniestro-gps-pill ready">
+                  <span className="siniestro-pill-dot ready" />
+                  Listo para capturar
+                </span>
+              )}
+            </div>
+
+            {/* Botón de Captura GPS */}
             <button
+              id="btn-capture-gps"
               type="button"
-              onClick={onCancel}
-              className="secondary-button"
-              style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#ffffff", color: "#334155", fontWeight: "700", cursor: "pointer" }}
+              className={`siniestro-gps-btn ${location.latitude ? "captured" : "idle"}`}
+              onClick={captureGpsLocation}
+              disabled={location.loading}
             >
-              Cancelar
+              {location.loading ? (
+                <>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    <circle opacity="0.25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path opacity="0.75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span>Obteniendo Coordenadas...</span>
+                </>
+              ) : location.latitude ? (
+                <>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>
+                    {location.latitude.toFixed(4)}°, {location.longitude.toFixed(4)}°
+                    {location.altitude !== null ? ` (${location.altitude} m)` : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path
+                      d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-.778.099-1.533.284-2.253"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span>Capturar Ubicación GPS</span>
+                </>
+              )}
             </button>
-          )}
-          <button
-            type="submit"
-            disabled={sending || compressingNew}
-            style={{
-              flex: 2,
-              padding: "12px",
-              borderRadius: "8px",
-              border: 0,
-              background: sending ? "#94a3b8" : "linear-gradient(135deg, #dc2626, #b91c1c)",
-              color: "#ffffff",
-              fontWeight: "800",
-              fontSize: "0.98rem",
-              cursor: sending ? "wait" : "pointer",
-              boxShadow: "0 4px 14px rgba(220, 38, 38, 0.35)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px"
-            }}
-          >
-            {sending ? <IconRefresh size={18} className="spin" /> : <IconAlert size={18} />}
-            {sending ? "ENVIANDO REPORTE DE SINIESTRO..." : "🚨 ENVIAR REPORTE DE SINIESTRO"}
-          </button>
-        </div>
-      </form>
 
-      {/* Modal / Selector de Origen de Foto */}
+            {location.latitude ? (
+              <div className="siniestro-gps-details">
+                <div>
+                  <strong>Coordenadas:</strong> Lat {location.latitude.toFixed(6)}, Lon {location.longitude.toFixed(6)}
+                </div>
+                {location.altitude !== null && (
+                  <div>
+                    <strong>Altitud:</strong> ⛰️ {location.altitude} m.s.n.m.
+                  </div>
+                )}
+                {location.accuracy !== null && (
+                  <div>
+                    <strong>Precisión:</strong> ±{location.accuracy} metros
+                  </div>
+                )}
+              </div>
+            ) : location.error ? (
+              <p className="siniestro-gps-footnote" style={{ color: "#dc2626", fontWeight: "600" }}>
+                ⚠️ {location.error}
+              </p>
+            ) : (
+              <p className="siniestro-gps-footnote">
+                Presiona el botón para incluir tus coordenadas y altitud en el reporte.
+              </p>
+            )}
+          </div>
+
+          {/* Campo 4: Evidencias Fotográficas */}
+          <div className="siniestro-photos-section">
+            <div className="siniestro-photos-header">
+              <label className="siniestro-label">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path
+                    d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>4. Evidencias Fotográficas</span>
+                <span style={{ color: "#94a3b8", fontWeight: 600 }}>({photos.length}/6)</span>
+              </label>
+              <span className="siniestro-badge-max">Máx. 70KB / foto</span>
+            </div>
+
+            {/* Grilla de Fotos */}
+            <div className="siniestro-photos-grid">
+              {/* Fotos Capturadas */}
+              {photos.map((photo, idx) => (
+                <div key={idx} className="siniestro-photo-preview-item">
+                  <img src={photo.preview} alt={`Evidencia ${idx + 1}`} className="siniestro-photo-img" />
+                  <div className="siniestro-photo-tag">✓ {photo.sizeKb} KB</div>
+                  <button
+                    type="button"
+                    className="siniestro-photo-delete-btn"
+                    onClick={() => removePhoto(idx)}
+                    title="Eliminar foto"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+
+              {/* Loader durante compresión */}
+              {compressingNew && (
+                <div className="siniestro-photo-compressing-item">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    <circle opacity="0.25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path opacity="0.75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span style={{ fontWeight: "700" }}>Procesando...</span>
+                </div>
+              )}
+
+              {/* Botón Agregar Foto */}
+              {photos.length < 6 && !compressingNew && (
+                <button
+                  type="button"
+                  className="siniestro-add-photo-btn"
+                  onClick={() => setShowPickerModal(true)}
+                >
+                  <div className="siniestro-add-icon-circle">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M12 4.5v15m7.5-7.5h-15" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span className="siniestro-add-label">Agregar</span>
+                </button>
+              )}
+
+              {/* Slots Vacíos Placeholder para completar la cuadrícula como en el template */}
+              {Array.from({ length: placeholderCount }).map((_, pIdx) => (
+                <div key={`placeholder-${pIdx}`} className="siniestro-photo-slot">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path
+                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="siniestro-actions-grid">
+            {typeof onCancel === "function" ? (
+              <button type="button" className="siniestro-btn-cancel" onClick={onCancel}>
+                Cancelar
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <button
+              type="submit"
+              className="siniestro-btn-submit"
+              disabled={sending || compressingNew}
+            >
+              {sending ? (
+                <>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    <circle opacity="0.25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path opacity="0.75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span>Enviando Reporte...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path
+                      d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span>Enviar Reporte de Siniestro</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Modal Selector de Origen de Foto */}
       {showPickerModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "340px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)", textAlign: "center" }}>
-            <h3 style={{ margin: "0 0 6px 0", fontSize: "1.05rem", color: "#0f172a", fontWeight: "800" }}>📷 Opciones de Evidencia</h3>
-            <p style={{ margin: "0 0 16px 0", fontSize: "0.82rem", color: "#64748b" }}>Selecciona cómo deseas adjuntar la fotografía:</p>
+        <div className="siniestro-modal-overlay" onClick={() => setShowPickerModal(false)}>
+          <div className="siniestro-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="siniestro-picker-title">📷 Opciones de Evidencia</h3>
+            <p className="siniestro-picker-subtitle">Selecciona cómo deseas adjuntar la fotografía:</p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div className="siniestro-picker-options">
               <button
                 type="button"
+                className="siniestro-picker-btn-primary"
                 onClick={() => {
                   setShowPickerModal(false);
                   setShowCameraModal(true);
                 }}
-                style={{ width: "100%", padding: "12px", borderRadius: "10px", border: 0, background: "#2563eb", color: "#ffffff", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
               >
-                <IconCamera size={18} /> Tomar Foto con Cámara
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path
+                    d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>Tomar Foto con Cámara</span>
               </button>
 
-              <label
-                style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
-              >
-                <IconFolder size={18} color="#0284c7" /> Elegir de Galería / Archivos
+              <label className="siniestro-picker-btn-secondary">
+                <svg width="18" height="18" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.625-1.5l-3 3m0 0l3 3m-3-3H21M3.75 6.75h16.5" />
+                </svg>
+                <span>Elegir de Galería / Archivos</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -595,8 +684,8 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
 
               <button
                 type="button"
+                className="siniestro-picker-btn-cancel"
                 onClick={() => setShowPickerModal(false)}
-                style={{ width: "100%", padding: "10px", borderRadius: "10px", border: 0, background: "transparent", color: "#64748b", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", marginTop: "4px" }}
               >
                 Cancelar
               </button>
@@ -607,10 +696,7 @@ export default function ReporteSiniestro({ conductor, vehiculoAsignado, onComple
 
       {/* Visor de Cámara */}
       {showCameraModal && (
-        <CameraModal
-          onCapture={handleCameraCapture}
-          onClose={() => setShowCameraModal(false)}
-        />
+        <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCameraModal(false)} />
       )}
     </div>
   );
