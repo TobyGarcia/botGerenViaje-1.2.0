@@ -1,11 +1,11 @@
 /**
- * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA y Navegadores Móviles.
+ * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA y Navegadores Móviles (Optimizado para Xiaomi/MIUI/HyperOS).
  * Combina:
- * 1. Elemento HTML5 <audio loop> con señal PCM subsónica inaudible (16Hz) a 8kHz.
- * 2. Sintetizador Web Audio API con oscilador subsónico.
- * 3. MediaSession API con interceptores de pausa autoejecutables.
- * 4. Screen Wake Lock API.
- * 5. Desbloqueo por cualquier interacción táctil/clic.
+ * 1. Elemento HTML5 <audio loop> con señal PCM subsónica inaudible (16Hz) a 8kHz y volumen 5%.
+ * 2. Sintetizador Web Audio API con oscilador subsónico a 16Hz.
+ * 3. MediaSession API con respuesta forzada a pause/stop/play.
+ * 4. Screen Wake Lock API + Web Locks API (navigator.locks).
+ * 5. Desbloqueo por cualquier toque o interacción.
  */
 
 let audioElement = null;
@@ -14,6 +14,7 @@ let audioCtx = null;
 let audioOscillator = null;
 let audioGain = null;
 let wakeLockSentinel = null;
+let webLockController = null;
 let isAudioActive = false;
 let gestureListenersAttached = false;
 
@@ -30,12 +31,14 @@ function setupGestureUnlock() {
         audioCtx.resume().catch(() => {});
       }
       acquireWakeLock();
+      acquireWebLock();
     }
   };
 
   window.addEventListener("click", unlockHandler, { capture: true, passive: true });
   window.addEventListener("touchstart", unlockHandler, { capture: true, passive: true });
   window.addEventListener("pointerdown", unlockHandler, { capture: true, passive: true });
+  window.addEventListener("scroll", unlockHandler, { capture: true, passive: true });
 }
 
 export function isMobileDevice() {
@@ -53,7 +56,6 @@ export function isMobileDevice() {
 /**
  * Genera un Blob de audio WAV con señal subsónica (16 Hz) inaudible al oído humano.
  * PCM 8-bit mono a 8kHz, 2 segundos.
- * Frecuencia <20 Hz con amplitud mínima: Inaudible para humanos pero activa el canal de audio del SO.
  */
 function getOrCreateWhiteNoiseAudioUrl() {
   if (audioBlobUrl) return audioBlobUrl;
@@ -89,10 +91,9 @@ function getOrCreateWhiteNoiseAudioUrl() {
     const dataView8 = new Uint8Array(buffer, 44);
     const freq = 16; // 16 Hz subsónico (inaudible)
     for (let i = 0; i < dataSize; i++) {
-      // Oculto a la audición humana por estar por debajo de 20 Hz, pero con modulaciones de 2 bits que fuerzan al procesador de audio a mantenerse en estado ACTIVE
       const t = i / sampleRate;
       const sample = Math.sin(2 * Math.PI * freq * t);
-      dataView8[i] = 128 + Math.floor(sample * 2);
+      dataView8[i] = 128 + Math.floor(sample * 3);
     }
 
     const blob = new Blob([buffer], { type: "audio/wav" });
@@ -112,7 +113,7 @@ async function acquireWakeLock() {
         wakeLockSentinel = null;
       });
     } catch {
-      // Ignorar rechazo de wake lock
+      // Ignorar rechazo
     }
   }
 }
@@ -121,10 +122,27 @@ function releaseWakeLock() {
   if (wakeLockSentinel) {
     try {
       wakeLockSentinel.release().catch(() => {});
-    } catch {
-      // Ignorar error
-    }
+    } catch {}
     wakeLockSentinel = null;
+  }
+}
+
+function acquireWebLock() {
+  if (typeof navigator !== "undefined" && "locks" in navigator && !webLockController) {
+    try {
+      navigator.locks.request("pwa_gps_keepalive_lock", { mode: "exclusive" }, () => {
+        return new Promise((resolve) => {
+          webLockController = { release: resolve };
+        });
+      }).catch(() => {});
+    } catch {}
+  }
+}
+
+function releaseWebLock() {
+  if (webLockController) {
+    try { webLockController.release(); } catch {}
+    webLockController = null;
   }
 }
 
@@ -159,25 +177,24 @@ export async function startSilentAudioKeepAlive() {
   isAudioActive = true;
   setupGestureUnlock();
 
-  // 1. Iniciar HTML5 Audio Element (volumen 2% inaudible con señal subsónica a 16Hz)
+  // 1. Iniciar HTML5 Audio Element (volumen 5% subsónico inaudible)
   try {
     if (!audioElement) {
       const src = getOrCreateWhiteNoiseAudioUrl();
       audioElement = new Audio(src);
       audioElement.loop = true;
       audioElement.preload = "auto";
-      audioElement.volume = 0.02; // 2% de volumen: inaudible gracias a la frecuencia subsónica pero reconocido como activo por el SO
+      audioElement.volume = 0.05; // 5% de volumen: totalmente inaudible a 16Hz pero fuerza foco activo en Xiaomi/Android
 
-      audioElement.addEventListener("ended", () => {
-        if (isAudioActive && audioElement) {
-          audioElement.play().catch(() => {});
-        }
-      });
-      audioElement.addEventListener("pause", () => {
+      const handleReplay = () => {
         if (isAudioActive && audioElement && audioElement.paused) {
           audioElement.play().catch(() => {});
         }
-      });
+      };
+
+      audioElement.addEventListener("ended", handleReplay);
+      audioElement.addEventListener("pause", handleReplay);
+      audioElement.addEventListener("timeupdate", handleReplay);
     }
     await audioElement.play();
   } catch (errHtml) {
@@ -199,7 +216,7 @@ export async function startSilentAudioKeepAlive() {
         audioGain = audioCtx.createGain();
         audioOscillator.type = "sine";
         audioOscillator.frequency.setValueAtTime(16, audioCtx.currentTime);
-        audioGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        audioGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
         audioOscillator.connect(audioGain);
         audioGain.connect(audioCtx.destination);
         audioOscillator.start();
@@ -211,6 +228,7 @@ export async function startSilentAudioKeepAlive() {
 
   setupMediaSession();
   await acquireWakeLock();
+  acquireWebLock();
 
   return true;
 }
@@ -222,9 +240,7 @@ export function stopSilentAudioKeepAlive() {
     try {
       audioElement.pause();
       audioElement.currentTime = 0;
-    } catch {
-      // Ignorar error
-    }
+    } catch {}
   }
 
   try {
@@ -241,19 +257,16 @@ export function stopSilentAudioKeepAlive() {
       audioCtx.close().catch(() => {});
       audioCtx = null;
     }
-  } catch {
-    // Ignorar
-  }
+  } catch {}
 
   if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
     try {
       navigator.mediaSession.playbackState = "none";
-    } catch {
-      // Ignorar
-    }
+    } catch {}
   }
 
   releaseWakeLock();
+  releaseWebLock();
 }
 
 export function isSilentAudioActive() {
@@ -270,8 +283,10 @@ if (typeof document !== "undefined") {
         audioCtx.resume().catch(() => {});
       }
       acquireWakeLock();
+      acquireWebLock();
     }
   });
 }
+
 
 
