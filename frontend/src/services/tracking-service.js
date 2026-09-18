@@ -8,7 +8,7 @@ const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
 const batchValue = Number(import.meta.env.VITE_GPS_SYNC_BATCH_SIZE);
 const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 1000 ? intervalValue : 30000;
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
-const MIN_CAPTURE_COOLDOWN_MS = 15000; // Mínimo 15 segundos entre capturas automáticas
+const MIN_CAPTURE_COOLDOWN_MS = 5000; // Mínimo 5 segundos entre capturas automáticas
 
 let intervalId = null;
 let activeTripId = null;
@@ -22,6 +22,22 @@ let lastCapturedTime = 0;
 let lastCapturedLat = null;
 let lastCapturedLng = null;
 let isCapturing = false;
+
+function generateUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
+      (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+    );
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function notify(update) {
   statusListener?.({ idViaje: activeTripId, active: isTrackingActive(), connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
@@ -55,25 +71,40 @@ export async function syncPendingLocations(idViaje) {
   finally { syncPromise = null; }
 }
 
-export async function captureAndQueueLocation(idViaje, extraData = {}) {
+export async function captureAndQueueLocation(idViaje, extraData = {}, rawPosition = null) {
   const isIntermediate = Boolean(extraData.esPuntoIntermedio);
   const now = Date.now();
 
-  // Control de cooldown y desduplicación para capturas automáticas
-  if (!isIntermediate) {
-    if (isCapturing) return null; // Evitar llamadas concurrentes solapadas
+  // Control de cooldown para capturas automáticas
+  if (!isIntermediate && !rawPosition) {
+    if (isCapturing) return null;
     if (now - lastCapturedTime < MIN_CAPTURE_COOLDOWN_MS) {
-      return null; // Omitir si fue capturado hace menos de 15 segundos
+      return null;
     }
   }
 
   isCapturing = true;
   try {
-    const location = await getCurrentLocation();
+    let location;
+    if (rawPosition && rawPosition.coords) {
+      let velocidad = null;
+      if (rawPosition.coords.speed !== null && rawPosition.coords.speed !== undefined && Number.isFinite(Number(rawPosition.coords.speed)) && Number(rawPosition.coords.speed) >= 0) {
+        velocidad = Math.round(Number(rawPosition.coords.speed) * 3.6 * 100) / 100;
+      }
+      location = {
+        latitud: Number(rawPosition.coords.latitude),
+        longitud: Number(rawPosition.coords.longitude),
+        precisionMetros: rawPosition.coords.accuracy ?? null,
+        velocidad,
+        direccion: rawPosition.coords.heading ?? null,
+        fechaGps: new Date(rawPosition.timestamp ?? Date.now()).toISOString()
+      };
+    } else {
+      location = await getCurrentLocation();
+    }
     
-    // Omitir si las coordenadas son idénticas y se capturó recientemente
+    // Omitir si las coordenadas son idénticas y se capturó hace menos de 45 segundos
     if (!isIntermediate && lastCapturedLat === location.latitud && lastCapturedLng === location.longitud && (now - lastCapturedTime < 45000)) {
-      lastCapturedTime = now;
       return null;
     }
 
@@ -81,9 +112,7 @@ export async function captureAndQueueLocation(idViaje, extraData = {}) {
     lastCapturedLat = location.latitud;
     lastCapturedLng = location.longitud;
 
-    const uuid = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const uuid = generateUUID();
     const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
     const pendingLocation = {
       ...location,
@@ -194,7 +223,7 @@ export async function startTracking(idViaje) {
       try {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
-            captureAndQueueLocation(normalizedId);
+            captureAndQueueLocation(normalizedId, {}, position);
           },
           (err) => {
             console.warn("[TrackingService] watchPosition aviso:", err?.message);
@@ -230,3 +259,4 @@ export async function resumeTrackingIfNeeded() {
   if (state?.trackingActivo && state.idViaje) { await startTracking(state.idViaje); return state.idViaje; }
   return null;
 }
+

@@ -1,11 +1,11 @@
 /**
  * Servicio Híbrido de Mantenimiento de Segundo Plano para PWA y Navegadores Móviles.
  * Combina:
- * 1. Elemento HTML5 <audio loop> con ruido blanco de amplitud mínima (inaudible pero detectado por el SO como audio activo).
- * 2. Sintetizador Web Audio API con oscilador a 25Hz.
- * 3. MediaSession API (Notificación de reproducción persistente en Android).
+ * 1. Elemento HTML5 <audio loop> con señal PCM subsónica inaudible (16Hz) a 8kHz.
+ * 2. Sintetizador Web Audio API con oscilador subsónico.
+ * 3. MediaSession API con interceptores de pausa autoejecutables.
  * 4. Screen Wake Lock API.
- * 5. Desbloqueo automático por cualquier gesto táctil/clic del usuario.
+ * 5. Desbloqueo por cualquier interacción táctil/clic.
  */
 
 let audioElement = null;
@@ -51,9 +51,9 @@ export function isMobileDevice() {
 }
 
 /**
- * Genera un Blob de audio WAV con ruido blanco de amplitud mínima (inaudible).
+ * Genera un Blob de audio WAV con señal subsónica (16 Hz) inaudible al oído humano.
  * PCM 8-bit mono a 8kHz, 2 segundos.
- * La variación de 1-bit evita que los controladores de audio de Android/iOS identifiquen el canal como silencio digital y apaguen el procesador de audio.
+ * Frecuencia <20 Hz con amplitud mínima: Inaudible para humanos pero activa el canal de audio del SO.
  */
 function getOrCreateWhiteNoiseAudioUrl() {
   if (audioBlobUrl) return audioBlobUrl;
@@ -87,16 +87,19 @@ function getOrCreateWhiteNoiseAudioUrl() {
     view.setUint32(40, dataSize, true);
 
     const dataView8 = new Uint8Array(buffer, 44);
+    const freq = 16; // 16 Hz subsónico (inaudible)
     for (let i = 0; i < dataSize; i++) {
-      // Ruido blanco inaudible con variación leve de 1 bit (127/129)
-      dataView8[i] = 128 + (Math.random() > 0.5 ? 1 : -1);
+      // Oculto a la audición humana por estar por debajo de 20 Hz, pero con modulaciones de 2 bits que fuerzan al procesador de audio a mantenerse en estado ACTIVE
+      const t = i / sampleRate;
+      const sample = Math.sin(2 * Math.PI * freq * t);
+      dataView8[i] = 128 + Math.floor(sample * 2);
     }
 
     const blob = new Blob([buffer], { type: "audio/wav" });
     audioBlobUrl = URL.createObjectURL(blob);
     return audioBlobUrl;
   } catch (error) {
-    console.warn("[BackgroundAudio] Fallback a Data URI para ruido blanco:", error);
+    console.warn("[BackgroundAudio] Fallback a Data URI para audio subsónico:", error);
     return "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
   }
 }
@@ -135,20 +138,17 @@ function setupMediaSession() {
       });
       navigator.mediaSession.playbackState = "playing";
 
-      navigator.mediaSession.setActionHandler("play", () => {
+      const ensurePlaying = () => {
         if (isAudioActive) {
           if (audioElement && audioElement.paused) audioElement.play().catch(() => {});
           if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
           navigator.mediaSession.playbackState = "playing";
         }
-      });
-      navigator.mediaSession.setActionHandler("pause", () => {
-        if (isAudioActive) {
-          if (audioElement && audioElement.paused) audioElement.play().catch(() => {});
-          if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-          navigator.mediaSession.playbackState = "playing";
-        }
-      });
+      };
+
+      navigator.mediaSession.setActionHandler("play", ensurePlaying);
+      navigator.mediaSession.setActionHandler("pause", ensurePlaying);
+      navigator.mediaSession.setActionHandler("stop", ensurePlaying);
     } catch (e) {
       console.debug("[BackgroundAudio] Error configurando MediaSession:", e);
     }
@@ -159,17 +159,22 @@ export async function startSilentAudioKeepAlive() {
   isAudioActive = true;
   setupGestureUnlock();
 
-  // 1. Iniciar HTML5 Audio Element (volumen imperceptible a 0.001 para mantener la sesión de audio activa sin estática)
+  // 1. Iniciar HTML5 Audio Element (volumen 2% inaudible con señal subsónica a 16Hz)
   try {
     if (!audioElement) {
       const src = getOrCreateWhiteNoiseAudioUrl();
       audioElement = new Audio(src);
       audioElement.loop = true;
       audioElement.preload = "auto";
-      audioElement.volume = 0.001; // 0.1% de volumen: imperceptible al oído pero la pista sigue activa para el SO
+      audioElement.volume = 0.02; // 2% de volumen: inaudible gracias a la frecuencia subsónica pero reconocido como activo por el SO
 
       audioElement.addEventListener("ended", () => {
         if (isAudioActive && audioElement) {
+          audioElement.play().catch(() => {});
+        }
+      });
+      audioElement.addEventListener("pause", () => {
+        if (isAudioActive && audioElement && audioElement.paused) {
           audioElement.play().catch(() => {});
         }
       });
@@ -179,7 +184,7 @@ export async function startSilentAudioKeepAlive() {
     console.warn("[BackgroundAudio] HTML5 Audio intentará reproducirse al primer toque:", errHtml?.message);
   }
 
-  // 2. Iniciar Web Audio API (Oscilador subsónico 25Hz con ganancia imperceptible)
+  // 2. Iniciar Web Audio API (Oscilador subsónico 16Hz)
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) {
@@ -193,8 +198,8 @@ export async function startSilentAudioKeepAlive() {
         audioOscillator = audioCtx.createOscillator();
         audioGain = audioCtx.createGain();
         audioOscillator.type = "sine";
-        audioOscillator.frequency.setValueAtTime(25, audioCtx.currentTime);
-        audioGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        audioOscillator.frequency.setValueAtTime(16, audioCtx.currentTime);
+        audioGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
         audioOscillator.connect(audioGain);
         audioGain.connect(audioCtx.destination);
         audioOscillator.start();
@@ -257,7 +262,7 @@ export function isSilentAudioActive() {
 
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && isAudioActive) {
+    if (isAudioActive) {
       if (audioElement && audioElement.paused) {
         audioElement.play().catch(() => {});
       }
@@ -268,4 +273,5 @@ if (typeof document !== "undefined") {
     }
   });
 }
+
 

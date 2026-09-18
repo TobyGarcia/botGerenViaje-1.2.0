@@ -375,7 +375,12 @@ export async function registerTripLocationBatchController(request, response) {
     const validLocations = normalized
       .filter((item) => item.valid)
       .map((item) => item.location);
-    const rejected = normalized.length - validLocations.length;
+    const rejectedItems = normalized.filter((item) => !item.valid);
+    const rejected = rejectedItems.length;
+
+    if (rejected > 0) {
+      console.warn(`[UbicacionesBatch] ${rejected} ubicaciones de ${locations.length} fueron rechazadas por validación:`, rejectedItems.map(i => i.reason));
+    }
 
     const result = await saveTripLocationBatch({
       idViaje,
