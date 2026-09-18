@@ -10522,3 +10522,1029 @@ min-width: 0;
 .dot-red-fixed {
   background: #dc2626;
 }
+
+/* ==========================================================================
+   MONITOREO EN VIVO DE FLOTA (TORRE DE CONTROL)
+   ========================================================================== */
+
+.live-monitoring-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 650px;
+  position: relative;
+}
+
+.live-monitoring-container.fullscreen-active {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 16px;
+  background: #0f172a;
+  box-sizing: border-box;
+}
+
+.live-monitoring-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #ffffff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.fullscreen-active .live-monitoring-header {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.live-monitoring-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-radar-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: #ecfdf5;
+  color: #059669;
+  border-radius: 10px;
+  border: 1px solid #a7f3d0;
+}
+
+.fullscreen-active .live-radar-badge {
+  background: #064e3b;
+  border-color: #047857;
+  color: #34d399;
+}
+
+.radar-spin-icon {
+  animation: radar-pulse-icon 3s ease-in-out infinite;
+}
+
+@keyframes radar-pulse-icon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.radar-live-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #ffffff;
+  animation: beacon-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.live-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-monitoring-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.fullscreen-active .live-monitoring-title {
+  color: #f8fafc;
+}
+
+.live-badge-active {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+  border: 1px solid #bbf7d0;
+}
+
+.fullscreen-active .live-badge-active {
+  background: #14532d;
+  color: #86efac;
+  border-color: #166534;
+}
+
+.live-monitoring-subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.fullscreen-active .live-monitoring-subtitle {
+  color: #94a3b8;
+}
+
+/* KPIs de Flota */
+.live-kpi-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.fullscreen-active .live-kpi-pill {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.live-kpi-pill:hover,
+.live-kpi-pill.active {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.fullscreen-active .live-kpi-pill:hover,
+.fullscreen-active .live-kpi-pill.active {
+  background: #334155;
+  border-color: #475569;
+}
+
+.kpi-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-moving {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.dot-stopped {
+  background: #ea580c;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+}
+
+.dot-nogps {
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
+}
+
+.kpi-number {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.fullscreen-active .kpi-number {
+  color: #f8fafc;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fullscreen-active .kpi-label {
+  color: #94a3b8;
+}
+
+/* Controles de Refresco */
+.live-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-status-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.fullscreen-active .refresh-status-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.btn-pause-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-pause-toggle.active {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.btn-pause-toggle.paused {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.countdown-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+}
+
+.countdown-text {
+  font-size: 0.75rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.fullscreen-active .countdown-text {
+  color: #e2e8f0;
+}
+
+.countdown-text.text-paused {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.last-sync-text {
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+
+.refresh-interval-select {
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.fullscreen-active .refresh-interval-select {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.view-actions-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-icon-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fullscreen-active .btn-icon-action {
+  background: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+.btn-icon-action:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.fullscreen-active .btn-icon-action:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+.loading-spin {
+  animation: icon-spin 1s linear infinite;
+}
+
+@keyframes icon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.live-alert-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.live-alert-error button {
+  background: #b91c1c;
+  color: #ffffff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* Cuerpo Principal */
+.live-monitoring-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+}
+
+.fullscreen-active .live-monitoring-body {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+.live-map-wrapper {
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+
+.live-leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #e5e7eb;
+}
+
+.btn-toggle-units-sidebar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-units-sidebar:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Panel Lateral de Unidades */
+.live-units-sidebar {
+  width: 320px;
+  border-left: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  z-index: 1001;
+}
+
+.fullscreen-active .live-units-sidebar {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.sidebar-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.fullscreen-active .sidebar-search-box {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.sidebar-search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  color: #1e293b;
+  outline: none;
+}
+
+.fullscreen-active .sidebar-search-box input {
+  color: #f8fafc;
+}
+
+.btn-clear-search {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.sidebar-units-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+/* Tarjeta de Unidad en Sidebar */
+.unit-card-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fullscreen-active .unit-card-item {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.unit-card-item:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.unit-card-item.selected {
+  border-color: #0284c7;
+  background: #f0f9ff;
+}
+
+.fullscreen-active .unit-card-item.selected {
+  border-color: #38bdf8;
+  background: #0c4a6e;
+}
+
+.unit-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.unit-card-main-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.unit-status-dot.moving {
+  background: #16a34a;
+  animation: beacon-ping 1.8s infinite;
+}
+
+.unit-status-dot.stopped {
+  background: #ea580c;
+}
+
+.unit-status-dot.nogps {
+  background: #94a3b8;
+}
+
+.unit-eco-name {
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.fullscreen-active .unit-eco-name {
+  color: #f8fafc;
+}
+
+.unit-driver-name {
+  font-size: 0.78rem;
+  color: #64748b;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fullscreen-active .unit-driver-name {
+  color: #94a3b8;
+}
+
+.unit-speed-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+}
+
+.speed-moving {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.speed-stopped {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.unit-card-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.fullscreen-active .unit-card-route {
+  color: #cbd5e1;
+}
+
+.route-arrow {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.unit-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+.fullscreen-active .unit-card-bottom {
+  border-top-color: #1e293b;
+}
+
+.unit-signal-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+}
+
+.signal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.btn-unit-open-detail {
+  background: transparent;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #0284c7;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-unit-open-detail:hover {
+  background: #e0f2fe;
+}
+
+/* ==========================================================================
+   MARCADORES DE VEHÍCULO PERSONALIZADOS (LEAFLET DIV-ICON)
+   ========================================================================== */
+
+.unit-leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.custom-unit-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.marker-beacon-pulse {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.status-moving .marker-beacon-pulse {
+  animation: beacon-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  background: rgba(16, 185, 129, 0.55);
+}
+
+.status-warning .marker-beacon-pulse {
+  animation: beacon-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  background: rgba(245, 158, 11, 0.65);
+}
+
+.status-critical .marker-beacon-pulse {
+  animation: beacon-ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  background: rgba(239, 68, 68, 0.75);
+}
+
+.status-stopped .marker-beacon-pulse {
+  display: none;
+}
+
+.marker-body {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 0 0 2px #ffffff;
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.status-moving .marker-body {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  color: #ffffff;
+}
+
+.status-warning .marker-body {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #ffffff;
+}
+
+.status-critical .marker-body {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  color: #ffffff;
+}
+
+.status-stopped .marker-body {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  color: #ffffff;
+}
+
+.unit-marker-selected .marker-body {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 4px #38bdf8, 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   SIMBOLOGÍA FLOTANTE DEL MAPA
+   ========================================================================== */
+
+.live-map-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 14px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.fullscreen-active .live-map-legend {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.legend-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.fullscreen-active .legend-title {
+  color: #f8fafc;
+}
+
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #334155;
+  font-family: inherit;
+}
+
+.fullscreen-active .legend-item {
+  color: #cbd5e1;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.marker-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.marker-eco-badge {
+  position: absolute;
+  bottom: -2px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   TARJETA HOVER (TOOLTIP FLOTANTE AL PASAR EL MOUSE)
+   ========================================================================== */
+
+.leaflet-tooltip.leaflet-live-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: none;
+}
+
+.leaflet-tooltip.leaflet-live-tooltip::before {
+  display: none !important;
+}
+
+.live-unit-hover-card {
+  width: 290px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 14px 28px -4px rgba(15, 23, 42, 0.18), 0 8px 12px -4px rgba(15, 23, 42, 0.1);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: inherit;
+  pointer-events: none;
+  animation: hover-card-fade-in 0.15s ease-out;
+}
+
+@keyframes hover-card-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hover-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.hover-card-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.hover-card-unit-badge {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.hover-card-plates {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.hover-card-speed-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+}
+
+.badge-moving {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-stopped {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.hover-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hover-icon {
+  font-size: 0.95rem;
+  margin-top: 1px;
+}
+
+.hover-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.hover-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.hover-val {
+  font-size: 0.85rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.hover-route {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.25;
+}
+
+.hover-subtext {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.hover-row-telemetry {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-top: 2px;
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.telemetry-label {
+  font-size: 0.62rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.telemetry-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.hover-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.hover-signal-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signal-dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: beacon-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.signal-status-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.hover-click-hint {
+  font-size: 0.68rem;
+  color: #0284c7;
+  font-weight: 700;
+}

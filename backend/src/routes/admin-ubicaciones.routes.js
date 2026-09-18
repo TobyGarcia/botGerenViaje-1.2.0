@@ -4,7 +4,8 @@ import {
 
 import {
   getAdminTripLocationDetailController,
-  listAdminTripLocationsController
+  listAdminTripLocationsController,
+  getAdminActiveTripsLiveController
 } from "../controllers/admin-ubicaciones.controller.js";
 
 import {
@@ -24,6 +25,12 @@ router.get(
   "/",
   requireAdminRoles(ROLES_TODOS_OPERATIVOS),
   listAdminTripLocationsController
+);
+
+router.get(
+  "/monitoreo-activo",
+  requireAdminRoles(ROLES_TODOS_OPERATIVOS),
+  getAdminActiveTripsLiveController
 );
 
 router.get(

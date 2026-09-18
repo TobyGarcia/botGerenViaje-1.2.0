@@ -1,6 +1,7 @@
 import {
   getAdminTripLocationDetail,
-  listAdminTripLocations
+  listAdminTripLocations,
+  getActiveTripsLiveLocations
 } from "../services/admin-ubicaciones.service.js";
 
 function parsePositiveInteger(value) {
@@ -418,5 +419,87 @@ export async function getAdminTripLocationDetailController(
         message:
           "No fue posible consultar el recorrido GPS."
       });
+  }
+}
+
+function serializeLiveTrip(row) {
+  const tieneGps =
+    row.ultima_ubicacion_id !== null &&
+    row.ultima_latitud !== null &&
+    row.ultima_longitud !== null;
+
+  return {
+    idViaje: Number(row.id_viajes),
+    folio: row.folio,
+    fecha: row.fecha,
+    estado: row.estado,
+    horaSalida: row.hora_salida,
+    horaLlegada: row.hora_llegada,
+    conductor: {
+      id: Number(row.id_conductores),
+      nombre: row.conductor,
+      telefono: row.conductor_telefono || null
+    },
+    vehiculo: {
+      id: Number(row.id_vehiculos),
+      nombre: row.vehiculo,
+      numeroEconomico: row.numero_economico,
+      placas: row.placas,
+      marca: row.marca || null,
+      modelo: row.modelo || null
+    },
+    origen: {
+      id: Number(row.origen_id),
+      nombre: row.origen
+    },
+    destino: {
+      id: Number(row.destino_id),
+      nombre: row.destino
+    },
+    totalUbicaciones: Number(row.total_ubicaciones || 0),
+    segundosDesdeUltimoGps:
+      row.segundos_desde_ultimo_gps !== null
+        ? Number(row.segundos_desde_ultimo_gps)
+        : null,
+    ultimaUbicacion: tieneGps
+      ? {
+          idUbicacion: Number(row.ultima_ubicacion_id),
+          latitud: Number(row.ultima_latitud),
+          longitud: Number(row.ultima_longitud),
+          precisionMetros: parseNullableNumber(row.ultima_precision_metros),
+          velocidad: parseNullableNumber(row.ultima_velocidad),
+          direccionGrados: parseNullableNumber(row.ultima_direccion_grados),
+          fechaGps: row.ultima_fecha_gps
+        }
+      : null
+  };
+}
+
+export async function getAdminActiveTripsLiveController(request, response) {
+  try {
+    const idConductor =
+      request.adminUser.rol === "OPERADOR"
+        ? request.adminUser.id_conductores
+        : null;
+
+    const rows = await getActiveTripsLiveLocations({ idConductor });
+
+    return response.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      totalActivos: rows.length,
+      data: rows.map(serializeLiveTrip)
+    });
+  } catch (error) {
+    console.error("Error consultando viajes activos en vivo:", {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
+
+    return response.status(500).json({
+      success: false,
+      message: "No fue posible consultar los viajes activos en vivo."
+    });
   }
 }
