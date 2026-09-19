@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import remolqueFrontalImg from "../assets/remolque_frontal.png";
+import remolqueDerechaImg from "../assets/remolque_derecha.png";
+import remolqueTraseraImg from "../assets/remolque_trasera.png";
+import remolqueIzquierdoImg from "../assets/remolque_izquierdo.png";
+
+const TRAILER_IMAGES = {
+  frontal: remolqueFrontalImg,
+  derecha: remolqueDerechaImg,
+  trasera: remolqueTraseraImg,
+  izquierda: remolqueIzquierdoImg
+};
 
 export const REMOLQUE_CHECKLIST_GROUPS = {
   "Documentación / Control": [
@@ -355,53 +366,18 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
                     justifyContent: "center"
                   }}
                 >
-                  {/* SVG Ilustración Diagrama de Remolque */}
-                  <svg width="100%" height="100%" viewBox="0 0 400 180" style={{ pointerEvents: "none" }}>
-                    {activeView === "frontal" && (
-                      <g stroke="#334155" strokeWidth="2.5" fill="none">
-                        <rect x="100" y="30" width="200" height="110" rx="6" fill="#f1f5f9" />
-                        <line x1="120" y1="30" x2="120" y2="140" />
-                        <line x1="280" y1="30" x2="280" y2="140" />
-                        <rect x="130" y="140" width="25" height="20" fill="#475569" />
-                        <rect x="245" y="140" width="25" height="20" fill="#475569" />
-                        <circle cx="200" cy="155" r="8" fill="#e2e8f0" stroke="#1e293b" strokeWidth="2" />
-                        <text x="200" y="85" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#64748b" stroke="none">REMOLQUE - VISTA FRONTAL</text>
-                      </g>
-                    )}
-                    {activeView === "trasera" && (
-                      <g stroke="#334155" strokeWidth="2.5" fill="none">
-                        <rect x="100" y="30" width="200" height="110" rx="6" fill="#f1f5f9" />
-                        <circle cx="120" cy="120" r="10" fill="#ef4444" stroke="#991b1b" />
-                        <circle cx="280" cy="120" r="10" fill="#ef4444" stroke="#991b1b" />
-                        <rect x="140" y="115" width="120" height="20" fill="#fbbf24" stroke="#d97706" />
-                        <rect x="120" y="140" width="30" height="22" fill="#334155" />
-                        <rect x="250" y="140" width="30" height="22" fill="#334155" />
-                        <text x="200" y="75" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#64748b" stroke="none">REMOLQUE - VISTA TRASERA</text>
-                      </g>
-                    )}
-                    {activeView === "derecha" && (
-                      <g stroke="#334155" strokeWidth="2.5" fill="none">
-                        <rect x="30" y="40" width="300" height="80" rx="4" fill="#f1f5f9" />
-                        <polygon points="330,100 370,100 380,110 330,110" fill="#475569" />
-                        <circle cx="380" cy="110" r="6" fill="#94a3b8" />
-                        <circle cx="230" cy="130" r="18" fill="#334155" stroke="#0f172a" strokeWidth="3" />
-                        <circle cx="275" cy="130" r="18" fill="#334155" stroke="#0f172a" strokeWidth="3" />
-                        <rect x="50" y="115" width="12" height="20" fill="#94a3b8" />
-                        <text x="180" y="85" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#64748b" stroke="none">LATERAL DERECHA</text>
-                      </g>
-                    )}
-                    {activeView === "izquierda" && (
-                      <g stroke="#334155" strokeWidth="2.5" fill="none">
-                        <rect x="70" y="40" width="300" height="80" rx="4" fill="#f1f5f9" />
-                        <polygon points="70,100 30,100 20,110 70,110" fill="#475569" />
-                        <circle cx="20" cy="110" r="6" fill="#94a3b8" />
-                        <circle cx="125" cy="130" r="18" fill="#334155" stroke="#0f172a" strokeWidth="3" />
-                        <circle cx="170" cy="130" r="18" fill="#334155" stroke="#0f172a" strokeWidth="3" />
-                        <rect x="340" y="115" width="12" height="20" fill="#94a3b8" />
-                        <text x="220" y="85" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#64748b" stroke="none">LATERAL IZQUIERDA</text>
-                      </g>
-                    )}
-                  </svg>
+                  {/* Imagen Diagrama de Remolque */}
+                  <img
+                    src={TRAILER_IMAGES[activeView]}
+                    alt={`Remolque ${activeView}`}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      pointerEvents: "none",
+                      userSelect: "none"
+                    }}
+                  />
 
                   {/* Marcas rojas de daño */}
                   {(danos[activeView] || []).map((pt, idx) => (

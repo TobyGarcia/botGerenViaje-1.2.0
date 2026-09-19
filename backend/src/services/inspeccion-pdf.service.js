@@ -11,6 +11,10 @@ const diagramFiles = {
   trasera: new URL("../assets/inspection-diagrams/trasera.png", import.meta.url),
   conductor: new URL("../assets/inspection-diagrams/conductor.png", import.meta.url),
   pasajero: new URL("../assets/inspection-diagrams/pasajero.png", import.meta.url),
+  remolque_frontal: new URL("../assets/inspection-diagrams/remolque_frontal.png", import.meta.url),
+  remolque_trasera: new URL("../assets/inspection-diagrams/remolque_trasera.png", import.meta.url),
+  remolque_derecha: new URL("../assets/inspection-diagrams/remolque_derecha.png", import.meta.url),
+  remolque_izquierdo: new URL("../assets/inspection-diagrams/remolque_izquierdo.png", import.meta.url),
   logoAquario: new URL("../assets/aquario-logo.png", import.meta.url)
 };
 
@@ -443,22 +447,27 @@ export function buildInspectionPdf(data) {
     rect(commandsP2, MARGIN, 260, 540, 150, { fill: "#ffffff", stroke: border });
 
     const trailerDiagramViews = [
-      { id: "frontal", label: "VISTA FRONTAL", x: 45, y: 340, w: 110, h: 60 },
-      { id: "derecha", label: "VISTA LATERAL DERECHA", x: 180, y: 340, w: 370, h: 60 },
-      { id: "trasera", label: "VISTA TRASERA", x: 45, y: 270, w: 110, h: 60 },
-      { id: "izquierda", label: "VISTA LATERAL IZQUIERDA", x: 180, y: 270, w: 370, h: 60 }
+      { id: "frontal", imgKey: "remolque_frontal", label: "VISTA FRONTAL", x: 45, y: 340, w: 110, h: 60 },
+      { id: "derecha", imgKey: "remolque_derecha", label: "VISTA LATERAL DERECHA", x: 180, y: 340, w: 370, h: 60 },
+      { id: "trasera", imgKey: "remolque_trasera", label: "VISTA TRASERA", x: 45, y: 270, w: 110, h: 60 },
+      { id: "izquierda", imgKey: "remolque_izquierdo", label: "VISTA LATERAL IZQUIERDA", x: 180, y: 270, w: 370, h: 60 }
     ];
 
-    trailerDiagramViews.forEach(({ id, label, x, y, w, h }) => {
-      rect(commandsP2, x, y, w, h, { fill: "#f8fafc", stroke: border });
-      drawText(commandsP2, label, x + w / 2, y + h - 8, 5.5, { bold: true, fill: darkNavy, align: "center" });
-      const pts = remolqueDanos[id] || [];
-      pts.forEach((pt, idx) => {
-        const mx = x + (Number(pt.x) / 100) * w;
-        const my = y + (1 - Number(pt.y) / 100) * h;
-        circle(commandsP2, mx, my, 4.5);
-        drawText(commandsP2, String(idx + 1), mx - 1.5, my - 1.5, 3.8, { bold: true, fill: "#d93838" });
-      });
+    trailerDiagramViews.forEach(({ id, imgKey, label, x, y, w, h }) => {
+      rect(commandsP2, x, y, w, h, { fill: "#ffffff", stroke: border });
+      const entry = imageReferences[imgKey];
+      if (entry) {
+        drawImage(commandsP2, entry.name, entry.image, x, y, w, h, remolqueDanos[id] || []);
+      } else {
+        const pts = remolqueDanos[id] || [];
+        pts.forEach((pt, idx) => {
+          const mx = x + (Number(pt.x) / 100) * w;
+          const my = y + (1 - Number(pt.y) / 100) * h;
+          circle(commandsP2, mx, my, 4.5);
+          drawText(commandsP2, String(idx + 1), mx - 1.5, my - 1.5, 3.8, { bold: true, fill: "#d93838" });
+        });
+      }
+      drawText(commandsP2, label, x + w / 2, y + h + 2, 5.5, { bold: true, fill: darkNavy, align: "center" });
     });
 
     // Observaciones y Firmas Remolque (Y: 36 a 250)
