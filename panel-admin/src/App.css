@@ -413,7 +413,7 @@
 .sidebar-wrapper {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1100;
   height: 100vh;
   width: 78px;
 }
@@ -1575,7 +1575,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 2000;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -5119,7 +5119,7 @@ min-width: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 490;
+    z-index: 1090;
     background: rgba(8, 30, 42, 0.65);
     backdrop-filter: blur(4px);
   }
@@ -5130,7 +5130,7 @@ min-width: 0;
     top: 0 !important;
     width: 100% !important;
     height: auto !important;
-    z-index: 500 !important;
+    z-index: 1100 !important;
   }
 
   .sidebar {
@@ -10922,7 +10922,14 @@ min-width: 0;
 .live-leaflet-container {
   width: 100%;
   height: 100%;
-  background: #e5e7eb;
+  background: #aad3df;
+}
+
+/* Mitigar líneas blancas (tile seams) causadas por redondeo de subpíxeles en Chromium */
+.live-leaflet-container .leaflet-tile-container img.leaflet-tile,
+.leaflet-container .leaflet-tile-container img.leaflet-tile {
+  outline: 1px solid transparent;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .btn-toggle-units-sidebar {
