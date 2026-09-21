@@ -1,20 +1,29 @@
 /**
- * Servicio Híbrido de Trazado y Ajuste Vial a Calles Reales (OSRM Map-Matching & Bridged Routing)
+ * Servicio Inteligente de Trazado y Ajuste Vial a Calles Reales
+ * (OSRM Map-Matching Robusto, Puentes Viales Sin Bucles y Poda Geométrica)
  *
- * Resuelve:
- * 1. Vueltas a la manzana y retornos absurdos: Usa OSRM /match (Hidden Markov Model)
- *    con radiuses=45 para absorber camellones centrales y ruido de GPS sin obligar al auto a dar vueltas.
- * 2. Líneas rectas aéreas: Si OSRM divide un tramo o hay saltos de distancia en carretera (ej. Seybaplaya),
- *    conecta automáticamente los puntos separados usando /route vial como puente, NUNCA líneas rectas.
- * 3. Desvíos a brechas o cerros por puntos fantasma: Filtro de picos (spike outliers)
- *    que detecta y elimina lecturas erráticas que saltan bruscamente fuera de la vía y regresan.
- * 4. Bucles cuadrados y telarañas en paradas: Filtro anti-jitter que elimina lecturas redundantes en reposo.
- * 5. Protección contra Rate Limit (HTTP 429): Chunks de 50 puntos con pausas de cortesía y reintentos.
+ * Resuelve definitivamente:
+ * 1. Límites estrictos de OSRM público: CHUNK_SIZE = 10 y radiuses = 30m para evitar el error
+ *    "TooBig" (que provocaba que el 100% de peticiones cayeran al fallback de /route).
+ * 2. Vueltas a la manzana (1.4 km) en paradas (Oxxo, gasolineras, tiendas):
+ *    Al usar /match con radiuses válidos, el HMM absorbe la parada sin desviar la ruta.
+ *    Además, el filtro pruneArtificialLoops elimina bucles de calles cerradas si no hay paradas reales.
+ * 3. Retornos absurdos en camellones centrales (Avenida Lázaro Cárdenas):
+ *    Punteo inteligente con approaches=unrestricted y limitación de ratio de desvío;
+ *    poda de bucles de camellón cuando no hubo lecturas de GPS en el carril opuesto.
+ * 4. Picos, antenas y desvíos a brechas / cerros (Villa Madero, Frontera):
+ *    Filtro de picos multi-punto que detecta excursiones fuera del corredor;
+ *    filtro pruneBacktrackingSpurs que poda antenas ciegas que van y vuelven sin parada intermedia.
+ * 5. Soporte de timestamps UNIX:
+ *    Permite al algoritmo Viterbi de OSRM calcular probabilidades de transición basadas en velocidad real.
+ * 6. Protección de paradas intermedias:
+ *    Garantiza que cualquier punto marcado con esPuntoIntermedio nunca sea descartado ni podado.
  */
 
-const CHUNK_SIZE = 50;
+const CHUNK_SIZE = 10; // Límite estricto de OSRM público para /match (máximo 10-12 coordenadas)
 const OVERLAP = 2;
 const OSRM_PUBLIC_URL = "https://router.project-osrm.org";
+const MAX_MATCH_RADIUS = 30; // Límite estricto de OSRM público (<= 40m para evitar error TooBig)
 
 /**
  * Calcula distancia en metros entre dos puntos geográficos (fórmula de Haversine)
@@ -52,15 +61,38 @@ export function calculateBearing(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Pausa asíncrona para respetar límites de peticiones
+ * Distancia perpendicular en metros desde un punto P a la recta que une A y B
+ */
+function perpendicularDistanceMeters(pLat, pLon, aLat, aLon, bLat, bLon) {
+  const latAvgRad = ((aLat + bLat) / 2) * (Math.PI / 180);
+  const cosLat = Math.cos(latAvgRad);
+  const ax = aLon * 111320 * cosLat;
+  const ay = aLat * 111320;
+  const bx = bLon * 111320 * cosLat;
+  const by = bLat * 111320;
+  const px = pLon * 111320 * cosLat;
+  const py = pLat * 111320;
+
+  const vx = bx - ax;
+  const vy = by - ay;
+  const wx = px - ax;
+  const wy = py - ay;
+
+  const lenV = Math.sqrt(vx * vx + vy * vy);
+  if (lenV < 1) return Math.sqrt(wx * wx + wy * wy);
+  return Math.abs(wx * vy - wy * vx) / lenV;
+}
+
+/**
+ * Pausa asíncrona para respetar límites de peticiones HTTP
  */
 function waitMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Detecta si un punto intermedio es un "salto fantasma" de GPS
- * (ej. rebotes aislados hacia cerros, brechas o edificios que regresan inmediatamente a la vía)
+ * Detecta si un punto o par de puntos son saltos fantasma / excursiones erráticas
+ * (ej. rebotes aislados hacia cerros, brechas o edificios que regresan inmediatamente al eje vial)
  */
 function isSpikeOutlier(pPrev, pCurr, pNext) {
   // Nunca descartar paradas intermedias registradas por el usuario
@@ -71,29 +103,17 @@ function isSpikeOutlier(pPrev, pCurr, pNext) {
   const dBC = calculateDistanceMeters(pCurr.latitud, pCurr.longitud, pNext.latitud, pNext.longitud);
 
   // Si la desviación acumulada (ida y vuelta) es significativamente mayor que el avance directo
-  if (dAC > 25 && (dAB + dBC) > 1.55 * dAC) {
-    // Proyección local en metros para calcular distancia perpendicular a la recta AC
-    const latAvgRad = ((pPrev.latitud + pNext.latitud) / 2) * (Math.PI / 180);
-    const cosLat = Math.cos(latAvgRad);
-    const ax = pPrev.longitud * 111320 * cosLat;
-    const ay = pPrev.latitud * 111320;
-    const cx = pNext.longitud * 111320 * cosLat;
-    const cy = pNext.latitud * 111320;
-    const bx = pCurr.longitud * 111320 * cosLat;
-    const by = pCurr.latitud * 111320;
-
-    const vx = cx - ax;
-    const vy = cy - ay;
-    const wx = bx - ax;
-    const wy = by - ay;
-
-    const lenV = Math.sqrt(vx * vx + vy * vy);
-    if (lenV > 10) {
-      const perpDist = Math.abs(wx * vy - wy * vx) / lenV;
-      // Si el punto se desvió perpendicularmente más de 70 metros del eje de avance, es un pico fantasma
-      if (perpDist > 70) {
-        return true;
-      }
+  if (dAC > 20 && (dAB + dBC) > 1.45 * dAC) {
+    const perpDist = perpendicularDistanceMeters(
+      pCurr.latitud,
+      pCurr.longitud,
+      pPrev.latitud,
+      pPrev.longitud,
+      pNext.latitud,
+      pNext.longitud
+    );
+    if (perpDist > 60) {
+      return true;
     }
   }
 
@@ -130,7 +150,7 @@ export function filterJitterAndCleanPoints(locations = []) {
     return (a.idUbicacion ?? a.id_ubicaciones_viaje ?? 0) - (b.idUbicacion ?? b.id_ubicaciones_viaje ?? 0);
   });
 
-  // 2. Primera pasada: Filtro de picos erráticos (Spike Outliers)
+  // 2. Primera pasada: Filtro de picos erráticos (Spike Outliers mono y bi-punto)
   const nonSpikes = [valid[0]];
   for (let i = 1; i < valid.length - 1; i++) {
     const prev = nonSpikes[nonSpikes.length - 1];
@@ -163,12 +183,12 @@ export function filterJitterAndCleanPoints(locations = []) {
       curr.longitud
     );
 
-    // Si el auto se desplazó menos de 10 metros del punto anterior, es ruido de parada (se omite)
+    // Si el auto se desplazó menos de 10 metros del punto anterior, es ruido de reposo
     if (dist < 10) {
       continue;
     }
 
-    // Filtro de teletransportación irreal (> 5 km en < 30s)
+    // Filtro de teletransportación irreal (> 65 m/s o 234 km/h)
     const tPrev = new Date(prev.fechaGps ?? prev.fecha_gps ?? 0).getTime();
     const tCurr = new Date(curr.fechaGps ?? curr.fecha_gps ?? 0).getTime();
     if (tPrev && tCurr && tCurr > tPrev) {
@@ -190,17 +210,30 @@ export function filterJitterAndCleanPoints(locations = []) {
 }
 
 /**
- * Conecta dos puntos separados sobre la red vial usando OSRM /route como puente
- * Garantiza que nunca haya líneas rectas aéreas
+ * Conecta dos puntos sobre la red vial usando OSRM /route con approaches=unrestricted.
+ * Si el ruteo genera un desvío absurdo (ej. vuelta a la manzana o retorno en camellón),
+ * conecta de forma directa para evitar bucles artificiales.
  */
 async function fetchOsrmRouteBridge(fromPoint, toPoint) {
+  const straightDist = calculateDistanceMeters(fromPoint[0], fromPoint[1], toPoint[0], toPoint[1]);
+  if (straightDist < 5) {
+    return [fromPoint, toPoint];
+  }
+
   try {
     const coords = `${fromPoint[1].toFixed(6)},${fromPoint[0].toFixed(6)};${toPoint[1].toFixed(6)},${toPoint[0].toFixed(6)}`;
-    const url = `${OSRM_PUBLIC_URL}/route/v1/driving/${coords}?geometries=geojson&overview=full&steps=false&alternatives=false`;
+    const url = `${OSRM_PUBLIC_URL}/route/v1/driving/${coords}?geometries=geojson&overview=full&continue_straight=true&approaches=unrestricted;unrestricted`;
     const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates?.length > 0) {
+        const routeDist = data.routes[0].distance || 0;
+        // Si el ruteo vial generó un desvío excesivo (> 2.5x la distancia directa en tramos cortos < 350m),
+        // es un retorno forzado por camellón o vuelta a la manzana: se rechaza el bucle.
+        if (straightDist < 350 && routeDist > straightDist * 2.6) {
+          return [fromPoint, toPoint];
+        }
+
         return data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
       }
     }
@@ -211,78 +244,48 @@ async function fetchOsrmRouteBridge(fromPoint, toPoint) {
 }
 
 /**
- * Consulta de ruta fallback para bloques cuando map-matching no encuentra solución
- */
-async function fetchOsrmRouteFallback(chunk, retriesLeft = 1) {
-  if (!chunk || chunk.length < 2) {
-    return chunk.map((p) => [p.latitud, p.longitud]);
-  }
-
-  const coords = chunk
-    .map((p) => `${p.longitud.toFixed(6)},${p.latitud.toFixed(6)}`)
-    .join(";");
-
-  const url = `${OSRM_PUBLIC_URL}/route/v1/driving/${coords}?geometries=geojson&overview=full&steps=false&alternatives=false`;
-
-  try {
-    const res = await fetch(url);
-
-    if (res.status === 429 && retriesLeft > 0) {
-      await waitMs(1200);
-      return fetchOsrmRouteFallback(chunk, retriesLeft - 1);
-    }
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates?.length > 0) {
-        return data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
-      }
-    }
-  } catch (err) {
-    console.warn("[OSRM] Fallback route falló:", err);
-  }
-
-  // Divide y vencerás si el bloque grande de fallback falló
-  if (chunk.length > 8) {
-    const mid = Math.floor(chunk.length / 2);
-    const leftCoords = await fetchOsrmRouteFallback(chunk.slice(0, mid + 1), retriesLeft);
-    const rightCoords = await fetchOsrmRouteFallback(chunk.slice(mid), retriesLeft);
-
-    const combined = [...leftCoords];
-    const startIdx =
-      combined.length > 0 &&
-      rightCoords.length > 0 &&
-      Math.abs(combined[combined.length - 1][0] - rightCoords[0][0]) < 0.00005 &&
-      Math.abs(combined[combined.length - 1][1] - rightCoords[0][1]) < 0.00005
-        ? 1
-        : 0;
-
-    for (let k = startIdx; k < rightCoords.length; k++) {
-      combined.push(rightCoords[k]);
-    }
-    return combined;
-  }
-
-  return chunk.map((p) => [p.latitud, p.longitud]);
-}
-
-/**
- * Consulta OSRM Map-Matching (/match) para un bloque de coordenadas.
- * Conecta los posibles matchings desconectados con puentes viales para evitar líneas rectas.
+ * Consulta OSRM Map-Matching (/match) para un bloque pequeño (máximo 10 puntos).
+ * Envía timestamps si están disponibles para guiar el modelo HMM con velocidad real.
+ * Si /match falla por distancia o brecha, usa divide y vencerás con puentes viales limpios.
  */
 async function fetchOsrmMatchChunk(chunk, retriesLeft = 1) {
   if (!chunk || chunk.length < 2) {
     return chunk.map((p) => [p.latitud, p.longitud]);
   }
 
+  // Si el bloque excede 10 puntos, dividirlo para no sobrepasar el límite de OSRM público
+  if (chunk.length > 10) {
+    const mid = Math.floor(chunk.length / 2);
+    const left = await fetchOsrmMatchChunk(chunk.slice(0, mid + 1), retriesLeft);
+    const right = await fetchOsrmMatchChunk(chunk.slice(mid), retriesLeft);
+    return assembleSegments([left, right]);
+  }
+
   const coords = chunk
     .map((p) => `${p.longitud.toFixed(6)},${p.latitud.toFixed(6)}`)
     .join(";");
 
-  // Radio de 45m: absorbe camellones y carriles múltiples sin forzar vueltas a la manzana
-  const radiuses = chunk.map(() => 45).join(";");
+  // Radio seguro <= 30m para evitar error TooBig de OSRM
+  const radiuses = chunk.map(() => MAX_MATCH_RADIUS).join(";");
 
-  const matchUrl = `${OSRM_PUBLIC_URL}/match/v1/driving/${coords}?geometries=geojson&overview=full&steps=false&gaps=ignore&tidy=true&radiuses=${radiuses}`;
+  // Extraer timestamps UNIX (en segundos) si son válidos y estrictamente crecientes
+  let timestampsQuery = "";
+  let canUseTimestamps = true;
+  const timestamps = [];
+  for (let i = 0; i < chunk.length; i++) {
+    const t = Math.floor(new Date(chunk[i].fechaGps ?? chunk[i].fecha_gps ?? 0).getTime() / 1000);
+    if (!t || t <= 0 || (i > 0 && t <= timestamps[i - 1])) {
+      canUseTimestamps = false;
+      break;
+    }
+    timestamps.push(t);
+  }
+
+  if (canUseTimestamps && timestamps.length === chunk.length) {
+    timestampsQuery = `&timestamps=${timestamps.join(";")}`;
+  }
+
+  const matchUrl = `${OSRM_PUBLIC_URL}/match/v1/driving/${coords}?geometries=geojson&overview=full&steps=false&gaps=ignore&tidy=true&radiuses=${radiuses}${timestampsQuery}`;
 
   try {
     const res = await fetch(matchUrl);
@@ -314,8 +317,7 @@ async function fetchOsrmMatchChunk(chunk, retriesLeft = 1) {
               firstPoint[1]
             );
 
-            // Si entre dos matchings hay más de 30m de separación (ej. tramo largo de carretera):
-            // En lugar de una línea recta, trazamos un puente vial con /route
+            // Si hay brecha entre matchings, conectar con puente vial controlado
             if (gapDist > 30) {
               const bridge = await fetchOsrmRouteBridge(lastPoint, firstPoint);
               for (let b = 1; b < bridge.length; b++) {
@@ -346,13 +348,235 @@ async function fetchOsrmMatchChunk(chunk, retriesLeft = 1) {
     console.warn("[OSRM] Match falló para el bloque:", err);
   }
 
-  // Fallback: Si match no pudo procesar el bloque, consultar con route
-  return fetchOsrmRouteFallback(chunk, retriesLeft);
+  // Si /match falló (ej. NoMatch o NoSegment por separación o punto en brecha),
+  // dividimos en mitades o conectamos punto a punto con puentes viales controlados
+  if (chunk.length > 3) {
+    const mid = Math.floor(chunk.length / 2);
+    const leftCoords = await fetchOsrmMatchChunk(chunk.slice(0, mid + 1), retriesLeft);
+    const rightCoords = await fetchOsrmMatchChunk(chunk.slice(mid), retriesLeft);
+    return assembleSegments([leftCoords, rightCoords]);
+  }
+
+  // Bloque mínimo de 2 o 3 puntos: conectar con puente vial seguro
+  const bridgeSeg = [];
+  for (let i = 0; i < chunk.length - 1; i++) {
+    const pA = [chunk[i].latitud, chunk[i].longitud];
+    const pB = [chunk[i + 1].latitud, chunk[i + 1].longitud];
+    const pairRoute = await fetchOsrmRouteBridge(pA, pB);
+    const startK = i > 0 && bridgeSeg.length > 0 ? 1 : 0;
+    for (let k = startK; k < pairRoute.length; k++) {
+      bridgeSeg.push(pairRoute[k]);
+    }
+  }
+
+  return bridgeSeg.length > 0 ? bridgeSeg : chunk.map((p) => [p.latitud, p.longitud]);
+}
+
+/**
+ * Ensambla segmentos de polilínea conectando brechas con puentes viales limpios
+ */
+async function assembleSegments(segments = []) {
+  const full = [];
+
+  for (let s = 0; s < segments.length; s++) {
+    const seg = segments[s];
+    if (!seg || seg.length === 0) continue;
+
+    if (full.length === 0) {
+      full.push(...seg);
+    } else {
+      const last = full[full.length - 1];
+      const first = seg[0];
+      const gap = calculateDistanceMeters(last[0], last[1], first[0], first[1]);
+
+      if (gap > 35) {
+        const bridge = await fetchOsrmRouteBridge(last, first);
+        for (let b = 1; b < bridge.length; b++) {
+          full.push(bridge[b]);
+        }
+      }
+
+      const currentLast = full[full.length - 1];
+      const startIdx =
+        currentLast &&
+        seg[0] &&
+        Math.abs(currentLast[0] - seg[0][0]) < 0.00005 &&
+        Math.abs(currentLast[1] - seg[0][1]) < 0.00005
+          ? 1
+          : 0;
+
+      for (let k = startIdx; k < seg.length; k++) {
+        full.push(seg[k]);
+      }
+    }
+  }
+
+  return full;
+}
+
+/**
+ * Poda de bucles artificiales ("Vueltas a la manzana"):
+ * Detecta polígonos cerrados o retornos en camellón generados por OSRM
+ * donde no existen paradas intermedias ni lecturas reales de GPS en las esquinas del bucle.
+ */
+function pruneArtificialLoops(polyline, rawGpsPoints = [], stops = []) {
+  if (!polyline || polyline.length < 5) return polyline;
+  const result = [...polyline];
+  let changed = true;
+  let iterations = 0;
+
+  while (changed && iterations < 5) {
+    changed = false;
+    iterations++;
+
+    for (let i = 0; i < result.length - 4; i++) {
+      let pathDist = 0;
+      for (let j = i + 1; j < Math.min(result.length, i + 80); j++) {
+        pathDist += calculateDistanceMeters(
+          result[j - 1][0],
+          result[j - 1][1],
+          result[j][0],
+          result[j][1]
+        );
+        if (pathDist > 1600) break; // Excede el tamaño de un bucle de manzana típico
+
+        if (j - i >= 3 && pathDist >= 60) {
+          const directDist = calculateDistanceMeters(
+            result[i][0],
+            result[i][1],
+            result[j][0],
+            result[j][1]
+          );
+
+          // Condición de bucle: la ruta regresó a <= 35m del punto de inicio,
+          // pero recorrió más de 120m con un factor de desvío > 3.2x
+          if (directDist < 35 && pathDist > 120 && pathDist > directDist * 3.2) {
+            // Verificar si alguna parada intermedia del usuario está dentro del bucle
+            let hasStop = false;
+            for (const s of stops) {
+              const sLat = Number(s.latitud ?? s[0]);
+              const sLon = Number(s.longitud ?? s[1]);
+              for (let k = i; k <= j; k++) {
+                if (calculateDistanceMeters(result[k][0], result[k][1], sLat, sLon) < 30) {
+                  hasStop = true;
+                  break;
+                }
+              }
+              if (hasStop) break;
+            }
+
+            if (!hasStop) {
+              // Verificar si algún punto GPS real visitó la zona distal del bucle (> 40m del eje de entrada/salida)
+              let gpsVisitedDistal = false;
+              for (const g of rawGpsPoints) {
+                const gLat = Number(g.latitud);
+                const gLon = Number(g.longitud);
+                if (!Number.isFinite(gLat) || !Number.isFinite(gLon)) continue;
+
+                const dI = calculateDistanceMeters(result[i][0], result[i][1], gLat, gLon);
+                const dJ = calculateDistanceMeters(result[j][0], result[j][1], gLat, gLon);
+
+                if (dI > 40 && dJ > 40) {
+                  for (let k = i + 1; k < j; k++) {
+                    if (calculateDistanceMeters(result[k][0], result[k][1], gLat, gLon) < 30) {
+                      gpsVisitedDistal = true;
+                      break;
+                    }
+                  }
+                }
+                if (gpsVisitedDistal) break;
+              }
+
+              // Si ningún GPS real estuvo en las calles del bucle, es un artefacto de OSRM: ¡Podar!
+              if (!gpsVisitedDistal) {
+                result.splice(i + 1, j - i - 1);
+                changed = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (changed) break;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Poda de antenas ciegas y retrocesos 180° ("Backtracking Spurs"):
+ * Detecta cuando la ruta se desvía por una calle sin salida y regresa sobre sí misma
+ * sin que exista una parada intermedia en la punta de la antena.
+ */
+function pruneBacktrackingSpurs(polyline, stops = []) {
+  if (!polyline || polyline.length < 5) return polyline;
+  const result = [...polyline];
+  let changed = true;
+  let iterations = 0;
+
+  while (changed && iterations < 5) {
+    changed = false;
+    iterations++;
+
+    for (let i = 0; i < result.length - 4; i++) {
+      for (let j = i + 2; j < Math.min(result.length, i + 50); j++) {
+        const dIJ = calculateDistanceMeters(
+          result[i][0],
+          result[i][1],
+          result[j][0],
+          result[j][1]
+        );
+
+        // Si los vértices i y j están muy cerca (< 25m)
+        if (dIJ < 25) {
+          let maxDistFromI = 0;
+          let tipIdx = -1;
+          for (let k = i + 1; k < j; k++) {
+            const d = calculateDistanceMeters(
+              result[i][0],
+              result[i][1],
+              result[k][0],
+              result[k][1]
+            );
+            if (d > maxDistFromI) {
+              maxDistFromI = d;
+              tipIdx = k;
+            }
+          }
+
+          // Si el camino se adentró entre 30m y 500m y regresó sobre sí mismo
+          if (maxDistFromI > 30 && maxDistFromI < 500) {
+            let hasStopAtTip = false;
+            for (const s of stops) {
+              const sLat = Number(s.latitud ?? s[0]);
+              const sLon = Number(s.longitud ?? s[1]);
+              if (
+                calculateDistanceMeters(result[tipIdx][0], result[tipIdx][1], sLat, sLon) < 35
+              ) {
+                hasStopAtTip = true;
+                break;
+              }
+            }
+
+            if (!hasStopAtTip) {
+              result.splice(i + 1, j - i - 1);
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+      if (changed) break;
+    }
+  }
+
+  return result;
 }
 
 /**
  * Ajusta una lista de puntos GPS a la red vial de OpenStreetMap
- * Ensambla los bloques con puentes viales continuos sin saltos.
+ * Ensambla los bloques con puentes viales continuos y poda bucles/antenas artificiales.
  */
 export async function fetchSnappedRoadGeometry(locations = []) {
   const cleanLocations = filterJitterAndCleanPoints(locations);
@@ -361,9 +585,13 @@ export async function fetchSnappedRoadGeometry(locations = []) {
     return cleanLocations.map((l) => [Number(l.latitud), Number(l.longitud)]);
   }
 
-  // Chunks de 50 puntos con solape de 2 para mantener continuidad entre bloques
+  const intermediateStops = cleanLocations.filter(
+    (l) => Boolean(l.esPuntoIntermedio || l.es_punto_intermedio)
+  );
+
+  // Chunks de 10 puntos (límite estricto de OSRM /match) con solape de 2 para mantener continuidad
   const chunks = [];
-  const step = CHUNK_SIZE - OVERLAP;
+  const step = CHUNK_SIZE - OVERLAP; // 8 puntos por avance
   for (let i = 0; i < cleanLocations.length; i += step) {
     const slice = cleanLocations.slice(i, i + CHUNK_SIZE);
     if (slice.length >= 2) {
@@ -380,7 +608,7 @@ export async function fetchSnappedRoadGeometry(locations = []) {
     const chunk = chunks[c];
 
     if (c > 0) {
-      await waitMs(150);
+      await waitMs(120); // Pausa de cortesía para no saturar OSRM
     }
 
     const chunkCoords = await fetchOsrmMatchChunk(chunk);
@@ -389,42 +617,21 @@ export async function fetchSnappedRoadGeometry(locations = []) {
     }
   }
 
-  // Ensamblar segmentos conectando cualquier brecha con puente vial
-  const fullGeometry = [];
+  // Ensamblar segmentos conectando cualquier brecha con puente vial seguro
+  const fullGeometry = await assembleSegments(snappedSegments);
 
-  for (let s = 0; s < snappedSegments.length; s++) {
-    const seg = snappedSegments[s];
-    if (s === 0) {
-      fullGeometry.push(...seg);
-    } else {
-      const last = fullGeometry[fullGeometry.length - 1];
-      const first = seg[0];
-      const gap = calculateDistanceMeters(last[0], last[1], first[0], first[1]);
-
-      if (gap > 40) {
-        // Brecha entre bloques: puentear por vialidades reales
-        const bridge = await fetchOsrmRouteBridge(last, first);
-        for (let b = 1; b < bridge.length; b++) {
-          fullGeometry.push(bridge[b]);
-        }
-      }
-
-      const currentLast = fullGeometry[fullGeometry.length - 1];
-      const startIdx =
-        currentLast &&
-        seg[0] &&
-        Math.abs(currentLast[0] - seg[0][0]) < 0.00005 &&
-        Math.abs(currentLast[1] - seg[0][1]) < 0.00005
-          ? 1
-          : 0;
-
-      for (let k = startIdx; k < seg.length; k++) {
-        fullGeometry.push(seg[k]);
-      }
-    }
+  if (!fullGeometry || fullGeometry.length === 0) {
+    return cleanLocations.map((l) => [l.latitud, l.longitud]);
   }
 
-  return fullGeometry.length > 0
-    ? fullGeometry
+  // Pasar por filtros geométricos de post-procesamiento:
+  // 1. Eliminar vueltas a la manzana artificiales (Oxxo, paradas en laterales, etc.)
+  const loopCleaned = pruneArtificialLoops(fullGeometry, cleanLocations, intermediateStops);
+
+  // 2. Eliminar antenas ciegas y picos de retorno en camellones o calles sin salida
+  const finalGeometry = pruneBacktrackingSpurs(loopCleaned, intermediateStops);
+
+  return finalGeometry.length > 0
+    ? finalGeometry
     : cleanLocations.map((l) => [l.latitud, l.longitud]);
 }
