@@ -44,10 +44,11 @@ export async function listAdminDestinations({
         l.latitud,
         l.longitud,
         l.activo,
+        COALESCE(l.es_favorito, FALSE) AS es_favorito,
         l.creado_en
       FROM lugares l
       ${whereClause}
-      ORDER BY l.activo DESC, l.nombre ASC
+      ORDER BY l.es_favorito DESC, l.activo DESC, l.nombre ASC
     `,
     values
   );
@@ -167,6 +168,24 @@ export async function updateAdminDestinationStatus({
       RETURNING id_lugares, nombre, direccion, latitud, longitud, activo
     `,
     [activo, idDestino]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function toggleAdminDestinationFavorite({
+  idDestino,
+  es_favorito
+}) {
+  const result = await databasePool.query(
+    `
+      UPDATE lugares
+      SET es_favorito = $1,
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id_lugares = $2
+      RETURNING id_lugares, nombre, direccion, latitud, longitud, activo, es_favorito, actualizado_en
+    `,
+    [Boolean(es_favorito), idDestino]
   );
 
   return result.rows[0] ?? null;

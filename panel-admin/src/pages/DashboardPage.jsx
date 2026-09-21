@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ConductoresPage from "./ConductoresPage.jsx";
 import VehiculosPage from "./VehiculosPage.jsx";
 import DestinosPage from "./DestinosPage.jsx";
@@ -57,15 +57,15 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
 
   return (
     <article className="kpi-card" style={{ cursor: "pointer", borderLeft: "4px solid #eab308" }} onClick={onOpenManejoComentado}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>Manejos Comentados por Expirar</span>
-        <strong style={{ color: data.total_expiring > 0 ? "#d97706" : "inherit" }}>{data.total_expiring}</strong>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+        <span style={{ minWidth: 0, flex: 1 }}>Manejos Comentados por Expirar</span>
+        <strong style={{ color: data.total_expiring > 0 ? "#d97706" : "inherit", flexShrink: 0 }}>{data.total_expiring}</strong>
       </div>
       <small style={{ display: "block", marginTop: "4px" }}>
         {data.vencidos_count} vencidos / {data.proximos_count} próximos (30 días)
       </small>
       {data.items && data.items.length > 0 && (
-        <ul style={{ margin: "6px 0 0 0", padding: "0 0 0 14px", fontSize: "0.78rem", color: "#475569", textAlign: "left" }}>
+        <ul style={{ margin: "6px 0 0 0", padding: "0 0 0 14px", fontSize: "0.78rem", color: "#475569", textAlign: "left", wordBreak: "break-word" }}>
           {data.items.slice(0, 2).map((item) => (
             <li key={item.id_conductores}>
               {item.nombre.split(" ")[0]} - <span style={{ color: item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "#dc2626" : "#d97706", fontWeight: "bold" }}>{item.estado_vigencia}</span>
@@ -85,7 +85,7 @@ function ActiveTripsCardWidget({ viajesActivos = [], onSelectTrip }) {
     <article className="kpi-card active-trips-card">
       <div className="active-trips-card-header">
         <span>Viajes activos ({viajesActivos.length})</span>
-        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px" }}>
+        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
           <span className="active-trips-card-count">
             {viajesActivos.length}
           </span>
@@ -118,7 +118,9 @@ function ActiveTripsCardWidget({ viajesActivos = [], onSelectTrip }) {
                   </span>
                 </div>
                 <div className="active-trips-mini-details">
-                  <span>{item.origen} → {item.destino}</span>
+                  <span className="active-trips-mini-route" title={`${item.origen} → ${item.destino}`}>
+                    {item.origen} → {item.destino}
+                  </span>
                   <span className="active-trips-mini-unit">
                     {item.vehiculo} {item.numero_economico !== "N/A" ? `(${item.numero_economico})` : ""}
                   </span>
@@ -139,7 +141,7 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
     <article className="kpi-card recent-trips-card">
       <div className="recent-trips-card-header">
         <span>Viajes recientes ({viajesRecientes.length})</span>
-        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px" }}>
+        <div style={{ marginTop: "2px", display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
           <span className="recent-trips-card-count">
             {viajesRecientes.length}
           </span>
@@ -176,7 +178,9 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
                   </span>
                 </div>
                 <div className="active-trips-mini-details">
-                  <span>{item.origen} → {item.destino}</span>
+                  <span className="active-trips-mini-route" title={`${item.origen} → ${item.destino}`}>
+                    {item.origen} → {item.destino}
+                  </span>
                   <span className="active-trips-mini-unit">
                     {item.vehiculo} {item.numero_economico !== "N/A" ? `(${item.numero_economico})` : ""}
                   </span>
@@ -262,23 +266,25 @@ function ActivityHeatmapCard({ actividad = [] }) {
   const [rangeFilter, setRangeFilter] = useState("anual");
   const [tooltip, setTooltip] = useState(null);
 
-  const items = actividad.map((item) => {
-    let dateObj = null;
-    if (item.fecha) {
-      const rawStr = String(item.fecha).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-      if (rawStr) {
-        const [y, m, d] = rawStr.split("-").map(Number);
-        dateObj = new Date(y, m - 1, d);
-      } else {
-        dateObj = new Date(item.fecha);
+  const items = useMemo(() => {
+    return actividad.map((item) => {
+      let dateObj = null;
+      if (item.fecha) {
+        const rawStr = String(item.fecha).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+        if (rawStr) {
+          const [y, m, d] = rawStr.split("-").map(Number);
+          dateObj = new Date(y, m - 1, d);
+        } else {
+          dateObj = new Date(item.fecha);
+        }
       }
-    }
-    return {
-      rawStr: item.fecha,
-      dateObj,
-      total: Number(item.total || 0)
-    };
-  });
+      return {
+        rawStr: item.fecha,
+        dateObj,
+        total: Number(item.total || 0)
+      };
+    });
+  }, [actividad]);
 
   let filteredItems = items;
   if (rangeFilter === "semanal") {
@@ -308,22 +314,85 @@ function ActivityHeatmapCard({ actividad = [] }) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
+  // Preparamos los datos del calendario para semanal y mensual (7 columnas que ocupan el 100% del ancho)
+  const calendarCells = useMemo(() => {
+    if (rangeFilter === "anual") return [];
+
+    const dateMap = new Map();
+    items.forEach((it) => {
+      if (it.rawStr) {
+        const dStr = String(it.rawStr).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+        if (dStr) dateMap.set(dStr, it.total);
+      }
+    });
+
+    const now = new Date();
+    const refDate = items.length > 0 && items[items.length - 1].dateObj
+      ? items[items.length - 1].dateObj
+      : now;
+
+    // Día de la semana de refDate: 0 = Dom, 1 = Lun, ..., 6 = Sáb
+    // Convertimos para que Lunes sea 0 y Domingo sea 6
+    const refDow = (refDate.getDay() + 6) % 7;
+
+    // Lunes de la semana de referencia
+    const currentWeekMonday = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - refDow);
+
+    // Semanal: 14 días (2 semanas completas Lun-Dom)
+    // Mensual: 35 días (5 semanas completas Lun-Dom)
+    const totalDays = rangeFilter === "semanal" ? 14 : 35;
+    const offsetWeeks = rangeFilter === "semanal" ? 1 : 4;
+    const startMonday = new Date(
+      currentWeekMonday.getFullYear(),
+      currentWeekMonday.getMonth(),
+      currentWeekMonday.getDate() - (offsetWeeks * 7)
+    );
+
+    const result = [];
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(startMonday.getFullYear(), startMonday.getMonth(), startMonday.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const dateKey = `${yyyy}-${mm}-${dd}`;
+
+      const total = dateMap.get(dateKey) || 0;
+      const isToday = dateKey === todayStr;
+      const isFuture = d > refDate;
+
+      result.push({
+        rawStr: dateKey,
+        dateObj: d,
+        dayNum: d.getDate(),
+        monthNum: d.getMonth(),
+        isFirstOfMonth: d.getDate() === 1,
+        total,
+        isToday,
+        isFuture
+      });
+    }
+
+    return result;
+  }, [items, rangeFilter]);
+
   // Cálculo de día inicial y placeholders para vista anual
   let startDayOfWeek = 0;
   if (rangeFilter === "anual" && filteredItems.length > 0 && filteredItems[0].dateObj) {
     startDayOfWeek = filteredItems[0].dateObj.getDay(); // 0 = Dom, 1 = Lun, ..., 6 = Sáb
   }
 
-  // Preparamos los elementos del grid (con placeholders al inicio si es anual)
+  // Preparamos los elementos del grid anual (con placeholders al inicio)
   const gridCells = [];
   if (rangeFilter === "anual") {
     for (let i = 0; i < startDayOfWeek; i++) {
       gridCells.push({ isPlaceholder: true });
     }
+    filteredItems.forEach((item) => {
+      gridCells.push({ ...item, isPlaceholder: false });
+    });
   }
-  filteredItems.forEach((item) => {
-    gridCells.push({ ...item, isPlaceholder: false });
-  });
 
   // Generar etiquetas de meses con cálculo estricto de columna y margen anti-colisión
   const getMonthLabels = () => {
@@ -340,7 +409,6 @@ function ActivityHeatmapCard({ actividad = [] }) {
         if (m !== lastMonth) {
           lastMonth = m;
           const col = Math.floor((idx + startDayOfWeek) / 7) + 1;
-          // Garantizar distancia mínima de 3 columnas (~51px) entre etiquetas para evitar solapamientos
           if (col - lastCol >= 3 && col <= 51) {
             labels.push({ col, name: monthNames[m] });
             lastCol = col;
@@ -361,7 +429,7 @@ function ActivityHeatmapCard({ actividad = [] }) {
           <h2>Actividad de Viajes</h2>
           <p>
             {rangeFilter === "semanal" && "Frecuencia de viajes registrados en las últimas 2 semanas."}
-            {rangeFilter === "mensual" && "Frecuencia de viajes registrados durante el último mes."}
+            {rangeFilter === "mensual" && "Frecuencia de viajes registrados durante las últimas 5 semanas."}
             {rangeFilter === "anual" && "Mapa de calor anual de viajes (últimas 52 semanas)."}{" "}
             <strong>({totalViajesPeriodo} {totalViajesPeriodo === 1 ? "viaje registrado" : "viajes registrados"})</strong>
           </p>
@@ -393,47 +461,117 @@ function ActivityHeatmapCard({ actividad = [] }) {
       </div>
 
       <div className="heatmap-container">
-        <div className="heatmap-days-legend">
-          <span>Lun</span>
-          <span>Mié</span>
-          <span>Vie</span>
-        </div>
-
-        <div className="heatmap-grid-scroll">
-          {rangeFilter === "anual" && (
-            <div className="heatmap-month-labels">
-              {getMonthLabels().map((lbl, i) => (
-                <span key={i} className="heatmap-month-label" style={{ gridColumnStart: lbl.col }}>
-                  {lbl.name}
-                </span>
-              ))}
+        {rangeFilter === "anual" ? (
+          <div className="heatmap-anual-view">
+            <div className="heatmap-days-legend">
+              <span>Lun</span>
+              <span>Mié</span>
+              <span>Vie</span>
             </div>
-          )}
 
-          <div className={`heatmap-grid mode-${rangeFilter}`}>
-            {gridCells.map((cell, idx) => {
-              if (cell.isPlaceholder) {
-                return <div key={`ph-${idx}`} className="heatmap-cell heatmap-cell-placeholder" />;
-              }
-              const lvl = getLevel(cell.total);
-              return (
-                <div
-                  key={idx}
-                  className={`heatmap-cell level-${lvl}`}
-                  onMouseEnter={(e) => {
-                    const rect = e.target.getBoundingClientRect();
-                    setTooltip({
-                      text: `${formatTooltipDate(cell)}: ${cell.total} ${cell.total === 1 ? "viaje" : "viajes"}`,
-                      x: rect.left + rect.width / 2,
-                      y: rect.top - 8
-                    });
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                />
-              );
-            })}
+            <div className="heatmap-grid-scroll">
+              <div className="heatmap-month-labels">
+                {getMonthLabels().map((lbl, i) => (
+                  <span key={i} className="heatmap-month-label" style={{ gridColumnStart: lbl.col }}>
+                    {lbl.name}
+                  </span>
+                ))}
+              </div>
+
+              <div className="heatmap-grid mode-anual">
+                {gridCells.map((cell, idx) => {
+                  if (cell.isPlaceholder) {
+                    return <div key={`ph-${idx}`} className="heatmap-cell heatmap-cell-placeholder" />;
+                  }
+                  const lvl = getLevel(cell.total);
+                  return (
+                    <div
+                      key={idx}
+                      className={`heatmap-cell level-${lvl}`}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltip({
+                          text: `${formatTooltipDate(cell)}: ${cell.total} ${cell.total === 1 ? "viaje" : "viajes"}`,
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 8
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="heatmap-calendar-view">
+            <div className="heatmap-calendar-weekdays">
+              <span>Lun</span>
+              <span>Mar</span>
+              <span>Mié</span>
+              <span>Jue</span>
+              <span>Vie</span>
+              <span>Sáb</span>
+              <span>Dom</span>
+            </div>
+
+            <div className={`heatmap-calendar-grid mode-${rangeFilter}`}>
+              {calendarCells.map((cell) => {
+                const lvl = getLevel(cell.total);
+                return (
+                  <div
+                    key={cell.rawStr}
+                    className={`heatmap-calendar-cell mode-${rangeFilter} level-${lvl} ${cell.isToday ? "is-today" : ""} ${cell.isFuture ? "is-future" : ""}`}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({
+                        text: `${formatTooltipDate(cell)}: ${cell.total} ${cell.total === 1 ? "viaje" : "viajes"}`,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 8
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  >
+                    <div className="calendar-cell-header">
+                      {rangeFilter === "semanal" ? (
+                        <span className="calendar-cell-date">
+                          {cell.dateObj.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}
+                        </span>
+                      ) : (
+                        <span className="calendar-cell-daynum">
+                          {cell.dayNum}
+                          {cell.isFirstOfMonth && (
+                            <span className="calendar-cell-first-month">
+                              {" "}{cell.dateObj.toLocaleDateString("es-MX", { month: "short" })}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {cell.isToday ? (
+                        rangeFilter === "semanal" ? (
+                          <span className="calendar-cell-today-pill">Hoy</span>
+                        ) : (
+                          <span className="calendar-cell-today-dot" title="Hoy" />
+                        )
+                      ) : null}
+                    </div>
+
+                    <div className="calendar-cell-body">
+                      <span className="calendar-cell-trips">
+                        <strong>{cell.total}</strong>
+                        <span className="calendar-cell-trips-label">
+                          {rangeFilter === "semanal"
+                            ? cell.total === 1 ? " viaje" : " viajes"
+                            : " v."}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {tooltip && (
@@ -444,7 +582,11 @@ function ActivityHeatmapCard({ actividad = [] }) {
 
       <div className="heatmap-footer">
         <span className="heatmap-note">
-          {rangeFilter === "anual" ? "Se muestran 365 días de actividad registrada" : "Visualización por matriz de cuadrícula de calor"}
+          {rangeFilter === "anual"
+            ? "Se muestran 365 días de actividad registrada"
+            : rangeFilter === "mensual"
+            ? "Visualización de las últimas 5 semanas de actividad"
+            : "Visualización de las últimas 2 semanas de actividad"}
         </span>
 
         <div className="heatmap-scale-legend">
@@ -468,9 +610,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
   const isDestinos = rankingTab === "destinos";
   const isConductores = rankingTab === "conductores";
 
-  let list = rankingUnidades;
-  if (isDestinos) list = rankingDestinos;
-  if (isConductores) list = rankingConductores;
+  const list = (isDestinos ? rankingDestinos : isConductores ? rankingConductores : rankingUnidades) || [];
 
   const maxVal = Math.max(
     1,
@@ -491,21 +631,24 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
             className={`ranking-tab-btn ${isUnidades ? "active" : ""}`}
             onClick={() => setRankingTab("unidades")}
           >
-            Unidades más usadas
+            <span className="ranking-tab-full">Unidades más usadas</span>
+            <span className="ranking-tab-short">Unidades</span>
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${isDestinos ? "active" : ""}`}
             onClick={() => setRankingTab("destinos")}
           >
-            Destinos más visitados
+            <span className="ranking-tab-full">Destinos más visitados</span>
+            <span className="ranking-tab-short">Destinos</span>
           </button>
           <button
             type="button"
             className={`ranking-tab-btn ${isConductores ? "active" : ""}`}
             onClick={() => setRankingTab("conductores")}
           >
-            Top Conductores
+            <span className="ranking-tab-full">Top Conductores</span>
+            <span className="ranking-tab-short">Conductores</span>
           </button>
         </div>
       </div>
@@ -515,17 +658,18 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
           <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
       ) : (
-        <div className="ranking-list">
+        <div key={rankingTab} className="ranking-list">
           {list.map((item, index) => {
             const count = Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas);
             const percentage = Math.max(8, Math.round((count / maxVal) * 100));
             const rank = index + 1;
 
-            const itemKey = isUnidades
-              ? item.id_vehiculos || index
+            const rawId = isUnidades
+              ? item.id_vehiculos
               : isDestinos
-              ? item.id_destino || index
-              : item.id_conductores || index;
+              ? item.id_destino
+              : item.id_conductores;
+            const itemKey = `${rankingTab}-${rawId ?? index}`;
 
             return (
               <div key={itemKey} className="ranking-row">
@@ -557,17 +701,19 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
                     </div>
                     <span className="ranking-count">
                       <strong>{count}</strong>{" "}
-                      {isConductores
-                        ? count === 1
-                          ? "viaje finalizado"
-                          : "viajes finalizados"
-                        : isUnidades
-                        ? count === 1
-                          ? "viaje"
-                          : "viajes"
-                        : count === 1
-                        ? "visita"
-                        : "visitas"}
+                      <span className="ranking-count-label">
+                        {isConductores
+                          ? count === 1
+                            ? "viaje finalizado"
+                            : "viajes finalizados"
+                          : isUnidades
+                          ? count === 1
+                            ? "viaje"
+                            : "viajes"
+                          : count === 1
+                          ? "visita"
+                          : "visitas"}
+                      </span>
                     </span>
                   </div>
                 </div>

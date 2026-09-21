@@ -8,7 +8,8 @@ import {
   importAdminDestinationsController,
   listAdminDestinationsController,
   updateAdminDestinationController,
-  updateAdminDestinationStatusController
+  updateAdminDestinationStatusController,
+  toggleAdminDestinationFavoriteController
 } from "../controllers/admin-destinos.controller.js";
 
 import {
@@ -39,6 +40,12 @@ router.post(
   "/importar",
   requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
   importAdminDestinationsController
+);
+
+router.patch(
+  "/:idDestino/favorito",
+  requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
+  toggleAdminDestinationFavoriteController
 );
 
 router.patch(
