@@ -5,12 +5,12 @@ import remolqueDerechaImg from "../assets/remolque_derecha.png";
 import remolqueTraseraImg from "../assets/remolque_trasera.png";
 import remolqueIzquierdoImg from "../assets/remolque_izquierdo.png";
 
-const TRAILER_IMAGES = {
-  frontal: remolqueFrontalImg,
-  derecha: remolqueDerechaImg,
-  trasera: remolqueTraseraImg,
-  izquierda: remolqueIzquierdoImg
-};
+const views = [
+  ["frontal", "🚘 Vista frontal del remolque", remolqueFrontalImg],
+  ["derecha", "🚙 Lateral derecho del remolque", remolqueDerechaImg],
+  ["trasera", "🚗 Vista trasera del remolque", remolqueTraseraImg],
+  ["izquierda", "🚙 Lateral izquierdo del remolque", remolqueIzquierdoImg]
+];
 
 export const REMOLQUE_CHECKLIST_GROUPS = {
   "Documentación / Control": [
@@ -89,12 +89,8 @@ export const REMOLQUE_CHECKLIST_GROUPS = {
   ]
 };
 
-const TRAILER_VIEWS = [
-  { id: "frontal", label: "Vista Frontal", title: "Vista Frontal de Remolque" },
-  { id: "derecha", label: "Vista Lateral Derecha", title: "Vista Lateral Derecha" },
-  { id: "trasera", label: "Vista Trasera", title: "Vista Trasera" },
-  { id: "izquierda", label: "Vista Lateral Izquierda", title: "Vista Lateral Izquierda" }
-];
+const STATE_TO_NUM = { "N/A": 0, "M": 1, "R": 2, "B": 3 };
+const NUM_TO_STATE = { 0: "N/A", 1: "M", 2: "R", 3: "B" };
 
 export default function InspeccionRemolqueModal({ vehiculos = [], initialData = {}, onSave, onClose }) {
   // Filtrar unidades que contengan "remolque" en nombre, tipo o económico
@@ -105,52 +101,77 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
 
   const availableRemolques = remolquesCatalog.length > 0 ? remolquesCatalog : vehiculos;
 
+  const [step, setStep] = useState(0);
   const [idRemolque, setIdRemolque] = useState(
     initialData?.idRemolque ? String(initialData.idRemolque) : (availableRemolques[0]?.id_vehiculos ? String(availableRemolques[0].id_vehiculos) : "")
   );
 
-  const [activeTab, setActiveTab] = useState("checklist"); // 'checklist' | 'danos'
   const [checklist, setChecklist] = useState(initialData?.checklist || {});
   const [danos, setDanos] = useState(initialData?.danos || { frontal: [], derecha: [], trasera: [], izquierda: [] });
   const [observaciones, setObservaciones] = useState(initialData?.observaciones || "");
-  const [activeView, setActiveView] = useState("frontal");
+  const [lastMarked, setLastMarked] = useState("");
 
+  const totalSteps = 7;
+  const currentView = step >= 1 && step <= 4 ? views[step - 1] : null;
   const selectedTrailerObj = availableRemolques.find((v) => String(v.id_vehiculos) === String(idRemolque)) || availableRemolques[0] || {};
 
-  function handleChecklistChange(item, value) {
+  function chooseChecklist(item, value) {
     setChecklist((prev) => ({ ...prev, [item]: value }));
   }
 
-  function handleMarkDamage(viewId, event) {
+  function markAllChecklistAsGood() {
+    const updated = { ...checklist };
+    Object.values(REMOLQUE_CHECKLIST_GROUPS).flat().forEach((item) => {
+      updated[item] = "B";
+    });
+    setChecklist(updated);
+  }
+
+  function markDamage(view, event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
     const stage = event.currentTarget;
-    const rect = stage.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    const img = stage.querySelector("img");
+    const targetRect = img ? img.getBoundingClientRect() : stage.getBoundingClientRect();
+    if (!targetRect.width || !targetRect.height) return;
 
     const clientX = event.clientX !== undefined ? event.clientX : event.touches?.[0]?.clientX;
     const clientY = event.clientY !== undefined ? event.clientY : event.touches?.[0]?.clientY;
     if (clientX === undefined || clientY === undefined) return;
 
-    const offsetX = Math.max(0, Math.min(rect.width, clientX - rect.left));
-    const offsetY = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const offsetX = Math.max(0, Math.min(targetRect.width, clientX - targetRect.left));
+    const offsetY = Math.max(0, Math.min(targetRect.height, clientY - targetRect.top));
 
     const point = {
-      x: Number(((offsetX / rect.width) * 100).toFixed(2)),
-      y: Number(((offsetY / rect.height) * 100).toFixed(2))
+      x: Number(((offsetX / targetRect.width) * 100).toFixed(2)),
+      y: Number(((offsetY / targetRect.height) * 100).toFixed(2))
     };
 
     setDanos((prev) => ({
       ...prev,
-      [viewId]: [...(prev[viewId] || []), point]
+      [view]: [...(prev[view] || []), point]
     }));
+    setLastMarked("Marca agregada. Toca el círculo rojo para eliminarlo.");
   }
 
-  function handleRemoveDamagePoint(viewId, index, event) {
+  function removePoint(view, index, event) {
+    event.preventDefault();
     event.stopPropagation();
     setDanos((prev) => ({
       ...prev,
-      [viewId]: (prev[viewId] || []).filter((_, i) => i !== index)
+      [view]: (prev[view] || []).filter((_, pointIndex) => pointIndex !== index)
     }));
+    setLastMarked("Marca eliminada.");
+  }
+
+  function clearView(view) {
+    setDanos((prev) => ({ ...prev, [view]: [] }));
+    setLastMarked("Se limpiaron las marcas de esta vista.");
+  }
+
+  function canContinue() {
+    if (step === 0) return Boolean(idRemolque);
+    return true;
   }
 
   function handleSave() {
@@ -158,286 +179,327 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
       alert("Por favor selecciona la unidad de Remolque.");
       return;
     }
+    const finalChecklist = { ...checklist };
+    Object.values(REMOLQUE_CHECKLIST_GROUPS).flat().forEach((item) => {
+      if (!finalChecklist[item]) finalChecklist[item] = "B";
+    });
+
     onSave({
       idRemolque: Number(idRemolque),
       remolqueObj: selectedTrailerObj,
-      checklist,
+      checklist: finalChecklist,
       danos,
       observaciones
     });
   }
 
+  // Conteos para el resumen final
+  const totalDamagesCount = Object.values(danos).reduce((acc, pts) => acc + (pts?.length || 0), 0);
+  const allChecklistItems = Object.values(REMOLQUE_CHECKLIST_GROUPS).flat();
+  const goodCount = allChecklistItems.filter((i) => (checklist[i] || "B") === "B").length;
+  const regularCount = allChecklistItems.filter((i) => checklist[i] === "R").length;
+  const badCount = allChecklistItems.filter((i) => checklist[i] === "M").length;
+  const naCount = allChecklistItems.filter((i) => checklist[i] === "N/A").length;
+
   return createPortal(
     <div className="signature-dialog" role="dialog" aria-modal="true" style={{ zIndex: 2147483002 }}>
-      <div className="signature-dialog-card" style={{ maxWidth: "750px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-        
-        {/* Encabezado */}
-        <div className="signature-dialog-heading" style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
+      <div
+        className="signature-dialog-card"
+        style={{
+          maxWidth: "760px",
+          width: "95vw",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          padding: "20px"
+        }}
+      >
+        {/* Encabezado del Wizard */}
+        <header className="inspection-header">
           <div>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#2563eb" }}>Formato Oficial</span>
-            <h3 style={{ margin: 0, fontSize: "1.1rem" }}>🚛 Inspección de Remolque</h3>
-            <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "#64748b" }}>Checklist previo a traslado | Logística / Infraestructura</p>
+            <span>🚛 Inspección de Remolque</span>
+            <h2>Paso {step + 1} de {totalSteps}</h2>
           </div>
-          <button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar modal">×</button>
-        </div>
-
-        {/* Selección de Remolque */}
-        <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "10px 14px", margin: "12px 0 6px" }}>
-          <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
-            Unidad de Remolque a Inspeccionar:
-          </label>
-          <select
-            value={idRemolque}
-            onChange={(e) => setIdRemolque(e.target.value)}
-            style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid #94a3b8", padding: "0 10px", fontWeight: "600", fontSize: "0.85rem" }}
-          >
-            {availableRemolques.map((v) => (
-              <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                {v.numero_economico} - {v.nombre} ({v.placas || "Sin placas"}) {v.marca ? `| ${v.marca}` : ""}
-              </option>
-            ))}
-          </select>
-          {remolquesCatalog.length === 0 && (
-            <span style={{ fontSize: "0.72rem", color: "#d97706", marginTop: "4px", display: "block" }}>
-              ⚠️ No se encontraron unidades con la palabra "Remolque" en el catálogo. Se muestran todas las unidades disponibles.
-            </span>
-          )}
-        </div>
-
-        {/* Pestañas: Checklist vs Diagrama de Daños */}
-        <div style={{ display: "flex", gap: "8px", margin: "6px 0 10px" }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab("checklist")}
-            style={{
-              flex: 1,
-              padding: "8px",
-              borderRadius: "6px",
-              border: activeTab === "checklist" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-              background: activeTab === "checklist" ? "#eff6ff" : "#ffffff",
-              color: activeTab === "checklist" ? "#1d4ed8" : "#475569",
-              fontWeight: "700",
-              fontSize: "0.82rem",
-              cursor: "pointer"
-            }}
-          >
-            📋 Checklist de Control (8 Secciones)
+          <button type="button" className="inspection-icon-button" onClick={onClose} aria-label="Cerrar modal">
+            ×
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("danos")}
-            style={{
-              flex: 1,
-              padding: "8px",
-              borderRadius: "6px",
-              border: activeTab === "danos" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-              background: activeTab === "danos" ? "#eff6ff" : "#ffffff",
-              color: activeTab === "danos" ? "#1d4ed8" : "#475569",
-              fontWeight: "700",
-              fontSize: "0.82rem",
-              cursor: "pointer"
-            }}
-          >
-            🎨 Diagrama 4 Vistas y Daños
-          </button>
-        </div>
+          <progress value={step + 1} max={totalSteps} />
+        </header>
 
-        {/* Contenido deslizable */}
+        {/* Contenido deslizable del Paso */}
         <div style={{ flex: 1, overflowY: "auto", paddingRight: "4px" }}>
-          
-          {activeTab === "checklist" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {Object.entries(REMOLQUE_CHECKLIST_GROUPS).map(([groupTitle, items]) => (
-                <div key={groupTitle} style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
-                  <div style={{ background: "#1e293b", color: "#ffffff", padding: "6px 12px", fontWeight: "700", fontSize: "0.8rem", textTransform: "uppercase" }}>
-                    {groupTitle}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    {items.map((item, idx) => {
-                      const val = checklist[item] || "B";
-                      return (
-                        <div
-                          key={item}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "8px 12px",
-                            background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
-                            borderBottom: idx < items.length - 1 ? "1px solid #f1f5f9" : "none",
-                            fontSize: "0.8rem"
-                          }}
-                        >
-                          <span style={{ flex: 1, paddingRight: "10px", color: "#334155", fontWeight: "500" }}>{item}</span>
-                          <div style={{ display: "flex", gap: "4px" }}>
-                            {["B", "R", "M", "N/A"].map((opt) => (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleChecklistChange(item, opt)}
-                                style={{
-                                  width: "34px",
-                                  height: "28px",
-                                  borderRadius: "4px",
-                                  border: val === opt ? "2px solid #000" : "1px solid #cbd5e1",
-                                  background:
-                                    val === opt
-                                      ? opt === "B" ? "#22c55e" : opt === "R" ? "#eab308" : opt === "M" ? "#ef4444" : "#64748b"
-                                      : "#f1f5f9",
-                                  color: val === opt ? "#ffffff" : "#475569",
-                                  fontWeight: "800",
-                                  fontSize: "0.72rem",
-                                  cursor: "pointer"
-                                }}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
 
-              <div style={{ margin: "6px 0" }}>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>
-                  Observaciones / Daños Detectados en Remolque:
+          {/* PASO 1: Datos y Selección de la Unidad de Remolque */}
+          {step === 0 && (
+            <div className="inspection-cover" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", color: "#173f51" }}>
+                  Selección de la Unidad de Remolque
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#607986" }}>
+                  Selecciona la unidad de remolque asignada al viaje para iniciar su revisión.
+                </p>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "14px" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                  Unidad de Remolque a Inspeccionar:
                 </label>
-                <textarea
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Escribe observaciones o detalles de daños en el remolque..."
-                  style={{ width: "100%", height: "70px", borderRadius: "6px", border: "1px solid #cbd5e1", padding: "8px", fontSize: "0.8rem" }}
-                />
+                <select
+                  value={idRemolque}
+                  onChange={(e) => setIdRemolque(e.target.value)}
+                  style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid #94a3b8", padding: "0 12px", fontWeight: "600", fontSize: "0.9rem" }}
+                >
+                  {availableRemolques.map((v) => (
+                    <option key={v.id_vehiculos} value={v.id_vehiculos}>
+                      {v.numero_economico} - {v.nombre} ({v.placas || "Sin placas"}) {v.marca ? `| ${v.marca}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {remolquesCatalog.length === 0 && (
+                  <span style={{ fontSize: "0.75rem", color: "#d97706", marginTop: "6px", display: "block" }}>
+                    ⚠️ No se encontraron unidades con "Remolque" en su descripción. Se listan todas las unidades disponibles.
+                  </span>
+                )}
+              </div>
+
+              {selectedTrailerObj?.id_vehiculos && (
+                <div className="inspection-data-grid" style={{ marginBottom: 0 }}>
+                  <p><strong>Económico:</strong> {selectedTrailerObj.numero_economico || "Sin registro"}</p>
+                  <p><strong>Nombre / Tipo:</strong> {selectedTrailerObj.nombre || selectedTrailerObj.tipo_vehiculo || "Remolque"}</p>
+                  <p><strong>Placas:</strong> {selectedTrailerObj.placas || "Sin placas"}</p>
+                  <p><strong>Marca / Modelo:</strong> {selectedTrailerObj.marca || "N/A"} {selectedTrailerObj.modelo || ""}</p>
+                  <p><strong>N° Serie:</strong> {selectedTrailerObj.numero_serie || "Sin registro"}</p>
+                  <p><strong>Póliza Seguro:</strong> {selectedTrailerObj.numero_poliza || "Sin registro"}</p>
+                </div>
+              )}
+
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "12px", fontSize: "0.82rem", color: "#1e40af" }}>
+                💡 <strong>Siguiente paso:</strong> Presiona <strong>Siguiente</strong> para registrar daños en las 4 vistas del diagrama del remolque y llenar su checklist de control.
               </div>
             </div>
           )}
 
-          {activeTab === "danos" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {TRAILER_VIEWS.map((v) => (
+          {/* PASOS 2 A 5: Vistas del Diagrama de Daños */}
+          {currentView && (() => {
+            const [key, label, image] = currentView;
+            const points = danos[key] || [];
+
+            return (
+              <div className="inspection-visual">
+                <div className="inspection-section-heading">
+                  <div>
+                    <h3>{label}</h3>
+                    <p>Toca el diagrama para encerrar un daño. El círculo rojo confirma el punto marcado.</p>
+                  </div>
                   <button
-                    key={v.id}
                     type="button"
-                    onClick={() => setActiveView(v.id)}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                      border: activeView === v.id ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                      background: activeView === v.id ? "#2563eb" : "#f8fafc",
-                      color: activeView === v.id ? "#ffffff" : "#334155",
-                      fontWeight: "700",
-                      fontSize: "0.75rem",
-                      cursor: "pointer"
-                    }}
+                    className="inspection-secondary-button"
+                    onClick={() => clearView(key)}
+                    disabled={!points.length}
                   >
-                    {v.label} ({(danos[v.id] || []).length})
+                    Limpiar vista
                   </button>
-                ))}
-              </div>
+                </div>
 
-              {/* Área interactiva de marcado para Remolque */}
-              <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                <h4 style={{ margin: "0 0 6px", fontSize: "0.85rem", color: "#1e293b" }}>
-                  {TRAILER_VIEWS.find((v) => v.id === activeView)?.title}
-                </h4>
-                <p style={{ margin: "0 0 8px", fontSize: "0.72rem", color: "#64748b" }}>
-                  Toca sobre el diagrama del remolque para marcar una abolladura o daño. Toca el punto rojo para eliminarlo.
+                <div className={`damage-map damage-map-${key}`}>
+                  <div
+                    className="damage-stage"
+                    onPointerDown={(event) => markDamage(key, event)}
+                    role="application"
+                    aria-label={`${label}. Toca para marcar daños`}
+                  >
+                    <img src={image} alt={`Diagrama de ${label}`} />
+                    {points.map((point, index) => (
+                      <button
+                        key={`${point.x}-${point.y}-${index}`}
+                        type="button"
+                        className="damage-point"
+                        style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                        onPointerDown={(event) => removePoint(key, index, event)}
+                        aria-label={`Eliminar marca ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <p className="damage-feedback" role="status" aria-live="polite">
+                  {lastMarked || (points.length > 0 ? `Se han marcado ${points.length} daño(s) en esta vista.` : "Aún no has marcado daños en esta vista.")}
                 </p>
+              </div>
+            );
+          })()}
 
-                <div
-                  onClick={(e) => handleMarkDamage(activeView, e)}
+          {/* PASO 6: Checklist de Control */}
+          {step === 5 && (
+            <div className="inspection-checklist">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                <div>
+                  <h3>Checklist de control del remolque</h3>
+                  <p>Desliza la barra para evaluar el estado de cada componente:</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={markAllChecklistAsGood}
                   style={{
-                    position: "relative",
-                    width: "100%",
-                    maxWidth: "500px",
-                    height: "220px",
-                    margin: "0 auto",
-                    border: "2px dashed #94a3b8",
-                    borderRadius: "8px",
-                    background: "#ffffff",
-                    cursor: "crosshair",
-                    overflow: "hidden",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
+                    background: "#22c55e",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "6px 12px",
+                    fontSize: "0.78rem",
+                    fontWeight: "800",
+                    cursor: "pointer"
                   }}
                 >
-                  {/* Imagen Diagrama de Remolque */}
-                  <img
-                    src={TRAILER_IMAGES[activeView]}
-                    alt={`Remolque ${activeView}`}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "100%",
-                      objectFit: "contain",
-                      pointerEvents: "none",
-                      userSelect: "none"
-                    }}
-                  />
+                  🟢 Marcar todo como Bueno (B)
+                </button>
+              </div>
 
-                  {/* Marcas rojas de daño */}
-                  {(danos[activeView] || []).map((pt, idx) => (
-                    <div
-                      key={idx}
-                      onClick={(e) => handleRemoveDamagePoint(activeView, idx, e)}
-                      title="Haz clic para eliminar este punto de daño"
-                      style={{
-                        position: "absolute",
-                        left: `${pt.x}%`,
-                        top: `${pt.y}%`,
-                        transform: "translate(-50%, -50%)",
-                        width: "18px",
-                        height: "18px",
-                        borderRadius: "50%",
-                        background: "#ef4444",
-                        border: "2px solid #ffffff",
-                        boxShadow: "0 0 6px rgba(239, 68, 68, 0.8)",
-                        color: "#ffffff",
-                        fontSize: "0.65rem",
-                        fontWeight: "900",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer"
-                      }}
-                    >
-                      {idx + 1}
-                    </div>
-                  ))}
+              {/* Leyenda de colores superior */}
+              <div className="checklist-legend-header">
+                <div className="legend-item legend-state-0">
+                  <span className="legend-color-dot"></span>
+                  <strong>0:</strong> N/A
                 </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-                  <span style={{ fontSize: "0.75rem", color: "#475569" }}>
-                    Total marcas en {activeView}: <strong>{(danos[activeView] || []).length}</strong>
-                  </span>
-                  {(danos[activeView] || []).length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setDanos((prev) => ({ ...prev, [activeView]: [] }))}
-                      style={{ background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "0.72rem", cursor: "pointer" }}
-                    >
-                      Limpiar marcas de vista {activeView}
-                    </button>
-                  )}
+                <div className="legend-item legend-state-1">
+                  <span className="legend-color-dot"></span>
+                  <strong>1:</strong> Malo
+                </div>
+                <div className="legend-item legend-state-2">
+                  <span className="legend-color-dot"></span>
+                  <strong>2:</strong> Regular
+                </div>
+                <div className="legend-item legend-state-3">
+                  <span className="legend-color-dot"></span>
+                  <strong>3:</strong> Bueno
                 </div>
               </div>
+
+              {Object.entries(REMOLQUE_CHECKLIST_GROUPS).map(([group, items]) => (
+                <fieldset key={group}>
+                  <legend>{group}</legend>
+                  {items.map((item) => {
+                    const currentState = checklist[item] || "B";
+                    const currentNum = STATE_TO_NUM[currentState] ?? 3;
+                    return (
+                      <div className="check-row-slider" key={item}>
+                        <span className="check-label">{item}</span>
+                        <div className="slider-control-group">
+                          <input
+                            type="range"
+                            min="0"
+                            max="3"
+                            step="1"
+                            value={currentNum}
+                            onChange={(event) => chooseChecklist(item, NUM_TO_STATE[Number(event.target.value)])}
+                            className={`checklist-volume-slider slider-state-${currentNum}`}
+                            aria-label={`Estado de ${item}`}
+                          />
+                          <span className={`checklist-slider-badge slider-badge-${currentNum}`}>
+                            {currentState}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </fieldset>
+              ))}
             </div>
           )}
+
+          {/* PASO 7: Observaciones y Resumen Final */}
+          {step === 6 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", color: "#173f51" }}>
+                  Observaciones y Resumen de Inspección
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#607986" }}>
+                  Verifica el resumen de los datos capturados e ingresa comentarios adicionales antes de guardar.
+                </p>
+              </div>
+
+              {/* Resumen de daños en vistas */}
+              <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px" }}>
+                <strong style={{ fontSize: "0.85rem", color: "#1e293b", display: "block", marginBottom: "8px" }}>
+                  🎨 Marcas de daño registradas: {totalDamagesCount > 0 ? `(${totalDamagesCount} total)` : "(Sin daños marcados)"}
+                </strong>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", fontSize: "0.8rem" }}>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "6px 10px", borderRadius: "6px" }}>
+                    Frontal: <strong>{(danos.frontal || []).length}</strong> marca(s)
+                  </div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "6px 10px", borderRadius: "6px" }}>
+                    Lateral Derecha: <strong>{(danos.derecha || []).length}</strong> marca(s)
+                  </div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "6px 10px", borderRadius: "6px" }}>
+                    Trasera: <strong>{(danos.trasera || []).length}</strong> marca(s)
+                  </div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "6px 10px", borderRadius: "6px" }}>
+                    Lateral Izquierda: <strong>{(danos.izquierda || []).length}</strong> marca(s)
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumen de checklist */}
+              <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px" }}>
+                <strong style={{ fontSize: "0.85rem", color: "#1e293b", display: "block", marginBottom: "8px" }}>
+                  📋 Resumen de evaluación checklist ({allChecklistItems.length} puntos):
+                </strong>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "0.78rem" }}>
+                  <span className="checklist-badge checklist-badge-good">🟢 Bueno (B): {goodCount}</span>
+                  <span className="checklist-badge checklist-badge-regular">🟡 Regular (R): {regularCount}</span>
+                  <span className="checklist-badge checklist-badge-bad">🔴 Malo (M): {badCount}</span>
+                  <span className="checklist-badge checklist-badge-na">⚪ N/A: {naCount}</span>
+                </div>
+              </div>
+
+              {/* Observaciones textarea */}
+              <label className="inspection-textarea-label">
+                Comentarios / Observaciones del remolque
+                <textarea
+                  rows="5"
+                  value={observaciones}
+                  onChange={(event) => setObservaciones(event.target.value)}
+                  placeholder="Describe observaciones, faltantes, amortiguación, llantas o detalles de daños en el remolque..."
+                />
+              </label>
+            </div>
+          )}
+
         </div>
 
-        {/* Pie del Modal / Acciones */}
-        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginTop: "8px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-          <button type="button" className="inspection-secondary-button" onClick={onClose}>
-            Cancelar
+        {/* Botones de navegación del Wizard */}
+        <footer className="inspection-actions">
+          <button
+            type="button"
+            className="inspection-secondary-button"
+            disabled={step === 0}
+            onClick={() => setStep((current) => current - 1)}
+          >
+            Anterior
           </button>
-          <button type="button" className="inspection-primary-button" onClick={handleSave}>
-            Guardar Inspección de Remolque
-          </button>
-        </div>
+          {step < totalSteps - 1 ? (
+            <button
+              type="button"
+              className="inspection-primary-button"
+              disabled={!canContinue()}
+              onClick={() => setStep((current) => current + 1)}
+            >
+              Siguiente
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="inspection-primary-button"
+              disabled={!canContinue()}
+              onClick={handleSave}
+            >
+              Guardar Inspección de Remolque
+            </button>
+          )}
+        </footer>
 
       </div>
     </div>,
