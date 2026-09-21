@@ -272,6 +272,20 @@ async function initializeDependencies() {
         console.warn("Aviso en auto-migración de turnos vehiculares:", mErr.message);
       }
 
+      // Auto-migración 8: Destinos Favoritos / Sugeridos
+      try {
+        await databasePool.query(`
+          ALTER TABLE lugares
+            ADD COLUMN IF NOT EXISTS es_favorito BOOLEAN NOT NULL DEFAULT FALSE;
+
+          CREATE INDEX IF NOT EXISTS idx_lugares_es_favorito
+            ON lugares (es_favorito)
+            WHERE activo = TRUE;
+        `);
+      } catch (mErr) {
+        console.warn("Aviso en auto-migración de destinos favoritos:", mErr.message);
+      }
+
       console.log("Conexión inicial con PostgreSQL y esquema verificados.");
       await startBots();
       return;

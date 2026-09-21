@@ -3,6 +3,7 @@ import {
   deleteAdminDestination,
   importAdminDestinations,
   listAdminDestinations,
+  toggleAdminDestinationFavorite,
   updateAdminDestination,
   updateAdminDestinationStatus
 } from "../services/admin-destinos.service.js";
@@ -269,6 +270,61 @@ export async function updateAdminDestinationStatusController(
         message:
           "No fue posible actualizar el destino."
       });
+  }
+}
+
+export async function toggleAdminDestinationFavoriteController(
+  request,
+  response
+) {
+  try {
+    const idDestino = Number(request.params.idDestino);
+
+    if (!Number.isInteger(idDestino) || idDestino <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "El identificador del destino no es válido."
+      });
+    }
+
+    if (request.body?.es_favorito === undefined && request.body?.esFavorito === undefined) {
+      return response.status(400).json({
+        success: false,
+        message: "Debe indicar el estado de favorito (es_favorito: true/false)."
+      });
+    }
+
+    const es_favorito = Boolean(
+      request.body.es_favorito !== undefined
+        ? request.body.es_favorito
+        : request.body.esFavorito
+    );
+
+    const updatedDestination = await toggleAdminDestinationFavorite({
+      idDestino,
+      es_favorito
+    });
+
+    if (!updatedDestination) {
+      return response.status(404).json({
+        success: false,
+        message: "No se encontró el destino."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: updatedDestination,
+      message: es_favorito
+        ? `"${updatedDestination.nombre}" marcado como destino favorito / sugerencia.`
+        : `"${updatedDestination.nombre}" removido de destinos favoritos.`
+    });
+  } catch (error) {
+    console.error("Error al cambiar favorito de destino:", error.message);
+    return response.status(500).json({
+      success: false,
+      message: "No fue posible actualizar el estado de favorito del destino."
+    });
   }
 }
 

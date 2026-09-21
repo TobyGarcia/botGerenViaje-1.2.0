@@ -16,6 +16,8 @@ import {
   ,getMiUnidadTurnoStatus
   ,finalizarTurnoVehiculo
   ,iniciarTurnoVehiculo
+  ,getAdminDestinos
+  ,toggleDestinoFavorito
 } from "../services/api.js";
 import {
   IconCheck,
@@ -35,7 +37,8 @@ import {
   IconMenu,
   IconUser,
   IconMapPin,
-  IconSearch
+  IconSearch,
+  IconStar
 } from "../components/Icons.jsx";
 import DamageViewer from "../components/DamageViewer.jsx";
 import NavDrawer from "../components/NavDrawer.jsx";
@@ -315,6 +318,7 @@ export default function SupervisorPortal({
     else if (tabId === "gerenciamiento") setGerenciamientoDetail(null);
     else if (tabId === "conductores") setSelectedDriver(null);
     else if (tabId === "manejo-comentado") setSelectedManejoAuthorization(null);
+    else if (tabId === "destinos") loadDestinos();
   };
 
   // Inspecciones state
@@ -349,6 +353,44 @@ export default function SupervisorPortal({
   // Autorizaciones excepcionales por manejo comentado vencido/no registrado.
   const [manejoAuthorizations, setManejoAuthorizations] = useState([]);
   const [selectedManejoAuthorization, setSelectedManejoAuthorization] = useState(null);
+
+  // Destinos favoritos state
+  const [destinos, setDestinos] = useState([]);
+  const [loadingDestinos, setLoadingDestinos] = useState(false);
+  const [destinosSearch, setDestinosSearch] = useState("");
+  const [destinosFilter, setDestinosFilter] = useState("ALL"); // "ALL" | "FAV" | "NON_FAV"
+  const [togglingDestinoId, setTogglingDestinoId] = useState(null);
+
+  async function loadDestinos() {
+    try {
+      setLoadingDestinos(true);
+      const res = await getAdminDestinos({ status: "ACTIVOS" });
+      setDestinos(res.data || []);
+    } catch (err) {
+      console.warn("Aviso cargando destinos en supervisor:", err.message);
+    } finally {
+      setLoadingDestinos(false);
+    }
+  }
+
+  async function handleToggleFavorito(lugar) {
+    const nuevoFavorito = !lugar.es_favorito;
+    setTogglingDestinoId(lugar.id_lugares);
+    try {
+      await toggleDestinoFavorito(lugar.id_lugares, nuevoFavorito);
+      setDestinos(prev => prev.map(d => 
+        d.id_lugares === lugar.id_lugares ? { ...d, es_favorito: nuevoFavorito } : d
+      ));
+      setMessage(nuevoFavorito 
+        ? `⭐ "${lugar.nombre}" marcado como favorito / sugerencia principal.` 
+        : `"${lugar.nombre}" removido de favoritos.`
+      );
+    } catch (err) {
+      setErrorMessage(err.message || "No fue posible actualizar el destino.");
+    } finally {
+      setTogglingDestinoId(null);
+    }
+  }
 
   async function loadInspecciones() {
     try {
@@ -499,6 +541,7 @@ export default function SupervisorPortal({
       else if (activeTab === "conductores") loadPendingDrivers();
       else if (activeTab === "manejo-comentado") loadManejoAuthorizations();
       else if (activeTab === "mi-unidad") loadMiUnidadTurnoStatus();
+      else if (activeTab === "destinos") loadDestinos();
     }
   }, [access.confirmed, activeTab]);
 
@@ -670,6 +713,19 @@ export default function SupervisorPortal({
   const pendingGerenciamientos = gerenciamientos.filter((g) => g.estado === "PENDIENTE");
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
 
+  const totalDestinos = destinos.length;
+  const totalFavoritos = destinos.filter(d => Boolean(d.es_favorito)).length;
+  const totalRegulares = totalDestinos - totalFavoritos;
+
+  const filteredDestinos = destinos.filter(d => {
+    const isFav = Boolean(d.es_favorito);
+    if (destinosFilter === "FAV" && !isFav) return false;
+    if (destinosFilter === "NON_FAV" && isFav) return false;
+    if (!destinosSearch.trim()) return true;
+    const query = destinosSearch.toLowerCase().trim();
+    return (d.nombre || "").toLowerCase().includes(query) || (d.direccion || "").toLowerCase().includes(query);
+  });
+
   const supervisorNavItems = [
     {
       id: "inspecciones",
@@ -710,6 +766,14 @@ export default function SupervisorPortal({
       label: "Asignaciones",
       icon: IconCar,
       color: "#0284c7"
+    },
+    {
+      id: "destinos",
+      label: "Destinos Sugeridos",
+      icon: IconMapPin,
+      color: "#0284c7",
+      badge: destinos.filter(d => d.es_favorito).length > 0 ? `${destinos.filter(d => d.es_favorito).length} ⭐` : null,
+      badgeType: "warning"
     },
     ...( miUnidadStatus.assigned ? [
       {
@@ -1748,6 +1812,204 @@ export default function SupervisorPortal({
                     onClick={() => {
                       setSearchConductor("");
                       setAssignmentFilter("ALL");
+                    }}
+                  >
+                    Restablecer filtros
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {/* Pestaña: Destinos y Sugerencias Favoritas */}
+      {activeTab === "destinos" && (
+        <>
+          <div className="supervisor-view-header">
+            <div>
+              <h1 className="supervisor-view-title">Destinos &amp; Sugerencias</h1>
+              <p className="supervisor-view-subtitle">Selecciona los destinos favoritos con ⭐ para que aparezcan primero en el buscador de viajes</p>
+            </div>
+            <button
+              type="button"
+              className="refresh-btn"
+              onClick={loadDestinos}
+              disabled={loadingDestinos}
+              title="Recargar catálogo de destinos"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <IconRefresh size={16} />
+              <span>{loadingDestinos ? "Cargando..." : "Actualizar"}</span>
+            </button>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="supervisor-kpi-grid">
+            <div className="supervisor-kpi-card" style={{ borderLeft: "4px solid #eab308" }}>
+              <span className="kpi-label">Destinos Favoritos ⭐</span>
+              <span className="kpi-value" style={{ color: "#ca8a04" }}>{totalFavoritos}</span>
+              <span className="kpi-sub">Sugerencias destacadas al inicio</span>
+            </div>
+            <div className="supervisor-kpi-card">
+              <span className="kpi-label">Total en Catálogo</span>
+              <span className="kpi-value">{totalDestinos}</span>
+              <span className="kpi-sub">Lugares activos disponibles</span>
+            </div>
+            <div className="supervisor-kpi-card kpi-card-info">
+              <span className="kpi-label">Destinos Regulares</span>
+              <span className="kpi-value">{totalRegulares}</span>
+              <span className="kpi-sub">Búsqueda alfabética normal</span>
+            </div>
+          </div>
+
+          {/* Barra de Filtros y Búsqueda */}
+          <div className="supervisor-toolbar-compact">
+            <div className="supervisor-search-box">
+              <IconSearch className="search-icon" size={15} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Buscar destino por nombre o dirección..."
+                value={destinosSearch}
+                onChange={(e) => setDestinosSearch(e.target.value)}
+              />
+              {destinosSearch && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setDestinosSearch("")}
+                  aria-label="Limpiar búsqueda"
+                >
+                  <IconCross size={11} />
+                </button>
+              )}
+            </div>
+
+            <div className="assignment-filter-chips">
+              <button
+                type="button"
+                className={`filter-chip ${destinosFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setDestinosFilter("ALL")}
+              >
+                Todos ({totalDestinos})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip ${destinosFilter === "FAV" ? "active" : ""}`}
+                onClick={() => setDestinosFilter("FAV")}
+              >
+                ⭐ Solo Favoritos ({totalFavoritos})
+              </button>
+              <button
+                type="button"
+                className={`filter-chip ${destinosFilter === "NON_FAV" ? "active" : ""}`}
+                onClick={() => setDestinosFilter("NON_FAV")}
+              >
+                Otros ({totalRegulares})
+              </button>
+            </div>
+          </div>
+
+          {/* Lista de Destinos */}
+          <section className="drivers-cards-grid">
+            {loadingDestinos ? (
+              <div className="no-results-box">
+                <IconRefresh size={28} color="#0284c7" />
+                <p>Cargando catálogo de destinos...</p>
+              </div>
+            ) : filteredDestinos.length > 0 ? (
+              filteredDestinos.map((lugar) => {
+                const isToggling = togglingDestinoId === lugar.id_lugares;
+                const isFav = Boolean(lugar.es_favorito);
+
+                return (
+                  <article
+                    key={lugar.id_lugares}
+                    className="driver-card"
+                    style={{
+                      borderLeft: isFav ? "4px solid #eab308" : "1px solid #e2e8f0",
+                      background: isFav ? "#fefce8" : "#ffffff",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <div className="driver-card-header">
+                      <div className="driver-avatar-box" style={{ background: isFav ? "#fef08a" : "#eff6ff" }}>
+                        <IconMapPin size={22} color={isFav ? "#ca8a04" : "#0284c7"} />
+                      </div>
+                      <div className="driver-main-info" style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <h4 className="driver-name" style={{ margin: 0 }}>{lugar.nombre}</h4>
+                          {isFav && (
+                            <span style={{
+                              background: "#fef08a",
+                              color: "#854d0e",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "6px"
+                            }}>
+                              ⭐ SUGERIDO
+                            </span>
+                          )}
+                        </div>
+                        {lugar.direccion && (
+                          <p className="driver-company" style={{ fontSize: "0.8rem", color: "#64748b", margin: "4px 0 0" }}>
+                            {lugar.direccion}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      marginTop: "12px",
+                      paddingTop: "10px",
+                      borderTop: "1px solid #f1f5f9",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}>
+                      <span style={{ fontSize: "0.78rem", color: isFav ? "#854d0e" : "#94a3b8", fontWeight: 500 }}>
+                        {isFav ? "Aparece al inicio del buscador" : "Destino regular"}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFavorito(lugar)}
+                        disabled={isToggling}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "6px 14px",
+                          borderRadius: "8px",
+                          border: isFav ? "1px solid #ca8a04" : "1px solid #cbd5e1",
+                          background: isFav ? "#eab308" : "#ffffff",
+                          color: isFav ? "#ffffff" : "#475569",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          cursor: isToggling ? "wait" : "pointer",
+                          transition: "all 0.15s ease",
+                          boxShadow: isFav ? "0 2px 6px rgba(234, 179, 8, 0.35)" : "none"
+                        }}
+                      >
+                        <IconStar size={16} color={isFav ? "#ffffff" : "#ca8a04"} filled={isFav} />
+                        <span>{isToggling ? "Guardando..." : isFav ? "Favorito ✓" : "Hacer Favorito"}</span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="no-results-box">
+                <IconSearch size={32} color="#94a3b8" />
+                <p>No se encontraron destinos con el criterio de búsqueda.</p>
+                {(destinosSearch || destinosFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    className="filter-chip"
+                    onClick={() => {
+                      setDestinosSearch("");
+                      setDestinosFilter("ALL");
                     }}
                   >
                     Restablecer filtros

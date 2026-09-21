@@ -79,10 +79,11 @@ export async function getLugares() {
       nombre,
       direccion,
       latitud,
-      longitud
+      longitud,
+      COALESCE(es_favorito, FALSE) AS es_favorito
     FROM lugares
     WHERE activo = TRUE
-    ORDER BY nombre ASC
+    ORDER BY es_favorito DESC, nombre ASC
   `);
 
   return result.rows;

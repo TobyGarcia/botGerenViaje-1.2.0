@@ -31,6 +31,7 @@
 \ir ../migrations/028_puesto_conductor.sql
 \ir ../migrations/029_siniestros.sql
 \ir ../migrations/030_control_turnos_vehiculo.sql
+\ir ../migrations/031_destinos_favoritos.sql
 
 
 

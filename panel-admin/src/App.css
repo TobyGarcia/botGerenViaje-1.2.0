@@ -562,9 +562,18 @@
 
 .sidebar button.sidebar-active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.2);
   font-weight: 700;
+}
+
+/* Cuando el cursor esta fuera de la barra lateral (estado colapsado / fuera de mouse), quitar el efecto blur y recuadro */
+.sidebar:not(:hover) button.sidebar-active {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sidebar:not(:hover) .logout-button {
+  border-color: transparent !important;
 }
 
 .nav-icon {

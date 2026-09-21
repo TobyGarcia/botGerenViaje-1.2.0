@@ -330,3 +330,32 @@ export function crearReporteSiniestro(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function getAdminDestinos({ search = "", status = "TODOS" } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.append("search", search);
+  if (status) params.append("status", status);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request(`/api/admin/destinos${query}`);
+}
+
+export function toggleDestinoFavorito(idDestino, esFavorito) {
+  return request(`/api/admin/destinos/${idDestino}/favorito`, {
+    method: "PATCH",
+    body: JSON.stringify({ es_favorito: esFavorito })
+  });
+}
+
+export function updateDestinoEstado(idDestino, activo) {
+  return request(`/api/admin/destinos/${idDestino}/estado`, {
+    method: "PATCH",
+    body: JSON.stringify({ activo })
+  });
+}
+
+export function createAdminDestino(payload) {
+  return request("/api/admin/destinos", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

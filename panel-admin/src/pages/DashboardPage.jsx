@@ -468,9 +468,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
   const isDestinos = rankingTab === "destinos";
   const isConductores = rankingTab === "conductores";
 
-  let list = rankingUnidades;
-  if (isDestinos) list = rankingDestinos;
-  if (isConductores) list = rankingConductores;
+  const list = (isDestinos ? rankingDestinos : isConductores ? rankingConductores : rankingUnidades) || [];
 
   const maxVal = Math.max(
     1,
@@ -515,17 +513,18 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
           <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
       ) : (
-        <div className="ranking-list">
+        <div key={rankingTab} className="ranking-list">
           {list.map((item, index) => {
             const count = Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas);
             const percentage = Math.max(8, Math.round((count / maxVal) * 100));
             const rank = index + 1;
 
-            const itemKey = isUnidades
-              ? item.id_vehiculos || index
+            const rawId = isUnidades
+              ? item.id_vehiculos
               : isDestinos
-              ? item.id_destino || index
-              : item.id_conductores || index;
+              ? item.id_destino
+              : item.id_conductores;
+            const itemKey = `${rankingTab}-${rawId ?? index}`;
 
             return (
               <div key={itemKey} className="ranking-row">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { IconStar } from "./Icons.jsx";
 
 export default function DestinationAutocomplete({
   lugares = [],
@@ -67,21 +68,30 @@ export default function DestinationAutocomplete({
     };
   }, [value, lugares, isCustomMode]);
 
-  // Filtrado reactivo en tiempo real por nombre o direccion
+  // Filtrado reactivo en tiempo real por nombre o direccion, priorizando favoritos
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredLugares = lugares
-    .filter((lugar) => {
-      if (excludeId && String(lugar.id_lugares) === String(excludeId)) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-      const matchNombre = (lugar.nombre || "").toLowerCase().includes(normalizedQuery);
-      const matchDireccion = (lugar.direccion || "").toLowerCase().includes(normalizedQuery);
-      return matchNombre || matchDireccion;
-    })
-    .slice(0, 25); // Limitar a maximo 25 para garantizar rendimiento fluido en telefonos
+  const eligibleLugares = lugares.filter((lugar) => {
+    if (excludeId && String(lugar.id_lugares) === String(excludeId)) {
+      return false;
+    }
+    if (!normalizedQuery) {
+      return true;
+    }
+    const matchNombre = (lugar.nombre || "").toLowerCase().includes(normalizedQuery);
+    const matchDireccion = (lugar.direccion || "").toLowerCase().includes(normalizedQuery);
+    return matchNombre || matchDireccion;
+  });
+
+  // Ordenar para garantizar que los favoritos SIEMPRE estén al principio
+  const sortedLugares = [...eligibleLugares].sort((a, b) => {
+    const favA = Boolean(a.es_favorito);
+    const favB = Boolean(b.es_favorito);
+    if (favA && !favB) return -1;
+    if (!favA && favB) return 1;
+    return (a.nombre || "").localeCompare(b.nombre || "");
+  });
+
+  const filteredLugares = sortedLugares.slice(0, 30);
 
   function handleSelect(lugar) {
     setIsCustomMode(false);
@@ -112,7 +122,7 @@ export default function DestinationAutocomplete({
       className="destination-autocomplete-container"
       style={{ position: "relative", width: "100%" }}
     >
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
         <input
           ref={inputRef}
           id={id}
@@ -122,6 +132,7 @@ export default function DestinationAutocomplete({
           placeholder={placeholder}
           required={required && !value && !isCustomMode}
           autoComplete="off"
+          className="destination-autocomplete-input"
           onFocus={() => {
             if (!disabled) setIsOpen(true);
           }}
@@ -140,6 +151,8 @@ export default function DestinationAutocomplete({
             borderRadius: "12px",
             border: "1px solid #cbd5e1",
             background: "#ffffff",
+            backgroundColor: "#ffffff",
+            backgroundImage: "none",
             color: "#1e293b",
             fontSize: "0.88rem",
             fontWeight: "500",
@@ -147,7 +160,9 @@ export default function DestinationAutocomplete({
             boxShadow: "none",
             WebkitBoxShadow: "none",
             WebkitAppearance: "none",
-            appearance: "none"
+            appearance: "none",
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none"
           }}
         />
 
@@ -228,51 +243,127 @@ export default function DestinationAutocomplete({
               No se encontraron lugares con "{query}"
             </li>
           ) : (
-            filteredLugares.map((lugar) => {
+            filteredLugares.map((lugar, index) => {
               const isSelected = String(lugar.id_lugares) === String(value);
+              const isFav = Boolean(lugar.es_favorito);
+              const prevLugar = index > 0 ? filteredLugares[index - 1] : null;
+              const isFirstFav = isFav && index === 0;
+              const isFirstNonFav = !isFav && prevLugar && Boolean(prevLugar.es_favorito);
 
               return (
-                <li
-                  key={lugar.id_lugares}
-                  onClick={() => handleSelect(lugar)}
-                  style={{
-                    padding: "10px 14px",
-                    cursor: "pointer",
-                    borderBottom: "1px solid #f1f5f9",
-                    background: isSelected ? "#eff6ff" : "#ffffff",
-                    transition: "background 0.15s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = "#f8fafc";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = "#ffffff";
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: isSelected ? "700" : "600",
-                      color: isSelected ? "#1d4ed8" : "#0f172a",
-                      fontSize: "0.92rem"
-                    }}
-                  >
-                    {lugar.nombre}
-                  </div>
-                  {lugar.direccion && (
-                    <div
+                <React.Fragment key={lugar.id_lugares}>
+                  {isFirstFav && (
+                    <li
                       style={{
-                        color: "#64748b",
-                        fontSize: "0.78rem",
-                        marginTop: "2px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis"
+                        padding: "6px 14px 4px",
+                        fontSize: "0.72rem",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        color: "#854d0e",
+                        background: "#fefce8",
+                        borderBottom: "1px solid #fef08a",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px"
                       }}
                     >
-                      {lugar.direccion}
-                    </div>
+                      <IconStar size={13} color="#ca8a04" filled />
+                      <span>Destinos Sugeridos / Favoritos</span>
+                    </li>
                   )}
-                </li>
+                  {isFirstNonFav && (
+                    <li
+                      style={{
+                        padding: "6px 14px 4px",
+                        fontSize: "0.72rem",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        color: "#64748b",
+                        background: "#f8fafc",
+                        borderTop: "1px solid #e2e8f0",
+                        borderBottom: "1px solid #e2e8f0"
+                      }}
+                    >
+                      Todos los destinos
+                    </li>
+                  )}
+                  <li
+                    onClick={() => handleSelect(lugar)}
+                    style={{
+                      padding: "10px 14px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #f1f5f9",
+                      background: isSelected
+                        ? "#eff6ff"
+                        : isFav
+                        ? "#fffdf5"
+                        : "#ffffff",
+                      transition: "background 0.15s ease",
+                      borderLeft: isFav ? "3px solid #eab308" : "3px solid transparent"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = isFav ? "#fef9c3" : "#f8fafc";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = isFav ? "#fffdf5" : "#ffffff";
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "6px"
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: isSelected ? "700" : isFav ? "600" : "500",
+                          color: isSelected ? "#1d4ed8" : isFav ? "#713f12" : "#0f172a",
+                          fontSize: "0.92rem",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        {isFav && <IconStar size={14} color="#ca8a04" filled />}
+                        <span>{lugar.nombre}</span>
+                      </div>
+                      {isFav && (
+                        <span
+                          style={{
+                            fontSize: "0.68rem",
+                            fontWeight: "700",
+                            color: "#854d0e",
+                            background: "#fef08a",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          Sugerido
+                        </span>
+                      )}
+                    </div>
+                    {lugar.direccion && (
+                      <div
+                        style={{
+                          color: "#64748b",
+                          fontSize: "0.78rem",
+                          marginTop: "2px",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          paddingLeft: isFav ? "20px" : "0px"
+                        }}
+                      >
+                        {lugar.direccion}
+                      </div>
+                    )}
+                  </li>
+                </React.Fragment>
               );
             })
           )}
