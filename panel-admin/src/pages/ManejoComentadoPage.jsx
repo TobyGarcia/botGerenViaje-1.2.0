@@ -91,7 +91,15 @@ function getPreviewVigencia(calificacion, fechaEvaluacion) {
 }
 
 export default function ManejoComentadoPage({ user }) {
-  const [activeTab, setActiveTab] = useState("conductores"); // 'conductores' | 'cursos'
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes("cursos")) return "cursos";
+    try {
+      const saved = sessionStorage.getItem("gv_admin_mc_tab");
+      if (saved === "cursos" || saved === "conductores") return saved;
+    } catch {}
+    return "conductores";
+  });
   const [conductores, setConductores] = useState([]);
   const [cursos, setCursos] = useState([]);
   const [search, setSearch] = useState("");
@@ -299,14 +307,20 @@ export default function ManejoComentadoPage({ user }) {
         <button
           type="button"
           className={`ranking-tab-btn ${activeTab === "conductores" ? "active" : ""}`}
-          onClick={() => setActiveTab("conductores")}
+          onClick={() => {
+            setActiveTab("conductores");
+            try { sessionStorage.setItem("gv_admin_mc_tab", "conductores"); } catch {}
+          }}
         >
           Conductores y Vigencias
         </button>
         <button
           type="button"
           className={`ranking-tab-btn ${activeTab === "cursos" ? "active" : ""}`}
-          onClick={() => setActiveTab("cursos")}
+          onClick={() => {
+            setActiveTab("cursos");
+            try { sessionStorage.setItem("gv_admin_mc_tab", "cursos"); } catch {}
+          }}
         >
           Cursos Programados ({cursos.length})
         </button>

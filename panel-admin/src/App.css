@@ -10883,11 +10883,14 @@ min-width: 0;
 .live-monitoring-container {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   width: 100%;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 64px);
   min-height: 650px;
   position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .live-monitoring-container.fullscreen-active {
@@ -10897,28 +10900,39 @@ min-width: 0;
   width: 100vw;
   height: 100vh;
   margin: 0;
-  padding: 16px;
+  padding: 0;
   background: #0f172a;
+  border-radius: 0;
+  border: none;
   box-sizing: border-box;
 }
 
 .live-monitoring-header {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 1000;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #ffffff;
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+  pointer-events: auto;
 }
 
 .fullscreen-active .live-monitoring-header {
-  background: #1e293b;
+  background: rgba(15, 23, 42, 0.92);
   border-color: #334155;
   color: #f8fafc;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .live-monitoring-title-block {
@@ -11227,15 +11241,23 @@ min-width: 0;
 }
 
 .live-alert-error {
+  position: absolute;
+  top: 80px;
+  left: 14px;
+  z-index: 1002;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 8px 16px;
-  background: #fef2f2;
+  background: rgba(254, 242, 242, 0.95);
+  backdrop-filter: blur(8px);
   border: 1px solid #fecaca;
   color: #b91c1c;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.85rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  max-width: 480px;
 }
 
 .live-alert-error button {
@@ -11252,12 +11274,12 @@ min-width: 0;
 .live-monitoring-body {
   display: flex;
   flex: 1;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   background: #ffffff;
 }
 
@@ -11268,8 +11290,20 @@ min-width: 0;
 
 .live-map-wrapper {
   flex: 1;
+  width: 100%;
   height: 100%;
   position: relative;
+}
+
+/* Reubicar controles de zoom de Leaflet debajo de la barra flotante */
+.live-map-wrapper .leaflet-top.leaflet-left {
+  top: 84px !important;
+  left: 14px !important;
+}
+
+.fullscreen-active .live-map-wrapper .leaflet-top.leaflet-left {
+  top: 84px !important;
+  left: 14px !important;
 }
 
 .live-leaflet-container {
@@ -11287,41 +11321,133 @@ min-width: 0;
 
 .btn-toggle-units-sidebar {
   position: absolute;
-  top: 14px;
+  top: 80px;
   right: 14px;
   z-index: 1000;
-  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid #cbd5e1;
   color: #1e293b;
   font-size: 0.8rem;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-toggle-units-sidebar:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  background: #ffffff;
+  border-color: #0284c7;
+  color: #0284c7;
+  transform: translateY(-1px);
 }
 
-/* Panel Lateral de Unidades */
+.fullscreen-active .btn-toggle-units-sidebar {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.btn-toggle-units-header {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  padding: 0 10px !important;
+  font-weight: 600 !important;
+}
+
+.btn-toggle-units-header.active {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #0284c7 !important;
+}
+
+.fullscreen-active .btn-toggle-units-header.active {
+  background: #1e3a5f !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+.badge-units-count {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+/* Panel Lateral de Unidades (Drawer Flotante a la Derecha) */
 .live-units-sidebar {
-  width: 320px;
-  border-left: 1px solid #e2e8f0;
-  background: #ffffff;
+  position: absolute;
+  top: 80px;
+  right: 14px;
+  bottom: 14px;
+  width: 340px;
+  max-width: calc(100vw - 28px);
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   z-index: 1001;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
 }
 
 .fullscreen-active .live-units-sidebar {
-  background: #1e293b;
+  background: rgba(15, 23, 42, 0.96);
   border-color: #334155;
   color: #f8fafc;
+}
+
+.sidebar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.fullscreen-active .sidebar-header-row {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.btn-close-sidebar {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-close-sidebar:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.fullscreen-active .btn-close-sidebar:hover {
+  background: #334155;
+  color: #ffffff;
 }
 
 .sidebar-search-box {

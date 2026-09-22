@@ -296,8 +296,17 @@ function ApprovalSignature({ onChange }) {
   );
 }
 
-export default function InspeccionesPage({ user, onPendingChange }) {
-  const [activeTab, setActiveTab] = useState("inspecciones");
+export default function InspeccionesPage({ user, onPendingChange, initialTab }) {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (initialTab) return initialTab;
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes("gerenciamiento")) return "gerenciamiento";
+    try {
+      const saved = sessionStorage.getItem("gv_admin_inspecciones_tab");
+      if (saved === "gerenciamiento" || saved === "inspecciones") return saved;
+    } catch {}
+    return "inspecciones";
+  });
   const [rows, setRows] = useState([]);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -397,7 +406,16 @@ export default function InspeccionesPage({ user, onPendingChange }) {
       <div className="logistics-nav-tabs">
         <button
           type="button"
-          onClick={() => { setActiveTab("inspecciones"); setCurrentPage(1); }}
+          onClick={() => {
+            setActiveTab("inspecciones");
+            setCurrentPage(1);
+            try {
+              sessionStorage.setItem("gv_admin_inspecciones_tab", "inspecciones");
+              if (window.location.hash.includes("gerenciamiento")) {
+                window.location.hash = "inspecciones";
+              }
+            } catch {}
+          }}
           className={`logistics-tab-btn ${activeTab === "inspecciones" ? "active" : ""}`}
         >
           <IconInspecciones size={18} />
@@ -410,7 +428,16 @@ export default function InspeccionesPage({ user, onPendingChange }) {
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab("gerenciamiento"); setCurrentPage(1); }}
+          onClick={() => {
+            setActiveTab("gerenciamiento");
+            setCurrentPage(1);
+            try {
+              sessionStorage.setItem("gv_admin_inspecciones_tab", "gerenciamiento");
+              if (window.location.hash.includes("inspecciones")) {
+                window.location.hash = "gerenciamiento";
+              }
+            } catch {}
+          }}
           className={`logistics-tab-btn tab-btn-gerenciamiento ${activeTab === "gerenciamiento" ? "active" : ""}`}
         >
           <IconDestinos size={18} />

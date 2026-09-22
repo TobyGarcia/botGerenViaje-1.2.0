@@ -3899,6 +3899,19 @@ form#urban-trip-form {
   transform: none !important;
 }
 
+@keyframes spinIcon {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rotating-icon {
+  animation: spinIcon 1s linear infinite;
+}
+
 
 
 
