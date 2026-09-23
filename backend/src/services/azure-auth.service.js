@@ -176,8 +176,8 @@ export async function findUserInWhitelist(email) {
     `SELECT 
        ua.id_usuarios_admin,
        c.nombre,
-       c.correo AS username,
-       c.correo,
+       COALESCE(ua.username, c.correo, ua.correo) AS username,
+       COALESCE(c.correo, ua.correo) AS correo,
        ua.rol,
        ua.activo,
        c.telefono,
@@ -185,7 +185,10 @@ export async function findUserInWhitelist(email) {
        ua.ultimo_acceso_en
      FROM usuarios_admin ua
      INNER JOIN conductores c ON ua.id_conductores = c.id_conductores
-     WHERE LOWER(c.correo) = $1 LIMIT 1`,
+     WHERE (c.correo IS NOT NULL AND LOWER(c.correo) = $1)
+        OR (ua.correo IS NOT NULL AND LOWER(ua.correo) = $1)
+        OR (ua.username IS NOT NULL AND LOWER(ua.username) = $1)
+     LIMIT 1`,
     [normalizedEmail]
   );
 

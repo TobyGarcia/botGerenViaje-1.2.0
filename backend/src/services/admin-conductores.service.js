@@ -1052,7 +1052,16 @@ export async function assignAdminConductorRole({
         );
       }
     }
-  }
+
+    if (updatedAdmin?.correo || data.correo) {
+      const finalEmail = String(updatedAdmin?.correo || data.correo).trim().toLowerCase();
+      await client.query(
+        `UPDATE conductores
+         SET correo = $1, actualizado_en = CURRENT_TIMESTAMP
+         WHERE id_conductores = $2`,
+        [finalEmail, idConductor]
+      );
+    }
 
     await client.query("COMMIT");
 

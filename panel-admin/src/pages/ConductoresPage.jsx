@@ -624,7 +624,7 @@ function ConductoresPage({ user }) {
     setRoleForm({
       rol: conductor.rol_administrativo || defaultRole,
       username: conductor.admin_username || cleanUsername,
-      correo: conductor.admin_correo || "",
+      correo: conductor.admin_correo || conductor.correo || "",
       activo: conductor.admin_activo !== false
     });
 
@@ -636,7 +636,7 @@ function ConductoresPage({ user }) {
           setRoleForm({
             rol: res.data.usuarioAdmin.rol || defaultRole,
             username: res.data.usuarioAdmin.username || cleanUsername,
-            correo: res.data.usuarioAdmin.correo || "",
+            correo: res.data.usuarioAdmin.correo || conductor.admin_correo || conductor.correo || "",
             activo: res.data.usuarioAdmin.activo !== false
           });
         }
