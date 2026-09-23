@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { databasePool } from "../database/pool.js";
+import { isPinInUse } from "./driver-auth.service.js";
 
 const roles = new Set([
   "ADMINISTRADOR",
@@ -273,7 +274,29 @@ export async function updateOwnProfile(id, data) {
 }
 
 export async function assignAdminUserPin(id, pin) {
-  const pinHash = await bcrypt.hash(String(pin).trim(), 10);
+  const cleanPin = String(pin).trim();
+  if (!/^\d{4}$/.test(cleanPin)) {
+    throw new Error("El PIN debe ser un código numérico de 4 dígitos.");
+  }
+
+  const adminRes = await databasePool.query(
+    `SELECT id_conductores FROM usuarios_admin WHERE id_usuarios_admin = $1`,
+    [id]
+  );
+  if (adminRes.rowCount === 0) {
+    return null;
+  }
+  const conductorId = adminRes.rows[0].id_conductores;
+
+  const inUseCheck = await isPinInUse(cleanPin, conductorId);
+  if (inUseCheck.inUse) {
+    const error = new Error(`El PIN ya está en uso por otro usuario (${inUseCheck.conductor.nombre}). Elige un PIN diferente.`);
+    error.code = "PIN_ALREADY_IN_USE";
+    error.status = 409;
+    throw error;
+  }
+
+  const pinHash = await bcrypt.hash(cleanPin, 10);
   const result = await databasePool.query(
     `UPDATE conductores c
      SET pin_hash = $1, actualizado_en = CURRENT_TIMESTAMP

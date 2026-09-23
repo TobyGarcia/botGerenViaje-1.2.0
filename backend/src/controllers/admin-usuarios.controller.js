@@ -43,7 +43,8 @@ export async function assignAdminUserPinController(req, res) {
       message: `PIN asignado correctamente para ${updated.nombre}.`
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message || "No fue posible asignar el PIN." });
+    const status = error.code === "PIN_ALREADY_IN_USE" || error.status === 409 ? 409 : 500;
+    return res.status(status).json({ success: false, message: error.message || "No fue posible asignar el PIN." });
   }
 }
 
