@@ -120,25 +120,90 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
   };
 }
 
-export async function setDriverPin({ idConductor, pin }) {
+export async function isPinInUse(pin, excludeConductorId = null, dbClient = null) {
+  const cleanPin = String(pin || "").trim();
+  if (!cleanPin) return { inUse: false };
+
+  const pool = dbClient || databasePool;
+  let query = `SELECT id_conductores, nombre, pin_hash FROM conductores WHERE pin_hash IS NOT NULL`;
+  const params = [];
+  if (excludeConductorId) {
+    query += ` AND id_conductores != $1`;
+    params.push(excludeConductorId);
+  }
+
+  const result = await pool.query(query, params);
+  for (const row of result.rows) {
+    const isMatch = await bcrypt.compare(cleanPin, row.pin_hash);
+    if (isMatch) {
+      return { inUse: true, conductor: row };
+    }
+  }
+
+  return { inUse: false };
+}
+
+export async function generateUniqueDriverPin(excludeConductorId = null, dbClient = null) {
+  const pool = dbClient || databasePool;
+  let query = `SELECT id_conductores, pin_hash FROM conductores WHERE pin_hash IS NOT NULL`;
+  const params = [];
+  if (excludeConductorId) {
+    query += ` AND id_conductores != $1`;
+    params.push(excludeConductorId);
+  }
+  const result = await pool.query(query, params);
+  const rows = result.rows;
+
+  for (let attempts = 0; attempts < 100; attempts++) {
+    const candidatePin = String(Math.floor(1000 + Math.random() * 9000));
+    let collision = false;
+    for (const row of rows) {
+      if (await bcrypt.compare(candidatePin, row.pin_hash)) {
+        collision = true;
+        break;
+      }
+    }
+    if (!collision) {
+      return candidatePin;
+    }
+  }
+
+  throw new Error("No fue posible generar un PIN único. Por favor ingresa uno manualmente.");
+}
+
+export async function setDriverPin({ idConductor, pin, client = null }) {
   const cleanPin = String(pin).trim();
   if (!/^\d{4}$/.test(cleanPin)) {
     throw new Error("El PIN debe ser un código numérico de 4 dígitos.");
   }
 
+  const pool = client || databasePool;
+
+  const conductorCheck = await pool.query(
+    `SELECT id_conductores, nombre FROM conductores WHERE id_conductores = $1`,
+    [idConductor]
+  );
+  if (conductorCheck.rowCount === 0) {
+    throw new Error("Conductor no encontrado.");
+  }
+
+  const inUseCheck = await isPinInUse(cleanPin, idConductor, pool);
+  if (inUseCheck.inUse) {
+    const error = new Error(`El PIN ya está en uso por otro usuario (${inUseCheck.conductor.nombre}). Elige un PIN diferente.`);
+    error.code = "PIN_ALREADY_IN_USE";
+    error.status = 409;
+    throw error;
+  }
+
   const pinHash = await bcrypt.hash(cleanPin, 10);
 
-  const result = await databasePool.query(
+  const result = await pool.query(
     `UPDATE conductores
      SET pin_hash = $1, actualizado_en = CURRENT_TIMESTAMP
      WHERE id_conductores = $2
      RETURNING id_conductores, nombre`,
     [pinHash, idConductor]
   );
-
-  if (result.rowCount === 0) {
-    throw new Error("Conductor no encontrado.");
-  }
 
   return result.rows[0];
 }

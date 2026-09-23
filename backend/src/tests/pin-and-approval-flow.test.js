@@ -332,6 +332,16 @@ describe("🧪 Simulación y Pruebas Unitarias del Flujo Unificado de PIN y Apro
       },
       /Conductor no encontrado/
     );
+
+    // PIN duplicado ya asignado a otro conductor
+    if (createdConductorIds.length > 1) {
+      await assert.rejects(
+        async () => {
+          await setDriverPin({ idConductor: createdConductorIds[1], pin: "7412" });
+        },
+        /El PIN ya está en uso por otro usuario/
+      );
+    }
   });
 
   test("Caso 8: Desactivar y Reactivar conductor -> Bloqueo de acceso y recuperación", async () => {

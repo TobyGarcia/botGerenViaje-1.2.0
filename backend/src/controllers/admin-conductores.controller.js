@@ -8,7 +8,7 @@ import {
   getAdminConductorRole,
   assignAdminConductorRole
 } from "../services/admin-conductores.service.js";
-import { setDriverPin } from "../services/driver-auth.service.js";
+import { setDriverPin, generateUniqueDriverPin } from "../services/driver-auth.service.js";
 import { saveLicenseFileBase64 } from "../utils/file-storage.js";
 import {
   sendDriverApprovalNotification,
@@ -378,7 +378,7 @@ export async function setDriverPinAdminController(request, response) {
 
     let finalPin = pin ? String(pin).trim() : null;
     if (!finalPin || autoGenerate) {
-      finalPin = String(Math.floor(1000 + Math.random() * 9000));
+      finalPin = await generateUniqueDriverPin(idConductor);
     } else if (!/^\d{4}$/.test(finalPin)) {
       return response.status(400).json({
         success: false,
@@ -416,6 +416,12 @@ export async function setDriverPinAdminController(request, response) {
       }
     });
   } catch (error) {
+    if (error.code === "PIN_ALREADY_IN_USE" || error.status === 409) {
+      return response.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
     console.error("Error en setDriverPinAdminController:", error);
     return response.status(500).json({
       success: false,

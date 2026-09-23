@@ -19,7 +19,8 @@ import {
   IconRefresh,
   IconBan,
   IconShield,
-  IconClock
+  IconClock,
+  IconTrash
 } from "./Icons.jsx";
 
 const defaultChecklistItems = {
@@ -993,7 +994,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                         }}
                         title="Eliminar punto"
                       >
-                        <IconCross size={16} color="#ffffff" />
+                        <IconTrash size={16} color="#ffffff" />
                       </button>
                     )}
                   </div>
@@ -1109,7 +1110,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                             }}
                             title="Quitar acompañante"
                           >
-                            <IconCross size={16} color="#ffffff" />
+                            <IconTrash size={16} color="#ffffff" />
                           </button>
                         )}
                       </div>

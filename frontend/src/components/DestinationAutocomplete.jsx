@@ -101,14 +101,6 @@ export default function DestinationAutocomplete({
     inputRef.current?.blur();
   }
 
-  function handleClear() {
-    setIsCustomMode(false);
-    setQuery("");
-    setIsOpen(false);
-    onChange("", null);
-    if (onCustomTextChange) onCustomTextChange("");
-    inputRef.current?.focus();
-  }
 
   function handleChooseCustom() {
     setIsCustomMode(true);
@@ -147,7 +139,7 @@ export default function DestinationAutocomplete({
           style={{
             width: "100%",
             boxSizing: "border-box",
-            padding: "12px 36px 12px 14px",
+            padding: "12px 14px",
             borderRadius: "12px",
             border: "1px solid #cbd5e1",
             background: "#ffffff",
@@ -165,27 +157,6 @@ export default function DestinationAutocomplete({
             WebkitBackdropFilter: "none"
           }}
         />
-
-        {query && !disabled && (
-          <button
-            type="button"
-            onClick={handleClear}
-            aria-label="Limpiar seleccion"
-            style={{
-              position: "absolute",
-              right: "10px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#94a3b8",
-              fontSize: "1.2rem",
-              lineHeight: 1,
-              padding: "4px"
-            }}
-          >
-            ×
-          </button>
-        )}
       </div>
 
       {/* Campo adicional si se eligio texto personalizado */}

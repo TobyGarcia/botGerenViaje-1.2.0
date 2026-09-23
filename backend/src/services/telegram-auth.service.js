@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import {
   databasePool
 } from "../database/pool.js";
+import { generateUniqueDriverPin } from "./driver-auth.service.js";
 
 export class TelegramRegistrationError extends Error {
   constructor(message, statusCode) {
@@ -212,7 +213,7 @@ export async function registerTelegramDriver({
     today.setUTCHours(0, 0, 0, 0);
     const licenciaVigente = parsedDate >= today;
 
-    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const generatedPin = await generateUniqueDriverPin(targetConductorId, client);
     const pinHash = await bcrypt.hash(generatedPin, 10);
 
     let conductor = null;

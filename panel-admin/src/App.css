@@ -10932,7 +10932,7 @@ min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px;
+  padding: 6px 14px;
 }
 
 .live-radar-badge-mini {
@@ -10973,6 +10973,32 @@ min-width: 0;
   border-radius: 50%;
   box-shadow: 0 0 0 1.5px #ffffff;
   animation: beacon-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.live-red-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: live-pulse-red 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes live-pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 .live-pro-dock-title {
@@ -11174,12 +11200,183 @@ min-width: 0;
   }
   .live-pro-actions-dock {
     order: 2;
+    margin-left: auto;
   }
   .live-pro-filter-dock {
     order: 3;
-    width: auto;
+    width: 100%;
     overflow-x: auto;
     max-width: 100%;
+    scrollbar-width: none;
+  }
+  .live-pro-filter-dock::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .live-monitoring-container {
+    height: calc(100dvh - 64px);
+    min-height: 480px;
+    border-radius: 8px;
+  }
+
+  .live-pro-floating-bar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* Fila 1: Título a la izquierda */
+  .live-pro-title-dock {
+    order: 1;
+    padding: 4px 10px;
+    height: 34px;
+    gap: 6px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  .live-pro-dock-title {
+    font-size: 0.8rem;
+  }
+
+  .live-red-dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  /* Fila 1: Acciones compactas a la derecha */
+  .live-pro-actions-dock {
+    order: 2;
+    padding: 3px;
+    gap: 2px;
+    height: 34px;
+    box-sizing: border-box;
+    margin-left: auto;
+  }
+
+  .live-pro-actions-dock .map-pro-btn {
+    padding: 4px 6px;
+    min-width: 28px;
+    height: 28px;
+    font-size: 0.72rem;
+  }
+
+  .live-pro-actions-dock .live-pro-interval-select {
+    padding: 2px 4px;
+    font-size: 0.72rem;
+    height: 28px;
+  }
+
+  .live-pro-actions-dock .live-pro-dock-separator {
+    margin: 0 1px;
+    height: 14px;
+  }
+
+  .live-pro-actions-dock .btn-unidades-text {
+    display: none;
+  }
+
+  /* Fila 2: Filtros de Estado en carrusel horizontal táctil */
+  .live-pro-filter-dock {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 3px 4px;
+    gap: 4px;
+    justify-content: flex-start;
+    border-radius: 10px;
+    box-sizing: border-box;
+  }
+
+  .live-pro-filter-dock::-webkit-scrollbar {
+    display: none;
+  }
+
+  .live-pro-filter-dock .map-pro-btn {
+    padding: 4px 8px;
+    font-size: 0.73rem;
+    flex-shrink: 0;
+    height: 28px;
+    white-space: nowrap;
+  }
+
+  /* Reubicar controles de zoom de Leaflet a la esquina inferior para evitar colisiones */
+  .live-map-wrapper .leaflet-top.leaflet-left,
+  .fullscreen-active .live-map-wrapper .leaflet-top.leaflet-left {
+    top: auto !important;
+    bottom: 24px !important;
+    left: 10px !important;
+  }
+
+  /* Panel lateral de unidades en móvil: overlay completo */
+  .live-units-sidebar {
+    top: 96px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+    border-radius: 12px;
+    z-index: 1005;
+  }
+}
+
+@media (max-width: 480px) {
+  .live-pro-floating-bar {
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    gap: 4px;
+  }
+
+  .live-pro-title-dock {
+    padding: 3px 8px;
+    height: 30px;
+  }
+
+  .live-pro-dock-title {
+    font-size: 0.74rem;
+  }
+
+  .live-pro-actions-dock {
+    padding: 2px;
+    gap: 2px;
+    height: 30px;
+  }
+
+  .live-pro-actions-dock .map-pro-btn {
+    padding: 2px 4px;
+    min-width: 25px;
+    height: 25px;
+  }
+
+  .live-pro-actions-dock .live-pro-interval-select {
+    padding: 1px 2px;
+    font-size: 0.68rem;
+    height: 25px;
+  }
+
+  .live-pro-actions-dock .btn-fullscreen-toggle {
+    display: none;
+  }
+
+  .live-pro-filter-dock {
+    padding: 2px 3px;
+    gap: 3px;
+  }
+
+  .live-pro-filter-dock .map-pro-btn {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+    height: 26px;
   }
 }
 

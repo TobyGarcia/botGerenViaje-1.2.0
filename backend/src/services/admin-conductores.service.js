@@ -3,6 +3,7 @@ import {
   databasePool
 } from "../database/pool.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
+import { generateUniqueDriverPin } from "./driver-auth.service.js";
 
 export async function listAdminDrivers({
   search = "",
@@ -165,7 +166,7 @@ export async function approveAdminDriver({ idConductor, aprobado }) {
         [idConductor]
       );
       if (!pinCheck.rows[0] || !pinCheck.rows[0].pin_hash) {
-        generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+        generatedPin = await generateUniqueDriverPin(idConductor, client);
         const pinHash = await bcrypt.hash(generatedPin, 10);
         await client.query(
           `UPDATE conductores SET pin_hash = $1 WHERE id_conductores = $2`,
@@ -256,7 +257,7 @@ export async function createAdminDriver({
       throw error;
     }
 
-    const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+    const generatedPin = await generateUniqueDriverPin(null, client);
     const pinHash = await bcrypt.hash(generatedPin, 10);
 
     const result =
@@ -832,7 +833,7 @@ export async function assignAdminConductorRole({
 
     if (!conductor.aprobado_por_admin) {
       if (!finalPinHash) {
-        generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+        generatedPin = await generateUniqueDriverPin(idConductor, client);
         finalPinHash = await bcrypt.hash(generatedPin, 10);
       }
 
