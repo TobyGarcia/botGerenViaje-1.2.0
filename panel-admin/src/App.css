@@ -10883,11 +10883,14 @@ min-width: 0;
 .live-monitoring-container {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   width: 100%;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 64px);
   min-height: 650px;
   position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .live-monitoring-container.fullscreen-active {
@@ -10897,50 +10900,55 @@ min-width: 0;
   width: 100vw;
   height: 100vh;
   margin: 0;
-  padding: 16px;
+  padding: 0;
   background: #0f172a;
+  border-radius: 0;
+  border: none;
   box-sizing: border-box;
 }
 
-.live-monitoring-header {
+/* Barra de Control y Filtros Flotantes estilo Google Maps / Map Pro Dock */
+.live-pro-floating-bar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 1000;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  background: #ffffff;
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  gap: 10px;
+  pointer-events: none;
 }
 
-.fullscreen-active .live-monitoring-header {
-  background: #1e293b;
-  border-color: #334155;
-  color: #f8fafc;
+.live-pro-floating-bar .map-pro-dock {
+  position: static;
+  pointer-events: auto;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
 }
 
-.live-monitoring-title-block {
-  display: flex;
+/* Dock 1: Título y radar */
+.live-pro-title-dock {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  padding: 5px 12px;
 }
 
-.live-radar-badge {
+.live-radar-badge-mini {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 28px;
+  height: 28px;
   background: #ecfdf5;
   color: #059669;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #a7f3d0;
 }
 
-.fullscreen-active .live-radar-badge {
+.fullscreen-active .live-radar-badge-mini {
   background: #064e3b;
   border-color: #047857;
   color: #34d399;
@@ -10955,266 +10963,224 @@ min-width: 0;
   50% { transform: scale(1.1); }
 }
 
-.radar-live-dot {
+.radar-live-dot-mini {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
   background: #10b981;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px #ffffff;
+  box-shadow: 0 0 0 1.5px #ffffff;
   animation: beacon-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-.live-header-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.live-monitoring-title {
-  font-size: 1.15rem;
+.live-pro-dock-title {
+  font-size: 0.88rem;
   font-weight: 700;
   color: #0f172a;
-  margin: 0;
+  white-space: nowrap;
 }
 
-.fullscreen-active .live-monitoring-title {
+.fullscreen-active .live-pro-dock-title {
   color: #f8fafc;
 }
 
-.live-badge-active {
+.live-badge-active-mini {
   background: #dcfce7;
   color: #15803d;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
   letter-spacing: 0.5px;
   border: 1px solid #bbf7d0;
+  white-space: nowrap;
 }
 
-.fullscreen-active .live-badge-active {
+.fullscreen-active .live-badge-active-mini {
   background: #14532d;
   color: #86efac;
   border-color: #166534;
 }
 
-.live-monitoring-subtitle {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-
-.fullscreen-active .live-monitoring-subtitle {
-  color: #94a3b8;
-}
-
-/* KPIs de Flota */
-.live-kpi-group {
-  display: flex;
+/* Dock 2: Filtros de Estado Segmentados */
+.live-pro-filter-dock {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 3px;
+  padding: 4px;
 }
 
-.live-kpi-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.fullscreen-active .live-kpi-pill {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f8fafc;
-}
-
-.live-kpi-pill:hover,
-.live-kpi-pill.active {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-}
-
-.fullscreen-active .live-kpi-pill:hover,
-.fullscreen-active .live-kpi-pill.active {
-  background: #334155;
-  border-color: #475569;
-}
-
-.kpi-indicator {
-  width: 8px;
-  height: 8px;
+.dock-status-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  display: inline-block;
+  transition: all 0.18s ease;
 }
 
-.dot-moving {
-  background: #16a34a;
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+.dock-status-dot.dot-moving {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
-.dot-stopped {
-  background: #ea580c;
-  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+.dock-status-dot.dot-warning {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
 }
 
-.dot-nogps {
+.dock-status-dot.dot-critical {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.dock-status-dot.dot-stopped {
   background: #64748b;
-  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.25);
 }
 
-.kpi-number {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #0f172a;
+/* Variantes activas de los botones de filtro con gradientes vivos */
+.map-pro-btn.pro-btn-moving.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
 }
 
-.fullscreen-active .kpi-number {
-  color: #f8fafc;
+.map-pro-btn.pro-btn-warning.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
 }
 
-.kpi-label {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
+.map-pro-btn.pro-btn-critical.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
 }
 
-.fullscreen-active .kpi-label {
-  color: #94a3b8;
+.map-pro-btn.pro-btn-stopped.active {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.35);
 }
 
-/* Controles de Refresco */
-.live-controls-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.refresh-status-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 4px 8px;
-}
-
-.fullscreen-active .refresh-status-card {
-  background: #0f172a;
-  border-color: #334155;
-}
-
-.btn-pause-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
+.map-pro-btn.active .dock-status-dot {
   background: #ffffff;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
 }
 
-.btn-pause-toggle.active {
-  background: #ecfdf5;
-  color: #059669;
-  border-color: #a7f3d0;
+/* Dock 3: Acciones y Herramientas */
+.live-pro-actions-dock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
 }
 
-.btn-pause-toggle.paused {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
+.map-pro-btn.pro-btn-compact {
+  padding: 6px 10px;
+  gap: 5px;
 }
 
-.countdown-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 90px;
+.dock-timer-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
 }
 
-.countdown-text {
-  font-size: 0.75rem;
-  color: #334155;
-  font-weight: 500;
+.pro-btn-paused {
+  color: #dc2626 !important;
+  background: rgba(254, 242, 242, 0.8) !important;
+  border-color: #fecaca !important;
 }
 
-.fullscreen-active .countdown-text {
-  color: #e2e8f0;
-}
-
-.countdown-text.text-paused {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-.last-sync-text {
-  font-size: 0.65rem;
-  color: #94a3b8;
-}
-
-.refresh-interval-select {
+.live-pro-interval-select {
   padding: 4px 6px;
   font-size: 0.75rem;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 7px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #334155;
   cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
 }
 
-.fullscreen-active .refresh-interval-select {
+.live-pro-interval-select:hover {
+  border-color: #0284c7;
+}
+
+.live-pro-dock-separator {
+  width: 1px;
+  height: 18px;
+  background: #e2e8f0;
+  margin: 0 2px;
+}
+
+.pro-btn-badge-counter {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.map-pro-btn.active .pro-btn-badge-counter {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Modo Pantalla Completa / Oscuro para los Docks */
+.fullscreen-active .live-pro-title-dock,
+.fullscreen-active .live-pro-filter-dock,
+.fullscreen-active .live-pro-actions-dock {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(51, 65, 85, 0.9);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.fullscreen-active .live-pro-interval-select {
   background: #1e293b;
   border-color: #475569;
   color: #f8fafc;
 }
 
-.view-actions-card {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.btn-icon-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.fullscreen-active .btn-icon-action {
-  background: #0f172a;
-  border-color: #334155;
-  color: #94a3b8;
-}
-
-.btn-icon-action:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.fullscreen-active .btn-icon-action:hover {
+.fullscreen-active .live-pro-dock-separator {
   background: #334155;
-  color: #ffffff;
+}
+
+.fullscreen-active .pro-btn-badge-counter {
+  background: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+/* Responsividad para pantallas medianas / móviles */
+@media (max-width: 1200px) {
+  .live-pro-floating-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .live-pro-title-dock {
+    order: 1;
+  }
+  .live-pro-actions-dock {
+    order: 2;
+  }
+  .live-pro-filter-dock {
+    order: 3;
+    width: auto;
+    overflow-x: auto;
+    max-width: 100%;
+  }
 }
 
 .loading-spin {
@@ -11227,15 +11193,23 @@ min-width: 0;
 }
 
 .live-alert-error {
+  position: absolute;
+  top: 66px;
+  left: 14px;
+  z-index: 1002;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 8px 16px;
-  background: #fef2f2;
+  background: rgba(254, 242, 242, 0.95);
+  backdrop-filter: blur(8px);
   border: 1px solid #fecaca;
   color: #b91c1c;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.85rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  max-width: 480px;
 }
 
 .live-alert-error button {
@@ -11252,12 +11226,12 @@ min-width: 0;
 .live-monitoring-body {
   display: flex;
   flex: 1;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   background: #ffffff;
 }
 
@@ -11268,8 +11242,20 @@ min-width: 0;
 
 .live-map-wrapper {
   flex: 1;
+  width: 100%;
   height: 100%;
   position: relative;
+}
+
+/* Reubicar controles de zoom de Leaflet debajo de la barra flotante */
+.live-map-wrapper .leaflet-top.leaflet-left {
+  top: 66px !important;
+  left: 14px !important;
+}
+
+.fullscreen-active .live-map-wrapper .leaflet-top.leaflet-left {
+  top: 66px !important;
+  left: 14px !important;
 }
 
 .live-leaflet-container {
@@ -11287,41 +11273,133 @@ min-width: 0;
 
 .btn-toggle-units-sidebar {
   position: absolute;
-  top: 14px;
+  top: 66px;
   right: 14px;
   z-index: 1000;
-  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid #cbd5e1;
   color: #1e293b;
   font-size: 0.8rem;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-toggle-units-sidebar:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  background: #ffffff;
+  border-color: #0284c7;
+  color: #0284c7;
+  transform: translateY(-1px);
 }
 
-/* Panel Lateral de Unidades */
+.fullscreen-active .btn-toggle-units-sidebar {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.btn-toggle-units-header {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  padding: 0 10px !important;
+  font-weight: 600 !important;
+}
+
+.btn-toggle-units-header.active {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #0284c7 !important;
+}
+
+.fullscreen-active .btn-toggle-units-header.active {
+  background: #1e3a5f !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+.badge-units-count {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+/* Panel Lateral de Unidades (Drawer Flotante a la Derecha) */
 .live-units-sidebar {
-  width: 320px;
-  border-left: 1px solid #e2e8f0;
-  background: #ffffff;
+  position: absolute;
+  top: 80px;
+  right: 14px;
+  bottom: 14px;
+  width: 340px;
+  max-width: calc(100vw - 28px);
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   z-index: 1001;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
 }
 
 .fullscreen-active .live-units-sidebar {
-  background: #1e293b;
+  background: rgba(15, 23, 42, 0.96);
   border-color: #334155;
   color: #f8fafc;
+}
+
+.sidebar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.fullscreen-active .sidebar-header-row {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.btn-close-sidebar {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-close-sidebar:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.fullscreen-active .btn-close-sidebar:hover {
+  background: #334155;
+  color: #ffffff;
 }
 
 .sidebar-search-box {

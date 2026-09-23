@@ -746,8 +746,38 @@ function ModulePlaceholder({ title }) {
   );
 }
 
+const ROLES_SUPERVISOR_Y_SUPERIOR = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+const ROLES_TODOS = [...ROLES_SUPERVISOR_Y_SUPERIOR, "OPERADOR", "CONSULTA"];
+
+function getInitialAdminModule(userRol) {
+  const hash = window.location.hash.replace(/^#\/?/, "").split("?")[0].trim().toLowerCase();
+  const validModulesSupervisor = [
+    "inicio", "inspecciones", "gerenciamiento", "perfil",
+    "monitoreo-activo", "analitica-combustible", "manejo-comentado",
+    "conductores", "unidades", "destinos", "ubicaciones", "viajes"
+  ];
+  const validModulesOperador = [
+    "inicio", "perfil", "monitoreo-activo", "ubicaciones", "viajes"
+  ];
+  const canSupervisor = ROLES_SUPERVISOR_Y_SUPERIOR.includes(userRol);
+  const allowed = canSupervisor ? validModulesSupervisor : validModulesOperador;
+
+  if (hash && allowed.includes(hash)) {
+    return hash;
+  }
+
+  try {
+    const saved = sessionStorage.getItem("gv_admin_active_module");
+    if (saved && allowed.includes(saved)) {
+      return saved;
+    }
+  } catch {}
+
+  return "inicio";
+}
+
 function DashboardPage({ user, onLogout }) {
-  const [activeModule, setActiveModule] = useState("inicio");
+  const [activeModule, setActiveModule] = useState(() => getInitialAdminModule(user?.rol));
   const [pendingInspections, setPendingInspections] = useState(0);
   const [pendingGerenciamientos, setPendingGerenciamientos] = useState(0);
   const [notificationError, setNotificationError] = useState("");
@@ -757,7 +787,49 @@ function DashboardPage({ user, onLogout }) {
   const handleSelectModule = (moduleId) => {
     setActiveModule(moduleId);
     setIsMobileMenuOpen(false);
+    try {
+      sessionStorage.setItem("gv_admin_active_module", moduleId);
+      if (moduleId === "inicio") {
+        if (window.location.hash) {
+          window.history.pushState(null, "", window.location.pathname + window.location.search);
+        }
+      } else {
+        if (window.location.hash !== `#${moduleId}`) {
+          window.location.hash = moduleId;
+        }
+      }
+    } catch {}
   };
+
+  useEffect(() => {
+    // Sincronizar la URL al cargar si el módulo inicial no es 'inicio'
+    if (activeModule && activeModule !== "inicio") {
+      const currentHash = window.location.hash.replace(/^#\/?/, "").split("?")[0].trim().toLowerCase();
+      if (currentHash !== activeModule) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${activeModule}`);
+      }
+    }
+
+    // Escuchar cambios de navegación con botones Atrás/Adelante del navegador
+    const onHashChange = () => {
+      const rawHash = window.location.hash.replace(/^#\/?/, "").split("?")[0].trim().toLowerCase();
+      const target = rawHash || "inicio";
+      const canSupervisor = ROLES_SUPERVISOR_Y_SUPERIOR.includes(user?.rol);
+      const allowed = canSupervisor
+        ? ["inicio", "inspecciones", "gerenciamiento", "perfil", "monitoreo-activo", "analitica-combustible", "manejo-comentado", "conductores", "unidades", "destinos", "ubicaciones", "viajes"]
+        : ["inicio", "perfil", "monitoreo-activo", "ubicaciones", "viajes"];
+
+      if (allowed.includes(target)) {
+        setActiveModule(target);
+        try {
+          sessionStorage.setItem("gv_admin_active_module", target);
+        } catch {}
+      }
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [user?.rol, activeModule]);
 
   useEffect(() => {
     let active = true;
@@ -779,8 +851,8 @@ function DashboardPage({ user, onLogout }) {
     };
   }, []);
 
-  const rolesSupervisorYSuperior = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
-  const rolesTodos = [...rolesSupervisorYSuperior, "OPERADOR", "CONSULTA"];
+  const rolesSupervisorYSuperior = ROLES_SUPERVISOR_Y_SUPERIOR;
+  const rolesTodos = ROLES_TODOS;
 
   useEffect(() => {
     if (!rolesSupervisorYSuperior.includes(user.rol)) {
@@ -939,7 +1011,7 @@ function DashboardPage({ user, onLogout }) {
               <button
                 type="button"
                 className="user-summary"
-                onClick={() => setActiveModule("perfil")}
+                onClick={() => handleSelectModule("perfil")}
                 title="Personalizar perfil"
               >
                 <span className="header-avatar">
@@ -957,9 +1029,9 @@ function DashboardPage({ user, onLogout }) {
                 pendingInspections={pendingInspections}
                 pendingGerenciamientos={pendingGerenciamientos}
                 notificationError={notificationError}
-                onOpenInspections={() => setActiveModule("inspecciones")}
-                onOpenGerenciamiento={() => setActiveModule("gerenciamiento")}
-                onOpenManejoComentado={() => setActiveModule("manejo-comentado")}
+                onOpenInspections={() => handleSelectModule("inspecciones")}
+                onOpenGerenciamiento={() => handleSelectModule("gerenciamiento")}
+                onOpenManejoComentado={() => handleSelectModule("manejo-comentado")}
               />
             )}
             {user.rol === "OPERADOR" && (

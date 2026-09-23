@@ -23,7 +23,8 @@ import {
   IconRadar,
   IconRefresh,
   IconBuscar,
-  IconCross
+  IconCross,
+  IconUnidades
 } from "../components/Icons.jsx";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminMonitoreoActivo } from "../services/api.js";
@@ -339,162 +340,9 @@ export default function MonitoreoActivoPage() {
       ref={containerRef}
       className={`live-monitoring-container ${isFullscreen ? "fullscreen-active" : ""}`}
     >
-      {/* Barra de Control y Telemetría Superior */}
-      <header className="live-monitoring-header">
-        <div className="live-monitoring-title-block">
-          <div className="live-radar-badge">
-            <IconRadar size={22} className="radar-spin-icon" />
-            <span className="radar-live-dot" />
-          </div>
-          <div>
-            <div className="live-header-title-row">
-              <h1 className="live-monitoring-title">Monitoreo en Vivo de Flota</h1>
-              <span className="live-badge-active">EN TIEMPO REAL</span>
-            </div>
-            <p className="live-monitoring-subtitle">
-              Supervisión de unidades operativas y telemetría de viajes en curso
-            </p>
-          </div>
-        </div>
-
-        {/* KPIs de Flota con Colores Personalizados */}
-        <div className="live-kpi-group">
-          <div
-            className={`live-kpi-pill ${movementFilter === "ALL" ? "active" : ""}`}
-            onClick={() => setMovementFilter("ALL")}
-            title="Mostrar todos los viajes activos"
-          >
-            <span className="kpi-number">{totalActivos}</span>
-            <span className="kpi-label">Activos</span>
-          </div>
-
-          <div
-            className={`live-kpi-pill kpi-moving ${movementFilter === "MOVING" ? "active" : ""}`}
-            onClick={() => setMovementFilter("MOVING")}
-            title="En ruta normal"
-          >
-            <span className="kpi-indicator" style={{ backgroundColor: "#10B981" }} />
-            <span className="kpi-number">{countsByStatus.moving}</span>
-            <span className="kpi-label">En ruta</span>
-          </div>
-
-          <div
-            className={`live-kpi-pill kpi-warning ${movementFilter === "WARNING" ? "active" : ""}`}
-            onClick={() => setMovementFilter("WARNING")}
-            title="#F59E0B — retraso / atención"
-          >
-            <span className="kpi-indicator" style={{ backgroundColor: "#F59E0B" }} />
-            <span className="kpi-number">{countsByStatus.warning}</span>
-            <span className="kpi-label">Retraso</span>
-          </div>
-
-          <div
-            className={`live-kpi-pill kpi-critical ${movementFilter === "CRITICAL" ? "active" : ""}`}
-            onClick={() => setMovementFilter("CRITICAL")}
-            title="#EF4444 — incidente / alerta crítica"
-          >
-            <span className="kpi-indicator" style={{ backgroundColor: "#EF4444" }} />
-            <span className="kpi-number">{countsByStatus.critical}</span>
-            <span className="kpi-label">Alerta crítica</span>
-          </div>
-
-          <div
-            className={`live-kpi-pill kpi-stopped ${movementFilter === "STOPPED" ? "active" : ""}`}
-            onClick={() => setMovementFilter("STOPPED")}
-            title="#64748B — detenido / fuera de servicio"
-          >
-            <span className="kpi-indicator" style={{ backgroundColor: "#64748B" }} />
-            <span className="kpi-number">{countsByStatus.stopped}</span>
-            <span className="kpi-label">Detenidos</span>
-          </div>
-        </div>
-
-        {/* Controles de Refresco y Vista */}
-        <div className="live-controls-group">
-          <div className="refresh-status-card">
-            <button
-              type="button"
-              className={`btn-pause-toggle ${autoRefresh ? "active" : "paused"}`}
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              title={autoRefresh ? "Pausar auto-actualización" : "Reanudar auto-actualización"}
-            >
-              {autoRefresh ? <IconPause size={14} /> : <IconPlay size={14} />}
-            </button>
-
-            <div className="countdown-info">
-              {autoRefresh ? (
-                <span className="countdown-text">
-                  Refresco en <strong>{countdown}s</strong>
-                </span>
-              ) : (
-                <span className="countdown-text text-paused">Pausado</span>
-              )}
-              {lastUpdated && (
-                <small className="last-sync-text">
-                  {lastUpdated.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                </small>
-              )}
-            </div>
-
-            <select
-              className="refresh-interval-select"
-              value={refreshInterval}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setRefreshInterval(val);
-                setCountdown(val);
-              }}
-              title="Frecuencia de actualización"
-            >
-              <option value={10}>10s</option>
-              <option value={15}>15s</option>
-              <option value={30}>30s</option>
-              <option value={60}>60s</option>
-            </select>
-
-            <button
-              type="button"
-              className={`btn-icon-action ${refreshing ? "loading-spin" : ""}`}
-              onClick={() => fetchLiveTrips(true)}
-              disabled={refreshing}
-              title="Actualizar ahora"
-            >
-              <IconRefresh size={16} />
-            </button>
-          </div>
-
-          <div className="view-actions-card">
-            <button
-              type="button"
-              className="btn-icon-action"
-              onClick={handleRecenterFleet}
-              title="Centrar toda la flota en el mapa"
-            >
-              <IconCrosshair size={16} />
-            </button>
-
-            <button
-              type="button"
-              className="btn-icon-action"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? "Salir de pantalla completa" : "Modo pantalla completa (Torre de Control)"}
-            >
-              {isFullscreen ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {error && (
-        <div className="live-alert-error">
-          <span>⚠️ {error}</span>
-          <button type="button" onClick={() => fetchLiveTrips(true)}>Reintentar</button>
-        </div>
-      )}
-
-      {/* Cuerpo Principal: Mapa + Panel Lateral Desplegable */}
+      {/* Cuerpo Principal: El Mapa ocupa el 100% de la pantalla estilo Google Maps */}
       <div className="live-monitoring-body">
-        {/* Mapa Leaflet */}
+        {/* Mapa Leaflet como lienzo de fondo */}
         <div className="live-map-wrapper">
           <MapContainer
             center={mapCenter}
@@ -622,43 +470,193 @@ export default function MonitoreoActivoPage() {
             })}
           </MapContainer>
 
-          {/* Simbología de Colores Flotante */}
-          <div className="live-map-legend">
-            <span className="legend-title">Simbología</span>
-            <div className="legend-items">
-              <div className="legend-item" title="Unidad en marcha con reporte reciente">
-                <span className="legend-dot" style={{ backgroundColor: "#10B981" }} />
-                <span>En ruta normal</span>
+          {/* Barra de Control y Filtros Flotantes estilo Google Maps / Map Pro Dock */}
+          <div className="live-pro-floating-bar">
+            {/* Dock 1: Título y Estado Radar */}
+            <div className="map-pro-dock live-pro-title-dock">
+              <div className="live-radar-badge-mini">
+                <IconRadar size={16} className="radar-spin-icon" />
+                <span className="radar-live-dot-mini" />
               </div>
-              <div className="legend-item" title="#F59E0B — retraso / atención">
-                <span className="legend-dot" style={{ backgroundColor: "#F59E0B" }} />
-                <span>#F59E0B — retraso / atención</span>
-              </div>
-              <div className="legend-item" title="#EF4444 — incidente / alerta crítica">
-                <span className="legend-dot" style={{ backgroundColor: "#EF4444" }} />
-                <span>#EF4444 — incidente / alerta crítica</span>
-              </div>
-              <div className="legend-item" title="#64748B — detenido / fuera de servicio">
-                <span className="legend-dot" style={{ backgroundColor: "#64748B" }} />
-                <span>#64748B — detenido / fuera de servicio</span>
-              </div>
+              <span className="live-pro-dock-title">Monitoreo en Vivo</span>
+              <span className="live-badge-active-mini">EN VIVO</span>
+            </div>
+
+            {/* Dock 2: Filtros de Estado de Flota estilo Segmented Pill Dock */}
+            <div className="map-pro-dock live-pro-filter-dock" role="tablist" aria-label="Filtro de unidades por estado">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementFilter === "ALL"}
+                className={`map-pro-btn ${movementFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setMovementFilter("ALL")}
+                title="Mostrar todas las unidades activas"
+              >
+                <span>Todos ({totalActivos})</span>
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementFilter === "MOVING"}
+                className={`map-pro-btn pro-btn-moving ${movementFilter === "MOVING" ? "active" : ""}`}
+                onClick={() => setMovementFilter("MOVING")}
+                title="Unidades en ruta normal con GPS reciente"
+              >
+                <span className="dock-status-dot dot-moving" />
+                <span>En ruta ({countsByStatus.moving})</span>
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementFilter === "WARNING"}
+                className={`map-pro-btn pro-btn-warning ${movementFilter === "WARNING" ? "active" : ""}`}
+                onClick={() => setMovementFilter("WARNING")}
+                title="Unidades con retraso o sin reporte reciente"
+              >
+                <span className="dock-status-dot dot-warning" />
+                <span>Retraso ({countsByStatus.warning})</span>
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementFilter === "CRITICAL"}
+                className={`map-pro-btn pro-btn-critical ${movementFilter === "CRITICAL" ? "active" : ""}`}
+                onClick={() => setMovementFilter("CRITICAL")}
+                title="Alertas críticas o incidentes"
+              >
+                <span className="dock-status-dot dot-critical" />
+                <span>Alerta ({countsByStatus.critical})</span>
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementFilter === "STOPPED"}
+                className={`map-pro-btn pro-btn-stopped ${movementFilter === "STOPPED" ? "active" : ""}`}
+                onClick={() => setMovementFilter("STOPPED")}
+                title="Unidades detenidas o fuera de servicio"
+              >
+                <span className="dock-status-dot dot-stopped" />
+                <span>Detenidos ({countsByStatus.stopped})</span>
+              </button>
+            </div>
+
+            {/* Dock 3: Controles de Refresco y Herramientas */}
+            <div className="map-pro-dock live-pro-actions-dock">
+              <button
+                type="button"
+                className={`map-pro-btn pro-btn-compact ${!autoRefresh ? "pro-btn-paused" : ""}`}
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                title={autoRefresh ? "Pausar refresco automático" : "Reanudar refresco automático"}
+              >
+                {autoRefresh ? <IconPause size={13} /> : <IconPlay size={13} />}
+                <span className="dock-timer-label">
+                  {autoRefresh ? `${countdown}s` : "Pausa"}
+                </span>
+              </button>
+
+              <select
+                className="live-pro-interval-select"
+                value={refreshInterval}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setRefreshInterval(val);
+                  setCountdown(val);
+                }}
+                title="Intervalo de actualización"
+              >
+                <option value={10}>10s</option>
+                <option value={15}>15s</option>
+                <option value={30}>30s</option>
+                <option value={60}>60s</option>
+              </select>
+
+              <button
+                type="button"
+                className={`map-pro-btn pro-btn-compact ${refreshing ? "loading-spin" : ""}`}
+                onClick={() => fetchLiveTrips(true)}
+                disabled={refreshing}
+                title="Actualizar ahora"
+              >
+                <IconRefresh size={14} />
+              </button>
+
+              <div className="live-pro-dock-separator" />
+
+              <button
+                type="button"
+                className="map-pro-btn pro-btn-compact"
+                onClick={handleRecenterFleet}
+                title="Centrar toda la flota en el mapa"
+              >
+                <IconCrosshair size={14} />
+              </button>
+
+              <button
+                type="button"
+                className="map-pro-btn pro-btn-compact"
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Salir de pantalla completa" : "Modo pantalla completa (Torre de Control)"}
+              >
+                {isFullscreen ? <IconMinimize size={14} /> : <IconMaximize size={14} />}
+              </button>
+
+              <button
+                type="button"
+                className={`map-pro-btn pro-btn-compact ${isSidebarOpen ? "active" : ""}`}
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                title={isSidebarOpen ? "Ocultar panel de unidades" : "Ver panel de unidades"}
+              >
+                <IconUnidades size={14} />
+                <span>Unidades</span>
+                <span className="pro-btn-badge-counter">{filteredTrips.length}</span>
+              </button>
             </div>
           </div>
 
-          {/* Botón flotante para alternar panel lateral de unidades */}
-          <button
-            type="button"
-            className="btn-toggle-units-sidebar"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            title={isSidebarOpen ? "Ocultar panel de unidades" : "Mostrar panel de unidades"}
-          >
-            <span>{isSidebarOpen ? "Ocultar lista" : "Ver unidades"} ({filteredTrips.length})</span>
-          </button>
+          {/* Alerta de error flotante */}
+          {error && (
+            <div className="live-alert-error">
+              <span>⚠️ {error}</span>
+              <button type="button" onClick={() => fetchLiveTrips(true)}>Reintentar</button>
+            </div>
+          )}
+
+          {/* Botón flotante para alternar panel lateral de unidades cuando está cerrado */}
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              className="btn-toggle-units-sidebar"
+              onClick={() => setIsSidebarOpen(true)}
+              title="Mostrar panel de unidades"
+            >
+              <IconUnidades size={15} />
+              <span>Ver unidades ({filteredTrips.length})</span>
+            </button>
+          )}
         </div>
 
-        {/* Panel Lateral Desplegable de Unidades */}
+        {/* Panel Lateral Desplegable de Unidades Flotante */}
         {isSidebarOpen && (
           <aside className="live-units-sidebar">
+            <div className="sidebar-header-row">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <IconUnidades size={18} color="#0284c7" />
+                <strong style={{ fontSize: "0.88rem" }}>Unidades ({filteredTrips.length})</strong>
+              </div>
+              <button
+                type="button"
+                className="btn-close-sidebar"
+                onClick={() => setIsSidebarOpen(false)}
+                title="Cerrar panel de unidades"
+              >
+                <IconCross size={13} />
+              </button>
+            </div>
+
             <div className="sidebar-search-box">
               <span className="search-icon"><IconBuscar size={15} /></span>
               <input
