@@ -20,7 +20,6 @@ import {
   IconMinimize,
   IconPause,
   IconPlay,
-  IconRadar,
   IconRefresh,
   IconBuscar,
   IconCross,
@@ -472,14 +471,10 @@ export default function MonitoreoActivoPage() {
 
           {/* Barra de Control y Filtros Flotantes estilo Google Maps / Map Pro Dock */}
           <div className="live-pro-floating-bar">
-            {/* Dock 1: Título y Estado Radar */}
+            {/* Dock 1: Título y Puntito Rojo de Estado en Vivo */}
             <div className="map-pro-dock live-pro-title-dock">
-              <div className="live-radar-badge-mini">
-                <IconRadar size={16} className="radar-spin-icon" />
-                <span className="radar-live-dot-mini" />
-              </div>
+              <span className="live-red-dot" />
               <span className="live-pro-dock-title">Monitoreo en Vivo</span>
-              <span className="live-badge-active-mini">EN VIVO</span>
             </div>
 
             {/* Dock 2: Filtros de Estado de Flota estilo Segmented Pill Dock */}
@@ -597,7 +592,7 @@ export default function MonitoreoActivoPage() {
 
               <button
                 type="button"
-                className="map-pro-btn pro-btn-compact"
+                className="map-pro-btn pro-btn-compact btn-fullscreen-toggle"
                 onClick={toggleFullscreen}
                 title={isFullscreen ? "Salir de pantalla completa" : "Modo pantalla completa (Torre de Control)"}
               >
@@ -611,7 +606,7 @@ export default function MonitoreoActivoPage() {
                 title={isSidebarOpen ? "Ocultar panel de unidades" : "Ver panel de unidades"}
               >
                 <IconUnidades size={14} />
-                <span>Unidades</span>
+                <span className="btn-unidades-text">Unidades</span>
                 <span className="pro-btn-badge-counter">{filteredTrips.length}</span>
               </button>
             </div>
@@ -625,18 +620,6 @@ export default function MonitoreoActivoPage() {
             </div>
           )}
 
-          {/* Botón flotante para alternar panel lateral de unidades cuando está cerrado */}
-          {!isSidebarOpen && (
-            <button
-              type="button"
-              className="btn-toggle-units-sidebar"
-              onClick={() => setIsSidebarOpen(true)}
-              title="Mostrar panel de unidades"
-            >
-              <IconUnidades size={15} />
-              <span>Ver unidades ({filteredTrips.length})</span>
-            </button>
-          )}
         </div>
 
         {/* Panel Lateral Desplegable de Unidades Flotante */}

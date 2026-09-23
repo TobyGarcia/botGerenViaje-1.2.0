@@ -45,7 +45,8 @@ import {
   IconSend,
   IconPin,
   IconPlus,
-  IconMapPin
+  IconMapPin,
+  IconTrash
 } from "./components/Icons.jsx";
 
 import {
@@ -2074,8 +2075,9 @@ function isOutsideOperatingHours() {
                               className="remove-companion-btn"
                               onClick={() => removeCompanionField(index)}
                               title="Quitar acompañante"
+                              aria-label="Quitar acompañante"
                             >
-                              x
+                              <IconTrash size={16} color="currentColor" />
                             </button>
                           )}
                         </div>
