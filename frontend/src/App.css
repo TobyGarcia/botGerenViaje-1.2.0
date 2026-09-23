@@ -2679,9 +2679,18 @@ form#urban-trip-form {
 
 /* Gerenciamiento de Viaje - Template Styles (from templates/DESIGN.md and code.html) */
 .gv-active-trip-view {
-  max-width: 448px !important;
+  width: 100%;
+  max-width: 640px !important;
   margin: 0 auto !important;
   padding: 16px 12px 48px 12px !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .gv-active-trip-view {
+    max-width: 100% !important;
+    padding: 12px 12px 32px 12px !important;
+  }
 }
 
 .gv-screen-header {
