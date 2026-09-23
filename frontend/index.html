@@ -45,9 +45,11 @@
         window.addEventListener('error', function(e) {
           if (!document.getElementById('root') || document.getElementById('root').children.length === 0) {
             var target = e.target;
-            var msg = e.message;
-            if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
-              msg = "Error cargando archivo (" + target.tagName + "): " + (target.src || target.href);
+            var msg = e.message || String(e);
+            var isScriptError = (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) ||
+                                (msg && (msg.indexOf('SyntaxError') !== -1 || msg.indexOf('Unexpected token') !== -1 || msg.indexOf('Importing binding') !== -1));
+            if (isScriptError) {
+              msg = "Error cargando archivo de aplicación: " + (target && (target.src || target.href) ? (target.src || target.href) : msg);
               if (navigator.serviceWorker) {
                 try {
                   navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -100,7 +102,7 @@
     <title>GERENCIAMIENTO DE VIAJES</title>
 
   </head>
-  <body>
+  <body style="margin:0; background:#f4f8fb; color:#0f172a; min-height:100dvh;">
     <div id="root"></div>
     <script type="module" src="./src/main.jsx"></script>
   </body>
