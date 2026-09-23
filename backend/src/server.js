@@ -223,7 +223,7 @@ async function initializeDependencies() {
           CREATE TABLE IF NOT EXISTS siniestros (
             id_siniestros SERIAL PRIMARY KEY,
             folio VARCHAR(50) NOT NULL UNIQUE,
-            id_conductores INTEGER REFERENCES conductores(id_conductores),
+            id_conductores INTEGER REFERENCES conductores(id_conductores) ON DELETE SET NULL,
             id_vehiculo INTEGER REFERENCES vehiculos(id_vehiculos) ON DELETE SET NULL,
             tipo_siniestro VARCHAR(100) NOT NULL,
             descripcion TEXT,
@@ -238,10 +238,17 @@ async function initializeDependencies() {
 
           CREATE INDEX IF NOT EXISTS idx_siniestros_conductor ON siniestros(id_conductores);
           CREATE INDEX IF NOT EXISTS idx_siniestros_creado_en ON siniestros(creado_en DESC);
+
+          ALTER TABLE siniestros
+            DROP CONSTRAINT IF EXISTS siniestros_id_conductores_fkey;
+          ALTER TABLE siniestros
+            ADD CONSTRAINT siniestros_id_conductores_fkey
+              FOREIGN KEY (id_conductores) REFERENCES conductores(id_conductores) ON DELETE SET NULL;
         `);
       } catch (mErr) {
         console.warn("Aviso en auto-migración de siniestros:", mErr.message);
       }
+
 
       // Auto-migración 7: Control de Turnos Vehiculares
       try {
