@@ -40,12 +40,13 @@ export default defineConfig({
         ],
         start_url: './',
         scope: './',
-        background_color: '#0f172a',
+        background_color: '#f4f8fb',
         theme_color: '#2e81ab',
         display: 'standalone',
         orientation: 'portrait'
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],

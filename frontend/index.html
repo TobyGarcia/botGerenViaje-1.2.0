@@ -48,6 +48,19 @@
             var msg = e.message;
             if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
               msg = "Error cargando archivo (" + target.tagName + "): " + (target.src || target.href);
+              if (navigator.serviceWorker) {
+                try {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+                    if (window.caches) {
+                      caches.keys().then(function(keys) {
+                        for (var j = 0; j < keys.length; j++) { caches.delete(keys[j]); }
+                      });
+                    }
+                    setTimeout(function() { window.location.reload(true); }, 300);
+                  });
+                } catch (err) {}
+              }
             }
             showFatalDiagnostic("Error al inicializar la aplicación", msg, e.error);
           }
