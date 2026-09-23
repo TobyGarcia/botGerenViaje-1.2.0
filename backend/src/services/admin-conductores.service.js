@@ -1052,6 +1052,7 @@ export async function assignAdminConductorRole({
         );
       }
     }
+  }
 
     if (updatedAdmin?.correo || data.correo) {
       const finalEmail = String(updatedAdmin?.correo || data.correo).trim().toLowerCase();
