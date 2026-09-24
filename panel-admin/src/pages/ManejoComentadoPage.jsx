@@ -1,17 +1,54 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   getManejoComentadoConductores,
   programarCursoManejoComentado,
   renovarManejoComentadoDirecto,
   getCursosManejoComentado,
-  updateManejoComentadoConductor
+  updateManejoComentadoConductor,
+  batchUpdateManejoComentadoConductores
 } from "../services/api.js";
 import {
   IconCalendario,
   IconDispositivo,
   IconReloj,
-  IconEditar
+  IconEditar,
+  IconExcel,
+  IconDescargar,
+  IconSubir
 } from "../components/Icons.jsx";
+
+function parseExcelDate(val) {
+  if (!val && val !== 0) return "";
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return "";
+    const yyyy = val.getFullYear();
+    const mm = String(val.getMonth() + 1).padStart(2, "0");
+    const dd = String(val.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  if (typeof val === "number") {
+    const dateObj = new Date(Math.round((val - 25569) * 86400 * 1000));
+    if (!isNaN(dateObj.getTime())) {
+      const yyyy = dateObj.getUTCFullYear();
+      const mm = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(dateObj.getUTCDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+  const str = String(val).trim();
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return "";
+}
 
 function calculateProximaEvaluacionDate(scoreVal, fechaRealizVal) {
   if (!fechaRealizVal) return "";
@@ -183,6 +220,13 @@ export default function ManejoComentadoPage({ user }) {
   const [showRenovarModal, setShowRenovarModal] = useState(false);
   const [showProgramarModal, setShowProgramarModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Modal de Ingesta desde Excel
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importApplying, setImportApplying] = useState(false);
 
   // Formulario Edición (Solo datos de manejo comentado)
   const [editForm, setEditForm] = useState({
@@ -400,6 +444,165 @@ export default function ManejoComentadoPage({ user }) {
     setCursoForm((prev) => ({ ...prev, idConductores: [] }));
   }
 
+  function handleDownloadExcelTemplate() {
+    if (!conductores || conductores.length === 0) {
+      setMessage("No hay conductores disponibles para generar la plantilla.");
+      setMessageType("error");
+      return;
+    }
+
+    const data = conductores.map((c) => {
+      const fechaRealiz = c.fecha_manejo_comentado ? String(c.fecha_manejo_comentado).slice(0, 10) : "";
+      const proximaEv = c.fecha_vencimiento ? String(c.fecha_vencimiento).slice(0, 10) : "";
+      const score = c.score !== null && c.score !== undefined ? c.score : "";
+
+      return {
+        "ID Conductor": c.id_conductores,
+        "Nombre Completo": c.nombre || "",
+        "Empresa": c.empresa || "",
+        "Teléfono": c.telefono || "",
+        "Licencia": c.licencia_numero || "",
+        "Tipo de licencia": c.tipo_licencia || "Automovilista",
+        "Vencimiento de Licencia": c.licencia_vencimiento ? String(c.licencia_vencimiento).slice(0, 10) : "",
+        "Fecha realiz": fechaRealiz,
+        "Score de Manejo Comentado": score,
+        "Próxima Ev.": proximaEv,
+        "Comentarios": c.ultima_evaluacion?.comentarios || ""
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 32 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 35 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Manejo Comentado");
+    const todayStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Plantilla_Manejo_Comentado_${todayStr}.xlsx`);
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    setImportLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const buffer = evt.target.result;
+        const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+        const sheetName = wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rawJson = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+        if (!rawJson || rawJson.length === 0) {
+          setMessage("El archivo Excel está vacío o no contiene filas.");
+          setMessageType("error");
+          setImportLoading(false);
+          return;
+        }
+
+        const parsed = rawJson.map((row) => {
+          const rawId = row["ID Conductor"] ?? row["ID"] ?? row["Id"] ?? row["id_conductores"] ?? null;
+          const idConductor = rawId ? Number(rawId) : null;
+          const rawNombre = String(row["Nombre Completo"] ?? row["Nombre"] ?? row["Conductor"] ?? "").trim();
+
+          let matched = null;
+          if (idConductor) {
+            matched = conductores.find((c) => Number(c.id_conductores) === idConductor);
+          }
+          if (!matched && rawNombre) {
+            matched = conductores.find((c) => c.nombre.trim().toLowerCase() === rawNombre.toLowerCase());
+          }
+
+          const fechaRealiz = parseExcelDate(row["Fecha realiz"] ?? row["Fecha Realiz"] ?? row["Fecha Realización"] ?? row["fecha_manejo_comentado"]);
+          let score = String(row["Score de Manejo Comentado"] ?? row["Score"] ?? row["Calificación"] ?? row["calificacion"] ?? "").trim();
+          let proximaEv = parseExcelDate(row["Próxima Ev."] ?? row["Próxima Ev"] ?? row["Proxima Ev"] ?? row["Próxima Evaluación"] ?? row["fecha_vencimiento"]);
+          const comentarios = String(row["Comentarios"] ?? row["Observaciones"] ?? "").trim();
+
+          if ((!score || score === "0") && fechaRealiz && proximaEv) {
+            const autoS = calculateScoreFromDates(fechaRealiz, proximaEv);
+            if (autoS) score = autoS;
+          }
+          if (score && fechaRealiz && !proximaEv) {
+            proximaEv = calculateProximaEvaluacionDate(score, fechaRealiz);
+          }
+
+          const hasChanges = Boolean(fechaRealiz || score || proximaEv || comentarios);
+
+          return {
+            idConductor: matched ? matched.id_conductores : idConductor,
+            nombre: matched ? matched.nombre : rawNombre || "Sin nombre",
+            empresa: matched ? matched.empresa : (row["Empresa"] || ""),
+            fechaRealiz,
+            score,
+            proximaEv,
+            comentarios,
+            matched: Boolean(matched),
+            hasChanges
+          };
+        });
+
+        setImportRows(parsed);
+        setShowImportModal(true);
+      } catch (err) {
+        console.error("Error al leer Excel:", err);
+        setMessage("Error al leer el archivo Excel: " + (err.message || "Formato inválido."));
+        setMessageType("error");
+      } finally {
+        setImportLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  }
+
+  async function handleApplyImport() {
+    const validRows = importRows.filter((r) => r.matched && (r.fechaRealiz || r.score || r.proximaEv));
+    if (validRows.length === 0) {
+      setMessage("No hay filas válidas con datos de evaluación para actualizar.");
+      setMessageType("error");
+      return;
+    }
+
+    setImportApplying(true);
+    setMessage("");
+
+    try {
+      const records = validRows.map((r) => ({
+        idConductor: r.idConductor,
+        fechaRealizacion: r.fechaRealiz || undefined,
+        score: r.score || undefined,
+        proximaEvaluacion: r.proximaEv || undefined,
+        comentarios: r.comentarios || "Actualización por ingesta de plantilla Excel"
+      }));
+
+      const res = await batchUpdateManejoComentadoConductores(records);
+      setMessage(res.message || `Se actualizaron correctamente ${records.length} conductores.`);
+      setMessageType("success");
+      setShowImportModal(false);
+      setImportRows([]);
+      await loadData();
+    } catch (err) {
+      setMessage(err.message || "Error al aplicar la ingesta desde Excel.");
+      setMessageType("error");
+    } finally {
+      setImportApplying(false);
+    }
+  }
+
   const canManage = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user.rol);
 
   const totalFilteredCond = conductores.length;
@@ -428,18 +631,36 @@ export default function ManejoComentadoPage({ user }) {
           </p>
         </div>
 
-        <div className="module-header-actions">
+        <div className="module-header-actions" style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {canManage && (
             <>
-              <a
-                href="/evaluacion"
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
                 className="secondary-button"
+                onClick={handleDownloadExcelTemplate}
                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                title="Descargar plantilla de Excel prellenada con los conductores registrados"
               >
-                <IconDispositivo size={16} /> Aplicativo Móvil (/evaluacion)
-              </a>
+                <IconExcel size={16} />
+                <IconDescargar size={14} />
+                Plantilla Excel
+              </button>
+
+              <label
+                className="secondary-button"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", margin: 0 }}
+                title="Subir archivo Excel para actualizar evaluaciones de manejo comentado"
+              >
+                <IconExcel size={16} />
+                <IconSubir size={14} />
+                Importar Excel
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleFileSelect}
+                  style={{ display: "none" }}
+                />
+              </label>
 
               <button
                 type="button"
@@ -457,6 +678,16 @@ export default function ManejoComentadoPage({ user }) {
               >
                 <IconCalendario size={16} /> Programar Curso
               </button>
+
+              <a
+                href="/evaluacion"
+                target="_blank"
+                rel="noreferrer"
+                className="secondary-button"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconDispositivo size={16} /> Aplicativo Móvil (/evaluacion)
+              </a>
             </>
           )}
         </div>
@@ -1116,6 +1347,125 @@ export default function ManejoComentadoPage({ user }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ingesta desde Plantilla Excel */}
+      {showImportModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: "780px", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <h2 style={{ margin: 0 }}>Ingesta de Evaluaciones desde Excel</h2>
+              <span style={{ fontSize: "0.82rem", background: "#f1f5f9", padding: "4px 10px", borderRadius: "999px", color: "#475569", fontWeight: 600 }}>
+                {importFileName}
+              </span>
+            </div>
+            <p style={{ color: "#607986", fontSize: "0.88rem", marginBottom: "1.25rem" }}>
+              Revisa la vista previa de las evaluaciones detectadas en el archivo antes de aplicar las actualizaciones masivas.
+            </p>
+
+            {/* Tarjetas resumen */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "1.25rem" }}>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "0.78rem", color: "#64748b", display: "block" }}>Filas en Archivo</span>
+                <strong style={{ fontSize: "1.25rem", color: "#0f172a" }}>{importRows.length}</strong>
+              </div>
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "0.78rem", color: "#166534", display: "block" }}>Conductores Identificados</span>
+                <strong style={{ fontSize: "1.25rem", color: "#166534" }}>{importRows.filter((r) => r.matched).length}</strong>
+              </div>
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "0.78rem", color: "#1d4ed8", display: "block" }}>Listos para Actualizar</span>
+                <strong style={{ fontSize: "1.25rem", color: "#1d4ed8" }}>
+                  {importRows.filter((r) => r.matched && (r.fechaRealiz || r.score || r.proximaEv)).length}
+                </strong>
+              </div>
+            </div>
+
+            {/* Tabla de previsualización */}
+            <div style={{ maxHeight: "320px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "1.25rem" }}>
+              <table className="admin-table" style={{ width: "100%", fontSize: "0.82rem" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", position: "sticky", top: 0, zIndex: 1 }}>
+                    <th style={{ padding: "8px 10px" }}>Conductor</th>
+                    <th style={{ padding: "8px 10px" }}>Fecha realiz</th>
+                    <th style={{ padding: "8px 10px", textAlign: "center" }}>Score</th>
+                    <th style={{ padding: "8px 10px" }}>Próxima Ev.</th>
+                    <th style={{ padding: "8px 10px", textAlign: "center" }}>Estatus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importRows.map((row, idx) => {
+                    const isReady = row.matched && (row.fechaRealiz || row.score || row.proximaEv);
+                    return (
+                      <tr key={idx} style={{ background: !row.matched ? "#fff5f5" : isReady ? "#f0fdf4" : "#ffffff" }}>
+                        <td style={{ padding: "8px 10px" }}>
+                          <strong>{row.nombre}</strong>
+                          {row.empresa && <small style={{ display: "block", color: "#64748b" }}>{row.empresa}</small>}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {row.fechaRealiz ? formatDate(row.fechaRealiz) : <span style={{ color: "#94a3b8" }}>-</span>}
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                          {row.score ? (
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                background: Number(row.score) >= 70 ? "#e4f7ed" : "#fae8e8",
+                                color: Number(row.score) >= 70 ? "#12643e" : "#8a3030"
+                              }}
+                            >
+                              {row.score}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#94a3b8" }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {row.proximaEv ? formatDate(row.proximaEv) : <span style={{ color: "#94a3b8" }}>-</span>}
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                          {!row.matched ? (
+                            <span style={{ fontSize: "0.75rem", color: "#dc2626", fontWeight: 600 }}>No encontrado</span>
+                          ) : isReady ? (
+                            <span style={{ fontSize: "0.75rem", color: "#166534", fontWeight: 600 }}>Listo para actualizar</span>
+                          ) : (
+                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>Sin datos nuevos</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportRows([]);
+                }}
+                disabled={importApplying}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleApplyImport}
+                disabled={importApplying || importRows.filter((r) => r.matched && (r.fechaRealiz || r.score || r.proximaEv)).length === 0}
+              >
+                {importApplying
+                  ? "Aplicando cambios..."
+                  : `Aplicar Ingesta (${importRows.filter((r) => r.matched && (r.fechaRealiz || r.score || r.proximaEv)).length} conductores)`}
+              </button>
+            </div>
           </div>
         </div>
       )}

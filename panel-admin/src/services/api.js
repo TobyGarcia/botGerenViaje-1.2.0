@@ -641,6 +641,13 @@ export function updateManejoComentadoConductor(idConductor, data) {
   });
 }
 
+export function batchUpdateManejoComentadoConductores(records) {
+  return request("/manejo-comentado/conductores/batch", {
+    method: "POST",
+    body: JSON.stringify({ records })
+  });
+}
+
 export function getAdminAnaliticaCombustible(params = {}) {
   const query = new URLSearchParams();
   if (params.idVehiculo) query.append("idVehiculo", params.idVehiculo);

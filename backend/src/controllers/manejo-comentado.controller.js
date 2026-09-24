@@ -6,7 +6,8 @@ import {
   submitInstructorEvaluation,
   listScheduledCourses,
   getCourseDetails,
-  updateManejoComentadoDriver
+  updateManejoComentadoDriver,
+  batchUpdateDriversManejoComentado
 } from "../services/manejo-comentado.service.js";
 
 export async function listDriversManejoComentadoController(req, res) {
@@ -162,4 +163,25 @@ export async function updateDriverManejoComentadoController(req, res) {
     return res.status(400).json({ success: false, message: error.message });
   }
 }
+
+export async function batchUpdateDriversManejoComentadoController(req, res) {
+  try {
+    const { records } = req.body;
+    const idEvaluador = req.adminUser?.id_usuarios_admin;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: "No se proporcionaron registros para actualizar." });
+    }
+
+    const data = await batchUpdateDriversManejoComentado({ records, idEvaluador });
+    return res.status(200).json({
+      success: true,
+      data,
+      message: `Se actualizaron correctamente ${data.updatedCount} conductores desde la plantilla.`
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+}
+
 
