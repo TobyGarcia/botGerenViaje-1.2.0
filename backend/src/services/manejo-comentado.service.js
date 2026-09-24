@@ -30,12 +30,12 @@ async function sendCourseNotificationToTelegramGroups({ titulo, fechaCursoOral, 
       // Ignorar errores de consulta DB
     }
 
-    const htmlMsg = `🚗 <b>NUEVO CURSO DE MANEJO COMENTADO PROGRAMADO</b>\n\n` +
-      `📌 <b>Título:</b> ${escapeHtml(titulo)}\n` +
-      `📅 <b>Curso Oral:</b> ${fechaCursoOral}\n` +
-      `🗓 <b>Evaluación Práctica:</b> del ${fechaEvaluacionInicio} al ${fechaEvaluacionFin}\n` +
-      `👥 <b>Conductores Asignados:</b> ${idConductores.length} integrante(s)\n` +
-      (notas ? `📝 <b>Notas:</b> ${escapeHtml(notas)}\n` : "") +
+    const htmlMsg = `<b>NUEVO CURSO DE MANEJO COMENTADO PROGRAMADO</b>\n\n` +
+      `<b>Título:</b> ${escapeHtml(titulo)}\n` +
+      `<b>Curso Oral:</b> ${fechaCursoOral}\n` +
+      `<b>Evaluación Práctica:</b> del ${fechaEvaluacionInicio} al ${fechaEvaluacionFin}\n` +
+      `<b>Conductores Asignados:</b> ${idConductores.length} integrante(s)\n` +
+      (notas ? `<b>Notas:</b> ${escapeHtml(notas)}\n` : "") +
       `\nPor favor estar atentos a las indicaciones del instructor.`;
 
     for (const chatId of groupIds) {
@@ -65,14 +65,47 @@ export function getPeriodoVigenciaByCalificacion(calificacion) {
   }
 }
 
-// Calcula estado de vigencia considerando el periodo dinámico según la calificación
-export function calculateValidityStatus(fechaManejoComentado, calificacion, estadoEvaluacion) {
-  if (!fechaManejoComentado) {
+// Calcula estado de vigencia considerando el periodo dinámico según la calificación o fecha personalizada
+export function calculateValidityStatus(fechaManejoComentado, calificacion, estadoEvaluacion, customFechaVencimiento = null) {
+  if (!fechaManejoComentado && !customFechaVencimiento) {
     return {
       estado: "SIN_REGISTRO",
       fechaVencimiento: null,
       diasParaVencer: null
     };
+  }
+
+  if (customFechaVencimiento) {
+    const rawStr = String(customFechaVencimiento).trim();
+    const dateMatch = rawStr.match(/^\d{4}-\d{2}-\d{2}/);
+    let expiryDate;
+    if (dateMatch) {
+      const [y, m, d] = dateMatch[0].split("-").map(Number);
+      expiryDate = new Date(y, m - 1, d);
+    } else {
+      expiryDate = new Date(rawStr);
+    }
+
+    if (!isNaN(expiryDate.getTime())) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = expiryDate.getTime() - today.getTime();
+      const diasParaVencer = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      let estado = "VIGENTE";
+      if (diasParaVencer < 0) {
+        estado = "VENCIDO";
+      } else if (diasParaVencer <= 30) {
+        estado = "PROXIMO_A_VENCER";
+      }
+      const yyyy = expiryDate.getFullYear();
+      const mm = String(expiryDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(expiryDate.getDate()).padStart(2, "0");
+      return {
+        estado,
+        fechaVencimiento: `${yyyy}-${mm}-${dd}`,
+        diasParaVencer
+      };
+    }
   }
 
   if (estadoEvaluacion === "PENDIENTE") {
@@ -174,6 +207,8 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
         c.telefono,
         c.licencia_numero,
         c.tipo_licencia,
+        c.licencia_vencimiento,
+        c.licencia_vigente,
         COALESCE(
           c.fecha_manejo_comentado,
           (
@@ -186,11 +221,13 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
         ) AS fecha_manejo_comentado,
         (
           SELECT json_build_object(
+            'id_evaluacion', e.id_evaluacion,
             'calificacion', e.calificacion,
             'comentarios', e.comentarios,
             'documento_url', e.documento_url,
             'fecha_evaluacion', e.fecha_evaluacion,
-            'estado_evaluacion', e.estado_evaluacion
+            'estado_evaluacion', e.estado_evaluacion,
+            'rubrica', e.rubrica
           )
           FROM evaluaciones_manejo_comentado e
           WHERE e.id_conductores = c.id_conductores
@@ -205,13 +242,18 @@ export async function listDriversManejoComentado({ search = "", status = "TODOS"
   );
 
   const rows = result.rows.map((row) => {
+    const customVencimiento = row.ultima_evaluacion?.rubrica?.proxima_evaluacion || null;
     const validity = calculateValidityStatus(
       row.fecha_manejo_comentado,
       row.ultima_evaluacion?.calificacion,
-      row.ultima_evaluacion?.estado_evaluacion
+      row.ultima_evaluacion?.estado_evaluacion,
+      customVencimiento
     );
     return {
       ...row,
+      score: row.ultima_evaluacion?.calificacion !== undefined && row.ultima_evaluacion?.calificacion !== null
+        ? Number(row.ultima_evaluacion.calificacion)
+        : null,
       estado_vigencia: validity.estado,
       fecha_vencimiento: validity.fechaVencimiento,
       dias_para_vencer: validity.diasParaVencer
@@ -533,18 +575,19 @@ async function notifyDriverResult(conductor, evalRow, estadoEvaluacion, califica
     if (bot && telegramUser?.telegram_user_id) {
       if (estadoEvaluacion === "APROBADO") {
         const periodoInfo = getPeriodoVigenciaByCalificacion(calificacion);
-        const msg = `🎉 *¡FELICITACIONES, ${conductor.nombre.toUpperCase()}!*\n\n` +
+        const msg = `*RESULTADO DE EVALUACION DE MANEJO COMENTADO*\n\n` +
+          `Estimado(a) ${conductor.nombre.toUpperCase()}:\n\n` +
           `Has APROBADO satisfactoriamente tu evaluación de *Manejo Comentado*.\n\n` +
-          `⭐ *Puntaje:* ${calificacion} / 100\n` +
-          `💬 *Comentarios del evaluador:* ${comentarios || "Desempeño adecuado."}\n` +
-          `📅 *Vigencia asignada:* ${periodoInfo.label}.`;
+          `*Puntaje:* ${calificacion} / 100\n` +
+          `*Comentarios del evaluador:* ${comentarios || "Desempeño adecuado."}\n` +
+          `*Vigencia asignada:* ${periodoInfo.label}.`;
 
         await bot.telegram.sendMessage(telegramUser.telegram_user_id, msg, { parse_mode: "Markdown" }).catch(() => {});
       } else {
-        const msg = `⚠️ *RESULTADO DE EVALUACIÓN DE MANEJO COMENTADO*\n\n` +
+        const msg = `*RESULTADO DE EVALUACIÓN DE MANEJO COMENTADO*\n\n` +
           `Hola ${conductor.nombre}, tu evaluación ha sido registrada como *REPROBADA*.\n\n` +
-          `📊 *Puntaje obtenido:* ${calificacion} / 100\n` +
-          `💬 *Comentarios del evaluador:* ${comentarios || "Se requieren reforzar hábitos de conducción segura."}\n\n` +
+          `*Puntaje obtenido:* ${calificacion} / 100\n` +
+          `*Comentarios del evaluador:* ${comentarios || "Se requieren reforzar hábitos de conducción segura."}\n\n` +
           `Tu instructor/evaluador se coordinará contigo para reprogramar tu evaluación al siguiente mes.`;
 
         await bot.telegram.sendMessage(telegramUser.telegram_user_id, msg, { parse_mode: "Markdown" }).catch(() => {});
@@ -616,3 +659,150 @@ export async function getCourseDetails(idCurso) {
     participantes: partRes.rows
   };
 }
+
+export async function updateManejoComentadoDriver({
+  idConductor,
+  nombre,
+  telefono,
+  licenciaNumero,
+  tipoLicencia,
+  licenciaVencimiento,
+  fechaRealizacion,
+  proximaEvaluacion,
+  score,
+  comentarios = "",
+  idEvaluador = null
+}) {
+  const client = await databasePool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const conductorRes = await client.query(
+      `SELECT * FROM conductores WHERE id_conductores = $1 LIMIT 1`,
+      [idConductor]
+    );
+
+    const conductor = conductorRes.rows[0];
+    if (!conductor) throw new Error("Conductor no encontrado.");
+
+    let finalFechaRealiz = conductor.fecha_manejo_comentado ? String(conductor.fecha_manejo_comentado).slice(0, 10) : null;
+    if (fechaRealizacion !== undefined) {
+      finalFechaRealiz = fechaRealizacion ? String(fechaRealizacion).slice(0, 10) : null;
+    }
+
+    const updates = ["fecha_manejo_comentado = $1", "actualizado_en = CURRENT_TIMESTAMP"];
+    const updateVals = [finalFechaRealiz];
+
+    if (nombre !== undefined && nombre !== null) {
+      updateVals.push(String(nombre).trim());
+      updates.push(`nombre = $${updateVals.length}`);
+    }
+    if (telefono !== undefined) {
+      updateVals.push(telefono ? String(telefono).trim() : null);
+      updates.push(`telefono = $${updateVals.length}`);
+    }
+    if (licenciaNumero !== undefined) {
+      updateVals.push(licenciaNumero ? String(licenciaNumero).trim() : null);
+      updates.push(`licencia_numero = $${updateVals.length}`);
+    }
+    if (tipoLicencia !== undefined) {
+      updateVals.push(tipoLicencia ? String(tipoLicencia).trim() : null);
+      updates.push(`tipo_licencia = $${updateVals.length}`);
+    }
+    if (licenciaVencimiento !== undefined) {
+      const v = licenciaVencimiento ? String(licenciaVencimiento).slice(0, 10) : null;
+      updateVals.push(v);
+      updates.push(`licencia_vencimiento = $${updateVals.length}`);
+      const vig = v ? (new Date(v + "T23:59:59") >= new Date()) : conductor.licencia_vigente;
+      updateVals.push(vig);
+      updates.push(`licencia_vigente = $${updateVals.length}`);
+    }
+
+    updateVals.push(idConductor);
+    await client.query(
+      `UPDATE conductores
+       SET ${updates.join(", ")}
+       WHERE id_conductores = $${updateVals.length}`,
+      updateVals
+    );
+
+    // Si viene score o proximaEvaluacion o comentarios o fechaRealizacion
+    if (
+      (score !== undefined && score !== null && score !== "") ||
+      proximaEvaluacion ||
+      fechaRealizacion
+    ) {
+      const scoreNum = (score !== undefined && score !== null && score !== "") ? Number(score) : 100;
+      const estadoEval = scoreNum >= 50 ? "APROBADO" : "REPROBADO";
+
+      const evalCheck = await client.query(
+        `SELECT id_evaluacion, rubrica FROM evaluaciones_manejo_comentado
+         WHERE id_conductores = $1
+         ORDER BY fecha_evaluacion DESC LIMIT 1`,
+        [idConductor]
+      );
+
+      const rubricaObj = (evalCheck.rows[0]?.rubrica && typeof evalCheck.rows[0].rubrica === "object")
+        ? { ...evalCheck.rows[0].rubrica }
+        : {};
+
+      if (proximaEvaluacion) {
+        rubricaObj.proxima_evaluacion = String(proximaEvaluacion).slice(0, 10);
+      }
+
+      if (evalCheck.rows[0]) {
+        await client.query(
+          `UPDATE evaluaciones_manejo_comentado
+           SET fecha_evaluacion = COALESCE($1::timestamptz, fecha_evaluacion),
+               calificacion = $2,
+               estado_evaluacion = $3,
+               comentarios = COALESCE($4, comentarios),
+               rubrica = $5,
+               id_usuario_evaluador = COALESCE($6, id_usuario_evaluador),
+               actualizado_en = CURRENT_TIMESTAMP
+           WHERE id_evaluacion = $7`,
+          [
+            finalFechaRealiz ? finalFechaRealiz + "T12:00:00Z" : null,
+            scoreNum,
+            estadoEval,
+            comentarios || null,
+            JSON.stringify(rubricaObj),
+            idEvaluador,
+            evalCheck.rows[0].id_evaluacion
+          ]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO evaluaciones_manejo_comentado (
+             id_conductores,
+             id_usuario_evaluador,
+             fecha_evaluacion,
+             calificacion,
+             estado_evaluacion,
+             comentarios,
+             rubrica
+           )
+           VALUES ($1, $2, COALESCE($3::timestamptz, CURRENT_TIMESTAMP), $4, $5, $6, $7)`,
+          [
+            idConductor,
+            idEvaluador,
+            finalFechaRealiz ? finalFechaRealiz + "T12:00:00Z" : null,
+            scoreNum,
+            estadoEval,
+            comentarios || "Actualización directa de datos de manejo comentado",
+            JSON.stringify(rubricaObj)
+          ]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    return { success: true };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+

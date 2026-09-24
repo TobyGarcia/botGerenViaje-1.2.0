@@ -3,13 +3,35 @@ import {
   getManejoComentadoConductores,
   programarCursoManejoComentado,
   renovarManejoComentadoDirecto,
-  getCursosManejoComentado
+  getCursosManejoComentado,
+  updateManejoComentadoConductor
 } from "../services/api.js";
 import {
   IconCalendario,
   IconDispositivo,
-  IconReloj
+  IconReloj,
+  IconEditar
 } from "../components/Icons.jsx";
+
+function calculateProximaEvaluacionDate(scoreVal, fechaRealizVal) {
+  if (!fechaRealizVal) return "";
+  const num = Number(scoreVal || 0);
+  let dias = 0;
+  if (num >= 85) dias = 365;
+  else if (num >= 75) dias = 180;
+  else if (num >= 50) dias = 90;
+  else dias = 30;
+
+  const dateMatch = String(fechaRealizVal).match(/^\d{4}-\d{2}-\d{2}/);
+  if (!dateMatch) return "";
+  const [y, m, d] = dateMatch[0].split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + dias);
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function formatDate(value) {
   if (!value) return "Sin registro";
@@ -112,9 +134,20 @@ export default function ManejoComentadoPage({ user }) {
   const itemsPerPage = 20;
 
   // Modales
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingConductor, setEditingConductor] = useState(null);
   const [showRenovarModal, setShowRenovarModal] = useState(false);
   const [showProgramarModal, setShowProgramarModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Formulario Edición (Solo datos de manejo comentado)
+  const [editForm, setEditForm] = useState({
+    idConductor: "",
+    fechaRealizacion: "",
+    score: "100",
+    proximaEvaluacion: "",
+    comentarios: ""
+  });
 
   // Formulario Renovación
   const [renovarForm, setRenovarForm] = useState({
@@ -155,6 +188,70 @@ export default function ManejoComentadoPage({ user }) {
   useEffect(() => {
     loadData();
   }, [search, filterStatus]);
+
+  function handleOpenEditModal(conductor) {
+    setEditingConductor(conductor);
+    const rawFechaRealiz = conductor.fecha_manejo_comentado
+      ? String(conductor.fecha_manejo_comentado).slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+    const rawScore = conductor.score !== null && conductor.score !== undefined ? String(conductor.score) : "100";
+    let rawProximaEv = conductor.fecha_vencimiento ? String(conductor.fecha_vencimiento).slice(0, 10) : "";
+    if (!rawProximaEv && rawFechaRealiz) {
+      rawProximaEv = calculateProximaEvaluacionDate(rawScore, rawFechaRealiz);
+    }
+
+    setEditForm({
+      idConductor: conductor.id_conductores,
+      fechaRealizacion: rawFechaRealiz,
+      score: rawScore,
+      proximaEvaluacion: rawProximaEv,
+      comentarios: conductor.ultima_evaluacion?.comentarios || ""
+    });
+    setShowEditModal(true);
+  }
+
+  function handleEditScoreChange(val) {
+    const newProx = calculateProximaEvaluacionDate(val, editForm.fechaRealizacion);
+    setEditForm((prev) => ({
+      ...prev,
+      score: val,
+      proximaEvaluacion: newProx || prev.proximaEvaluacion
+    }));
+  }
+
+  function handleEditFechaRealizacionChange(val) {
+    const newProx = calculateProximaEvaluacionDate(editForm.score, val);
+    setEditForm((prev) => ({
+      ...prev,
+      fechaRealizacion: val,
+      proximaEvaluacion: newProx || prev.proximaEvaluacion
+    }));
+  }
+
+  async function handleEditSubmit(e) {
+    e.preventDefault();
+    if (!editForm.idConductor) return;
+    setSaving(true);
+    setMessage("");
+
+    try {
+      await updateManejoComentadoConductor(editForm.idConductor, {
+        fechaRealizacion: editForm.fechaRealizacion,
+        score: editForm.score,
+        proximaEvaluacion: editForm.proximaEvaluacion,
+        comentarios: editForm.comentarios
+      });
+      setMessage("Datos de manejo comentado actualizados correctamente.");
+      setMessageType("success");
+      setShowEditModal(false);
+      loadData();
+    } catch (err) {
+      setMessage(err.message || "Error al actualizar manejo comentado.");
+      setMessageType("error");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleRenovarSubmit(e) {
     e.preventDefault();
@@ -368,55 +465,100 @@ export default function ManejoComentadoPage({ user }) {
             ) : (
               <>
                 <div className="table-wrapper">
-                  <table className="admin-table">
+                  <table className="admin-table" style={{ minWidth: "1150px" }}>
                     <thead>
                       <tr>
-                        <th>Conductor</th>
-                        <th>Empresa</th>
+                        <th style={{ width: "45px", textAlign: "center" }}>ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Teléfono</th>
                         <th>Licencia</th>
-                        <th>Vencimiento</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th>Vencimiento de Licencia</th>
+                        <th>Tipo de licencia</th>
+                        <th>Fecha realiz</th>
+                        <th>Próxima Ev.</th>
+                        <th style={{ textAlign: "center" }}>Score de Manejo Comentado</th>
+                        <th>Estatus</th>
+                        <th style={{ textAlign: "center", width: "190px" }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedConductores.map((conductor) => (
                         <tr key={conductor.id_conductores}>
+                          <td style={{ textAlign: "center", fontWeight: "600", color: "#607986" }}>
+                            {conductor.id_conductores}
+                          </td>
                           <td>
                             <strong>{conductor.nombre}</strong>
-                            {conductor.telefono && <small style={{ display: "block", color: "#607986" }}>{conductor.telefono}</small>}
+                            {conductor.empresa && (
+                              <small style={{ display: "block", color: "#607986" }}>{conductor.empresa}</small>
+                            )}
                           </td>
-                          <td>{conductor.empresa || "N/A"}</td>
+                          <td>{conductor.telefono || "Sin registro"}</td>
+                          <td>{conductor.licencia_numero || "Sin registro"}</td>
+                          <td>{formatDate(conductor.licencia_vencimiento)}</td>
+                          <td>{conductor.tipo_licencia || "Automovilista"}</td>
+                          <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
                           <td>
-                            {conductor.licencia_numero}
-                            <small style={{ display: "block", color: "#607986" }}>{conductor.tipo_licencia}</small>
+                            <strong style={{ color: conductor.estado_vigencia === "VENCIDO" ? "#dc2626" : conductor.estado_vigencia === "PROXIMO_A_VENCER" ? "#d97706" : "#166534" }}>
+                              {formatDate(conductor.fecha_vencimiento)}
+                            </strong>
                           </td>
-                          <td>{formatDate(conductor.fecha_vencimiento)}</td>
+                          <td style={{ textAlign: "center" }}>
+                            {conductor.score !== null && conductor.score !== undefined ? (
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  fontWeight: "700",
+                                  fontSize: "0.85rem",
+                                  backgroundColor: conductor.score >= 85 ? "#e4f7ed" : conductor.score >= 70 ? "#fff0c9" : "#fae8e8",
+                                  color: conductor.score >= 85 ? "#12643e" : conductor.score >= 70 ? "#7a560b" : "#8a3030"
+                                }}
+                              >
+                                {conductor.score}
+                              </span>
+                            ) : (
+                              <span style={{ color: "#94a3b8" }}>-</span>
+                            )}
+                          </td>
                           <td>
                             <span className={getBadgeClass(conductor.estado_vigencia)}>
                               {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
                             </span>
                           </td>
                           <td>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  style={{ padding: "5px 10px", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                  onClick={() => handleOpenEditModal(conductor)}
+                                  title="Editar manejo comentado"
+                                >
+                                  <IconEditar size={13} /> Editar
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                style={{ padding: "5px 10px", fontSize: "0.82rem" }}
+                                onClick={() => handleSelectConductorRenovar(conductor)}
+                                title="Renovar directo"
+                              >
+                                Renovar
+                              </button>
                               <a
                                 href="/evaluacion"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="secondary-button"
-                                style={{ padding: "5px 12px", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                                style={{ padding: "5px 10px", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
                                 title="Evaluar desde la app móvil"
                               >
-                                <IconDispositivo size={13} /> Evaluar Móvil
+                                <IconDispositivo size={13} /> Móvil
                               </a>
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                style={{ padding: "5px 12px", fontSize: "0.82rem" }}
-                                onClick={() => handleSelectConductorRenovar(conductor)}
-                              >
-                                Renovar Directo
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -437,7 +579,7 @@ export default function ManejoComentadoPage({ user }) {
                         onClick={() => setCurrentCondPage((p) => Math.max(1, p - 1))}
                         disabled={currentCondPage === 1}
                       >
-                        ← Anterior
+                        Anterior
                       </button>
                       <span className="pagination-page-indicator">
                         Página {currentCondPage} de {totalPagesCond}
@@ -448,7 +590,7 @@ export default function ManejoComentadoPage({ user }) {
                         onClick={() => setCurrentCondPage((p) => Math.min(totalPagesCond, p + 1))}
                         disabled={currentCondPage === totalPagesCond}
                       >
-                        Siguiente →
+                        Siguiente
                       </button>
                     </div>
                   </div>
@@ -519,7 +661,7 @@ export default function ManejoComentadoPage({ user }) {
                       onClick={() => setCurrentCursoPage((p) => Math.max(1, p - 1))}
                       disabled={currentCursoPage === 1}
                     >
-                      ← Anterior
+                      Anterior
                     </button>
                     <span className="pagination-page-indicator">
                       Página {currentCursoPage} de {totalPagesCursos}
@@ -530,7 +672,7 @@ export default function ManejoComentadoPage({ user }) {
                       onClick={() => setCurrentCursoPage((p) => Math.min(totalPagesCursos, p + 1))}
                       disabled={currentCursoPage === totalPagesCursos}
                     >
-                      Siguiente →
+                      Siguiente
                     </button>
                   </div>
                 </div>
@@ -538,6 +680,143 @@ export default function ManejoComentadoPage({ user }) {
             </>
           )}
         </section>
+      )}
+
+      {/* Modal Editar Manejo Comentado */}
+      {showEditModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: "660px", maxHeight: "92vh", overflowY: "auto" }}>
+            <h2>Editar Manejo Comentado</h2>
+            <p style={{ color: "#607986", fontSize: "0.88rem", marginBottom: "1.25rem" }}>
+              Actualiza la fecha de realización, calificación y próxima evaluación del conductor.
+            </p>
+
+            {/* Ficha informativa del conductor (Solo Lectura) */}
+            {editingConductor && (
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2edf2",
+                  borderRadius: "10px",
+                  padding: "12px 16px",
+                  marginBottom: "1.25rem"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <span style={{ fontWeight: "700", color: "#1e293b", fontSize: "0.95rem" }}>
+                    {editingConductor.nombre} {editingConductor.empresa ? `(${editingConductor.empresa})` : ""}
+                  </span>
+                  <span style={{ fontSize: "0.75rem", background: "#e2edf2", color: "#475569", padding: "2px 8px", borderRadius: "999px", fontWeight: "600" }}>
+                    ID: #{editingConductor.id_conductores} (Solo Lectura)
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "8px", fontSize: "0.82rem", color: "#475569" }}>
+                  <div>
+                    <span style={{ color: "#94a3b8", display: "block" }}>Teléfono:</span>
+                    <strong>{editingConductor.telefono || "Sin registro"}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#94a3b8", display: "block" }}>Licencia:</span>
+                    <strong>{editingConductor.licencia_numero || "Sin registro"}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#94a3b8", display: "block" }}>Venc. Licencia:</span>
+                    <strong>{formatDate(editingConductor.licencia_vencimiento)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#94a3b8", display: "block" }}>Tipo Licencia:</span>
+                    <strong>{editingConductor.tipo_licencia || "Automovilista"}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleEditSubmit}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+                <div className="form-group">
+                  <label>Fecha realiz (Realización) *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={editForm.fechaRealizacion}
+                    onChange={(e) => handleEditFechaRealizacionChange(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Score (0 - 100) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="form-control"
+                    value={editForm.score}
+                    onChange={(e) => handleEditScoreChange(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Próxima Ev. (Evaluación)</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={editForm.proximaEvaluacion}
+                    onChange={(e) => setEditForm({ ...editForm, proximaEvaluacion: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Cálculo dinámico de la vigencia */}
+              {(() => {
+                const preview = getPreviewVigencia(editForm.score, editForm.fechaRealizacion);
+                return (
+                  <div
+                    style={{
+                      background: preview.aprobado ? "#f0fdf4" : "#fef2f2",
+                      border: `1px solid ${preview.aprobado ? "#bbf7d0" : "#fecaca"}`,
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                      marginBottom: "1rem",
+                      fontSize: "0.85rem"
+                    }}
+                  >
+                    <div style={{ fontWeight: "600", color: preview.aprobado ? "#166534" : "#991b1b" }}>
+                      Cálculo de Vigencia Asignada: {preview.label}
+                    </div>
+                    <div style={{ marginTop: "3px", color: "#475569" }}>
+                      Próxima fecha sugerida: {preview.fechaVencimiento || "Pendiente"} (puedes ajustar la fecha manualmente en el campo anterior)
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label>Comentarios / Observaciones del Evaluador</label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  value={editForm.comentarios}
+                  onChange={(e) => setEditForm({ ...editForm, comentarios: e.target.value })}
+                  placeholder="Observaciones de la evaluación..."
+                />
+              </div>
+
+              <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="primary-button" disabled={saving}>
+                  {saving ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Modal Renovar Manejo Comentado */}

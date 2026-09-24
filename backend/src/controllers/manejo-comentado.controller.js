@@ -5,7 +5,8 @@ import {
   renewManejoComentadoDirect,
   submitInstructorEvaluation,
   listScheduledCourses,
-  getCourseDetails
+  getCourseDetails,
+  updateManejoComentadoDriver
 } from "../services/manejo-comentado.service.js";
 
 export async function listDriversManejoComentadoController(req, res) {
@@ -121,3 +122,44 @@ export async function getCourseDetailsController(req, res) {
     return res.status(400).json({ success: false, message: error.message });
   }
 }
+
+export async function updateDriverManejoComentadoController(req, res) {
+  try {
+    const { idConductor } = req.params;
+    const {
+      nombre,
+      telefono,
+      licenciaNumero,
+      tipoLicencia,
+      licenciaVencimiento,
+      fechaRealizacion,
+      proximaEvaluacion,
+      score,
+      comentarios
+    } = req.body;
+    const idEvaluador = req.adminUser?.id_usuarios_admin;
+
+    if (!idConductor) {
+      return res.status(400).json({ success: false, message: "El ID del conductor es requerido." });
+    }
+
+    const data = await updateManejoComentadoDriver({
+      idConductor,
+      nombre,
+      telefono,
+      licenciaNumero,
+      tipoLicencia,
+      licenciaVencimiento,
+      fechaRealizacion,
+      proximaEvaluacion,
+      score,
+      comentarios,
+      idEvaluador
+    });
+
+    return res.status(200).json({ success: true, data, message: "Datos de manejo comentado actualizados correctamente." });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+}
+

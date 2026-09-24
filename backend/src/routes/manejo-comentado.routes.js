@@ -6,7 +6,8 @@ import {
   renewDirectController,
   submitInstructorEvaluationController,
   listScheduledCoursesController,
-  getCourseDetailsController
+  getCourseDetailsController,
+  updateDriverManejoComentadoController
 } from "../controllers/manejo-comentado.controller.js";
 import { requireAdminSession, requireAdminRoles, ROLES_SUPERVISOR_Y_SUPERIOR } from "../middlewares/admin-auth.middleware.js";
 
@@ -19,6 +20,10 @@ router.get("/resumen-expirados", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
 
 // Listado de conductores con estatus de Manejo Comentado
 router.get("/conductores", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), listDriversManejoComentadoController);
+
+// Edición de datos de manejo comentado y licencia del conductor
+router.put("/conductores/:idConductor", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), updateDriverManejoComentadoController);
+router.patch("/conductores/:idConductor", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), updateDriverManejoComentadoController);
 
 // Programar curso de manejo comentado
 router.post("/cursos", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), scheduleCourseController);
@@ -34,3 +39,4 @@ router.post("/renovar", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), renewDir
 router.post("/evaluar", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), submitInstructorEvaluationController);
 
 export default router;
+

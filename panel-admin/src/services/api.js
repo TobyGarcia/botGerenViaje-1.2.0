@@ -634,6 +634,13 @@ export function enviarEvaluacionManejoComentado(data) {
   });
 }
 
+export function updateManejoComentadoConductor(idConductor, data) {
+  return request(`/manejo-comentado/conductores/${idConductor}`, {
+    method: "PUT",
+    body: JSON.stringify(data)
+  });
+}
+
 export function getAdminAnaliticaCombustible(params = {}) {
   const query = new URLSearchParams();
   if (params.idVehiculo) query.append("idVehiculo", params.idVehiculo);
