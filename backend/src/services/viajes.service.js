@@ -2,16 +2,35 @@ import { databasePool } from "../database/pool.js";
 import { registerMileageReading } from "./kilometraje.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 
-function buildTripFolio(sequenceNumber) {
+function getTripDateInfo() {
+  const timeZone = process.env.TZ || "America/Mexico_City";
   const now = new Date();
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    const dateIso = formatter.format(now);
+    const dateCompact = dateIso.replace(/-/g, "");
+    return { dateIso, dateCompact };
+  } catch (e) {
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return {
+      dateIso: `${year}-${month}-${day}`,
+      dateCompact: `${year}${month}${day}`
+    };
+  }
+}
 
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
+function buildTripFolio(sequenceNumber, customDateCompact = null) {
+  const dateCompact = customDateCompact || getTripDateInfo().dateCompact;
   const sequence = String(sequenceNumber).padStart(4, "0");
 
-  return `VJ-${year}${month}${day}-${sequence}`;
+  return `VJ-${dateCompact}-${sequence}`;
 }
 
 function isOutsideOperatingHours() {
@@ -152,23 +171,53 @@ export async function createTrip({
       );
     }
 
+    const { dateIso, dateCompact } = getTripDateInfo();
+    const folioPrefix = `VJ-${dateCompact}-%`;
+
     // Serializa la asignación del consecutivo diario sin bloquear otros días.
+    // Usamos dateIso para asegurar que tanto el lock como el cálculo coincidan exactamente con la fecha local.
     await client.query(
-      "SELECT pg_advisory_xact_lock(hashtext('viajes-folio:' || CURRENT_DATE::TEXT))"
+      "SELECT pg_advisory_xact_lock(hashtext('viajes-folio:' || $1))",
+      [dateIso]
     );
 
-    const dailyCountResult = await client.query(
+    // Obtener el mayor número de secuencia existente para este día (evita colisiones si se eliminaron viajes)
+    const maxSeqResult = await client.query(
       `
-        SELECT COUNT(*)::INTEGER AS total
+        SELECT COALESCE(
+          MAX(
+            CASE 
+              WHEN substring(folio from '-([0-9]+)$') ~ '^[0-9]+$' 
+              THEN substring(folio from '-([0-9]+)$')::INTEGER 
+              ELSE 0 
+            END
+          ), 
+          0
+        )::INTEGER AS max_sequence
         FROM viajes
-        WHERE fecha = CURRENT_DATE
-      `
+        WHERE folio LIKE $1
+      `,
+      [folioPrefix]
     );
 
-    const dailySequence =
-      dailyCountResult.rows[0].total + 1;
+    let nextSequence = Number(maxSeqResult.rows[0]?.max_sequence || 0) + 1;
+    let folio = buildTripFolio(nextSequence, dateCompact);
 
-    const folio = buildTripFolio(dailySequence);
+    // Salvaguarda final: si por alguna razón el folio ya existiera en BD,
+    // incrementamos hasta encontrar el primer folio libre garantizando unicidad absoluta.
+    let folioOccupied = true;
+    while (folioOccupied) {
+      const existingCheck = await client.query(
+        "SELECT 1 FROM viajes WHERE folio = $1 LIMIT 1",
+        [folio]
+      );
+      if (existingCheck.rowCount === 0) {
+        folioOccupied = false;
+      } else {
+        nextSequence += 1;
+        folio = buildTripFolio(nextSequence, dateCompact);
+      }
+    }
 
     const tripResult = await client.query(
       `
@@ -182,7 +231,8 @@ export async function createTrip({
           acompanantes,
           licencia_vigente,
           kilometraje_inicial,
-          motivo
+          motivo,
+          fecha
         )
         VALUES (
           $1,
@@ -194,7 +244,8 @@ export async function createTrip({
           $7::JSONB,
           $8,
           $9,
-          $10
+          $10,
+          $11::DATE
         )
         RETURNING
           id_viajes,
@@ -213,7 +264,8 @@ export async function createTrip({
         JSON.stringify(acompanantes),
         conductor.licencia_vigente,
         esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
-        motivo
+        motivo,
+        dateIso
       ]
     );
 
