@@ -76,7 +76,33 @@ function getBadgeLabel(estado, dias) {
   }
 }
 
-function getPreviewVigencia(calificacion, fechaEvaluacion) {
+function calculateScoreFromDates(fechaRealizVal, proximaEvVal) {
+  if (!fechaRealizVal || !proximaEvVal) return null;
+  const matchR = String(fechaRealizVal).match(/^\d{4}-\d{2}-\d{2}/);
+  const matchP = String(proximaEvVal).match(/^\d{4}-\d{2}-\d{2}/);
+  if (!matchR || !matchP) return null;
+
+  const [yr, mr, dr] = matchR[0].split("-").map(Number);
+  const [yp, mp, dp] = matchP[0].split("-").map(Number);
+  const dateR = new Date(yr, mr - 1, dr);
+  const dateP = new Date(yp, mp - 1, dp);
+
+  const diffMs = dateP.getTime() - dateR.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return "0";
+  if (diffDays >= 270) {
+    return "100";
+  } else if (diffDays >= 135) {
+    return "80";
+  } else if (diffDays >= 45) {
+    return "70";
+  } else {
+    return "40";
+  }
+}
+
+function getPreviewVigencia(calificacion, fechaEvaluacion, proximaEvaluacion = null) {
   const score = Number(calificacion || 0);
   let dias = 0;
   let label = "";
@@ -95,6 +121,15 @@ function getPreviewVigencia(calificacion, fechaEvaluacion) {
     dias = 0;
     label = "Reprobado (re-evaluación al siguiente mes)";
     aprobado = false;
+  }
+
+  if (proximaEvaluacion) {
+    const pMatch = String(proximaEvaluacion).match(/^\d{4}-\d{2}-\d{2}/);
+    if (pMatch) {
+      const [yp, mp, dp] = pMatch[0].split("-").map(Number);
+      const customExpiryStr = new Date(yp, mp - 1, dp).toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+      return { aprobado, label, fechaVencimiento: customExpiryStr };
+    }
   }
 
   if (!aprobado || !fechaEvaluacion) {
@@ -194,8 +229,17 @@ export default function ManejoComentadoPage({ user }) {
     const rawFechaRealiz = conductor.fecha_manejo_comentado
       ? String(conductor.fecha_manejo_comentado).slice(0, 10)
       : new Date().toISOString().slice(0, 10);
-    const rawScore = conductor.score !== null && conductor.score !== undefined ? String(conductor.score) : "100";
+    let rawScore = conductor.score !== null && conductor.score !== undefined ? String(conductor.score) : "";
     let rawProximaEv = conductor.fecha_vencimiento ? String(conductor.fecha_vencimiento).slice(0, 10) : "";
+
+    // Si no tiene score o es 0 pero tiene próxima evaluación, calcular calificación según la diferencia de fechas
+    if ((!rawScore || rawScore === "0") && rawProximaEv && rawFechaRealiz) {
+      const calcScore = calculateScoreFromDates(rawFechaRealiz, rawProximaEv);
+      if (calcScore) rawScore = calcScore;
+    }
+
+    if (!rawScore) rawScore = "100";
+
     if (!rawProximaEv && rawFechaRealiz) {
       rawProximaEv = calculateProximaEvaluacionDate(rawScore, rawFechaRealiz);
     }
@@ -225,6 +269,15 @@ export default function ManejoComentadoPage({ user }) {
       ...prev,
       fechaRealizacion: val,
       proximaEvaluacion: newProx || prev.proximaEvaluacion
+    }));
+  }
+
+  function handleEditProximaEvaluacionChange(val) {
+    const calcScore = calculateScoreFromDates(editForm.fechaRealizacion, val);
+    setEditForm((prev) => ({
+      ...prev,
+      proximaEvaluacion: val,
+      score: calcScore !== null ? calcScore : prev.score
     }));
   }
 
@@ -761,14 +814,14 @@ export default function ManejoComentadoPage({ user }) {
                     type="date"
                     className="form-control"
                     value={editForm.proximaEvaluacion}
-                    onChange={(e) => setEditForm({ ...editForm, proximaEvaluacion: e.target.value })}
+                    onChange={(e) => handleEditProximaEvaluacionChange(e.target.value)}
                   />
                 </div>
               </div>
 
               {/* Cálculo dinámico de la vigencia */}
               {(() => {
-                const preview = getPreviewVigencia(editForm.score, editForm.fechaRealizacion);
+                const preview = getPreviewVigencia(editForm.score, editForm.fechaRealizacion, editForm.proximaEvaluacion);
                 return (
                   <div
                     style={{
