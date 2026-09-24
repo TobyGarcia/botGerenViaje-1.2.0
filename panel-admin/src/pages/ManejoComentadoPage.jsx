@@ -103,7 +103,16 @@ function calculateScoreFromDates(fechaRealizVal, proximaEvVal) {
 }
 
 function getPreviewVigencia(calificacion, fechaEvaluacion, proximaEvaluacion = null) {
-  const score = Number(calificacion || 0);
+  let score = Number(calificacion || 0);
+
+  // Si no hay calificacion o es 0, pero sí hay proximaEvaluacion y fechaEvaluacion, deducir score de las fechas
+  if ((!calificacion || score === 0) && proximaEvaluacion && fechaEvaluacion) {
+    const deduced = calculateScoreFromDates(fechaEvaluacion, proximaEvaluacion);
+    if (deduced !== null && Number(deduced) > 0) {
+      score = Number(deduced);
+    }
+  }
+
   let dias = 0;
   let label = "";
   let aprobado = true;
@@ -255,6 +264,13 @@ export default function ManejoComentadoPage({ user }) {
   }
 
   function handleEditScoreChange(val) {
+    if (!val) {
+      setEditForm((prev) => ({
+        ...prev,
+        score: ""
+      }));
+      return;
+    }
     const newProx = calculateProximaEvaluacionDate(val, editForm.fechaRealizacion);
     setEditForm((prev) => ({
       ...prev,
