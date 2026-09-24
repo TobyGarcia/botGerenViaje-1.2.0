@@ -533,40 +533,48 @@ export default function ManejoComentadoPage({ user }) {
               <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
             ) : (
               <>
-                <div className="table-wrapper">
-                  <table className="admin-table" style={{ minWidth: "1150px" }}>
+                <div className="table-wrapper admin-table-desktop">
+                  <table className="admin-table conductores-table" style={{ width: "100%", tableLayout: "auto" }}>
                     <thead>
                       <tr>
-                        <th style={{ width: "45px", textAlign: "center" }}>ID</th>
-                        <th>Nombre Completo</th>
+                        <th>Conductor</th>
                         <th>Teléfono</th>
                         <th>Licencia</th>
-                        <th>Vencimiento de Licencia</th>
-                        <th>Tipo de licencia</th>
+                        <th>Venc. Licencia</th>
+                        <th>Tipo Licencia</th>
                         <th>Fecha realiz</th>
                         <th>Próxima Ev.</th>
-                        <th style={{ textAlign: "center" }}>Score de Manejo Comentado</th>
+                        <th style={{ textAlign: "center" }}>Score</th>
                         <th>Estatus</th>
-                        <th style={{ textAlign: "center", width: "190px" }}>Acciones</th>
+                        <th style={{ textAlign: "center", width: "95px" }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedConductores.map((conductor) => (
                         <tr key={conductor.id_conductores}>
-                          <td style={{ textAlign: "center", fontWeight: "600", color: "#607986" }}>
-                            {conductor.id_conductores}
-                          </td>
                           <td>
-                            <strong>{conductor.nombre}</strong>
-                            {conductor.empresa && (
-                              <small style={{ display: "block", color: "#607986" }}>{conductor.empresa}</small>
-                            )}
+                            <div className="conductor-name-group" style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                              <strong className="conductor-name-cell" style={{ color: "#0f172a" }}>
+                                {conductor.nombre}
+                              </strong>
+                              {conductor.empresa && (
+                                <span className="empresa-pill-badge" title={conductor.empresa} style={{ width: "fit-content" }}>
+                                  {conductor.empresa}
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td>{conductor.telefono || "Sin registro"}</td>
-                          <td>{conductor.licencia_numero || "Sin registro"}</td>
-                          <td>{formatDate(conductor.licencia_vencimiento)}</td>
-                          <td>{conductor.tipo_licencia || "Automovilista"}</td>
-                          <td>{formatDate(conductor.fecha_manejo_comentado)}</td>
+                          <td style={{ color: "#475569" }}>{conductor.telefono || "Sin registro"}</td>
+                          <td>
+                            <span className="licencia-num">{conductor.licencia_numero || "N/A"}</span>
+                          </td>
+                          <td style={{ color: "#475569" }}>{formatDate(conductor.licencia_vencimiento)}</td>
+                          <td>
+                            <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: "5px", fontSize: "0.74rem", fontWeight: 600, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
+                              {conductor.tipo_licencia || "Automovilista"}
+                            </span>
+                          </td>
+                          <td style={{ color: "#475569" }}>{formatDate(conductor.fecha_manejo_comentado)}</td>
                           <td>
                             <strong style={{ color: conductor.estado_vigencia === "VENCIDO" ? "#dc2626" : conductor.estado_vigencia === "PROXIMO_A_VENCER" ? "#d97706" : "#166534" }}>
                               {formatDate(conductor.fecha_vencimiento)}
@@ -580,7 +588,7 @@ export default function ManejoComentadoPage({ user }) {
                                   padding: "3px 8px",
                                   borderRadius: "6px",
                                   fontWeight: "700",
-                                  fontSize: "0.85rem",
+                                  fontSize: "0.82rem",
                                   backgroundColor: conductor.score >= 85 ? "#e4f7ed" : conductor.score >= 70 ? "#fff0c9" : "#fae8e8",
                                   color: conductor.score >= 85 ? "#12643e" : conductor.score >= 70 ? "#7a560b" : "#8a3030"
                                 }}
@@ -596,37 +604,29 @@ export default function ManejoComentadoPage({ user }) {
                               {getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}
                             </span>
                           </td>
-                          <td>
-                            <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
+                          <td style={{ textAlign: "center" }}>
+                            <div className="conductor-actions-cell" style={{ justifyContent: "center", gap: "6px" }}>
                               {canManage && (
                                 <button
                                   type="button"
-                                  className="secondary-button"
-                                  style={{ padding: "5px 10px", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                  className="conductor-action-btn btn-view-license"
                                   onClick={() => handleOpenEditModal(conductor)}
-                                  title="Editar manejo comentado"
+                                  data-tooltip="Editar manejo comentado"
+                                  aria-label="Editar manejo comentado"
                                 >
-                                  <IconEditar size={13} /> Editar
+                                  <IconEditar size={16} />
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                style={{ padding: "5px 10px", fontSize: "0.82rem" }}
-                                onClick={() => handleSelectConductorRenovar(conductor)}
-                                title="Renovar directo"
-                              >
-                                Renovar
-                              </button>
                               <a
                                 href="/evaluacion"
                                 target="_blank"
                                 rel="noreferrer"
-                                className="secondary-button"
-                                style={{ padding: "5px 10px", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                                title="Evaluar desde la app móvil"
+                                className="conductor-action-btn btn-role"
+                                data-tooltip="Evaluar en app móvil (/evaluacion)"
+                                aria-label="Evaluar en app móvil"
+                                style={{ textDecoration: "none" }}
                               >
-                                <IconDispositivo size={13} /> Móvil
+                                <IconDispositivo size={16} />
                               </a>
                             </div>
                           </td>
