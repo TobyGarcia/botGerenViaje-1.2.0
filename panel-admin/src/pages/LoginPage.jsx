@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
-import aquarioVideo from "../assets/LoginAssets/aquario_presentacion.mp4";
+import gvMobilityVideo from "../assets/LoginAssets/videoGVMobility.mp4";
 
 function LoginPage({ onAuthenticated }) {
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ function LoginPage({ onAuthenticated }) {
       <section className="login-hero">
         <video
           className="hero-video"
-          src={aquarioVideo}
+          src={gvMobilityVideo}
           autoPlay
           loop
           muted

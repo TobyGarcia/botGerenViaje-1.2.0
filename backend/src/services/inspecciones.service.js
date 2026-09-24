@@ -39,7 +39,9 @@ export async function saveInspection({ idViaje, idConductor, data }) {
   const { fecha, hora } = now.rows[0];
   const levaRemolque = Boolean(data.llevaRemolque);
   const idRemolque = levaRemolque && data.idRemolque ? Number(data.idRemolque) : null;
-  const inspeccionRemolque = levaRemolque && data.inspeccionRemolque ? JSON.stringify(data.inspeccionRemolque) : null;
+  const inspeccionRemolque = levaRemolque && data.inspeccionRemolque
+    ? (typeof data.inspeccionRemolque === "string" ? data.inspeccionRemolque : JSON.stringify(data.inspeccionRemolque))
+    : null;
 
   const result = await databasePool.query(`
     INSERT INTO inspecciones_vehiculares (

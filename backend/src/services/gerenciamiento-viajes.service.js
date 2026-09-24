@@ -160,6 +160,10 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       combustible = "3/4";
     }
 
+    const levaRemolque = Boolean(data.inspeccionData?.llevaRemolque ?? data.llevaRemolque);
+    const idRemolque = levaRemolque ? (data.inspeccionData?.idRemolque ?? data.idRemolque ?? null) : null;
+    const inspeccionRemolque = levaRemolque ? (data.inspeccionData?.inspeccionRemolque ?? data.inspeccionRemolque ?? null) : null;
+
     const inspPayload = {
       combustible,
       tipoAsignacion,
@@ -169,7 +173,10 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       danos: data.inspeccionData?.danos || data.danos || {},
       observaciones: data.inspeccionData?.observaciones || data.observacionesVehiculo || data.observaciones || null,
       firma: data.inspeccionData?.firma || data.firmaConductor || null,
-      esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente)
+      esDiaSiguiente: Boolean(data.inspeccionData?.esDiaSiguiente || data.esDiaSiguiente),
+      llevaRemolque: levaRemolque,
+      idRemolque: idRemolque,
+      inspeccionRemolque: inspeccionRemolque
     };
     await saveInspection({ idViaje, idConductor, data: inspPayload });
   }
@@ -296,12 +303,19 @@ export async function getGerenciamientoById(idGerenciamiento) {
       i.estado AS inspeccion_estado,
       i.es_dia_siguiente AS inspeccion_es_dia_siguiente,
       i.firma_conductor AS inspeccion_firma_conductor,
-      i.fecha_operativa AS inspeccion_fecha_operativa
+      i.fecha_operativa AS inspeccion_fecha_operativa,
+      i.lleva_remolque AS inspeccion_lleva_remolque,
+      i.id_remolque AS inspeccion_id_remolque,
+      i.inspeccion_remolque AS inspeccion_remolque,
+      vh_rem.nombre AS remolque_nombre,
+      vh_rem.numero_economico AS remolque_numero_economico,
+      vh_rem.placas AS remolque_placas
     FROM gerenciamiento_viajes g
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
     LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
+    LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_gerenciamiento = $1
   `, [idGerenciamiento]);
   return result.rows[0] ?? null;
@@ -325,12 +339,19 @@ export async function getGerenciamientoByViaje(idViaje) {
       i.estado AS inspeccion_estado,
       i.es_dia_siguiente AS inspeccion_es_dia_siguiente,
       i.firma_conductor AS inspeccion_firma_conductor,
-      i.fecha_operativa AS inspeccion_fecha_operativa
+      i.fecha_operativa AS inspeccion_fecha_operativa,
+      i.lleva_remolque AS inspeccion_lleva_remolque,
+      i.id_remolque AS inspeccion_id_remolque,
+      i.inspeccion_remolque AS inspeccion_remolque,
+      vh_rem.nombre AS remolque_nombre,
+      vh_rem.numero_economico AS remolque_numero_economico,
+      vh_rem.placas AS remolque_placas
     FROM gerenciamiento_viajes g
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
     LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
+    LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_viaje = $1
     ORDER BY g.id_gerenciamiento DESC
     LIMIT 1
