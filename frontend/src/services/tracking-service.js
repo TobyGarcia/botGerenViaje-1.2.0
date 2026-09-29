@@ -2,6 +2,8 @@ import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation } from "./location-provider.js";
 import { countPendingLocations, getPendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, getTrackingState, saveTrackingState } from "./tracking-state.js";
+import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
+export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
 
 const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
@@ -10,7 +12,7 @@ const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
 let intervalId = null;
 let activeTripId = null;
-let syncPromise = null;
+const syncPromises = new Map();
 let statusListener = null;
 let isStarting = false;
 
@@ -22,38 +24,39 @@ export function setTrackingStatusListener(listener) { statusListener = listener;
 export function isTrackingActive() { return intervalId !== null; }
 
 export async function syncPendingLocations(idViaje) {
-  if (syncPromise) return syncPromise;
-  syncPromise = (async () => {
+  if (syncPromises.has(idViaje)) return syncPromises.get(idViaje);
+  const syncPromise = (async () => {
     const pending = await getPendingLocations(idViaje);
     if (!pending.length) { await notifyPending(idViaje, { status: "Sincronizado" }); return { completed: true, pending: 0 }; }
     if (!navigator.onLine) { await notifyPending(idViaje, { status: "Sin conexión, guardando localmente" }); return { completed: false, pending: pending.length }; }
+    const serverId = resolveOfflineTripId(idViaje);
+    if (!serverId) { await notifyPending(idViaje, { status: "GPS guardado; inicio de viaje pendiente de sincronizar" }); return { completed: false, pending: pending.length }; }
     notify({ status: "Sincronizando" });
     for (let index = 0; index < pending.length; index += SYNC_BATCH_SIZE) {
       const batch = pending.slice(index, index + SYNC_BATCH_SIZE);
-      const response = await registrarUbicacionesLote(idViaje, batch);
+      const response = await registrarUbicacionesLote(serverId, batch.map(p => ({ ...p, idViaje: serverId })));
       if (response.data.rechazadas > 0) { await notifyPending(idViaje, { status: "Algunas ubicaciones requieren reintento" }); return { completed: false, pending: await countPendingLocations(idViaje) }; }
       await removePendingLocations(batch.map((location) => location.clientLocationId));
     }
     await notifyPending(idViaje, { status: "Sincronizado" });
     return { completed: true, pending: 0 };
   })();
+  syncPromises.set(idViaje, syncPromise);
   try { return await syncPromise; }
   catch (error) { await notifyPending(idViaje, { status: "Sin conexión, guardando localmente" }); return { completed: false, pending: await countPendingLocations(idViaje), error }; }
-  finally { syncPromise = null; }
+  finally { syncPromises.delete(idViaje); }
 }
 
 export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
     const location = await getCurrentLocation();
-    const uuid = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const clientLocationId = uuid();
     const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
     const pendingLocation = {
       ...location,
       isBackground,
       ...extraData,
-      clientLocationId: uuid,
+      clientLocationId,
       idViaje: Number(idViaje)
     };
     await savePendingLocation(pendingLocation);
