@@ -17,19 +17,11 @@ export const databasePool = new Pool({
       }
     : {}),
 
-  max: 10,
+  max: Number(process.env.DATABASE_POOL_MAX || 25),
 
   idleTimeoutMillis: 30000,
 
-  connectionTimeoutMillis: 5000
-});
-
-databasePool.on("connect", (client) => {
-  console.log("Nueva conexión establecida con PostgreSQL.");
-  const tz = process.env.TZ || "America/Mexico_City";
-  client.query(`SET timezone = '${tz}'`).catch((err) => {
-    console.warn("Aviso al configurar timezone en PostgreSQL:", err.message);
-  });
+  connectionTimeoutMillis: 10000
 });
 
 databasePool.on("error", (error) => {

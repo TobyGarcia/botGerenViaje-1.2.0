@@ -41,11 +41,12 @@ function isOutsideOperatingHours() {
       timeZone,
       hour: "numeric",
       minute: "numeric",
-      hour12: false
+      hourCycle: "h23"
     });
     const parts = formatter.formatToParts(now);
-    const hour = parseInt(parts.find((p) => p.type === "hour").value, 10);
-    const minute = parseInt(parts.find((p) => p.type === "minute").value, 10);
+    const rawHour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const hour = rawHour === 24 ? 0 : rawHour;
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
     const currentTotal = hour * 60 + minute;
     return currentTotal < 390 || currentTotal > 1080;
   } catch (e) {
