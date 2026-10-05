@@ -18,6 +18,7 @@
 \ir ../migrations/016_puntos_intermedios_viaje.sql
 \ir ../migrations/017_inspeccion_dia_siguiente.sql
 \ir ../migrations/018_gerenciamiento_viajes.sql
+ir ../migrations/019_fix_inspecciones_autorizador.sql
 \ir ../migrations/020_conductor_pin_and_approval.sql
 \ir ../migrations/020_expand_usuario_telegram_estados.sql
 \ir ../migrations/021_reportes_vehiculares.sql
