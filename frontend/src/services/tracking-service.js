@@ -2,123 +2,61 @@ import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation } from "./location-provider.js";
 import { countPendingLocations, getPendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, getTrackingState, saveTrackingState } from "./tracking-state.js";
+import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
+export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
 
 const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
 const batchValue = Number(import.meta.env.VITE_GPS_SYNC_BATCH_SIZE);
 const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 1000 ? intervalValue : 30000;
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
-const MIN_CAPTURE_COOLDOWN_MS = 5000; // Mínimo 5 segundos entre capturas automáticas
-
 let intervalId = null;
 let activeTripId = null;
-let syncPromise = null;
+const syncPromises = new Map();
 let statusListener = null;
 let isStarting = false;
-let watchId = null;
-let workerTimer = null;
-
-let lastCapturedTime = 0;
-let lastCapturedLat = null;
-let lastCapturedLng = null;
-let isCapturing = false;
-
-function generateUUID() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
-      (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
-    );
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 function notify(update) {
-  statusListener?.({ idViaje: activeTripId, active: isTrackingActive(), connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
+  statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
 }
-
-async function notifyPending(idViaje, update = {}) { 
-  notify({ pending: await countPendingLocations(idViaje), ...update }); 
-}
-
+async function notifyPending(idViaje, update = {}) { notify({ pending: await countPendingLocations(idViaje), ...update }); }
 export function setTrackingStatusListener(listener) { statusListener = listener; }
-export function isTrackingActive() { return intervalId !== null || workerTimer !== null || watchId !== null; }
+export function isTrackingActive() { return intervalId !== null; }
 
 export async function syncPendingLocations(idViaje) {
-  if (syncPromise) return syncPromise;
-  syncPromise = (async () => {
+  if (syncPromises.has(idViaje)) return syncPromises.get(idViaje);
+  const syncPromise = (async () => {
     const pending = await getPendingLocations(idViaje);
     if (!pending.length) { await notifyPending(idViaje, { status: "Sincronizado" }); return { completed: true, pending: 0 }; }
     if (!navigator.onLine) { await notifyPending(idViaje, { status: "Sin conexión, guardando localmente" }); return { completed: false, pending: pending.length }; }
+    const serverId = resolveOfflineTripId(idViaje);
+    if (!serverId) { await notifyPending(idViaje, { status: "GPS guardado; inicio de viaje pendiente de sincronizar" }); return { completed: false, pending: pending.length }; }
     notify({ status: "Sincronizando" });
     for (let index = 0; index < pending.length; index += SYNC_BATCH_SIZE) {
       const batch = pending.slice(index, index + SYNC_BATCH_SIZE);
-      const response = await registrarUbicacionesLote(idViaje, batch);
+      const response = await registrarUbicacionesLote(serverId, batch.map(p => ({ ...p, idViaje: serverId })));
       if (response.data.rechazadas > 0) { await notifyPending(idViaje, { status: "Algunas ubicaciones requieren reintento" }); return { completed: false, pending: await countPendingLocations(idViaje) }; }
       await removePendingLocations(batch.map((location) => location.clientLocationId));
     }
     await notifyPending(idViaje, { status: "Sincronizado" });
     return { completed: true, pending: 0 };
   })();
+  syncPromises.set(idViaje, syncPromise);
   try { return await syncPromise; }
   catch (error) { await notifyPending(idViaje, { status: "Sin conexión, guardando localmente" }); return { completed: false, pending: await countPendingLocations(idViaje), error }; }
-  finally { syncPromise = null; }
+  finally { syncPromises.delete(idViaje); }
 }
 
-export async function captureAndQueueLocation(idViaje, extraData = {}, rawPosition = null) {
-  const isIntermediate = Boolean(extraData.esPuntoIntermedio);
-  const now = Date.now();
-
-  // Control de cooldown para capturas automáticas
-  if (!isIntermediate && !rawPosition) {
-    if (isCapturing) return null;
-    if (now - lastCapturedTime < MIN_CAPTURE_COOLDOWN_MS) {
-      return null;
-    }
-  }
-
-  isCapturing = true;
+export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
-    let location;
-    if (rawPosition && rawPosition.coords) {
-      let velocidad = null;
-      if (rawPosition.coords.speed !== null && rawPosition.coords.speed !== undefined && Number.isFinite(Number(rawPosition.coords.speed)) && Number(rawPosition.coords.speed) >= 0) {
-        velocidad = Math.round(Number(rawPosition.coords.speed) * 3.6 * 100) / 100;
-      }
-      location = {
-        latitud: Number(rawPosition.coords.latitude),
-        longitud: Number(rawPosition.coords.longitude),
-        precisionMetros: rawPosition.coords.accuracy ?? null,
-        velocidad,
-        direccion: rawPosition.coords.heading ?? null,
-        fechaGps: new Date(rawPosition.timestamp ?? Date.now()).toISOString()
-      };
-    } else {
-      location = await getCurrentLocation();
-    }
-    
-    // Omitir si las coordenadas son idénticas y se capturó hace menos de 45 segundos
-    if (!isIntermediate && lastCapturedLat === location.latitud && lastCapturedLng === location.longitud && (now - lastCapturedTime < 45000)) {
-      return null;
-    }
-
-    lastCapturedTime = now;
-    lastCapturedLat = location.latitud;
-    lastCapturedLng = location.longitud;
-
-    const uuid = generateUUID();
+    const location = await getCurrentLocation();
+    const clientLocationId = uuid();
     const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
     const pendingLocation = {
       ...location,
       isBackground,
       ...extraData,
-      clientLocationId: uuid,
+      clientLocationId,
       idViaje: Number(idViaje)
     };
     await savePendingLocation(pendingLocation);
@@ -131,12 +69,7 @@ export async function captureAndQueueLocation(idViaje, extraData = {}, rawPositi
     });
     await syncPendingLocations(idViaje);
     return pendingLocation;
-  } catch (error) { 
-    notify({ status: "Sin señal GPS", error: error.message }); 
-    return null; 
-  } finally {
-    isCapturing = false;
-  }
+  } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
 }
 
 export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio", categoria = "") {
@@ -148,93 +81,22 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
   });
 }
 
-function startWorkerTimer(callback, intervalMs) {
-  stopWorkerTimer();
-  if (typeof window === "undefined" || typeof Worker === "undefined") return false;
-  try {
-    const workerScript = `
-      let timer = null;
-      self.onmessage = function(e) {
-        if (e.data.action === 'start') {
-          if (timer) clearInterval(timer);
-          timer = setInterval(function() {
-            self.postMessage('tick');
-          }, e.data.intervalMs || 30000);
-        } else if (e.data.action === 'stop') {
-          if (timer) clearInterval(timer);
-          timer = null;
-        }
-      };
-    `;
-    const blob = new Blob([workerScript], { type: "application/javascript" });
-    const url = URL.createObjectURL(blob);
-    workerTimer = new Worker(url);
-    workerTimer.onmessage = function(e) {
-      if (e.data === "tick") {
-        callback();
-      }
-    };
-    workerTimer.postMessage({ action: "start", intervalMs });
-    return true;
-  } catch (err) {
-    console.warn("[TrackingService] No se pudo crear Web Worker Timer:", err?.message);
-    return false;
-  }
-}
-
-function stopWorkerTimer() {
-  if (workerTimer) {
-    try {
-      workerTimer.postMessage({ action: "stop" });
-      workerTimer.terminate();
-    } catch {}
-    workerTimer = null;
-  }
-}
-
 export async function startTracking(idViaje) {
   const normalizedId = Number(idViaje);
-  if (isStarting || (isTrackingActive() && activeTripId === normalizedId)) return;
+  if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
 
   isStarting = true;
   try {
     stopTracking({ clearState: false });
     activeTripId = normalizedId;
-    lastCapturedTime = 0;
-    lastCapturedLat = null;
-    lastCapturedLng = null;
-
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
     
-    // Iniciar mantenimiento de audio en segundo plano
+    // Iniciar bucle de audio silencioso estrictamente en móvil para evitar que el SO duerma el GPS
     void startSilentAudioKeepAlive().catch(() => {});
 
     notify({ status: "Esperando permiso" });
     await captureAndQueueLocation(normalizedId);
-    
-    // Usar Web Worker Timer si está disponible; si no, recurrir a setInterval
-    const startedWorker = startWorkerTimer(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
-    if (!startedWorker) {
-      intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
-    }
-
-    // Listener nativo del sistema operativo (watchPosition) para cambios de movimiento GPS
-    if (typeof navigator !== "undefined" && "geolocation" in navigator && !watchId) {
-      try {
-        watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            captureAndQueueLocation(normalizedId, {}, position);
-          },
-          (err) => {
-            console.warn("[TrackingService] watchPosition aviso:", err?.message);
-          },
-          { enableHighAccuracy: true, maximumAge: 10000, timeout: 25000 }
-        );
-      } catch (e) {
-        console.warn("[TrackingService] Error al registrar watchPosition:", e?.message);
-      }
-    }
-
+    intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
     await notifyPending(normalizedId, { status: "Activo" });
   } finally {
     isStarting = false;
@@ -243,20 +105,14 @@ export async function startTracking(idViaje) {
 
 export function stopTracking({ clearState = true } = {}) {
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
-  stopWorkerTimer();
-  if (watchId !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
-    try { navigator.geolocation.clearWatch(watchId); } catch {}
-    watchId = null;
-  }
   if (clearState) clearTrackingState();
   activeTripId = null;
+  // Detener y liberar audio silencioso y estado de multimedia en móvil
   stopSilentAudioKeepAlive();
   notify({ status: "Detenido" });
 }
-
 export async function resumeTrackingIfNeeded() {
   const state = getTrackingState();
   if (state?.trackingActivo && state.idViaje) { await startTracking(state.idViaje); return state.idViaje; }
   return null;
 }
-

@@ -32,6 +32,7 @@
 \ir ../migrations/029_siniestros.sql
 \ir ../migrations/030_control_turnos_vehiculo.sql
 \ir ../migrations/031_destinos_favoritos.sql
+ir ../migrations/032_viajes_offline.sql
 \ir ../migrations/033_fix_siniestros_conductor_fk.sql
 
 

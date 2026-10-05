@@ -9,10 +9,13 @@ import {
 } from "../controllers/viajes.controller.js";
 import { registerIntermediatePointController } from "../controllers/ubicaciones.controller.js";
 import { requireActiveDriver } from "../middlewares/driver-auth.middleware.js";
+import { offlinePermitsController, offlineSyncController } from "../controllers/offline-viajes.controller.js";
 
 const router = Router();
 
 router.use(requireActiveDriver);
+router.get("/offline/permisos", offlinePermitsController);
+router.post("/offline/sincronizar", offlineSyncController);
 
 router.post(
 

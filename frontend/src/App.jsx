@@ -63,6 +63,8 @@ import {
 } from "./services/background-audio.js";
 import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
+import { getOfflineTrip, getOfflinePermits, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
+import { createOfflineDraft, startOfflineTrip, finishOfflineTrip, discardOfflineDraft, refreshOfflinePermits, syncOfflineTrip } from "./services/offline-trips.js";
 
 const initialForm = {
   idConductor: "",
@@ -269,7 +271,7 @@ const [cancelledTrip, setCancelledTrip] =
 
   useEffect(() => {
     const idViaje = startedTrip?.idViaje ?? startedTrip?.id_viajes ?? createdTrip?.idViaje ?? createdTrip?.id_viajes;
-    if (idViaje) {
+    if (idViaje > 0) {
       getGerenciamientoViajePorViaje(idViaje)
         .then((res) => setGerenciamientoDoc(res.data))
         .catch(() => setGerenciamientoDoc(null));
@@ -341,6 +343,41 @@ const [cancelledTrip, setCancelledTrip] =
   });
   const [showConductorRegister, setShowConductorRegister] = useState(false);
   const [onlineRefreshVersion, setOnlineRefreshVersion] = useState(0);
+  const [offlineNotice, setOfflineNotice] = useState("");
+  async function syncOfflineState() {
+    const driverId = telegramAuth?.conductor?.id_conductores;
+    if (!driverId) return;
+    const before = getOfflineTrip(driverId);
+    if (before && !before.synced) setOfflineNotice(before.startedAt
+      ? "Viaje guardado en el teléfono. Pendiente de sincronizar con el servidor."
+      : "Viaje preparado en el teléfono con la inspección previa del día.");
+    if (!navigator.onLine) return;
+    try {
+      const record = await syncOfflineTrip(driverId);
+      if (record?.startedAt) {
+        const view = offlineTripView(record);
+        setCreatedTrip(current => current?.idViaje === record.localId ? view : current);
+        setStartedTrip(current => current?.idViaje === record.localId ? view : current);
+        if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
+        const cached = safeStorage.getJSON("cached_active_trip");
+        if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
+        setOfflineNotice(record.synced ? `Viaje y GPS sincronizados. Folio: ${record.serverTrip.folio}`
+          : record.serverTrip ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
+          : "Viaje pendiente de sincronización.");
+      }
+      await refreshOfflinePermits(driverId);
+    } catch (error) {
+      if (before && !before.synced) setOfflineNotice(`El viaje sigue guardado en el teléfono. ${error.message}`);
+    }
+  }
+  useEffect(() => {
+    void syncOfflineState();
+    const tick = () => void syncOfflineState();
+    const timer = window.setInterval(tick, 30000);
+    window.addEventListener("online", tick);
+    return () => { window.clearInterval(timer); window.removeEventListener("online", tick); };
+  }, [telegramAuth?.conductor?.id_conductores, finishedTrip?.idViaje]);
+
 
   function handlePinLoginSuccess(conductor, token) {
     const normalized = normalizeConductor(conductor);
@@ -688,6 +725,18 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     async function loadInitialData() {
+      const localTrip = getOfflineTrip(telegramAuth?.conductor?.id_conductores);
+      if (localTrip && !localTrip.synced) {
+        const view = offlineTripView(localTrip);
+        setCreatedTrip(view);
+        safeStorage.setJSON("cached_active_trip", view);
+        setStartedTrip(localTrip.startedAt ? view : null);
+        setFinishedTrip(localTrip.finishedAt ? view : null);
+        setKilometrajeFinal(String(localTrip.kilometrajeFinal ?? localTrip.trip.kilometrajeInicial));
+        if (localTrip.startedAt && !localTrip.finishedAt) void startTracking(localTrip.localId).catch(() => {});
+        setLoading(false);
+        return;
+      }
       const cCond = getCachedJson("cached_conductores", []);
       const cVeh = getCachedJson("cached_vehiculos", []);
       const cLug = getCachedJson("cached_lugares", []);
@@ -850,6 +899,11 @@ const [cancelledTrip, setCancelledTrip] =
     async function resumeWhenVisible() {
       try {
         if (document.visibilityState !== "visible") return;
+        const localTrip = getOfflineTrip(safeStorage.getJSON("cached_driver")?.id_conductores);
+        if (localTrip && !localTrip.synced) {
+          if (localTrip.startedAt && !localTrip.finishedAt) await startTracking(localTrip.localId);
+          return;
+        }
         const response = await getViajeActivo();
         if (response.data?.estado === "EN_CURSO") {
           await syncPendingLocations(response.data.idViaje);
@@ -1029,6 +1083,16 @@ async function handleAddIntermediatePoint() {
     setMessage("");
 
     try {
+      if (idViaje < 0) {
+        const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
+        stopTracking(); stopSilentAudioKeepAlive();
+        setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
+        safeStorage.setJSON("cached_active_trip", data);
+        setMessage("Viaje finalizado y guardado en el teléfono. Se sincronizará al recuperar conexión.");
+        setMessageType("success");
+        void captureAndQueueLocation(idViaje).finally(() => void syncOfflineState());
+        return;
+      }
       stopTracking({ clearState: false });
       stopSilentAudioKeepAlive();
       await captureAndQueueLocation(idViaje);
@@ -1042,7 +1106,7 @@ async function handleAddIntermediatePoint() {
       response.data ?? {};
 
     // Obtiene el kilometraje ya confirmado por el servidor para el siguiente viaje.
-    const vehiclesResponse = await getVehiculos();
+    const vehiclesResponse = await getVehiculos().catch(() => ({ data: vehiculos }));
     const refreshedVehicles = vehiclesResponse.data ?? [];
     setVehiculos(refreshedVehicles);
     setForm((current) => {
@@ -1111,7 +1175,9 @@ async function handleAddIntermediatePoint() {
     setMessage("");
 
     try {
-      const response = await cancelarViaje(idViaje);
+      const response = idViaje < 0
+        ? (discardOfflineDraft(telegramAuth.conductor.id_conductores, idViaje), { data: { estado: "CANCELADO" } })
+        : await cancelarViaje(idViaje);
       const cancelledData = response.data ?? {};
 
       stopTracking();
@@ -1181,6 +1247,11 @@ function isOutsideOperatingHours() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    const queuedTrip = getOfflineTrip(Number(form.idConductor));
+    if (queuedTrip && !queuedTrip.synced) {
+      triggerModalError("Primero sincroniza el viaje guardado en este teléfono antes de crear otro.");
+      return;
+    }
     if (isOutsideOperatingHours()) {
       triggerModalError("El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
       setActiveTabMode("gerenciamiento");
@@ -1236,7 +1307,7 @@ function isOutsideOperatingHours() {
         .filter(Boolean)
         .map((nombre) => ({ nombre }));
 
-      const response = await createViaje({
+      const tripPayload = {
         idConductor: Number(form.idConductor),
         idVehiculo: Number(form.idVehiculo),
         idOrigen: Number(form.idOrigen),
@@ -1244,7 +1315,19 @@ function isOutsideOperatingHours() {
         acompanantes,
         kilometrajeInicial,
         motivo: form.motivo.trim()
-      });
+      };
+      // Prepare eligible subsequent trips locally even online: the same idempotent
+      // operation can then survive losing the connection between create and start.
+      if (navigator.onLine) await refreshOfflinePermits(tripPayload.idConductor).catch(() => {});
+      const permit = matchingPermit(getOfflinePermits(tripPayload.idConductor), tripPayload.idConductor, tripPayload.idVehiculo);
+      const response = permit || !navigator.onLine
+        ? { data: createOfflineDraft(tripPayload, {
+            conductor: selectedDriver?.nombre, vehiculo: selectedVehicle?.nombre,
+            numeroEconomico: selectedVehicle?.numero_economico,
+            origen: lugares.find(x => Number(x.id_lugares) === tripPayload.idOrigen)?.nombre,
+            destino: lugares.find(x => Number(x.id_lugares) === tripPayload.idDestino)?.nombre
+          }) }
+        : await createViaje(tripPayload);
 
       const createdData = {
         ...response.data,
@@ -1256,7 +1339,8 @@ function isOutsideOperatingHours() {
       };
       setCreatedTrip(createdData);
       safeStorage.setJSON("cached_active_trip", createdData);
-      setMessage(`Viaje creado correctamente. Folio: ${response.data.folio}`);
+      setMessage(response.data.offline ? "Viaje preparado en el teléfono. Puedes iniciarlo con la inspección previa del día."
+        : `Viaje creado correctamente. Folio: ${response.data.folio}`);
       setMessageType("success");
       setForm({
         ...initialForm,
@@ -1298,24 +1382,25 @@ function isOutsideOperatingHours() {
       return;
     }
 
-    // Iniciar bucle de audio silencioso en respuesta directa al clic del conductor (antes de que confirm() consuma el gesto)
-    void startSilentAudioKeepAlive().catch(() => {});
-
     const confirmed = window.confirm(
       "¿Confirmas que deseas iniciar este viaje? La hora de salida se registrará automáticamente."
     );
 
     if (!confirmed) {
-      stopSilentAudioKeepAlive();
       return;
     }
+
+    // Iniciar bucle de audio silencioso en móvil en respuesta directa al clic del conductor
+    void startSilentAudioKeepAlive().catch(() => {});
 
     startingTripRef.current = true;
     setStartingTrip(true);
     setMessage("");
 
     try {
-      const response = await iniciarViaje(idViaje);
+      const response = idViaje < 0
+        ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje) }
+        : await iniciarViaje(idViaje);
       const startedData = response.data ?? {};
       const horaSalida =
         startedData.horaSalida ??
@@ -1341,9 +1426,10 @@ function isOutsideOperatingHours() {
           ""
         )
       );
-      setMessage("Viaje iniciado correctamente.");
+      setMessage(idViaje < 0 ? "Viaje iniciado en el teléfono; pendiente de confirmación del servidor." : "Viaje iniciado correctamente.");
+      if (idViaje < 0) void syncOfflineState();
       setMessageType("success");
-      await startTracking(idViaje);
+      void startTracking(idViaje).catch(error => setGpsStatus(`Viaje iniciado; GPS pendiente: ${error.message}`));
       
     } catch (error) {
       setMessage(error.message);
@@ -1359,9 +1445,17 @@ function isOutsideOperatingHours() {
     setInspectionStatus("loading");
     setInspectionError("");
     try {
+      if (idViaje < 0) {
+        const record = getOfflineTrip(telegramAuth?.conductor?.id_conductores);
+        if (!record || record.localId !== idViaje || !matchingPermit([record.grant], record.trip.idConductor, record.trip.idVehiculo))
+          throw new Error("El permiso sin conexión venció. Conéctate para validar una nueva inspección.");
+        const requirement = { required: false, canStart: true };
+        setInspection(requirement); setInspectionStatus("ready"); return requirement;
+      }
       const response = await getInspeccionVehicular(idViaje);
       setInspection(response.data);
       setInspectionStatus("ready");
+      return response.data;
     } catch (error) {
       setInspection(null);
       setInspectionStatus("error");
@@ -1374,9 +1468,13 @@ function isOutsideOperatingHours() {
     setInspectionSaving(true);
     try {
       await enviarInspeccionVehicular(idViaje, data);
-      await loadInspection(idViaje);
+      const requirement = await loadInspection(idViaje);
+      const driverId = telegramAuth?.conductor?.id_conductores;
+      if (driverId) await refreshOfflinePermits(driverId).catch(() => {});
       setInspectionOpen(false);
-      setMessage("Inspección enviada correctamente. Ya puedes iniciar tu viaje."); setMessageType("success");
+      setMessage(requirement?.canStart
+        ? "Inspección enviada. Ya puedes intentar iniciar el viaje."
+        : "Inspección enviada. Consulta su estado y los requisitos de autorización para iniciar."); setMessageType("success");
     } catch (error) { setMessage(error.message); setMessageType("error"); }
     finally { setInspectionSaving(false); }
   }
@@ -1439,6 +1537,12 @@ function isOutsideOperatingHours() {
   }, [gerenciamientoPendiente, createdTrip]);
 
   function handleNewTrip(){
+    const pending = getOfflineTrip(telegramAuth?.conductor?.id_conductores);
+    if (pending && !pending.synced) {
+      triggerModalError("El viaje está guardado. Recupera conexión y sincronízalo antes de crear otro.");
+      return;
+    }
+    setOfflineNotice("");
     stopTracking();
 
     setForm({
@@ -1664,7 +1768,6 @@ function isOutsideOperatingHours() {
           <InspeccionVehicular
             context={inspection.context}
             estado={inspection.inspection?.estado}
-            vehiculos={vehiculos}
             onSubmit={submitInspection}
             saving={inspectionSaving}
             onClose={() => setInspectionOpen(false)}
@@ -1684,6 +1787,10 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
+        {offlineNotice && <div role="status" className="inspection-load-error">
+          <p>{offlineNotice}</p>
+          <button type="button" onClick={syncOfflineState}>Sincronizar viaje guardado</button>
+        </div>}
         {createdTrip ? (
           <div className="gv-screen-header">
             <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
@@ -2434,7 +2541,8 @@ function isOutsideOperatingHours() {
           <button
             type="button"
             className="gv-btn-sync"
-            onClick={() => syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
+            onClick={() => (startedTrip.idViaje ?? startedTrip.id_viajes) < 0
+              ? syncOfflineState() : syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
           >
             <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M23 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />

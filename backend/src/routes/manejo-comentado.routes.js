@@ -7,7 +7,8 @@ import {
   submitInstructorEvaluationController,
   listScheduledCoursesController,
   getCourseDetailsController,
-  updateDriverManejoComentadoController
+  updateDriverManejoComentadoController,
+  batchUpdateDriversManejoComentadoController
 } from "../controllers/manejo-comentado.controller.js";
 import { requireAdminSession, requireAdminRoles, ROLES_SUPERVISOR_Y_SUPERIOR } from "../middlewares/admin-auth.middleware.js";
 
@@ -20,6 +21,9 @@ router.get("/resumen-expirados", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR),
 
 // Listado de conductores con estatus de Manejo Comentado
 router.get("/conductores", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), listDriversManejoComentadoController);
+
+// Ingesta por lote / batch desde plantilla Excel
+router.post("/conductores/batch", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), batchUpdateDriversManejoComentadoController);
 
 // Edición de datos de manejo comentado y licencia del conductor
 router.put("/conductores/:idConductor", requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), updateDriverManejoComentadoController);

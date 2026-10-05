@@ -21,6 +21,43 @@ function formatDateTime(value) {
   });
 }
 
+function formatTripDuration(horaSalida, horaLlegada) {
+  if (!horaSalida) return "Sin registro";
+  if (!horaLlegada) return "En curso";
+
+  const start = new Date(horaSalida);
+  const end = new Date(horaLlegada);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "Sin registro";
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs < 0) return "Sin registro";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  if (totalMinutes === 0) {
+    return "< 1 min";
+  }
+
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts = [];
+  if (days > 0) {
+    parts.push(`${days} ${days === 1 ? "día" : "días"}`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours} h`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} min`);
+  }
+
+  return parts.join(" ");
+}
+
 function getStatusClass(status) {
   const normalized = String(status || "").toUpperCase();
   if (normalized === "FINALIZADO") return "trip-status trip-status-finished";
@@ -227,8 +264,8 @@ export default function TripDetailModal({ idViaje, onClose }) {
                 </article>
 
                 <article>
-                  <span>Licencia vigente</span>
-                  <strong>{trip.licenciaVigente ? "Sí" : "No"}</strong>
+                  <span>Duración del viaje</span>
+                  <strong>{formatTripDuration(trip.horaSalida, trip.horaLlegada)}</strong>
                 </article>
               </section>
 

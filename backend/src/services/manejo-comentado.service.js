@@ -806,3 +806,37 @@ export async function updateManejoComentadoDriver({
   }
 }
 
+export async function batchUpdateDriversManejoComentado({ records = [], idEvaluador = null }) {
+  if (!Array.isArray(records) || records.length === 0) {
+    throw new Error("No se proporcionaron registros para procesar.");
+  }
+
+  let updatedCount = 0;
+  const errors = [];
+
+  for (const item of records) {
+    try {
+      if (!item.idConductor) {
+        continue;
+      }
+      await updateManejoComentadoDriver({
+        idConductor: item.idConductor,
+        fechaRealizacion: item.fechaRealizacion,
+        score: item.score,
+        proximaEvaluacion: item.proximaEvaluacion,
+        comentarios: item.comentarios || "Actualización por ingesta de plantilla Excel",
+        licenciaNumero: item.licenciaNumero,
+        tipoLicencia: item.tipoLicencia,
+        licenciaVencimiento: item.licenciaVencimiento,
+        idEvaluador
+      });
+      updatedCount++;
+    } catch (err) {
+      errors.push({ idConductor: item.idConductor, error: err.message });
+    }
+  }
+
+  return { success: true, updatedCount, totalProcessed: records.length, errors };
+}
+
+

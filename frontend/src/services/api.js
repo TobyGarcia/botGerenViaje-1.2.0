@@ -97,6 +97,11 @@ export function createViaje(payload) {
   });
 }
 
+export const requestOfflinePermits = () => request("/api/viajes/offline/permisos");
+export const uploadOfflineTrip = payload => request("/api/viajes/offline/sincronizar", {
+  method: "POST", body: JSON.stringify(payload)
+});
+
 export function iniciarViaje(idViaje) {
   return request(
     `/api/viajes/${idViaje}/iniciar`,
