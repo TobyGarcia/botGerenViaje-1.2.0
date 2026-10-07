@@ -10,6 +10,9 @@ export async function getInspectionContext({ idViaje, idConductor }) {
       c.licencia_vencimiento, vh.id_vehiculos, vh.marca, vh.modelo,
       vh.nombre AS vehiculo, vh.tipo_vehiculo, vh.numero_poliza, vh.seguro_vencimiento,
       vh.numero_economico, vh.numero_serie, vh.placas,
+      CASE WHEN vh.id_conductor_asignado = c.id_conductores THEN 'PERMANENTE' ELSE 'TEMPORAL' END AS tipo_asignacion_actual,
+      asignacion.fecha_inicio AS asignacion_temporal_inicio,
+      asignacion.fecha_fin AS asignacion_temporal_fin,
       COALESCE(ultima.kilometraje, vh.kilometraje_actual) AS kilometraje_actual,
       i.id_inspeccion, i.estado, i.combustible, i.tipo_asignacion, i.asignacion_inicio,
       i.asignacion_fin, i.danos, i.checklist, i.observaciones_conductor, i.firma_conductor
@@ -20,6 +23,12 @@ export async function getInspectionContext({ idViaje, idConductor }) {
       SELECT kilometraje FROM historial_kilometraje_vehiculos
       WHERE id_vehiculos = vh.id_vehiculos ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC LIMIT 1
     ) ultima ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT fecha_inicio, fecha_fin FROM asignaciones_temporales_vehiculo
+      WHERE id_conductores=c.id_conductores AND id_vehiculos=vh.id_vehiculos AND estado='ACTIVA'
+        AND ${operationalDateSql}::date BETWEEN fecha_inicio AND fecha_fin
+      ORDER BY fecha_fin DESC LIMIT 1
+    ) asignacion ON TRUE
     LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = v.id_viajes
     WHERE v.id_viajes = $1 AND c.id_conductores = $2
     LIMIT 1`, [idViaje, idConductor]);
@@ -59,9 +68,11 @@ export async function saveInspection({ idViaje, idConductor, data }) {
       es_dia_siguiente=EXCLUDED.es_dia_siguiente, lleva_remolque=EXCLUDED.lleva_remolque,
       id_remolque=EXCLUDED.id_remolque, inspeccion_remolque=EXCLUDED.inspeccion_remolque, actualizado_en=CURRENT_TIMESTAMP
     RETURNING *`, [idViaje, context.id_vehiculos, idConductor, fecha, data.combustible,
-      data.tipoAsignacion, data.asignacionInicio || null, data.asignacionFin || null,
+      context.tipo_asignacion_actual,
+      context.tipo_asignacion_actual === "TEMPORAL" ? context.asignacion_temporal_inicio : null,
+      context.tipo_asignacion_actual === "TEMPORAL" ? context.asignacion_temporal_fin : null,
       JSON.stringify(data.danos || {}), JSON.stringify(data.checklist || {}),
-      data.observaciones || null, data.firma, Number(hora) < 7 || Number(hora) >= 16, isNextDay,
+      data.observaciones || null, data.firma, Number(hora) < 6 || Number(hora) >= 18, isNextDay,
       levaRemolque, idRemolque, inspeccionRemolque]);
   return result.rows[0];
 }
@@ -73,12 +84,16 @@ export async function getApprovalForStart(idViaje, idConductor) {
     LEFT JOIN inspecciones_vehiculares i
       ON i.id_vehiculos = v.id_vehiculos
       AND i.id_conductores = $2
-      AND (
-        i.fecha_operativa = ${operationalDateSql}::date
-        OR i.fecha_operativa = CURRENT_DATE
-        OR (i.es_dia_siguiente = TRUE AND i.fecha_operativa >= CURRENT_DATE - INTERVAL '1 day')
-      )
+      AND i.fecha_operativa = ${operationalDateSql}::date
       AND i.estado IN ('PENDIENTE_APROBACION', 'APROBADA')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM viajes uso_posterior
+        WHERE uso_posterior.id_vehiculos = i.id_vehiculos
+          AND uso_posterior.id_conductores <> i.id_conductores
+          AND uso_posterior.hora_salida IS NOT NULL
+          AND uso_posterior.hora_salida > i.actualizado_en
+      )
     WHERE v.id_viajes = $1
     ORDER BY i.actualizado_en DESC NULLS LAST LIMIT 1`, [idViaje, idConductor]);
   return result.rows[0] ?? null;
@@ -183,4 +198,3 @@ export async function getStoredInspectionPdf(idInspeccion) {
   const result = await databasePool.query("SELECT pdf_nombre, pdf_documento, sharepoint_web_url FROM inspecciones_vehiculares WHERE id_inspeccion=$1", [idInspeccion]);
   return result.rows[0] ?? null;
 }
-

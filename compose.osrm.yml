@@ -1,0 +1,53 @@
+# Servicio de map matching y ruteo autohospedado (OSRM).
+#
+# El grafo se construye antes con ./scripts/osrm-build.sh
+#
+# max-matching-size eleva el limite de coordenadas por peticion: el servidor
+# demo publico corta en 10, lo que forzaba partir las trazas en bloques de 8 y
+# hundia la confianza del matching. Con 1000 un viaje de dos horas muestreado
+# cada 10 s (unos 720 puntos) se resuelve en una sola llamada.
+#
+# Escucha solo en 127.0.0.1: lo consume el backend, no se expone a internet.
+
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: osrm-routing
+    restart: unless-stopped
+
+    command: >
+      osrm-routed
+      --algorithm mld
+      --max-matching-size 1000
+      --max-table-size 1000
+      --port 5000
+      /data/zona.osrm
+
+    volumes:
+      - /home/josuetovar/traslado_Local/osrm-data:/data:ro
+
+    ports:
+      - "127.0.0.1:${OSRM_PORT:-5000}:5000"
+
+    # La imagen no trae wget, curl ni timeout: la sonda abre un socket con bash
+    # y se apoya en el timeout que define el propio healthcheck.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "</dev/tcp/127.0.0.1/5000"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+    networks:
+      - viajes_network
+
+networks:
+  viajes_network:
+    external: true
+    name: viajes_network_prod

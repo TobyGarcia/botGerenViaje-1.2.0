@@ -29,15 +29,15 @@
 \ir ../migrations/026_expand_admin_roles_and_conductor_link.sql
 \ir ../migrations/026_refactor_usuarios_admin_conductores.sql
 \ir ../migrations/027_fix_foreign_keys_usuarios_admin.sql
+\ir ../migrations/027_inspeccion_remolque.sql
 \ir ../migrations/028_puesto_conductor.sql
 \ir ../migrations/029_siniestros.sql
 \ir ../migrations/030_control_turnos_vehiculo.sql
 \ir ../migrations/031_destinos_favoritos.sql
 \ir ../migrations/032_viajes_offline.sql
 \ir ../migrations/033_fix_siniestros_conductor_fk.sql
-
-
-
+\ir ../migrations/034_asignaciones_temporales_vehiculo.sql
+\ir ../migrations/035_bitacora_auditoria.sql
 
 
 

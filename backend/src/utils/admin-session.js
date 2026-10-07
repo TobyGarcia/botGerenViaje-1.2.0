@@ -24,8 +24,10 @@ export function getAdminCookieOptions() {
       ? sameSite
       : "lax",
     path: "/",
-    maxAge:
-      8 * 60 * 60 * 1000
+    maxAge: Number(
+      process.env.ADMIN_COOKIE_MAX_AGE_MS ||
+      45 * 60 * 1000
+    )
   };
 }
 
@@ -61,7 +63,7 @@ export function createAdminSessionToken(
       expiresIn:
         process.env
           .ADMIN_JWT_EXPIRES_IN ||
-        "8h",
+        "45m",
 
       issuer:
         "gerenciamiento-viajes",

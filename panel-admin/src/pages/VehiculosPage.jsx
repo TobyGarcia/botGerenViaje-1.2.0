@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState
@@ -197,7 +198,7 @@ function VehiculosPage({ user }) {
   const submittingRef =
     useRef(false);
 
-  async function loadVehiculos() {
+  const loadVehiculos = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -224,7 +225,7 @@ function VehiculosPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, status]);
 
   useEffect(() => {
     const timeoutId =
@@ -237,7 +238,7 @@ function VehiculosPage({ user }) {
         timeoutId
       );
     };
-  }, [search, status]);
+  }, [loadVehiculos]);
 
   useEffect(() => {
     if (!showForm) {
@@ -249,7 +250,8 @@ function VehiculosPage({ user }) {
         event.key === "Escape" &&
         !saving
       ) {
-        closeForm();
+        setShowForm(false);
+        setForm(initialForm);
       }
     }
 

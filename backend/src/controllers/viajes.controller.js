@@ -237,7 +237,8 @@ export async function createTripController(
       idDestino,
       acompanantes: normalizedCompanions,
       kilometrajeInicial,
-      motivo
+      motivo,
+      usoTemporal: request.body.usoTemporal || null
     });
 
     return response.status(201).json({

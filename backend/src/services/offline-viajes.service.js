@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { databasePool } from "../database/pool.js";
-import { createTrip, startTrip, finishTrip } from "./viajes.service.js";
+import { cancelExpiredPendingTrips, createTrip, startTrip, finishTrip } from "./viajes.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { mexicoClock, signOfflinePermit, verifyOfflinePermit } from "../utils/offline-trip-permit.js";
 
@@ -22,7 +22,7 @@ async function checkDriving(client, driverId, at) {
 
 export async function getOfflinePermits(driverId, now = new Date()) {
   const { day, minutes } = mexicoClock(now);
-  if (minutes < 390 || minutes >= 1080 || !(await checkDriving(databasePool, driverId, now))) return [];
+  if (minutes < 360 || minutes >= 1080 || !(await checkDriving(databasePool, driverId, now))) return [];
   const { rows } = await databasePool.query(`SELECT DISTINCT ON (i.id_vehiculos)
       i.id_inspeccion, i.id_vehiculos, i.estado
     FROM inspecciones_vehiculares i
@@ -32,6 +32,18 @@ export async function getOfflinePermits(driverId, now = new Date()) {
       AND i.creado_en <= $3::timestamptz
       AND c.activo AND c.licencia_vigente AND c.licencia_vencimiento >= $2::date
       AND vh.activo AND NOT vh.en_mantenimiento
+      AND NOT EXISTS (
+        SELECT 1 FROM viajes uso_posterior
+        WHERE uso_posterior.id_vehiculos=i.id_vehiculos
+          AND uso_posterior.id_conductores<>i.id_conductores
+          AND uso_posterior.hora_salida IS NOT NULL
+          AND uso_posterior.hora_salida>i.actualizado_en
+      )
+      AND (vh.id_conductor_asignado=$1 OR EXISTS (
+        SELECT 1 FROM asignaciones_temporales_vehiculo atv
+        WHERE atv.id_conductores=$1 AND atv.id_vehiculos=i.id_vehiculos
+          AND atv.estado='ACTIVA' AND $2::date BETWEEN atv.fecha_inicio AND atv.fecha_fin
+      ))
     ORDER BY i.id_vehiculos, i.creado_en DESC, i.id_inspeccion DESC`, [driverId, day, now.toISOString()]);
   // Mexico City uses UTC-06 year-round; Intl above determines the operational day.
   const exp = Math.floor(+new Date(`${day}T18:00:00-06:00`) / 1000);
@@ -82,7 +94,7 @@ export async function syncOfflineTrip(body, driverId) {
       await client.query("SELECT id_conductores FROM conductores WHERE id_conductores=$1 FOR UPDATE", [driverId]);
       await client.query("SELECT id_vehiculos FROM vehiculos WHERE id_vehiculos=$1 FOR UPDATE", [claims.vehicleId]);
       const inspection = (await client.query(`SELECT i.estado, i.fecha_operativa::text,
-          i.id_conductores, i.id_vehiculos, i.creado_en, c.licencia_vencimiento::text
+          i.id_conductores, i.id_vehiculos, i.creado_en, i.actualizado_en, c.licencia_vencimiento::text
         FROM inspecciones_vehiculares i JOIN conductores c ON c.id_conductores=i.id_conductores
         WHERE i.id_inspeccion=$1 FOR SHARE OF i`, [claims.inspectionId])).rows[0];
       if (!inspection || !allowedInspection(inspection.estado) || inspection.fecha_operativa !== claims.day ||
@@ -91,9 +103,23 @@ export async function syncOfflineTrip(body, driverId) {
           +new Date(inspection.creado_en) > +new Date(body.startedAt)) {
         throw new Error("La inspección previa ya no es válida. El viaje local se conserva para revisión.");
       }
+      const laterVehicleUse = await client.query(`SELECT 1 FROM viajes
+        WHERE id_vehiculos=$1 AND id_conductores<>$2 AND hora_salida IS NOT NULL
+          AND hora_salida>$3::timestamptz AT TIME ZONE 'America/Mexico_City'
+          AND hora_salida<$4::timestamptz AT TIME ZONE 'America/Mexico_City'
+        LIMIT 1`, [claims.vehicleId, driverId, inspection.actualizado_en, body.startedAt]);
+      if (laterVehicleUse.rowCount) {
+        throw new Error("Otro conductor utilizó la unidad después de esta inspección. Se requiere una inspección nueva.");
+      }
       if (!(await checkDriving(client, driverId, new Date(body.startedAt)))) {
         throw new Error("Se requiere manejo comentado vigente.");
       }
+      await cancelExpiredPendingTrips({
+        client,
+        operationalDate: mexicoClock(new Date()).day,
+        idConductor: driverId,
+        idVehiculo: claims.vehicleId
+      });
       const conflict = await client.query(`SELECT 1 FROM viajes v JOIN estados_viaje e USING(id_estado_viaje)
         WHERE (v.id_conductores=$1 OR v.id_vehiculos=$2) AND
         (e.nombre IN ('PENDIENTE','EN_CURSO') OR

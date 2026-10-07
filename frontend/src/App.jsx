@@ -1,7 +1,8 @@
 import {
   useEffect,
   useRef,
-  useState
+  useState,
+  useCallback
 } from "react";
 import "./App.css";
 
@@ -17,7 +18,6 @@ import {
   getInspeccionVehicular,
   enviarInspeccionVehicular,
   iniciarViaje,
-  registrarUbicacion,
   getGerenciamientoViajePorViaje,
   getGerenciamientoViaje,
   registrarReporteHoraGerenciamiento,
@@ -36,7 +36,6 @@ import OfflineBanner from "./components/OfflineBanner.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import {
-  IconCar,
   IconMap,
   IconClock,
   IconAlert,
@@ -45,7 +44,6 @@ import {
   IconSend,
   IconPin,
   IconPlus,
-  IconMapPin,
   IconTrash
 } from "./components/Icons.jsx";
 
@@ -63,7 +61,7 @@ import {
 } from "./services/background-audio.js";
 import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
-import { getOfflineTrip, getOfflinePermits, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
+import { getOfflineTrip, getOfflinePermits, getPendingOfflineTrips, hasUnfinishedOfflineTrip, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
 import { createOfflineDraft, startOfflineTrip, finishOfflineTrip, discardOfflineDraft, refreshOfflinePermits, syncOfflineTrip } from "./services/offline-trips.js";
 
 const initialForm = {
@@ -74,7 +72,10 @@ const initialForm = {
   acompanantes: "",
   viajaAcompanado: false,
   kilometrajeInicial: "",
-  motivo: ""
+  motivo: "",
+  usoTemporalModo: "SOLO_HOY",
+  usoTemporalInicio: "",
+  usoTemporalFin: ""
 };
 
 function formatDate(value) {
@@ -106,13 +107,6 @@ function formatUrbanDate(d = new Date()) {
   const month = months[d.getMonth()];
   const year = d.getFullYear();
   return `${day} ${month} ${year}`;
-}
-
-function getDriverInitials(name) {
-  if (!name) return "C";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function getCachedJson(key, fallback) {
@@ -163,13 +157,6 @@ function App() {
   });
   const savingRef = useRef(false);
   const startingTripRef = useRef(false);
-  const geolocationWatchRef = useRef(null);
-const lastLocationSentAtRef = useRef(0);
-const sendingLocationRef = useRef(false);
-
-  const [trackingGps, setTrackingGps] =
-    useState(false);
-  const [modalAlertMessage, setModalAlertMessage] = useState("");
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
   const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(() => getCachedJson("cached_gerenciamiento_pendiente", null));
 
@@ -220,9 +207,8 @@ const sendingLocationRef = useRef(false);
   }
 
   function triggerModalError(errMsg) {
-    setMessage("");
+    setMessage(errMsg);
     setMessageType("error");
-    setModalAlertMessage(errMsg);
     if (window.Telegram?.WebApp?.showAlert) {
       try {
         window.Telegram.WebApp.showAlert(errMsg);
@@ -305,7 +291,7 @@ const [cancelledTrip, setCancelledTrip] =
             setMessageType("error");
           }
         }
-      } catch (err) {
+      } catch {
         // Ignorar errores de red temporales durante polling
       }
     }
@@ -335,7 +321,6 @@ const [cancelledTrip, setCancelledTrip] =
     if (!token) return false;
     return true;
   });
-  const [telegramAuthError, setTelegramAuthError] = useState("");
   const [showPinLogin, setShowPinLogin] = useState(() => {
     const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
@@ -344,12 +329,13 @@ const [cancelledTrip, setCancelledTrip] =
   const [showConductorRegister, setShowConductorRegister] = useState(false);
   const [onlineRefreshVersion, setOnlineRefreshVersion] = useState(0);
   const [offlineNotice, setOfflineNotice] = useState("");
-  async function syncOfflineState() {
+  const syncOfflineState = useCallback(async () => {
     const driverId = telegramAuth?.conductor?.id_conductores;
     if (!driverId) return;
     const before = getOfflineTrip(driverId);
-    if (before && !before.synced) setOfflineNotice(before.startedAt
-      ? "Viaje guardado en el teléfono. Pendiente de sincronizar con el servidor."
+    const pendingCount = getPendingOfflineTrips(driverId).length;
+    if (pendingCount) setOfflineNotice(before?.startedAt
+      ? `${pendingCount} viaje${pendingCount === 1 ? "" : "s"} guardado${pendingCount === 1 ? "" : "s"} en el teléfono. Pendiente${pendingCount === 1 ? "" : "s"} de sincronizar con el servidor.`
       : "Viaje preparado en el teléfono con la inspección previa del día.");
     if (!navigator.onLine) return;
     try {
@@ -369,14 +355,14 @@ const [cancelledTrip, setCancelledTrip] =
     } catch (error) {
       if (before && !before.synced) setOfflineNotice(`El viaje sigue guardado en el teléfono. ${error.message}`);
     }
-  }
+  }, [telegramAuth?.conductor?.id_conductores]);
   useEffect(() => {
     void syncOfflineState();
     const tick = () => void syncOfflineState();
     const timer = window.setInterval(tick, 30000);
     window.addEventListener("online", tick);
     return () => { window.clearInterval(timer); window.removeEventListener("online", tick); };
-  }, [telegramAuth?.conductor?.id_conductores, finishedTrip?.idViaje]);
+  }, [syncOfflineState, finishedTrip?.idViaje]);
 
 
   function handlePinLoginSuccess(conductor, token) {
@@ -393,7 +379,6 @@ const [cancelledTrip, setCancelledTrip] =
       conductor: normalized
     });
     setShowPinLogin(false);
-    setTelegramAuthError("");
   }
 
   async function handleLogout() {
@@ -436,6 +421,12 @@ const [cancelledTrip, setCancelledTrip] =
   const selectedVehicle = vehiculos.find(
     (vehiculo) => String(vehiculo.id_vehiculos) === form.idVehiculo
   );
+  const permanentVehicleId = selectedDriver?.id_vehiculo_asignado ||
+    vehiculos.find(vehicle => String(vehicle.id_conductor_asignado) === String(selectedDriver?.id_conductores))?.id_vehiculos;
+  const usesTemporaryVehicle = Boolean(selectedVehicle &&
+    String(selectedVehicle.id_vehiculos) !== String(permanentVehicleId || ""));
+  const currentTemporaryAssignment = selectedVehicle?.asignaciones_temporales?.find(assignment =>
+    String(assignment.idConductor) === String(selectedDriver?.id_conductores));
   const currentDate = new Intl.DateTimeFormat("es-MX", {
     dateStyle: "long"
   }).format(new Date());
@@ -449,7 +440,7 @@ const [cancelledTrip, setCancelledTrip] =
       try {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
-      } catch (err) {
+      } catch {
         console.warn("Error al inicializar Telegram WebApp en App.jsx:", err);
       }
     }
@@ -885,7 +876,6 @@ const [cancelledTrip, setCancelledTrip] =
   useEffect(() => {
     setTrackingStatusListener((update) => {
       setTrackingInfo((current) => ({ ...current, ...update }));
-      setTrackingGps(Boolean(update.active));
       if (update.status) setGpsStatus(update.status);
     });
 
@@ -931,89 +921,6 @@ const [cancelledTrip, setCancelledTrip] =
       window.removeEventListener("online", syncWhenOnline);
     };
   }, [startedTrip?.idViaje, createdTrip?.idViaje]);
-
-  async function sendPosition(
-  idViaje,
-  position
-) {
-  const now = Date.now();
-
-  if (
-    now - lastLocationSentAtRef.current <
-    LOCATION_INTERVAL_MS
-  ) {
-    return;
-  }
-
-  if (sendingLocationRef.current) {
-    return;
-  }
-
-  sendingLocationRef.current = true;
-  lastLocationSentAtRef.current = now;
-
-  try {
-    const coordinates = position.coords;
-
-    const response = await registrarUbicacion(
-      idViaje,
-      {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        accuracy: coordinates.accuracy,
-        speed: coordinates.speed,
-        heading: coordinates.heading,
-        gpsTimestamp:
-          new Date(
-            position.timestamp
-          ).toISOString()
-      }
-    );
-
-    setLastLocation(response.data);
-
-    setGpsStatus(
-      "Ubicación enviada correctamente."
-    );
-  } catch (error) {
-    console.error(
-      "Error enviando ubicación:",
-      error
-    );
-
-    setGpsStatus(error.message);
-  } finally {
-    sendingLocationRef.current = false;
-  }
-}
-function handleStartGps() {
-  if(finishedTrip) {
-    setGpsStatus(
-      "el Viaje ya fue finalizado"
-    );
-
-    return;
-  }
-  const idViaje =
-    startedTrip?.idViaje ??
-    startedTrip?.id_viajes ??
-    createdTrip?.idViaje ??
-    createdTrip?.id_viajes;
-
-  if (!idViaje) {
-    setGpsStatus(
-      "No se encontró el viaje activo."
-    );
-    return;
-  }
-
-  startTracking(idViaje);
-}
-function handleStopGps() {
-  stopTracking({ clearState: false });
-  setTrackingGps(false);
-  setGpsStatus("GPS detenido.");
-}
 
 const [savingIntermediatePoint, setSavingIntermediatePoint] = useState(false);
 
@@ -1218,6 +1125,13 @@ async function handleAddIntermediatePoint() {
           (item) => String(item.id_vehiculos) === value
         );
         updatedForm.kilometrajeInicial = vehicle?.kilometraje_actual ?? "";
+        const driverId = telegramAuth?.conductor?.id_conductores;
+        const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
+        const isPermanent = (driverId && String(vehicle?.id_conductor_asignado) === String(driverId)) ||
+          (authAssignedId && String(vehicle?.id_vehiculos) === String(authAssignedId));
+        updatedForm.usoTemporalModo = isPermanent ? "" : "SOLO_HOY";
+        updatedForm.usoTemporalInicio = "";
+        updatedForm.usoTemporalFin = "";
       }
 
       if (name === "idOrigen" && value === current.idDestino) {
@@ -1236,24 +1150,25 @@ async function handleAddIntermediatePoint() {
 
 function isOutsideOperatingHours() {
   const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const currentTotal = hours * 60 + minutes;
-  const startTotal = 6 * 60 + 30; // 06:30 -> 390
-  const endTotal = 18 * 60;       // 18:00 -> 1080
-  return currentTotal < startTotal || currentTotal > endTotal;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(now).map((part) => [part.type, part.value]));
+  const currentTotal = Number(parts.hour) * 60 + Number(parts.minute);
+  return currentTotal < 360 || currentTotal >= 1080;
 }
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    const queuedTrip = getOfflineTrip(Number(form.idConductor));
-    if (queuedTrip && !queuedTrip.synced) {
-      triggerModalError("Primero sincroniza el viaje guardado en este teléfono antes de crear otro.");
+    if (hasUnfinishedOfflineTrip(Number(form.idConductor))) {
+      triggerModalError("Primero finaliza el viaje activo guardado en este teléfono antes de crear otro.");
       return;
     }
     if (isOutsideOperatingHours()) {
-      triggerModalError("El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
+      triggerModalError("El horario operativo para viajes locales/urbanos es de 6:00 AM a 6:00 PM. Al estar fuera de este horario, debes realizar un Gerenciamiento de Viaje.");
       setActiveTabMode("gerenciamiento");
       return;
     }
@@ -1265,6 +1180,11 @@ function isOutsideOperatingHours() {
     if (!form.idVehiculo) {
       setMessage("Por favor selecciona una unidad vehicular.");
       setMessageType("error");
+      return;
+    }
+    if (usesTemporaryVehicle && form.usoTemporalModo === "PERIODO" &&
+        (!form.usoTemporalInicio || !form.usoTemporalFin || form.usoTemporalFin < form.usoTemporalInicio)) {
+      triggerModalError("Selecciona un periodo temporal válido.");
       return;
     }
 
@@ -1314,7 +1234,12 @@ function isOutsideOperatingHours() {
         idDestino: Number(form.idDestino),
         acompanantes,
         kilometrajeInicial,
-        motivo: form.motivo.trim()
+        motivo: form.motivo.trim(),
+        ...(usesTemporaryVehicle ? { usoTemporal: {
+          mode: form.usoTemporalModo,
+          start: form.usoTemporalInicio || null,
+          end: form.usoTemporalFin || null
+        } } : {})
       };
       // Prepare eligible subsequent trips locally even online: the same idempotent
       // operation can then survive losing the connection between create and start.
@@ -1440,14 +1365,14 @@ function isOutsideOperatingHours() {
     }
   }
 
-  async function loadInspection(idViaje) {
+  const loadInspection = useCallback(async (idViaje) => {
     if (!idViaje) return;
     setInspectionStatus("loading");
     setInspectionError("");
     try {
       if (idViaje < 0) {
-        const record = getOfflineTrip(telegramAuth?.conductor?.id_conductores);
-        if (!record || record.localId !== idViaje || !matchingPermit([record.grant], record.trip.idConductor, record.trip.idVehiculo))
+        const record = getOfflineTrip(telegramAuth?.conductor?.id_conductores, idViaje);
+        if (!record || !matchingPermit([record.grant], record.trip.idConductor, record.trip.idVehiculo))
           throw new Error("El permiso sin conexión venció. Conéctate para validar una nueva inspección.");
         const requirement = { required: false, canStart: true };
         setInspection(requirement); setInspectionStatus("ready"); return requirement;
@@ -1461,7 +1386,7 @@ function isOutsideOperatingHours() {
       setInspectionStatus("error");
       setInspectionError(error.message || "No fue posible validar la inspección vehicular.");
     }
-  }
+  }, [telegramAuth?.conductor?.id_conductores]);
 
   async function submitInspection(data) {
     const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
@@ -1482,14 +1407,14 @@ function isOutsideOperatingHours() {
   useEffect(() => {
     const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
     if (idViaje && !startedTrip && !finishedTrip && !cancelledTrip) loadInspection(idViaje);
-  }, [createdTrip?.id_viajes, createdTrip?.idViaje, startedTrip, finishedTrip, cancelledTrip]);
+  }, [createdTrip?.id_viajes, createdTrip?.idViaje, startedTrip, finishedTrip, cancelledTrip, loadInspection]);
 
   useEffect(() => {
     const idViaje = createdTrip?.id_viajes ?? createdTrip?.idViaje;
     if (!idViaje || inspection?.inspection?.estado !== "PENDIENTE_APROBACION") return undefined;
     const timer = window.setInterval(() => loadInspection(idViaje), 15000);
     return () => window.clearInterval(timer);
-  }, [createdTrip?.id_viajes, createdTrip?.idViaje, inspection?.inspection?.estado]);
+  }, [createdTrip?.id_viajes, createdTrip?.idViaje, inspection?.inspection?.estado, loadInspection]);
 
   // Polling para verificar si el Gerenciamiento de Viaje ha sido aprobado/rechazado por el supervisor
   useEffect(() => {
@@ -1528,18 +1453,17 @@ function isOutsideOperatingHours() {
             } catch {}
           }
         }
-      } catch (err) {
+      } catch {
         // Ignorar fallos de red esporádicos en el polling
       }
     }, 7000);
 
     return () => window.clearInterval(timer);
-  }, [gerenciamientoPendiente, createdTrip]);
+  }, [gerenciamientoPendiente, createdTrip, loadInspection]);
 
   function handleNewTrip(){
-    const pending = getOfflineTrip(telegramAuth?.conductor?.id_conductores);
-    if (pending && !pending.synced) {
-      triggerModalError("El viaje está guardado. Recupera conexión y sincronízalo antes de crear otro.");
+    if (hasUnfinishedOfflineTrip(telegramAuth?.conductor?.id_conductores)) {
+      triggerModalError("Primero finaliza el viaje activo guardado en este teléfono antes de crear otro.");
       return;
     }
     setOfflineNotice("");
@@ -1568,8 +1492,6 @@ function isOutsideOperatingHours() {
     setInspectionStatus("idle");
     setInspectionError("");
 
-    lastLocationSentAtRef.current = 0;
-    sendingLocationRef.current=false;
   }
 
   function handleExitApp() {
@@ -1924,7 +1846,7 @@ function isOutsideOperatingHours() {
                 </span>
               </div>
             </div>
-            {!Boolean(selectedDriver?.licencia_vigente ?? telegramAuth?.conductor?.licencia_vigente) && (
+            {!(selectedDriver?.licencia_vigente ?? telegramAuth?.conductor?.licencia_vigente) && (
               <div className="urban-license-alert">
                 Este conductor no puede iniciar un viaje porque su licencia no está vigente.
               </div>
@@ -1993,6 +1915,34 @@ function isOutsideOperatingHours() {
                     <div className="urban-vehicle-info-pill">
                       <div><span>Placas:</span> <strong>{selectedVehicle.placas || "No registradas"}</strong></div>
                       <div><span>Km registrado:</span> <strong>{Number(selectedVehicle.kilometraje_actual).toLocaleString("es-MX")} km</strong></div>
+                    </div>
+                  )}
+
+                  {usesTemporaryVehicle && currentTemporaryAssignment && (
+                    <div className="urban-assigned-alert">
+                      <IconPin size={16} color="#0369a1" />
+                      <span>Uso temporal vigente: <strong>{currentTemporaryAssignment.fechaInicio} a {currentTemporaryAssignment.fechaFin}</strong></span>
+                    </div>
+                  )}
+
+                  {usesTemporaryVehicle && !currentTemporaryAssignment && (
+                    <div className="urban-field-group">
+                      <label className="urban-field-label" htmlFor="temporary-use-mode">Uso temporal de la unidad</label>
+                      <select id="temporary-use-mode" name="usoTemporalModo" value={form.usoTemporalModo} onChange={handleChange} className="urban-input" required>
+                        <option value="SOLO_HOY">Solo hoy</option>
+                        <option value="PERIODO">Elegir otro periodo</option>
+                      </select>
+                      {form.usoTemporalModo === "PERIODO" && (
+                        <div className="urban-grid-2">
+                          <label className="urban-field-label">Inicio
+                            <input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleChange} className="urban-input" required />
+                          </label>
+                          <label className="urban-field-label">Fin
+                            <input type="date" name="usoTemporalFin" value={form.usoTemporalFin} onChange={handleChange} className="urban-input" min={form.usoTemporalInicio || undefined} required />
+                          </label>
+                        </div>
+                      )}
+                      <p className="urban-field-helper">Esta selección no cambia tu unidad permanente del panel.</p>
                     </div>
                   )}
 
@@ -2083,9 +2033,6 @@ function isOutsideOperatingHours() {
 
             {/* Paso 3: Detalles Adicionales */}
             {(() => {
-              const currentVeh = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
-              const vehicleTypeStr = String(currentVeh?.tipo_vehiculo || currentVeh?.nombre || "").toLowerCase();
-
               const maxAcompanantes = 4;
 
               const updateFormAcompanantes = (newList) => {
@@ -2231,7 +2178,10 @@ function isOutsideOperatingHours() {
                     acompanantes: "",
                     viajaAcompanado: false,
                     kilometrajeInicial: "",
-                    motivo: ""
+                    motivo: "",
+                    usoTemporalModo: "SOLO_HOY",
+                    usoTemporalInicio: "",
+                    usoTemporalFin: ""
                   });
                   setListaAcompanantes([""]);
                 }}

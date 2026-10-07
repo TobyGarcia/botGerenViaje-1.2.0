@@ -19,6 +19,16 @@ export const databasePool = new Pool({
 
   max: Number(process.env.DATABASE_POOL_MAX || 25),
 
+  application_name: process.env.DATABASE_APPLICATION_NAME || "gv-backend",
+
+  statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS || 30000),
+
+  query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS || 35000),
+
+  idle_in_transaction_session_timeout: Number(
+    process.env.DATABASE_IDLE_TRANSACTION_TIMEOUT_MS || 60000
+  ),
+
   idleTimeoutMillis: 30000,
 
   connectionTimeoutMillis: 10000

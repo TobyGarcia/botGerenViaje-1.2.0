@@ -40,7 +40,7 @@ export default function DestinationAutocomplete({
     if (!value && !isCustomMode) {
       setQuery("");
     }
-  }, [value, lugares]);
+  }, [value, lugares, isCustomMode]);
 
   // Cerrar el menu desplegable al hacer clic fuera del componente
   useEffect(() => {

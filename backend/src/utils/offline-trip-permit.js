@@ -35,8 +35,8 @@ export function verifyOfflinePermit(token, driverId, startedAt, now = new Date()
     throw new Error("El permiso no corresponde al conductor o a la hora de inicio.");
   }
   const clock = mexicoClock(start);
-  if (clock.day !== claims.day || clock.minutes < 390 || clock.minutes >= 1080) {
-    throw new Error("El inicio sin conexión solo aplica a viajes urbanos del mismo día, de 06:30 a antes de las 18:00, hora de México.");
+  if (clock.day !== claims.day || clock.minutes < 360 || clock.minutes >= 1080) {
+    throw new Error("El inicio sin conexión solo aplica a viajes urbanos del mismo día, de 06:00 a antes de las 18:00, hora de México.");
   }
   return claims;
 }

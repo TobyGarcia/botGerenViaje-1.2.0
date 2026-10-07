@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
+import { useCallback, useEffect, useState } from "react";
+import * as XLSX from "@e965/xlsx";
 import {
   getManejoComentadoConductores,
   programarCursoManejoComentado,
@@ -11,7 +11,6 @@ import {
 import {
   IconCalendario,
   IconDispositivo,
-  IconReloj,
   IconEditar,
   IconExcel,
   IconDescargar,
@@ -37,12 +36,12 @@ function parseExcelDate(val) {
     }
   }
   const str = String(val).trim();
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const dmyMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  const ymdMatch = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
   if (ymdMatch) {
     const [, y, m, d] = ymdMatch;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
@@ -225,7 +224,6 @@ export default function ManejoComentadoPage({ user }) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importRows, setImportRows] = useState([]);
   const [importFileName, setImportFileName] = useState("");
-  const [importLoading, setImportLoading] = useState(false);
   const [importApplying, setImportApplying] = useState(false);
 
   // Formulario Edición (Solo datos de manejo comentado)
@@ -256,7 +254,7 @@ export default function ManejoComentadoPage({ user }) {
     notas: ""
   });
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [resCond, resCur] = await Promise.all([
@@ -271,11 +269,11 @@ export default function ManejoComentadoPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, filterStatus]);
 
   useEffect(() => {
     loadData();
-  }, [search, filterStatus]);
+  }, [loadData]);
 
   function handleOpenEditModal(conductor) {
     setEditingConductor(conductor);
@@ -410,17 +408,6 @@ export default function ManejoComentadoPage({ user }) {
     }
   }
 
-  function handleSelectConductorRenovar(conductor) {
-    setRenovarForm({
-      idConductor: conductor.id_conductores,
-      fechaEvaluacion: new Date().toISOString().slice(0, 10),
-      calificacion: "100",
-      estadoEvaluacion: "APROBADO",
-      comentarios: `Renovación semestral de manejo comentado para ${conductor.nombre}`
-    });
-    setShowRenovarModal(true);
-  }
-
   function toggleDriverSelection(id) {
     setCursoForm((prev) => {
       const exists = prev.idConductores.includes(id);
@@ -496,7 +483,6 @@ export default function ManejoComentadoPage({ user }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportFileName(file.name);
-    setImportLoading(true);
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -510,7 +496,6 @@ export default function ManejoComentadoPage({ user }) {
         if (!rawJson || rawJson.length === 0) {
           setMessage("El archivo Excel está vacío o no contiene filas.");
           setMessageType("error");
-          setImportLoading(false);
           return;
         }
 
@@ -562,7 +547,6 @@ export default function ManejoComentadoPage({ user }) {
         setMessage("Error al leer el archivo Excel: " + (err.message || "Formato inválido."));
         setMessageType("error");
       } finally {
-        setImportLoading(false);
       }
     };
     reader.readAsArrayBuffer(file);

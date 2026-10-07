@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getAdminAnaliticaCombustible, getAdminVehiculos } from "../services/api.js";
 import { IconCombustible } from "../components/Icons.jsx";
 
@@ -284,7 +284,7 @@ export default function AnaliticaCombustiblePage() {
     setDateTo(toStr);
   }, [presetFilter]);
 
-  const fetchAnalytics = () => {
+  const fetchAnalytics = useCallback(() => {
     setLoading(true);
     setError("");
 
@@ -302,12 +302,12 @@ export default function AnaliticaCombustiblePage() {
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [selectedVehicle, dateFrom, dateTo]);
 
   useEffect(() => {
     setCurrentPage(1);
     fetchAnalytics();
-  }, [selectedVehicle, dateFrom, dateTo]);
+  }, [fetchAnalytics]);
 
   const kpis = data?.kpis || {
     total_inspecciones: 0,

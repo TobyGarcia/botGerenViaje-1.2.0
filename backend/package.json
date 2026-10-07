@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test src/tests/*.test.js",
-    "dev": "nodemon --legacy-watch src/server.js",
+    "verify:imports": "node src/scripts/verify-module-imports.js",
+    "dev": "node --watch src/server.js",
     "admin:create": "node src/scripts/create-admin-user.js",
     "db:import-destinos": "node src/scripts/import-destinos-csv.js"
   },
@@ -27,11 +28,8 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^7.0.13",
     "pg": "^8.22.0",
     "telegraf": "^4.16.3"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
-  }
+  "devDependencies": {}
 }

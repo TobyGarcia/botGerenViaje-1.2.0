@@ -1,18 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import ConductoresPage from "./ConductoresPage.jsx";
-import VehiculosPage from "./VehiculosPage.jsx";
-import DestinosPage from "./DestinosPage.jsx";
-import UbicacionesPage from "./UbicacionesPage.jsx";
-import ViajesPage from "./ViajesPage.jsx";
-import MonitoreoActivoPage from "./MonitoreoActivoPage.jsx";
-import InspeccionesPage from "./InspeccionesPage.jsx";
-import ManejoComentadoPage from "./ManejoComentadoPage.jsx";
-import AnaliticaCombustiblePage from "./AnaliticaCombustiblePage.jsx";
-import PerfilPage from "./PerfilPage.jsx";
-import GerenciamientoAdminPage from "./GerenciamientoAdminPage.jsx";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
-import logoAQR from "../assets/LoginAssets/logoAQR.webp";
 import logoGv from "../assets/LOGOGV.png";
 import isologoGv from "../assets/ISOLOGO.png";
 import {
@@ -27,22 +15,21 @@ import {
   IconViajes,
   IconRadar,
   IconConfiguracion,
-  IconCerrarSesion,
-  IconToggleSidebar
+  IconCerrarSesion
 } from "../components/Icons.jsx";
 
+const ConductoresPage = lazy(() => import("./ConductoresPage.jsx"));
+const VehiculosPage = lazy(() => import("./VehiculosPage.jsx"));
+const DestinosPage = lazy(() => import("./DestinosPage.jsx"));
+const UbicacionesPage = lazy(() => import("./UbicacionesPage.jsx"));
+const ViajesPage = lazy(() => import("./ViajesPage.jsx"));
+const MonitoreoActivoPage = lazy(() => import("./MonitoreoActivoPage.jsx"));
+const InspeccionesPage = lazy(() => import("./InspeccionesPage.jsx"));
+const ManejoComentadoPage = lazy(() => import("./ManejoComentadoPage.jsx"));
+const AnaliticaCombustiblePage = lazy(() => import("./AnaliticaCombustiblePage.jsx"));
+const PerfilPage = lazy(() => import("./PerfilPage.jsx"));
+const GerenciamientoAdminPage = lazy(() => import("./GerenciamientoAdminPage.jsx"));
 
-function formatActivityDay(value) {
-  const datePart = String(value || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-
-  if (!datePart) {
-    return "";
-  }
-
-  return new Date(`${datePart}T00:00:00`).toLocaleDateString("es-MX", {
-    weekday: "short"
-  });
-}
 
 function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
   const [data, setData] = useState(null);
@@ -747,7 +734,6 @@ function ModulePlaceholder({ title }) {
 }
 
 const ROLES_SUPERVISOR_Y_SUPERIOR = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
-const ROLES_TODOS = [...ROLES_SUPERVISOR_Y_SUPERIOR, "OPERADOR", "CONSULTA"];
 
 function getInitialAdminModule(userRol) {
   const hash = window.location.hash.replace(/^#\/?/, "").split("?")[0].trim().toLowerCase();
@@ -781,7 +767,6 @@ function DashboardPage({ user, onLogout }) {
   const [pendingInspections, setPendingInspections] = useState(0);
   const [pendingGerenciamientos, setPendingGerenciamientos] = useState(0);
   const [notificationError, setNotificationError] = useState("");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSelectModule = (moduleId) => {
@@ -851,11 +836,8 @@ function DashboardPage({ user, onLogout }) {
     };
   }, []);
 
-  const rolesSupervisorYSuperior = ROLES_SUPERVISOR_Y_SUPERIOR;
-  const rolesTodos = ROLES_TODOS;
-
   useEffect(() => {
-    if (!rolesSupervisorYSuperior.includes(user.rol)) {
+    if (!ROLES_SUPERVISOR_Y_SUPERIOR.includes(user.rol)) {
       return undefined;
     }
     let active = true;
@@ -879,16 +861,16 @@ function DashboardPage({ user, onLogout }) {
 
   const modules = [
     { id: "monitoreo-activo", label: "Monitoreo en Vivo", icon: IconRadar, roles: rolesTodos },
-    { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: rolesSupervisorYSuperior },
-    { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: rolesSupervisorYSuperior },
-    { id: "conductores", label: "Conductores", icon: IconConductores, roles: rolesSupervisorYSuperior },
-    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: rolesSupervisorYSuperior },
-    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: rolesSupervisorYSuperior },
+    { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
+    { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
+    { id: "conductores", label: "Conductores", icon: IconConductores, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
+    { id: "unidades", label: "Unidades", icon: IconUnidades, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
+    { id: "destinos", label: "Destinos", icon: IconDestinos, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
     { id: "ubicaciones", label: "Ubicaciones", icon: IconUbicaciones, roles: rolesTodos },
     { id: "viajes", label: "Viajes", icon: IconViajes, roles: rolesTodos }
   ].filter((module) => module.roles.includes(user.rol));
 
-  const canInspect = rolesSupervisorYSuperior.includes(user.rol);
+  const canInspect = ROLES_SUPERVISOR_Y_SUPERIOR.includes(user.rol);
 
 
   return (
@@ -1040,17 +1022,19 @@ function DashboardPage({ user, onLogout }) {
           </>
         )}
 
-        {activeModule === "monitoreo-activo" && <MonitoreoActivoPage />}
-        {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
-        {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
-        {activeModule === "conductores" && <ConductoresPage user={user} />}
-        {activeModule === "unidades" && <VehiculosPage user={user} />}
-        {activeModule === "destinos" && <DestinosPage user={user} />}
-        {activeModule === "ubicaciones" && <UbicacionesPage />}
-        {activeModule === "viajes" && <ViajesPage user={user} />}
-        {activeModule === "gerenciamiento" && <GerenciamientoAdminPage user={user} />}
-        {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
-        {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
+        <Suspense fallback={<p className="table-status">Cargando módulo…</p>}>
+          {activeModule === "monitoreo-activo" && <MonitoreoActivoPage />}
+          {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
+          {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
+          {activeModule === "conductores" && <ConductoresPage user={user} />}
+          {activeModule === "unidades" && <VehiculosPage user={user} />}
+          {activeModule === "destinos" && <DestinosPage user={user} />}
+          {activeModule === "ubicaciones" && <UbicacionesPage />}
+          {activeModule === "viajes" && <ViajesPage user={user} />}
+          {activeModule === "gerenciamiento" && <GerenciamientoAdminPage user={user} />}
+          {activeModule === "inspecciones" && <InspeccionesPage onPendingChange={setPendingInspections} />}
+          {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
+        </Suspense>
 
         {modules
           .filter(

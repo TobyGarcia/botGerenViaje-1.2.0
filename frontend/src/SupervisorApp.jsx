@@ -197,7 +197,6 @@ export default function SupervisorApp() {
           onAccessChanged={loadAccess}
           drawerOpen={drawerOpen}
           onCloseDrawer={() => setDrawerOpen(false)}
-          onOpenDrawer={() => setDrawerOpen(true)}
         />
       )}
     </div>

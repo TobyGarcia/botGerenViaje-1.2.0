@@ -170,7 +170,6 @@ export default function MonitoreoActivoPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Opciones de auto-refresco
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -202,7 +201,6 @@ export default function MonitoreoActivoPage() {
       const response = await getAdminMonitoreoActivo();
       if (response && response.data) {
         setTrips(response.data);
-        setLastUpdated(new Date());
         setError("");
       }
     } catch (err) {

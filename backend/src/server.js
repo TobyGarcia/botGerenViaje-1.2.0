@@ -30,6 +30,8 @@ import {
   startSupervisorBot,
   stopSupervisorBot
 } from "./bot/supervisor-bot.js";
+import { purgeExpiredAuditLogs } from "./services/audit-log.service.js";
+import { cancelExpiredPendingTrips } from "./services/viajes.service.js";
 
 const port = Number(
   process.env.PORT ||
@@ -306,6 +308,14 @@ async function initializeDependencies() {
       }
 
       console.log("Conexión inicial con PostgreSQL y esquema verificados.");
+      await purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
+        console.warn("No se pudo aplicar la retención de bitácora:", error.message);
+      });
+      await cancelExpiredPendingTrips().then((cancelled) => {
+        if (cancelled > 0) console.log(`Viajes pendientes vencidos cancelados: ${cancelled}.`);
+      }).catch((error) => {
+        console.warn("No se pudieron cancelar viajes pendientes vencidos:", error.message);
+      });
       await startBots();
       return;
     } catch (error) {
@@ -367,3 +377,27 @@ process.once("SIGINT", () => {
 });
 
 startServer();
+
+const auditCleanupTimer = setInterval(() => {
+  void purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
+    console.warn("No se pudo depurar la bitácora:", error.message);
+  });
+}, 24 * 60 * 60 * 1000);
+auditCleanupTimer.unref();
+
+const stalePendingTripsTimer = setInterval(() => {
+  void cancelExpiredPendingTrips().then((cancelled) => {
+    if (cancelled > 0) console.log(`Viajes pendientes vencidos cancelados: ${cancelled}.`);
+  }).catch((error) => {
+    console.warn("No se pudieron cancelar viajes pendientes vencidos:", error.message);
+  });
+}, 60 * 60 * 1000);
+stalePendingTripsTimer.unref();
+
+process.on("unhandledRejection", (reason) => {
+  console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "unhandled_rejection", message: reason?.message || String(reason) }));
+});
+process.on("uncaughtException", (error) => {
+  console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "uncaught_exception", message: error.message, stack: error.stack }));
+  process.exit(1);
+});

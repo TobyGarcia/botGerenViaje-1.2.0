@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import logoGv from "../assets/LOGOGV.png";
 import NavDrawer from "./NavDrawer.jsx";
-import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
+import { IconMenu } from "./Icons.jsx";
 
 export default function TopBar({
   conductor,
@@ -24,22 +24,6 @@ export default function TopBar({
       }
     }
   };
-
-  const getActiveTabMeta = () => {
-    switch (activeTabMode) {
-      case "gerenciamiento":
-        return { label: "Gerenciamiento", Icon: IconMap };
-      case "siniestro":
-        return { label: "Siniestro", Icon: IconAlert };
-      case "perfil":
-        return { label: "Datos", Icon: IconUser };
-      case "urban":
-      default:
-        return { label: "Viaje Urbano", Icon: IconCar };
-    }
-  };
-
-  const activeMeta = getActiveTabMeta();
 
   return (
     <>

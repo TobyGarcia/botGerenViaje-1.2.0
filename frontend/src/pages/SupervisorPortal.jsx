@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, Component } from "react";
+import { useEffect, useRef, useState, Component } from "react";
 import {
   asignarVehiculoSupervisor,
   decidirSupervisorInspeccion,
@@ -34,7 +34,6 @@ import {
   IconWrench,
   IconScale,
   IconShield,
-  IconMenu,
   IconUser,
   IconMapPin,
   IconSearch,
@@ -43,6 +42,8 @@ import {
 import DamageViewer from "../components/DamageViewer.jsx";
 import NavDrawer from "../components/NavDrawer.jsx";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
+
+const VALID_SUPERVISOR_TABS = ["inspecciones", "gerenciamiento", "asignaciones", "conductores", "manejo-comentado", "destinos", "mi-unidad"];
 
 function SignaturePadModal({
   title = "Firma Digital de Autorización",
@@ -300,11 +301,9 @@ export default function SupervisorPortal({
   access,
   onAccessChanged,
   drawerOpen,
-  onCloseDrawer,
-  onOpenDrawer
+  onCloseDrawer
 }) {
   const [tenantEmail, setTenantEmail] = useState("");
-  const VALID_SUPERVISOR_TABS = ["inspecciones", "gerenciamiento", "asignaciones", "conductores", "manejo-comentado", "destinos", "mi-unidad"];
   const getInitialSupervisorTab = () => {
     const rawHash = window.location.hash.replace(/^#\/?/, "").split("?")[0].split("&")[0].trim().toLowerCase();
     if (VALID_SUPERVISOR_TABS.includes(rawHash)) {
@@ -324,7 +323,6 @@ export default function SupervisorPortal({
 
   const isDrawerOpen = drawerOpen !== undefined ? drawerOpen : showSidebar;
   const handleCloseDrawer = onCloseDrawer || (() => setShowSidebar(false));
-  const handleOpenDrawer = onOpenDrawer || (() => setShowSidebar(true));
 
   const handleSelectNavTab = (tabId) => {
     setActiveTab(tabId);
@@ -747,10 +745,10 @@ export default function SupervisorPortal({
   const processedGerenciamientos = gerenciamientos.filter((g) => g.estado !== "PENDIENTE");
 
   const totalDestinos = destinos.length;
-  const totalFavoritos = useMemo(() => destinos.filter(d => Boolean(d.es_favorito)).length, [destinos]);
+  const totalFavoritos = destinos.filter(d => Boolean(d.es_favorito)).length;
   const totalRegulares = totalDestinos - totalFavoritos;
 
-  const filteredDestinos = useMemo(() => {
+  const filteredDestinos = (() => {
     const isFavFilter = destinosFilter === "FAV";
     const isNonFavFilter = destinosFilter === "NON_FAV";
     const query = destinosSearch.toLowerCase().trim();
@@ -762,16 +760,16 @@ export default function SupervisorPortal({
       if (!query) return true;
       return (d.nombre || "").toLowerCase().includes(query) || (d.direccion || "").toLowerCase().includes(query);
     });
-  }, [destinos, destinosFilter, destinosSearch]);
+  })();
 
   const totalDestinosFiltrados = filteredDestinos.length;
   const totalDestinosPages = Math.max(1, Math.ceil(totalDestinosFiltrados / destinosPerPage));
   const currentDestinosPage = Math.min(Math.max(1, destinosPage), totalDestinosPages);
 
-  const paginatedDestinos = useMemo(() => {
+  const paginatedDestinos = (() => {
     const startIndex = (currentDestinosPage - 1) * destinosPerPage;
     return filteredDestinos.slice(startIndex, startIndex + destinosPerPage);
-  }, [filteredDestinos, currentDestinosPage, destinosPerPage]);
+  })();
 
   const supervisorNavItems = [
     {
@@ -833,12 +831,6 @@ export default function SupervisorPortal({
       }
     ] : [] )
   ];
-
-  const totalPendingBadges =
-    (items.length || 0) +
-    (pendingGerenciamientos.length || 0) +
-    (pendingDrivers.length || 0) +
-    (['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'].includes(currentUserRole) ? (manejoAuthorizations.length || 0) : 0);
 
   return (
     <main className="supervisor-portal-main">

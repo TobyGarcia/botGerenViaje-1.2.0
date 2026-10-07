@@ -84,7 +84,7 @@ function EvaluacionAppContent({ user, onLogout }) {
     if (user?.nombre && !nombreInstructor) {
       setNombreInstructor(user.nombre);
     }
-  }, [user]);
+  }, [user, nombreInstructor]);
 
   useEffect(() => {
     const handleOnline = () => { setIsOnline(true); syncLocalQueue(); };
@@ -264,7 +264,7 @@ function EvaluacionAppContent({ user, onLogout }) {
       setStatusMessage(`Evaluación registrada con éxito. Resultado: ${estadoEvaluacion} (${calificacionTotal}/100)`);
       setStatusType("success");
       resetForm();
-    } catch (err) {
+    } catch {
       saveToLocalQueue(evalPayload);
       setStatusMessage("Error de red. La evaluación fue guardada en el dispositivo y se reintentará subir en breve.");
       setStatusType("warning");

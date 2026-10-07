@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import nodemailer from "nodemailer";
 import { databasePool } from "../database/pool.js";
 import { validateTenantEmailAndWhitelist } from "./azure-auth.service.js";
 

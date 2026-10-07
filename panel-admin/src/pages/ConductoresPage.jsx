@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useCallback,
   useState
 } from "react";
 
@@ -31,7 +32,6 @@ import {
   IconPhone,
   IconIdCard,
   IconTelegram,
-  IconCalendar,
   IconExternalLink,
   IconFileText,
   IconManejoComentado
@@ -372,7 +372,7 @@ function ConductoresPage({ user }) {
     }
   }
 
-  async function loadConductores() {
+  const loadConductores = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -392,7 +392,7 @@ function ConductoresPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, status]);
 
   async function handleAssignVehicle(idConductor, idVehiculoVal) {
     setAssigningId(idConductor);
@@ -473,21 +473,6 @@ function ConductoresPage({ user }) {
     } finally {
       setSavingPin(false);
     }
-  }
-
-  function handleDownloadPinCard() {
-    if (!pinSuccessData) return;
-    downloadPinCardImage({
-      nombre: pinSuccessData.conductorNombre,
-      pin: pinSuccessData.pin
-    });
-  }
-
-  function handleCopyPin() {
-    if (!pinSuccessData?.pin) return;
-    navigator.clipboard.writeText(pinSuccessData.pin);
-    setCopiedSuccessPin(true);
-    setTimeout(() => setCopiedSuccessPin(false), 2000);
   }
 
   const canToggleActive =
@@ -732,7 +717,7 @@ function ConductoresPage({ user }) {
         timeoutId
       );
     };
-  }, [search, status]);
+  }, [loadConductores]);
 
   function handleOpenDelete(conductor) {
     if (!canDeleteConductor(conductor)) {
@@ -2690,4 +2675,3 @@ function ConductoresPage({ user }) {
 }
 
 export default ConductoresPage;
-

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import { getAdminUsuarios } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
@@ -106,7 +106,7 @@ export default function GerenciamientoAdminPage({ user }) {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -128,11 +128,11 @@ export default function GerenciamientoAdminPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [API_BASE_URL, filterRiesgo, filterEstado]);
 
   useEffect(() => {
     loadData();
-  }, [filterRiesgo, filterEstado]);
+  }, [loadData]);
 
   function handleSelectAutorizador(idStr) {
     setAutorizadorId(idStr);

@@ -1,6 +1,7 @@
 import {
   useEffect,
-  useState
+  useState,
+  useCallback
 } from "react";
 
 import {
@@ -191,7 +192,7 @@ function ViajesPage({ user }) {
   const [deleting, setDeleting] =
     useState(false);
 
-  async function loadViajes() {
+  const loadViajes = useCallback(async () => {
     setLoading(true);
     setMessage("");
 
@@ -215,7 +216,7 @@ function ViajesPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, status, dateFrom, dateTo]);
 
   useEffect(() => {
     const timeoutId =
@@ -229,10 +230,7 @@ function ViajesPage({ user }) {
       );
     };
   }, [
-    search,
-    status,
-    dateFrom,
-    dateTo
+    loadViajes
   ]);
 
   useEffect(() => {
@@ -261,7 +259,8 @@ function ViajesPage({ user }) {
         tripToDelete &&
         !deleting
       ) {
-        closeDeleteModal();
+        setTripToDelete(null);
+        setDeleteConfirmation("");
         return;
       }
 
@@ -269,7 +268,9 @@ function ViajesPage({ user }) {
         showDetail &&
         !loadingDetail
       ) {
-        closeDetailModal();
+        setShowDetail(false);
+        setSelectedTrip(null);
+        setSelectedLocations([]);
       }
     }
 

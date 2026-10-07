@@ -94,7 +94,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
     if (user?.nombre && !nombreInstructor) {
       setNombreInstructor(user.nombre);
     }
-  }, [user]);
+  }, [user, nombreInstructor]);
 
   // Manejo de conexión offline/online
   useEffect(() => {
@@ -209,7 +209,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
           setConductores(Array.isArray(catData) ? catData : (catData.data || []));
         }
       }
-    } catch (err) {
+    } catch {
       console.warn("No fue posible cargar conductores:", err);
     }
   }
@@ -348,7 +348,7 @@ function EvaluacionAppContent({ user: initialUser = null, onLogout }) {
       setStatusMessage(`Evaluación registrada con éxito. Resultado: ${estadoEvaluacion} (${calificacionTotal}/100)`);
       setStatusType("success");
       resetForm();
-    } catch (err) {
+    } catch {
       saveToLocalQueue(evalPayload);
       setStatusMessage("Error de red. La evaluación fue guardada en el dispositivo y se reintentará subir en breve.");
       setStatusType("warning");

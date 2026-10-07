@@ -13,8 +13,44 @@ export function durableWrite(key, value) {
 function read(key) {
   try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
 }
-export const getOfflineTrip = driverId => read(PREFIX + driverId);
-export const saveOfflineTrip = trip => durableWrite(PREFIX + trip.trip.idConductor, trip);
+function normalizeQueue(value) {
+  if (Array.isArray(value)) return value.filter(record => record?.trip?.idConductor && record?.clientId);
+  // Compatibilidad con la versión anterior, que guardaba un solo viaje por conductor.
+  return value?.trip?.idConductor && value?.clientId ? [value] : [];
+}
+
+export const getOfflineTrips = driverId => normalizeQueue(read(PREFIX + driverId));
+
+export function getOfflineTrip(driverId, localId = null) {
+  const queue = getOfflineTrips(driverId);
+  if (localId !== null) return queue.find(record => record.localId === localId) || null;
+  return queue.find(record => !record.synced && !record.finishedAt) ||
+    [...queue].reverse().find(record => !record.synced) || queue.at(-1) || null;
+}
+
+export function saveOfflineTrip(trip) {
+  const driverId = trip.trip.idConductor;
+  const queue = getOfflineTrips(driverId);
+  const index = queue.findIndex(record => record.clientId === trip.clientId);
+  if (index >= 0) queue[index] = trip;
+  else queue.push(trip);
+  // Los registros sincronizados solo sirven para mostrar resultados recientes.
+  // Conservar pocos evita llenar localStorage sin eliminar viajes pendientes.
+  const pending = queue.filter(record => !record.synced);
+  const recentSynced = queue.filter(record => record.synced).slice(-3);
+  durableWrite(PREFIX + driverId, [...recentSynced, ...pending]);
+}
+
+export const getPendingOfflineTrips = driverId =>
+  getOfflineTrips(driverId).filter(record => !record.synced);
+
+export const hasUnfinishedOfflineTrip = driverId =>
+  getPendingOfflineTrips(driverId).some(record => !record.finishedAt);
+
+export const getSyncableOfflineTrips = driverId =>
+  getPendingOfflineTrips(driverId)
+    .filter(record => record.startedAt)
+    .sort((a, b) => +new Date(a.startedAt) - +new Date(b.startedAt));
 export const getOfflinePermits = driverId => read(PERMITS + driverId) || [];
 export const saveOfflinePermits = (driverId, permits) => durableWrite(PERMITS + driverId, permits);
 export function storeServerMapping(localId, serverId, driverId) {
@@ -41,7 +77,7 @@ export function matchingPermit(permits, driverId, vehicleId, at = new Date()) {
   }).formatToParts(at).map(p => [p.type, p.value]));
   const day = `${parts.year}-${parts.month}-${parts.day}`;
   const minutes = +parts.hour * 60 + +parts.minute;
-  if (minutes < 390 || minutes >= 1080) return null;
+  if (minutes < 360 || minutes >= 1080) return null;
   return permits.find(p => Number(p.driverId) === Number(driverId) && Number(p.vehicleId) === Number(vehicleId) &&
     p.day === day && +at >= +new Date(p.issuedAt) && +at < +new Date(p.expiresAt)) || null;
 }

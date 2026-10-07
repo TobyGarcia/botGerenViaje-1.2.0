@@ -52,10 +52,21 @@ export async function getVehiculos() {
       v.color,
       v.id_conductor_asignado,
       v.id_supervisor_asignado,
-      COALESCE(s_asig.nombre, v.personal_asignado_nombre, c_asig.nombre) AS personal_asignado
+      COALESCE(s_conductor.nombre, v.personal_asignado_nombre, c_asig.nombre) AS personal_asignado,
+      COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+          'idConductor', atv.id_conductores,
+          'fechaInicio', atv.fecha_inicio,
+          'fechaFin', atv.fecha_fin
+        ) ORDER BY atv.fecha_inicio)
+        FROM asignaciones_temporales_vehiculo atv
+        WHERE atv.id_vehiculos=v.id_vehiculos AND atv.estado='ACTIVA'
+          AND timezone('America/Mexico_City', CURRENT_TIMESTAMP)::date BETWEEN atv.fecha_inicio AND atv.fecha_fin
+      ), '[]'::jsonb) AS asignaciones_temporales
     FROM vehiculos v
     LEFT JOIN conductores c_asig ON c_asig.id_conductores = v.id_conductor_asignado
     LEFT JOIN usuarios_admin s_asig ON s_asig.id_usuarios_admin = v.id_supervisor_asignado
+    LEFT JOIN conductores s_conductor ON s_conductor.id_conductores = s_asig.id_conductores
     WHERE v.activo = TRUE
       AND v.en_mantenimiento = FALSE
       AND NOT EXISTS (

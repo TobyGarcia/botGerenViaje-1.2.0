@@ -1,5 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 
+function drawCrop(canvas, image, zoom) {
+  if (!canvas || !image) return;
+  const context = canvas.getContext("2d");
+  const size = canvas.width;
+  context.clearRect(0, 0, size, size);
+  context.fillStyle = "#e8f1f5";
+  context.fillRect(0, 0, size, size);
+  const scale = Math.max(size / image.width, size / image.height) * zoom;
+  const width = image.width * scale;
+  const height = image.height * scale;
+  context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+}
+
 export default function ImageCropModal({ source, onCancel, onConfirm }) {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -7,25 +20,17 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
 
   useEffect(() => {
     const image = new Image();
-    image.onload = () => { imageRef.current = image; draw(); };
+    image.onload = () => {
+      imageRef.current = image;
+      setZoom(1);
+      drawCrop(canvasRef.current, image, 1);
+    };
     image.src = source;
   }, [source]);
 
-  function draw() {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-    if (!canvas || !image) return;
-    const context = canvas.getContext("2d");
-    const size = canvas.width;
-    context.clearRect(0, 0, size, size);
-    context.fillStyle = "#e8f1f5";
-    context.fillRect(0, 0, size, size);
-    const scale = Math.max(size / image.width, size / image.height) * zoom;
-    const width = image.width * scale;
-    const height = image.height * scale;
-    context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
-  }
-  useEffect(draw, [zoom]);
+  useEffect(() => {
+    drawCrop(canvasRef.current, imageRef.current, zoom);
+  }, [zoom]);
 
   return <div className="modal-overlay" role="presentation">
     <section className="modal-card crop-modal" role="dialog" aria-modal="true" aria-labelledby="crop-title">

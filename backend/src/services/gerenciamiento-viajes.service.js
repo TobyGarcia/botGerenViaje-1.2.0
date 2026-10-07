@@ -146,7 +146,8 @@ export async function createGerenciamientoViaje({ idConductor, data }) {
       acompanantes: acompanantesFormateados,
       kilometrajeInicial: Number(data.kilometraje || 0),
       motivo: data.motivo || `Gerenciamiento Fuera de Ciudad - Riesgo ${riesgo.nivelRiesgo}`,
-      esGerenciamiento: true
+      esGerenciamiento: true,
+      usoTemporal: data.usoTemporal || null
     });
     idViaje = newTrip.id_viajes || newTrip.idViaje || null;
   }

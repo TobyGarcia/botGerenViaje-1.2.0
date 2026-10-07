@@ -34,7 +34,6 @@ export async function saveInspectionController(request, response) {
     const idConductor = await authenticateDriver(request);
     const body = request.body || {};
     if (!['E','1/4','1/2','3/4','F'].includes(body.combustible)) throw new Error("Selecciona el nivel de combustible.");
-    if (!['PERMANENTE','TEMPORAL'].includes(body.tipoAsignacion)) throw new Error("Selecciona el tipo de asignación.");
     if (!body.firma || !String(body.firma).startsWith('data:image/png;base64,')) throw new Error("La firma del conductor es obligatoria.");
     if (!body.checklist || Object.keys(body.checklist).length === 0) throw new Error("Completa el checklist vehicular.");
     const data = await saveInspection({ idViaje, idConductor, data: body });

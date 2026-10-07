@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   decidirAdminInspeccion,
   descargarAdminInspeccionPdf,
@@ -319,7 +319,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const response = await getAdminInspecciones();
@@ -331,9 +331,9 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
     } finally {
       setLoading(false);
     }
-  }
+  }, [onPendingChange]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   function closeDetail() { setDetail(null); }
 
@@ -953,4 +953,3 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
     </section>
   );
 }
-

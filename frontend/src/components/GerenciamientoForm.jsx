@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from "react";
 import { crearGerenciamientoViaje } from "../services/api.js";
-import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import VehicleDropdown from "./VehicleDropdown.jsx";
@@ -12,14 +11,11 @@ import {
   IconAlert,
   IconEdit,
   IconCheck,
-  IconCross,
   IconCar,
   IconLock,
   IconRocket,
   IconRefresh,
   IconBan,
-  IconShield,
-  IconClock,
   IconTrash
 } from "./Icons.jsx";
 
@@ -170,7 +166,7 @@ function SignaturePadModal({ onSave, onClose }) {
   );
 }
 
-export default function GerenciamientoForm({ telegramAuth, conductores = [], vehiculos = [], lugares = [], onComplete, onCancel }) {
+export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugares = [], onComplete }) {
   const selectedDriver = telegramAuth?.conductor || {};
 
   // Buscar si el conductor tiene una unidad pre-asignada por supervisor
@@ -201,6 +197,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     destinoTexto: "",
     idVehiculo: assignedVehicle ? String(assignedVehicle.id_vehiculos) : "",
     kilometraje: assignedVehicle ? (assignedVehicle.kilometraje_actual ?? "") : "",
+    usoTemporalModo: assignedVehicle ? "" : "SOLO_HOY",
+    usoTemporalInicio: "",
+    usoTemporalFin: "",
 
     // 1. Valoración Médica
     presionArterial: "120/80",
@@ -244,7 +243,7 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     ptsHoraTraslado: 1,      // G. Hora del traslado
   });
 
-  const [checklist, setChecklist] = useState(defaultChecklistItems);
+  const checklist = defaultChecklistItems;
   const [rutaPuntos, setRutaPuntos] = useState(["", ""]);
   const [viajaAcompanado, setViajaAcompanado] = useState(false);
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
@@ -264,6 +263,10 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
 
   // Determinar número máximo de acompañantes según tipo de vehículo
   const currentVehicleObj = vehiculos.find((v) => String(v.id_vehiculos) === String(form.idVehiculo));
+  const usesTemporaryVehicle = Boolean(currentVehicleObj &&
+    String(currentVehicleObj.id_vehiculos) !== String(assignedVehicle?.id_vehiculos || ""));
+  const currentTemporaryAssignment = currentVehicleObj?.asignaciones_temporales?.find(assignment =>
+    String(assignment.idConductor) === String(driverId));
   const vehicleTypeStr = String(currentVehicleObj?.tipo_vehiculo || currentVehicleObj?.nombre || "").toLowerCase();
   let maxAcompanantes = 4;
   if (vehicleTypeStr.includes("maquinaria") || vehicleTypeStr.includes("retro") || vehicleTypeStr.includes("remolque") || vehicleTypeStr.includes("mecanica") || vehicleTypeStr.includes("tractor")) {
@@ -401,6 +404,14 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
         }
       }
 
+      if (name === "idVehiculo") {
+        const vehicle = vehiculos.find(item => String(item.id_vehiculos) === String(value));
+        const isPermanent = vehicle && String(vehicle.id_vehiculos) === String(assignedVehicle?.id_vehiculos || "");
+        updated.usoTemporalModo = isPermanent ? "" : "SOLO_HOY";
+        updated.usoTemporalInicio = "";
+        updated.usoTemporalFin = "";
+      }
+
       return updated;
     });
   }
@@ -472,6 +483,11 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       }
       if (!form.idVehiculo) {
         setErrorMessage("Por favor selecciona el Vehículo que utilizarás.");
+        return false;
+      }
+      if (usesTemporaryVehicle && form.usoTemporalModo === "PERIODO" &&
+          (!form.usoTemporalInicio || !form.usoTemporalFin || form.usoTemporalFin < form.usoTemporalInicio)) {
+        setErrorMessage("Selecciona un periodo temporal válido para la unidad.");
         return false;
       }
       if (!form.kilometraje && form.kilometraje !== 0) {
@@ -567,11 +583,11 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       const finalInspData = inspeccionData ? {
         ...inspeccionData,
         combustible: form.combustible || inspeccionData.combustible || "3/4",
-        tipoAsignacion: "PERMANENTE",
+        tipoAsignacion: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
         firma: firmaDataUrl
       } : {
         combustible: form.combustible || "3/4",
-        tipoAsignacion: "PERMANENTE",
+        tipoAsignacion: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
         checklist: checklist,
         danos: {},
         observaciones: form.observacionesVehiculo || null,
@@ -582,7 +598,12 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
       const payload = {
         ...form,
         idConductor: selectedDriver.id_conductores || driverId,
-        tipoAsignacion: "PERMANENTE",
+        tipoAsignacion: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
+        ...(usesTemporaryVehicle ? { usoTemporal: {
+          mode: form.usoTemporalModo,
+          start: form.usoTemporalInicio || null,
+          end: form.usoTemporalFin || null
+        } } : {}),
         rutaPuntos: rutaFiltrada,
         acompanantes: acompanantesFiltrados,
         firmaConductor: firmaDataUrl,
@@ -615,6 +636,9 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
     modelo: selectedVehicleObj.modelo || "",
     tipo_vehiculo: selectedVehicleObj.tipo_vehiculo || form.tipoVehiculo || "PickUp",
     conductor: selectedDriver.nombre || form.nombreConductor || "Conductor",
+    tipo_asignacion_actual: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
+    asignacion_temporal_inicio: usesTemporaryVehicle && form.usoTemporalModo === "PERIODO" ? form.usoTemporalInicio : "",
+    asignacion_temporal_fin: usesTemporaryVehicle && form.usoTemporalModo === "PERIODO" ? form.usoTemporalFin : "",
     licencia_numero: selectedDriver.licencia_numero || "N/A",
     tipo_licencia: selectedDriver.licencia_tipo || "Chofer",
     numero_serie: selectedVehicleObj.numero_serie || "N/A",
@@ -787,6 +811,29 @@ export default function GerenciamientoForm({ telegramAuth, conductores = [], veh
                 placeholder="-- Selecciona Vehículo --"
               />
             </div>
+
+            {usesTemporaryVehicle && currentTemporaryAssignment && (
+              <div className="gw-field">
+                <p className="gw-field-hint">Uso temporal vigente: {currentTemporaryAssignment.fechaInicio} a {currentTemporaryAssignment.fechaFin}.</p>
+              </div>
+            )}
+
+            {usesTemporaryVehicle && !currentTemporaryAssignment && (
+              <div className="gw-field">
+                <label className="gw-field-label">Uso temporal de la unidad</label>
+                <select name="usoTemporalModo" value={form.usoTemporalModo} onChange={handleInputChange} className="gw-input" required>
+                  <option value="SOLO_HOY">Solo hoy</option>
+                  <option value="PERIODO">Elegir otro periodo</option>
+                </select>
+                {form.usoTemporalModo === "PERIODO" && (
+                  <div className="gw-grid-2">
+                    <label>Inicio<input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleInputChange} className="gw-input" required /></label>
+                    <label>Fin<input type="date" name="usoTemporalFin" value={form.usoTemporalFin} min={form.usoTemporalInicio || undefined} onChange={handleInputChange} className="gw-input" required /></label>
+                  </div>
+                )}
+                <p className="gw-field-hint">No modifica la unidad permanente configurada en el panel.</p>
+              </div>
+            )}
 
             <div className="gw-field">
               <label className="gw-field-label">

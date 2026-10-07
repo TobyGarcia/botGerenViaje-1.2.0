@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { countPendingLocations } from '../services/tracking-storage';
 import { syncPendingLocations } from '../services/tracking-service';
 import { countPendingSiniestros } from '../services/siniestro-storage';
@@ -11,7 +11,7 @@ export default function OfflineBanner({ idViaje }) {
   const [pendingSiniestroCount, setPendingSiniestroCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const checkPending = async () => {
+  const checkPending = useCallback(async () => {
     try {
       if (idViaje) {
         const count = await countPendingLocations(idViaje);
@@ -25,7 +25,7 @@ export default function OfflineBanner({ idViaje }) {
       setPendingCount(0);
       setPendingSiniestroCount(0);
     }
-  };
+  }, [idViaje]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -60,7 +60,7 @@ export default function OfflineBanner({ idViaje }) {
       unsubscribe();
       clearInterval(interval);
     };
-  }, [idViaje]);
+  }, [idViaje, checkPending]);
 
   const handleManualSync = async () => {
     if (isSyncing || !isOnline) return;

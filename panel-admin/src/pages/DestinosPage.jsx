@@ -1,10 +1,11 @@
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState
 } from "react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 
 import {
   createAdminDestino,
@@ -262,7 +263,7 @@ function DestinosPage({ user }) {
   const [importSummary, setImportSummary] = useState(null);
   const fileInputRef = useRef(null);
 
-  async function loadDestinos() {
+  const loadDestinos = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -279,7 +280,7 @@ function DestinosPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, status]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -289,7 +290,7 @@ function DestinosPage({ user }) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [search, status]);
+  }, [loadDestinos]);
 
   // Manejo de tecla Escape para cerrar modales activos
   useEffect(() => {
@@ -298,10 +299,18 @@ function DestinosPage({ user }) {
 
     function handleKeyDown(event) {
       if (event.key === "Escape") {
-        if (showForm && !saving) closeForm();
+        if (showForm && !saving) {
+          setShowForm(false);
+          setForm(initialForm);
+        }
         if (detailDestino) setDetailDestino(null);
         if (confirmAction && !updatingId) setConfirmAction(null);
-        if (showImportModal && !importing) closeImportModal();
+        if (showImportModal && !importing) {
+          setShowImportModal(false);
+          setImportFile(null);
+          setImportRows([]);
+          setImportSummary(null);
+        }
       }
     }
 

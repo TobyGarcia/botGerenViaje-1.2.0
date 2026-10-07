@@ -12,7 +12,7 @@ const views = [
   ["izquierda", "🚙 Lateral izquierdo del remolque", remolqueIzquierdoImg]
 ];
 
-export const REMOLQUE_CHECKLIST_GROUPS = {
+const REMOLQUE_CHECKLIST_GROUPS = {
   "Documentación / Control": [
     "Identificación o número económico visible",
     "Placa del remolque (si aplica)",

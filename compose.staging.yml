@@ -1,0 +1,153 @@
+# Ambiente de prueba paralelo a produccion: https://gvmobility.aspromex.mx
+#
+# No levanta Postgres: reutiliza el contenedor `viajes-postgres` de produccion
+# contra la base `gerenciamiento_viajes_stg`, con el usuario `viajes_stg`, que
+# solo tiene permisos sobre esa base.
+#
+# Uso:
+#   docker compose -f compose.staging.yml --env-file .env.staging -p gvmobility up -d --build
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: gvmobility-backend
+    restart: unless-stopped
+    command: ["npm", "start"]
+
+    env_file:
+      - .env.staging
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      TZ: ${TZ:-America/Mexico_City}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEB_APP_URL: ${TELEGRAM_WEB_APP_URL}
+      TELEGRAM_GROUP_ID: ${TELEGRAM_GROUP_ID}
+      TELEGRAM_GROUP_SUPRVISOR_ID: ${TELEGRAM_GROUP_SUPRVISOR_ID}
+      TELEGRAM_SUPERVISOR_BOT_TOKEN: ${TELEGRAM_SUPERVISOR_BOT_TOKEN}
+      TELEGRAM_SUPERVISOR_BOT_USERNAME: ${TELEGRAM_SUPERVISOR_BOT_USERNAME}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_SUPERVISOR_WEB_APP_URL: ${TELEGRAM_SUPERVISOR_WEB_APP_URL}
+      SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION: ${SUPERVISOR_REQUIRE_EMAIL_CONFIRMATION:-false}
+      TELEGRAM_INIT_DATA_MAX_AGE_SECONDS: ${TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:-3600}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN:-8h}
+      ADMIN_COOKIE_NAME: ${ADMIN_COOKIE_NAME:-admin_session_stg}
+      ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-true}
+      ADMIN_COOKIE_SAME_SITE: ${ADMIN_COOKIE_SAME_SITE:-lax}
+      ADMIN_LOGIN_MAX_ATTEMPTS: ${ADMIN_LOGIN_MAX_ATTEMPTS:-5}
+      ADMIN_LOGIN_BLOCK_MINUTES: ${ADMIN_LOGIN_BLOCK_MINUTES:-15}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SUPERVISOR_EMAIL_CONFIRM_URL: ${SUPERVISOR_EMAIL_CONFIRM_URL:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_CLIENT_SECRET_ID: ${AZURE_CLIENT_SECRET_ID:-}
+      AZURE_CLIENT_ID_S: ${AZURE_CLIENT_ID_S:-}
+      AZURE_CLIENT_SECRET_S: ${AZURE_CLIENT_SECRET_S:-}
+      AZURE_CLIENT_SECRET_ID_S: ${AZURE_CLIENT_SECRET_ID_S:-}
+      AZURE_TENANT_DOMAIN: ${AZURE_TENANT_DOMAIN:-}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-https://gvmobility.aspromex.mx}
+      SHAREPOINT_SITE_ID: ${SHAREPOINT_SITE_ID:-}
+      SHAREPOINT_FOLDER_PATH: ${SHAREPOINT_FOLDER_PATH:-inspecciones-stg}
+      ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-https://gvmobility.aspromex.mx}
+      # Map matching autohospedado. Si no responde, el detalle del viaje
+      # sigue funcionando con los puntos crudos.
+      OSRM_URL: ${OSRM_URL:-http://osrm-routing:5000}
+      OSRM_MIN_CONFIDENCE: ${OSRM_MIN_CONFIDENCE:-0.5}
+
+    ports:
+      - "127.0.0.1:${BACKEND_PORT_STG:-3002}:3000"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - viajes_network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_GPS_TRACKING_INTERVAL_MS: ${VITE_GPS_TRACKING_INTERVAL_MS:-10000}
+        VITE_GPS_SYNC_BATCH_SIZE: ${VITE_GPS_SYNC_BATCH_SIZE:-100}
+
+    container_name: gvmobility-frontend
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_STG:-8082}:80"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://127.0.0.1/ || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - viajes_network
+
+  panel-admin:
+    build:
+      context: ./panel-admin
+      dockerfile: Dockerfile
+
+    container_name: gvmobility-panel-admin
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:${PANEL_PORT_STG:-8083}:80"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://127.0.0.1/health || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - viajes_network
+
+networks:
+  # Red ya creada por compose.prod.yml. Se une como externa para alcanzar el
+  # contenedor viajes-postgres sin duplicar la instancia de base de datos.
+  viajes_network:
+    external: true
+    name: viajes_network_prod

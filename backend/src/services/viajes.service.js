@@ -1,6 +1,7 @@
 import { databasePool } from "../database/pool.js";
 import { registerMileageReading } from "./kilometraje.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
+import { ensureVehicleAssignment } from "./vehicle-assignments.service.js";
 
 function getTripDateInfo() {
   const timeZone = process.env.TZ || "America/Mexico_City";
@@ -48,12 +49,82 @@ function isOutsideOperatingHours() {
     const hour = rawHour === 24 ? 0 : rawHour;
     const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
     const currentTotal = hour * 60 + minute;
-    return currentTotal < 390 || currentTotal > 1080;
+    return currentTotal < 360 || currentTotal >= 1080;
   } catch (e) {
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const currentTotal = hours * 60 + minutes;
-    return currentTotal < 390 || currentTotal > 1080;
+    return currentTotal < 360 || currentTotal >= 1080;
+  }
+}
+
+export function isSamePendingTripRequest(openTrip, request) {
+  return openTrip?.estado === "PENDIENTE" &&
+    Number(openTrip.id_vehiculos) === Number(request.idVehiculo) &&
+    Number(openTrip.id_origen) === Number(request.idOrigen) &&
+    Number(openTrip.id_destino) === Number(request.idDestino) &&
+    Number(openTrip.kilometraje_inicial) === Number(request.kilometrajeInicial) &&
+    String(openTrip.motivo || "") === String(request.motivo || "") &&
+    JSON.stringify(openTrip.acompanantes || []) === JSON.stringify(request.acompanantes || []);
+}
+
+export function isExpiredNeverStartedPendingTrip(trip, operationalDate) {
+  return trip?.estado === "PENDIENTE" &&
+    !trip.hora_salida &&
+    String(trip.fecha || "") < String(operationalDate || "");
+}
+
+export async function cancelExpiredPendingTrips({
+  client: externalClient = null,
+  operationalDate = null,
+  idConductor = null,
+  idVehiculo = null
+} = {}) {
+  const ownsTransaction = !externalClient;
+  const client = externalClient || await databasePool.connect();
+  const effectiveDate = operationalDate || getTripDateInfo().dateIso;
+
+  try {
+    if (ownsTransaction) await client.query("BEGIN");
+    const result = await client.query(`
+      WITH state_ids AS (
+        SELECT
+          MAX(id_estado_viaje) FILTER (WHERE nombre='PENDIENTE') AS pending_id,
+          MAX(id_estado_viaje) FILTER (WHERE nombre='CANCELADO') AS cancelled_id
+        FROM estados_viaje
+        WHERE activo=TRUE AND nombre IN ('PENDIENTE','CANCELADO')
+      ), changed AS (
+        UPDATE viajes v
+        SET id_estado_viaje=s.cancelled_id, actualizado_en=CURRENT_TIMESTAMP
+        FROM state_ids s
+        WHERE s.pending_id IS NOT NULL
+          AND s.cancelled_id IS NOT NULL
+          AND v.id_estado_viaje=s.pending_id
+          AND v.hora_salida IS NULL
+          AND v.fecha < $1::date
+          AND (
+            ($2::integer IS NULL AND $3::integer IS NULL)
+            OR v.id_conductores=$2
+            OR v.id_vehiculos=$3
+          )
+        RETURNING v.id_viajes, s.pending_id, s.cancelled_id
+      ), logged AS (
+        INSERT INTO historial_estados_viaje
+          (id_viajes,id_estado_anterior,id_estado_nuevo,observaciones)
+        SELECT id_viajes,pending_id,cancelled_id,
+          'Cancelado automáticamente: permaneció pendiente y nunca fue iniciado dentro de su fecha operativa.'
+        FROM changed
+        RETURNING id_viajes
+      )
+      SELECT COUNT(*)::integer AS cancelled FROM logged`,
+    [effectiveDate, idConductor, idVehiculo]);
+    if (ownsTransaction) await client.query("COMMIT");
+    return Number(result.rows[0]?.cancelled || 0);
+  } catch (error) {
+    if (ownsTransaction) await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    if (ownsTransaction) client.release();
   }
 }
 
@@ -65,16 +136,18 @@ export async function createTrip({
   acompanantes,
   kilometrajeInicial,
   motivo,
-  esGerenciamiento = false
-}) {
+  esGerenciamiento = false,
+  usoTemporal = null
+}, { client: externalClient = null } = {}) {
   if (!esGerenciamiento && isOutsideOperatingHours()) {
-    throw new Error("El horario operativo para viajes locales/urbanos es de 6:30 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
+    throw new Error("El horario operativo para viajes locales/urbanos es de 6:00 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
   }
 
-  const client = await databasePool.connect();
+  const ownsTransaction = !externalClient;
+  const client = externalClient || await databasePool.connect();
 
   try {
-    await client.query("BEGIN");
+    if (ownsTransaction) await client.query("BEGIN");
 
     const conductorResult = await client.query(
       `
@@ -173,6 +246,57 @@ export async function createTrip({
     }
 
     const { dateIso, dateCompact } = getTripDateInfo();
+    await cancelExpiredPendingTrips({
+      client,
+      operationalDate: dateIso,
+      idConductor,
+      idVehiculo
+    });
+    await ensureVehicleAssignment({ client, idConductor, idVehiculo, operationalDate: dateIso, temporaryUse: usoTemporal });
+
+    // Solo puede existir un viaje abierto por conductor. El lock evita que dos
+    // solicitudes simultáneas (doble toque, timeout o reintento) creen folios
+    // distintos antes de que se registre la inspección.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext('viajes-conductor:' || $1))",
+      [String(idConductor)]
+    );
+    const openTripResult = await client.query(`
+      SELECT v.id_viajes, v.folio, v.fecha, v.id_estado_viaje, v.creado_en,
+        v.id_vehiculos, v.id_origen, v.id_destino, v.kilometraje_inicial,
+        v.motivo, v.acompanantes, ev.nombre AS estado
+      FROM viajes v
+      INNER JOIN estados_viaje ev ON ev.id_estado_viaje=v.id_estado_viaje
+      WHERE v.id_conductores=$1 AND ev.nombre IN ('PENDIENTE','EN_CURSO')
+      ORDER BY CASE WHEN ev.nombre='EN_CURSO' THEN 0 ELSE 1 END, v.id_viajes DESC
+      LIMIT 1
+      FOR UPDATE OF v`, [idConductor]);
+    const openTrip = openTripResult.rows[0];
+    if (openTrip) {
+      const samePendingRequest = isSamePendingTripRequest(openTrip, {
+        idVehiculo, idOrigen, idDestino,
+        kilometrajeInicial: esGerenciamiento
+          ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0))
+          : kilometrajeInicial,
+        motivo, acompanantes
+      });
+
+      if (samePendingRequest) {
+        if (ownsTransaction) await client.query("COMMIT");
+        return {
+          ...openTrip,
+          conductor: conductor.nombre,
+          vehiculo: vehicle.nombre,
+          numeroEconomico: vehicle.numero_economico,
+          licenciaVigente: conductor.licencia_vigente,
+          reused: true
+        };
+      }
+
+      throw new Error(openTrip.estado === "EN_CURSO"
+        ? `Ya tienes el viaje ${openTrip.folio} en curso. Debes finalizarlo antes de crear otro.`
+        : `Ya tienes el viaje ${openTrip.folio} pendiente. Continúa su inspección o cancélalo antes de crear otro.`);
+    }
     const folioPrefix = `VJ-${dateCompact}-%`;
 
     // Serializa la asignación del consecutivo diario sin bloquear otros días.
@@ -304,7 +428,7 @@ export async function createTrip({
       allowLower: Boolean(esGerenciamiento)
     });
 
-    await client.query("COMMIT");
+    if (ownsTransaction) await client.query("COMMIT");
 
     return {
       ...trip,
@@ -315,20 +439,21 @@ export async function createTrip({
     };
     
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (ownsTransaction) await client.query("ROLLBACK");
     throw error;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 }
 
 export async function startTrip({
   idViaje
-}) {
-  const client = await databasePool.connect();
+}, { client: externalClient = null, recordedAt = null } = {}) {
+  const ownsTransaction = !externalClient;
+  const client = externalClient || await databasePool.connect();
 
   try {
-    await client.query("BEGIN");
+    if (ownsTransaction) await client.query("BEGIN");
 
     const tripResult = await client.query(
       `
@@ -515,8 +640,8 @@ export async function startTrip({
         UPDATE viajes
         SET
           id_estado_viaje = $1,
-          hora_salida = CURRENT_TIMESTAMP,
-          actualizado_en = CURRENT_TIMESTAMP
+          hora_salida = COALESCE($3::timestamptz AT TIME ZONE 'America/Mexico_City', CURRENT_TIMESTAMP),
+          actualizado_en = COALESCE($3::timestamptz AT TIME ZONE 'America/Mexico_City', CURRENT_TIMESTAMP)
         WHERE id_viajes = $2
         RETURNING
           id_viajes,
@@ -528,7 +653,8 @@ export async function startTrip({
       `,
       [
         activeState.id_estado_viaje,
-        idViaje
+        idViaje,
+        recordedAt
       ]
     );
 
@@ -557,7 +683,7 @@ export async function startTrip({
       ]
     );
 
-    await client.query("COMMIT");
+    if (ownsTransaction) await client.query("COMMIT");
 
     return {
       idViaje: updatedTrip.id_viajes,
@@ -582,20 +708,21 @@ export async function startTrip({
         trip.numero_economico
     };
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (ownsTransaction) await client.query("ROLLBACK");
     throw error;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 }
 export async function finishTrip({
   idViaje,
   kilometrajeFinal
-}) {
-  const client = await databasePool.connect();
+}, { client: externalClient = null, recordedAt = null } = {}) {
+  const ownsTransaction = !externalClient;
+  const client = externalClient || await databasePool.connect();
 
   try {
-    await client.query("BEGIN");
+    if (ownsTransaction) await client.query("BEGIN");
 
     const tripResult = await client.query(
       `
@@ -685,8 +812,8 @@ export async function finishTrip({
           id_estado_viaje = $1,
           kilometraje_final = $2,
           kilometros_recorridos = $3,
-          hora_llegada = CURRENT_TIMESTAMP,
-          actualizado_en = CURRENT_TIMESTAMP
+          hora_llegada = COALESCE($5::timestamptz AT TIME ZONE 'America/Mexico_City', CURRENT_TIMESTAMP),
+          actualizado_en = COALESCE($5::timestamptz AT TIME ZONE 'America/Mexico_City', CURRENT_TIMESTAMP)
         WHERE id_viajes = $4
         RETURNING
           id_viajes,
@@ -702,7 +829,8 @@ export async function finishTrip({
         finishedState.id_estado_viaje,
         kilometrajeFinal,
         kilometersTraveled,
-        idViaje
+        idViaje,
+        recordedAt
       ]
     );
 
@@ -759,7 +887,7 @@ export async function finishTrip({
       ]
     );
 
-    await client.query("COMMIT");
+    if (ownsTransaction) await client.query("COMMIT");
 
     return {
       idViaje:
@@ -796,10 +924,10 @@ export async function finishTrip({
         trip.numero_economico
     };
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (ownsTransaction) await client.query("ROLLBACK");
     throw error;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 }
 export async function cancelTrip({ idViaje, observaciones = "Viaje cancelado" }) {
