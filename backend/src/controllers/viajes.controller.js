@@ -12,6 +12,7 @@ import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 import { getApprovalForStart } from "../services/inspecciones.service.js";
 import { getManejoComentadoAuthorizationTripData, requestManejoComentadoAuthorization } from "../services/autorizaciones-manejo-comentado.service.js";
 import { notifyManejoComentadoAuthorizationRequest } from "../bot/supervisor-bot.js";
+import { normalizeInitialTripLocation } from "../services/initial-trip-location.service.js";
 
 function parsePositiveInteger(value) {
   const parsedValue = Number(value);
@@ -278,6 +279,8 @@ export async function startTripController(
       });
     }
 
+    const initialLocation = normalizeInitialTripLocation(request.body?.ubicacionInicial);
+
     const telegramUser = await requireTripOwner(request, idViaje);
 
     const inspection = await getApprovalForStart(idViaje, telegramUser.id_conductores);
@@ -286,7 +289,8 @@ export async function startTripController(
     }
 
     const trip = await startTrip({
-      idViaje
+      idViaje,
+      initialLocation
     });
 
     await sendTripGroupAlert({ action: "iniciado", trip });
@@ -334,6 +338,8 @@ export async function startTripController(
     const statusCode = error.statusCode || (
       error.message === "El viaje no existe."
         ? 404
+        : error.message?.includes("ubicación GPS")
+          ? 400
         : isConflict
           ? 409
           : 500

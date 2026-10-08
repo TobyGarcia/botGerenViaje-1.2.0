@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 const values = new Map();
 globalThis.window = {
+  location: { pathname: "/" },
   localStorage: {
     getItem: key => values.has(key) ? values.get(key) : null,
     setItem: (key, value) => values.set(key, String(value)),
@@ -10,6 +11,7 @@ globalThis.window = {
     clear: () => values.clear()
   }
 };
+Object.defineProperty(globalThis, "navigator", { value: { onLine: false }, configurable: true });
 
 const {
   getOfflineTrip,
@@ -21,6 +23,7 @@ const {
   storeServerMapping,
   resolveOfflineTripId
 } = await import("../src/services/offline-trip-storage.js");
+const { startOfflineTrip } = await import("../src/services/offline-trips.js");
 
 function record({ clientId, localId, finishedAt = null, synced = false }) {
   return {
@@ -82,4 +85,35 @@ test("mantiene un mapeo GPS independiente para cada viaje local", () => {
   storeServerMapping(-11, 102, 7);
   assert.equal(resolveOfflineTripId(-10), 101);
   assert.equal(resolveOfflineTripId(-11), 102);
+});
+
+test("no inicia un viaje local sin una primera ubicación GPS guardada", () => {
+  const NativeDate = Date;
+  const fixedNow = "2026-10-08T15:00:00.000Z";
+  globalThis.Date = class extends NativeDate {
+    constructor(value) { super(value === undefined ? fixedNow : value); }
+    static now() { return +new NativeDate(fixedNow); }
+  };
+  const now = new Date();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City",
+    year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now).map(part => [part.type, part.value]));
+  const local = {
+    ...record({ clientId: "gps-required", localId: -20 }),
+    startedAt: null,
+    grant: { driverId: 7, vehicleId: 3, day: `${parts.year}-${parts.month}-${parts.day}`,
+      issuedAt: new Date(now.getTime() - 60000).toISOString(), expiresAt: new Date(now.getTime() + 60000).toISOString() }
+  };
+  saveOfflineTrip(local);
+  assert.throws(() => startOfflineTrip(7, -20), /primera ubicación GPS/);
+  assert.equal(getOfflineTrip(7, -20).startedAt, null);
+
+  const initialLocation = { clientLocationId: "123e4567-e89b-42d3-a456-426614174000", idViaje: -20,
+    latitud: 19.4, longitud: -99.1, fechaGps: now.toISOString() };
+  try {
+    const started = startOfflineTrip(7, -20, initialLocation);
+    assert.equal(started.estado, "EN_CURSO");
+    assert.deepEqual(getOfflineTrip(7, -20).initialLocation, initialLocation);
+  } finally {
+    globalThis.Date = NativeDate;
+  }
 });

@@ -50,6 +50,7 @@ import {
 
 import {
   captureAndQueueLocation,
+  captureInitialTripLocation,
   captureIntermediatePoint,
   setTrackingStatusListener,
   startTracking,
@@ -1347,9 +1348,11 @@ function isOutsideOperatingHours() {
     setMessage("");
 
     try {
+      setGpsStatus("Obteniendo primera ubicación GPS...");
+      const initialLocation = await captureInitialTripLocation(idViaje);
       const response = idViaje < 0
-        ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje) }
-        : await iniciarViaje(idViaje);
+        ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, initialLocation) }
+        : await iniciarViaje(idViaje, initialLocation);
       const startedData = response.data ?? {};
       const horaSalida =
         startedData.horaSalida ??
@@ -1378,9 +1381,12 @@ function isOutsideOperatingHours() {
       setMessage(idViaje < 0 ? "Viaje iniciado en el teléfono; pendiente de confirmación del servidor." : "Viaje iniciado correctamente.");
       if (idViaje < 0) void syncOfflineState();
       setMessageType("success");
-      void startTracking(idViaje).catch(error => setGpsStatus(`Viaje iniciado; GPS pendiente: ${error.message}`));
+      void startTracking(idViaje, { captureImmediately: false })
+        .then(() => syncPendingLocations(idViaje))
+        .catch(error => setGpsStatus(`Seguimiento GPS pendiente: ${error.message}`));
       
     } catch (error) {
+      stopSilentAudioKeepAlive();
       setMessage(error.message);
       setMessageType("error");
     } finally {

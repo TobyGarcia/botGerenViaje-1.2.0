@@ -2,6 +2,7 @@ import { requestOfflinePermits, uploadOfflineTrip } from "./api.js";
 import { getOfflineTrip, getOfflineTrips, getSyncableOfflineTrips, saveOfflineTrip, getOfflinePermits, saveOfflinePermits, matchingPermit,
   uuid, offlineTripView, storeServerMapping } from "./offline-trip-storage.js";
 import { syncPendingLocations, countPendingForTrip } from "./tracking-service.js";
+import { getPendingLocations } from "./tracking-storage.js";
 
 export async function refreshOfflinePermits(driverId) {
   if (!navigator.onLine || !driverId) return;
@@ -26,12 +27,16 @@ export function createOfflineDraft(trip, display) {
   return offlineTripView(record);
 }
 
-export function startOfflineTrip(driverId, localId) {
+export function startOfflineTrip(driverId, localId, initialLocation) {
   const record = getOfflineTrip(driverId, localId);
   if (!record || record.localId !== localId || record.finishedAt) throw new Error("No se encontró el viaje local pendiente.");
   if (record.startedAt) return offlineTripView(record);
   if (!matchingPermit([record.grant], driverId, record.trip.idVehiculo)) throw new Error("El permiso del día venció. Conéctate para validar la inspección y el horario.");
+  if (!initialLocation?.clientLocationId || Number(initialLocation.idViaje) !== Number(localId)) {
+    throw new Error("Se requiere guardar la primera ubicación GPS antes de iniciar el viaje.");
+  }
   record.startedAt = new Date().toISOString();
+  record.initialLocation = initialLocation;
   saveOfflineTrip(record); // Persist BEFORE displaying success or starting GPS.
   return offlineTripView(record);
 }
@@ -60,8 +65,12 @@ export async function syncOfflineTrip(driverId) {
     if (!navigator.onLine) return getOfflineTrip(driverId);
     const candidates = getSyncableOfflineTrips(driverId);
     for (const candidate of candidates) {
+      const pendingLocations = candidate.initialLocation ? [] : await getPendingLocations(candidate.localId);
+      const initialLocation = candidate.initialLocation || pendingLocations[0];
+      if (!initialLocation) throw new Error("El viaje local no tiene una ubicación GPS inicial guardada y requiere revisión.");
       const response = await uploadOfflineTrip({ clientId: candidate.clientId, permit: candidate.permit, trip: candidate.trip,
-        startedAt: candidate.startedAt, finishedAt: candidate.finishedAt, kilometrajeFinal: candidate.kilometrajeFinal });
+        startedAt: candidate.startedAt, initialLocation,
+        finishedAt: candidate.finishedAt, kilometrajeFinal: candidate.kilometrajeFinal });
       // El conductor puede terminar este viaje mientras la petición está en curso.
       const latest = getOfflineTrip(driverId, candidate.localId);
       if (!latest || latest.clientId !== candidate.clientId) throw new Error("El viaje local cambió durante la sincronización.");

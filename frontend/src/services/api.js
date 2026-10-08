@@ -1,7 +1,7 @@
 import safeStorage from "../utils/safeStorage.js";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "";
+  import.meta.env?.VITE_API_BASE_URL || "";
 
 async function request(path, options = {}) {
   const telegramInitData = window.Telegram?.WebApp?.initData || "";
@@ -102,11 +102,12 @@ export const uploadOfflineTrip = payload => request("/api/viajes/offline/sincron
   method: "POST", body: JSON.stringify(payload)
 });
 
-export function iniciarViaje(idViaje) {
+export function iniciarViaje(idViaje, ubicacionInicial) {
   return request(
     `/api/viajes/${idViaje}/iniciar`,
     {
-      method: "POST"
+      method: "POST",
+      body: JSON.stringify({ ubicacionInicial })
     }
   );
 }

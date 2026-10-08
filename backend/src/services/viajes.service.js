@@ -1,4 +1,5 @@
 import { databasePool } from "../database/pool.js";
+import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { ensureVehicleAssignment } from "./vehicle-assignments.service.js";
@@ -447,7 +448,8 @@ export async function createTrip({
 }
 
 export async function startTrip({
-  idViaje
+  idViaje,
+  initialLocation
 }, { client: externalClient = null, recordedAt = null } = {}) {
   const ownsTransaction = !externalClient;
   const client = externalClient || await databasePool.connect();
@@ -659,6 +661,13 @@ export async function startTrip({
     );
 
     const updatedTrip = updateResult.rows[0];
+
+    await insertInitialTripLocation(
+      client,
+      idViaje,
+      initialLocation,
+      recordedAt || new Date()
+    );
 
     await client.query(
       `

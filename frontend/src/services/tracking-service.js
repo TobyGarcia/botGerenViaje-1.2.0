@@ -6,8 +6,8 @@ import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
 
-const intervalValue = Number(import.meta.env.VITE_GPS_TRACKING_INTERVAL_MS);
-const batchValue = Number(import.meta.env.VITE_GPS_SYNC_BATCH_SIZE);
+const intervalValue = Number(import.meta.env?.VITE_GPS_TRACKING_INTERVAL_MS);
+const batchValue = Number(import.meta.env?.VITE_GPS_SYNC_BATCH_SIZE);
 const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 1000 ? intervalValue : 30000;
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
 let intervalId = null;
@@ -49,27 +49,34 @@ export async function syncPendingLocations(idViaje) {
 
 export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
-    const location = await getCurrentLocation();
-    const clientLocationId = uuid();
-    const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
-    const pendingLocation = {
-      ...location,
-      isBackground,
-      ...extraData,
-      clientLocationId,
-      idViaje: Number(idViaje)
-    };
-    await savePendingLocation(pendingLocation);
-    await notifyPending(idViaje, {
-      status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
-      lastCapture: pendingLocation.fechaGps,
-      latitude: pendingLocation.latitud,
-      longitude: pendingLocation.longitud,
-      isBackground
-    });
+    const pendingLocation = await captureAndStoreLocation(idViaje, extraData);
     await syncPendingLocations(idViaje);
     return pendingLocation;
   } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
+}
+
+async function captureAndStoreLocation(idViaje, extraData = {}) {
+  const location = await getCurrentLocation();
+  const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
+  const pendingLocation = { ...location, isBackground, ...extraData, clientLocationId: uuid(), idViaje: Number(idViaje) };
+  await savePendingLocation(pendingLocation);
+  await notifyPending(idViaje, {
+    status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
+    lastCapture: pendingLocation.fechaGps,
+    latitude: pendingLocation.latitud,
+    longitude: pendingLocation.longitud,
+    isBackground
+  });
+  return pendingLocation;
+}
+
+export async function captureInitialTripLocation(idViaje) {
+  try {
+    return await captureAndStoreLocation(idViaje, { esUbicacionInicial: true });
+  } catch (error) {
+    notify({ status: "Se requiere GPS para iniciar", error: error.message });
+    throw new Error(`No se pudo obtener y guardar la ubicación GPS inicial: ${error.message}`);
+  }
 }
 
 export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Intermedio", categoria = "") {
@@ -81,7 +88,7 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
   });
 }
 
-export async function startTracking(idViaje) {
+export async function startTracking(idViaje, { captureImmediately = true } = {}) {
   const normalizedId = Number(idViaje);
   if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
 
@@ -95,7 +102,7 @@ export async function startTracking(idViaje) {
     void startSilentAudioKeepAlive().catch(() => {});
 
     notify({ status: "Esperando permiso" });
-    await captureAndQueueLocation(normalizedId);
+    if (captureImmediately) await captureAndQueueLocation(normalizedId);
     intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
     await notifyPending(normalizedId, { status: "Activo" });
   } finally {

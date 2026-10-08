@@ -3,6 +3,7 @@ import { databasePool } from "../database/pool.js";
 import { cancelExpiredPendingTrips, createTrip, startTrip, finishTrip } from "./viajes.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { mexicoClock, signOfflinePermit, verifyOfflinePermit } from "../utils/offline-trip-permit.js";
+import { normalizeInitialTripLocation } from "./initial-trip-location.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const goodStatus = value => ["VIGENTE", "PROXIMO_A_VENCER"].includes(value);
@@ -57,6 +58,8 @@ export async function getOfflinePermits(driverId, now = new Date()) {
 export function validateOfflineRequest(body, driverId, now = new Date()) {
   if (!body || !UUID.test(body.clientId || "")) throw new Error("El identificador local no es válido.");
   const claims = verifyOfflinePermit(body.permit, driverId, body.startedAt, now);
+  if (!body.initialLocation) throw new Error("El viaje sin conexión no contiene la primera ubicación GPS.");
+  const initialLocation = normalizeInitialTripLocation(body.initialLocation, body.startedAt);
   const p = body.trip || {};
   for (const name of ["idConductor", "idVehiculo", "idOrigen", "idDestino"]) {
     if (!Number.isSafeInteger(p[name]) || p[name] <= 0) throw new Error("Los datos del viaje no son válidos.");
@@ -74,12 +77,12 @@ export function validateOfflineRequest(body, driverId, now = new Date()) {
     throw new Error("La hora o el kilometraje de cierre no son válidos.");
   }
   const trip = Object.fromEntries(["idConductor", "idVehiculo", "idOrigen", "idDestino", "kilometrajeInicial", "motivo", "acompanantes"].map(k => [k, p[k]]));
-  const hash = createHash("sha256").update(JSON.stringify({ trip, startedAt: body.startedAt, permit: body.permit })).digest("hex");
-  return { claims, trip, hash };
+  const hash = createHash("sha256").update(JSON.stringify({ trip, startedAt: body.startedAt, permit: body.permit, initialLocation })).digest("hex");
+  return { claims, trip, hash, initialLocation };
 }
 
 export async function syncOfflineTrip(body, driverId) {
-  const { claims, trip, hash } = validateOfflineRequest(body, driverId);
+  const { claims, trip, hash, initialLocation } = validateOfflineRequest(body, driverId);
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
@@ -128,7 +131,7 @@ export async function syncOfflineTrip(body, driverId) {
       [driverId, claims.vehicleId, body.startedAt, body.finishedAt || null]);
       if (conflict.rowCount) throw new Error("Hay otro viaje que entra en conflicto. El viaje local se conserva para revisión.");
       const created = await createTrip(trip, { client, recordedAt: body.startedAt });
-      await startTrip({ idViaje: created.id_viajes }, { client, recordedAt: body.startedAt });
+      await startTrip({ idViaje: created.id_viajes, initialLocation }, { client, recordedAt: body.startedAt });
       row = (await client.query(`INSERT INTO viajes_offline
         (client_id,id_conductores,id_viajes,id_inspeccion,request_hash,inicio_dispositivo)
         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
