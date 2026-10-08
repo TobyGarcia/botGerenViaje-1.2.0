@@ -734,6 +734,7 @@ function ModulePlaceholder({ title }) {
 }
 
 const ROLES_SUPERVISOR_Y_SUPERIOR = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
+const ROLES_TODOS = [...ROLES_SUPERVISOR_Y_SUPERIOR, "OPERADOR", "CONSULTA"];
 
 function getInitialAdminModule(userRol) {
   const hash = window.location.hash.replace(/^#\/?/, "").split("?")[0].trim().toLowerCase();
@@ -858,6 +859,9 @@ function DashboardPage({ user, onLogout }) {
       window.clearInterval(timer);
     };
   }, [user.rol]);
+
+  const rolesSupervisorYSuperior = ROLES_SUPERVISOR_Y_SUPERIOR;
+  const rolesTodos = ROLES_TODOS;
 
   const modules = [
     { id: "monitoreo-activo", label: "Monitoreo en Vivo", icon: IconRadar, roles: rolesTodos },
