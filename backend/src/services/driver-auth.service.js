@@ -28,7 +28,12 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          telefono,
          activo,
          aprobado_por_admin,
-         pin_hash
+         pin_hash,
+         (SELECT v.id_vehiculos
+            FROM vehiculos v
+           WHERE v.id_conductor_asignado = conductores.id_conductores
+           ORDER BY v.id_vehiculos
+           LIMIT 1) AS id_vehiculo_asignado
        FROM conductores
        WHERE id_conductores = $1
        LIMIT 1`,
@@ -71,7 +76,12 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
          telefono,
          activo,
          aprobado_por_admin,
-         pin_hash
+         pin_hash,
+         (SELECT v.id_vehiculos
+            FROM vehiculos v
+           WHERE v.id_conductor_asignado = conductores.id_conductores
+           ORDER BY v.id_vehiculos
+           LIMIT 1) AS id_vehiculo_asignado
        FROM conductores
        WHERE pin_hash IS NOT NULL`
     );
@@ -114,6 +124,7 @@ export async function authenticateDriverWithPin({ idConductor, pin }) {
       licencia_vigente: conductor.licencia_vigente,
       licencia_vencimiento: conductor.licencia_vencimiento,
       telefono: conductor.telefono,
+      id_vehiculo_asignado: conductor.id_vehiculo_asignado ?? null,
       activo: conductor.activo,
       aprobado_por_admin: conductor.aprobado_por_admin
     }
@@ -220,6 +231,11 @@ export async function findActiveDriverById(idConductor) {
        licencia_vigente,
        licencia_vencimiento,
        telefono,
+       (SELECT v.id_vehiculos
+          FROM vehiculos v
+         WHERE v.id_conductor_asignado = conductores.id_conductores
+         ORDER BY v.id_vehiculos
+         LIMIT 1) AS id_vehiculo_asignado,
        activo,
        aprobado_por_admin
      FROM conductores
@@ -245,6 +261,11 @@ export async function findDriverById(idConductor) {
        telefono,
        licencia_url,
        licencia_reverso_url,
+       (SELECT v.id_vehiculos
+          FROM vehiculos v
+         WHERE v.id_conductor_asignado = conductores.id_conductores
+         ORDER BY v.id_vehiculos
+         LIMIT 1) AS id_vehiculo_asignado,
        activo,
        aprobado_por_admin
      FROM conductores
@@ -334,4 +355,3 @@ export async function updateDriverSelfProfile(idConductor, {
   const result = await databasePool.query(query, params);
   return result.rows[0] ?? null;
 }
-

@@ -118,6 +118,7 @@ export async function getDriverSessionController(request, response) {
           licencia_vigente: conductor.licencia_vigente,
           licencia_vencimiento: conductor.licencia_vencimiento,
           telefono: conductor.telefono,
+          id_vehiculo_asignado: conductor.id_vehiculo_asignado ?? null,
           licencia_url: conductor.licencia_url,
           licencia_reverso_url: conductor.licencia_reverso_url,
           activo: conductor.activo,
@@ -199,4 +200,3 @@ export async function updateDriverProfileController(request, response) {
     });
   }
 }
-

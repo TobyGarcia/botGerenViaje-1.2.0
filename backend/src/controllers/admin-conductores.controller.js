@@ -450,9 +450,9 @@ export async function assignAdminConductorVehicleController(request, response) {
     });
   } catch (error) {
     console.error("Error en asignación vehicular:", error.message);
-    return response.status(500).json({
+    return response.status(error.status || 500).json({
       success: false,
-      message: "No fue posible realizar la asignación vehicular."
+      message: error.message || "No fue posible realizar la asignación vehicular."
     });
   }
 }
@@ -600,4 +600,3 @@ export async function assignAdminConductorRoleController(request, response) {
     });
   }
 }
-

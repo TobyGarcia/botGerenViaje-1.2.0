@@ -157,6 +157,7 @@ function App() {
   });
   const savingRef = useRef(false);
   const startingTripRef = useRef(false);
+  const lastAppliedAssignedVehicleIdRef = useRef(null);
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
   const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(() => getCachedJson("cached_gerenciamiento_pendiente", null));
 
@@ -664,24 +665,25 @@ const [cancelledTrip, setCancelledTrip] =
     const driverId = telegramAuth?.conductor?.id_conductores;
     const authAssignedId = telegramAuth?.conductor?.id_vehiculo_asignado;
 
-    if (vehiculos.length > 0 && (driverId || authAssignedId)) {
-      const assignedVehicle = vehiculos.find(
-        (v) => (driverId && String(v.id_conductor_asignado) === String(driverId)) ||
-               (authAssignedId && String(v.id_vehiculos) === String(authAssignedId))
-      );
+    const assignedVehicle = vehiculos.find(
+      (v) => (authAssignedId && String(v.id_vehiculos) === String(authAssignedId)) ||
+             (driverId && String(v.id_conductor_asignado) === String(driverId))
+    );
+    const nextAssignedId = assignedVehicle ? String(assignedVehicle.id_vehiculos) : null;
+    const previousAssignedId = lastAppliedAssignedVehicleIdRef.current;
 
-      if (assignedVehicle) {
-        setForm((cur) => {
-          if (!cur.idVehiculo || cur.idVehiculo === "") {
-            return {
-              ...cur,
-              idVehiculo: String(assignedVehicle.id_vehiculos),
-              kilometrajeInicial: assignedVehicle.kilometraje_actual ?? cur.kilometrajeInicial
-            };
-          }
-          return cur;
-        });
-      }
+    if (nextAssignedId && nextAssignedId !== previousAssignedId) {
+      lastAppliedAssignedVehicleIdRef.current = nextAssignedId;
+      setForm((current) => ({
+        ...current,
+        idVehiculo: nextAssignedId,
+        kilometrajeInicial: assignedVehicle.kilometraje_actual ?? current.kilometrajeInicial
+      }));
+    } else if (!nextAssignedId && previousAssignedId) {
+      lastAppliedAssignedVehicleIdRef.current = null;
+      setForm((current) => String(current.idVehiculo) === previousAssignedId
+        ? { ...current, idVehiculo: "", kilometrajeInicial: "" }
+        : current);
     }
   }, [telegramAuth?.conductor?.id_conductores, telegramAuth?.conductor?.id_vehiculo_asignado, vehiculos]);
 
@@ -894,6 +896,27 @@ const [cancelledTrip, setCancelledTrip] =
           if (localTrip.startedAt && !localTrip.finishedAt) await startTracking(localTrip.localId);
           return;
         }
+
+        if (navigator.onLine) {
+          const [sessionResponse, vehiclesResponse] = await Promise.all([
+            getDriverSession(),
+            getVehiculos()
+          ]);
+          const liveConductor = normalizeConductor(sessionResponse?.data?.conductor);
+          const liveVehicles = vehiclesResponse?.data ?? [];
+          if (liveConductor) {
+            safeStorage.setJSON("cached_driver", liveConductor);
+            setTelegramAuth((current) => ({
+              ...current,
+              authenticated: true,
+              registered: true,
+              conductor: liveConductor
+            }));
+          }
+          setVehiculos(liveVehicles);
+          safeStorage.setJSON("cached_vehiculos", liveVehicles);
+        }
+
         const response = await getViajeActivo();
         if (response.data?.estado === "EN_CURSO") {
           await syncPendingLocations(response.data.idViaje);

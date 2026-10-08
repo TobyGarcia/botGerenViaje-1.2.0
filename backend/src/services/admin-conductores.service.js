@@ -546,6 +546,39 @@ export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
   try {
     await client.query("BEGIN");
 
+    const driverResult = await client.query(
+      `SELECT id_conductores FROM conductores WHERE id_conductores = $1 AND activo = TRUE FOR UPDATE`,
+      [idConductor]
+    );
+    if (driverResult.rowCount === 0) {
+      const error = new Error("El conductor no existe o está inactivo.");
+      error.status = 404;
+      throw error;
+    }
+
+    let targetVehicleId = null;
+    if (idVehiculo !== null && idVehiculo !== undefined && idVehiculo !== "") {
+      targetVehicleId = Number(idVehiculo);
+      if (!Number.isInteger(targetVehicleId) || targetVehicleId <= 0) {
+        const error = new Error("El identificador del vehículo no es válido.");
+        error.status = 400;
+        throw error;
+      }
+
+      const vehicleResult = await client.query(
+        `SELECT id_vehiculos
+           FROM vehiculos
+          WHERE id_vehiculos = $1 AND activo = TRUE AND en_mantenimiento = FALSE
+          FOR UPDATE`,
+        [targetVehicleId]
+      );
+      if (vehicleResult.rowCount === 0) {
+        const error = new Error("El vehículo no existe, está inactivo o se encuentra en mantenimiento.");
+        error.status = 404;
+        throw error;
+      }
+    }
+
     // 1. Desasignar cualquier vehículo previamente asignado a este conductor
     await client.query(
       `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_conductor_asignado = $1`,
@@ -554,8 +587,7 @@ export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
 
     // 2. Si idVehiculo es un entero válido, asignarlo al conductor
     let assignedVehicle = null;
-    if (idVehiculo !== null && idVehiculo !== undefined && idVehiculo !== "" && Number.isInteger(Number(idVehiculo)) && Number(idVehiculo) > 0) {
-      const targetVehicleId = Number(idVehiculo);
+    if (targetVehicleId) {
       // Si el vehículo estaba asignado a otro conductor, lo desasigna primero
       await client.query(
         `UPDATE vehiculos SET id_conductor_asignado = NULL WHERE id_vehiculos = $1`,
@@ -566,7 +598,7 @@ export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
         `UPDATE vehiculos 
          SET id_conductor_asignado = $1 
          WHERE id_vehiculos = $2 
-         RETURNING id_vehiculos, nombre, numero_economico, placas`,
+         RETURNING id_vehiculos, id_conductor_asignado, nombre, numero_economico, placas`,
         [idConductor, targetVehicleId]
       );
       assignedVehicle = res.rows[0] || null;
@@ -1079,5 +1111,4 @@ export async function assignAdminConductorRole({
     client.release();
   }
 }
-
 
