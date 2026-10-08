@@ -37,7 +37,6 @@ async function withStore(mode, callback) {
   } finally { database.close(); }
 }
 
-export { openTrackingDatabase };
 export function savePendingLocation(location) { return withStore("readwrite", (store) => store.put(location)); }
 export function getPendingLocations(idViaje) {
   return withStore("readonly", (store, setResult) => {

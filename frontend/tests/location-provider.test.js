@@ -18,7 +18,6 @@ test("identifica y normaliza una captura proveniente de la PWA", async () => {
   navigator.geolocation = { getCurrentPosition: success => success(browserPosition()) };
   const result = await getCurrentLocation();
   assert.equal(result.origenCaptura, "PWA");
-  assert.equal(result.proveedorCaptura, "BROWSER_GEOLOCATION");
   assert.equal(result.velocidad, 7.2);
   assert.equal(result.fechaGps, "2026-10-08T15:00:00.000Z");
 });
@@ -30,7 +29,6 @@ test("identifica una captura proveniente de Telegram Mini App", async () => {
   } } };
   const result = await getCurrentLocation();
   assert.equal(result.origenCaptura, "TELEGRAM_MINI_APP");
-  assert.equal(result.proveedorCaptura, "TELEGRAM_LOCATION_MANAGER");
   assert.equal(result.latitud, 20.1);
 });
 
@@ -41,6 +39,5 @@ test("Telegram usa la geolocalización del navegador como respaldo sin perder el
   navigator.geolocation = { getCurrentPosition: success => success(browserPosition({ latitude: 18.5 })) };
   const result = await getCurrentLocation();
   assert.equal(result.origenCaptura, "TELEGRAM_MINI_APP");
-  assert.equal(result.proveedorCaptura, "BROWSER_GEOLOCATION");
   assert.equal(result.latitud, 18.5);
 });

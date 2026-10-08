@@ -1,4 +1,4 @@
-function normalizeLocation(location, proveedorCaptura) {
+function normalizeLocation(location) {
   const latitud = Number(location.latitude);
   const longitud = Number(location.longitude);
 
@@ -22,8 +22,7 @@ function normalizeLocation(location, proveedorCaptura) {
     precisionMetros: location.accuracy ?? null,
     velocidad,
     direccion: location.heading ?? null,
-    fechaGps: new Date(location.timestamp ?? Date.now()).toISOString(),
-    proveedorCaptura
+    fechaGps: new Date(location.timestamp ?? Date.now()).toISOString()
   };
 }
 
@@ -39,7 +38,7 @@ function getBrowserLocation() {
         speed: position.coords.speed,
         heading: position.coords.heading,
         timestamp: position.timestamp
-      }, "BROWSER_GEOLOCATION")),
+      })),
       (error) => {
         // Fallback para Xiaomi/MIUI y ahorro de energía: Intentar con precisión estándar (red/celular)
         navigator.geolocation.getCurrentPosition(
@@ -50,7 +49,7 @@ function getBrowserLocation() {
             speed: posFallback.coords.speed,
             heading: posFallback.coords.heading,
             timestamp: posFallback.timestamp
-          }, "BROWSER_GEOLOCATION_FALLBACK")),
+          })),
           (errFallback) => reject(new Error(({
             1: "El permiso de ubicación fue rechazado.",
             2: "Ubicación no disponible (revisar configuración de ahorro de batería en Xiaomi).",
@@ -88,7 +87,7 @@ async function getTelegramLocation() {
     manager.getLocation((location) => {
       window.clearTimeout(timeoutId);
       if (location) {
-        resolve(normalizeLocation({ latitude: location.latitude, longitude: location.longitude, accuracy: location.horizontal_accuracy, timestamp: Date.now() }, "TELEGRAM_LOCATION_MANAGER"));
+        resolve(normalizeLocation({ latitude: location.latitude, longitude: location.longitude, accuracy: location.horizontal_accuracy, timestamp: Date.now() }));
       } else {
         reject(new Error("Telegram no proporcionó una ubicación."));
       }

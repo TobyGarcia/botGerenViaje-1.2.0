@@ -1,7 +1,7 @@
 import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation } from "./location-provider.js";
 import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
-import { clearTrackingState, getTrackingState, saveTrackingState } from "./tracking-state.js";
+import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
@@ -18,17 +18,12 @@ let isStarting = false;
 let capturePromise = null;
 let trackingGeneration = 0;
 const LAST_LOCATION_PREFIX = "gv_last_gps_v2:";
-const DIAGNOSTIC_PREFIX = "gv_gps_diagnostic_v1:";
 
 function readJson(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; } }
 function writeJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
 export function isDuplicateGpsReading(previous, current) {
   return previous && previous.fechaGps === current.fechaGps &&
     Number(previous.latitud) === Number(current.latitud) && Number(previous.longitud) === Number(current.longitud);
-}
-function recordDiagnostic(idViaje, update) {
-  const key = DIAGNOSTIC_PREFIX + Number(idViaje);
-  writeJson(key, { ...(readJson(key) || {}), ...update, actualizadoEn: new Date().toISOString() });
 }
 
 function notify(update) {
@@ -86,23 +81,17 @@ async function captureAndStoreLocation(idViaje, extraData = {}) {
     return current;
   }
   capturePromise = (async () => {
-    const attemptAt = new Date().toISOString();
-    recordDiagnostic(idViaje, { ultimoIntentoEn: attemptAt });
     const location = await getCurrentLocation();
     const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
     const previous = readJson(LAST_LOCATION_PREFIX + Number(idViaje));
     if (isDuplicateGpsReading(previous, location) && !extraData.esPuntoIntermedio && !extraData.esUbicacionInicial && !extraData.esUbicacionFinal) {
-      recordDiagnostic(idViaje, { ultimaLecturaDuplicadaEn: attemptAt });
       return { ...previous, duplicate: true };
     }
     const savedAt = new Date().toISOString();
-    const gapMs = previous ? Math.max(0, +new Date(location.fechaGps) - +new Date(previous.fechaGps)) : 0;
     const pendingLocation = { ...location, isBackground, fechaGuardadoLocal: savedAt, ...extraData,
       clientLocationId: uuid(), idViaje: Number(idViaje) };
     await savePendingLocation(pendingLocation);
     writeJson(LAST_LOCATION_PREFIX + Number(idViaje), pendingLocation);
-    recordDiagnostic(idViaje, { ultimaCapturaEn: location.fechaGps, ultimoGuardadoLocalEn: savedAt,
-      ultimoHuecoMs: gapMs > 90000 ? gapMs : 0, ultimoError: null, origenCaptura: location.origenCaptura });
   await notifyPending(idViaje, {
     status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
     lastCapture: pendingLocation.fechaGps,
@@ -113,7 +102,6 @@ async function captureAndStoreLocation(idViaje, extraData = {}) {
   return pendingLocation;
   })();
   try { return await capturePromise; }
-  catch (error) { recordDiagnostic(idViaje, { ultimoError: error.message, ultimoErrorEn: new Date().toISOString() }); throw error; }
   finally { capturePromise = null; }
 }
 
@@ -172,9 +160,4 @@ export function stopTracking({ clearState = true } = {}) {
   // Detener y liberar audio silencioso y estado de multimedia en móvil
   stopSilentAudioKeepAlive();
   notify({ status: "Detenido" });
-}
-export async function resumeTrackingIfNeeded() {
-  const state = getTrackingState();
-  if (state?.trackingActivo && state.idViaje) { await startTracking(state.idViaje); return state.idViaje; }
-  return null;
 }
