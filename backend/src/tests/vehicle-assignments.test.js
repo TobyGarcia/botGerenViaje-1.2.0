@@ -97,3 +97,23 @@ test("impide cambiar de unidad mientras existe un viaje en curso", async () => {
     operationalDate: "2026-10-08", temporaryUse: { mode: "SOLO_HOY" } }), /viaje en curso/);
   assert.equal(cancelled, false);
 });
+
+test("impide tomar una unidad que otro conductor usa en un viaje activo", async () => {
+  let activeTripQueries = 0;
+  let cancelled = false;
+  const client = clientWith((sql) => {
+    if (sql.includes("FROM vehiculos")) return { rows: [{ id_vehiculos: 5, id_conductor_asignado: 9 }] };
+    if (sql.includes("SELECT id_asignacion_temporal")) return { rows: [], rowCount: 0 };
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+    if (sql.includes("FROM viajes v")) {
+      activeTripQueries += 1;
+      return activeTripQueries === 1 ? { rows: [], rowCount: 0 } : { rows: [{}], rowCount: 1 };
+    }
+    if (sql.includes("UPDATE asignaciones_temporales")) cancelled = true;
+    return { rows: [], rowCount: 0 };
+  });
+
+  await assert.rejects(ensureVehicleAssignment({ client, idConductor: 7, idVehiculo: 5,
+    operationalDate: "2026-10-08", temporaryUse: { mode: "SOLO_HOY" } }), /otro conductor/);
+  assert.equal(cancelled, false);
+});

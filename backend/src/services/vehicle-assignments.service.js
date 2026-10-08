@@ -56,11 +56,24 @@ export async function ensureVehicleAssignment({ client, idConductor, idVehiculo,
     throw new Error("El conductor tiene un viaje en curso con otra unidad y debe finalizarlo antes de cambiar de vehículo.");
   }
 
+  const vehicleInUseByAnotherDriver = (await client.query(
+    `SELECT 1 FROM viajes v
+     INNER JOIN estados_viaje e ON e.id_estado_viaje=v.id_estado_viaje
+     WHERE v.id_vehiculos=$2 AND v.id_conductores<>$1 AND e.nombre='EN_CURSO'
+     LIMIT 1`,
+    [idConductor, idVehiculo]
+  )).rowCount > 0;
+  if (vehicleInUseByAnotherDriver) {
+    throw new Error("La unidad tiene un viaje en curso con otro conductor y no está disponible.");
+  }
+
   await client.query(
     `UPDATE asignaciones_temporales_vehiculo
      SET estado='CANCELADA', actualizado_en=CURRENT_TIMESTAMP
-     WHERE estado='ACTIVA' AND id_conductores=$1 AND id_vehiculos<>$2
-       AND fecha_inicio <= $4::date AND fecha_fin >= $3::date`,
+     WHERE estado='ACTIVA'
+       AND fecha_inicio <= $4::date AND fecha_fin >= $3::date
+       AND ((id_conductores=$1 AND id_vehiculos<>$2)
+         OR (id_vehiculos=$2 AND id_conductores<>$1))`,
     [idConductor, idVehiculo, start, end]
   );
 
