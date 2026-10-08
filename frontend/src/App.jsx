@@ -35,6 +35,7 @@ import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
+import { formatOperationalDate } from "./utils/operational-date.js";
 import {
   IconMap,
   IconClock,
@@ -1944,7 +1945,7 @@ function isOutsideOperatingHours() {
                   {usesTemporaryVehicle && currentTemporaryAssignment && (
                     <div className="urban-assigned-alert">
                       <IconPin size={16} color="#0369a1" />
-                      <span>Uso temporal vigente: <strong>{currentTemporaryAssignment.fechaInicio} a {currentTemporaryAssignment.fechaFin}</strong></span>
+                      <span>Uso temporal vigente: <strong>{formatOperationalDate(currentTemporaryAssignment.fechaInicio)} a {formatOperationalDate(currentTemporaryAssignment.fechaFin)}</strong></span>
                     </div>
                   )}
 

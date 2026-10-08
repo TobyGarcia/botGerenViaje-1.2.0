@@ -3,6 +3,7 @@ import { crearGerenciamientoViaje } from "../services/api.js";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import VehicleDropdown from "./VehicleDropdown.jsx";
+import { formatOperationalDate } from "../utils/operational-date.js";
 import {
   IconMapPin,
   IconStethoscope,
@@ -814,7 +815,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
 
             {usesTemporaryVehicle && currentTemporaryAssignment && (
               <div className="gw-field">
-                <p className="gw-field-hint">Uso temporal vigente: {currentTemporaryAssignment.fechaInicio} a {currentTemporaryAssignment.fechaFin}.</p>
+                <p className="gw-field-hint">Uso temporal vigente: {formatOperationalDate(currentTemporaryAssignment.fechaInicio)} a {formatOperationalDate(currentTemporaryAssignment.fechaFin)}.</p>
               </div>
             )}
 

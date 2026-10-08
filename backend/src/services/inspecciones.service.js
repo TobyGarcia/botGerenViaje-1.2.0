@@ -11,8 +11,8 @@ export async function getInspectionContext({ idViaje, idConductor }) {
       vh.nombre AS vehiculo, vh.tipo_vehiculo, vh.numero_poliza, vh.seguro_vencimiento,
       vh.numero_economico, vh.numero_serie, vh.placas,
       CASE WHEN vh.id_conductor_asignado = c.id_conductores THEN 'PERMANENTE' ELSE 'TEMPORAL' END AS tipo_asignacion_actual,
-      asignacion.fecha_inicio AS asignacion_temporal_inicio,
-      asignacion.fecha_fin AS asignacion_temporal_fin,
+      TO_CHAR(asignacion.fecha_inicio, 'YYYY-MM-DD') AS asignacion_temporal_inicio,
+      TO_CHAR(asignacion.fecha_fin, 'YYYY-MM-DD') AS asignacion_temporal_fin,
       COALESCE(ultima.kilometraje, vh.kilometraje_actual) AS kilometraje_actual,
       i.id_inspeccion, i.estado, i.combustible, i.tipo_asignacion, i.asignacion_inicio,
       i.asignacion_fin, i.danos, i.checklist, i.observaciones_conductor, i.firma_conductor

@@ -5,6 +5,7 @@ import frontalImage from "../assets/frontal.png";
 import pasajeroImage from "../assets/pasajero.png";
 import traseraImage from "../assets/trasera.png";
 import InspeccionRemolqueModal from "./InspeccionRemolqueModal.jsx";
+import { formatOperationalDate } from "../utils/operational-date.js";
 
 const views = [
   ["frontal", "🚘 Vista frontal", frontalImage],
@@ -316,7 +317,7 @@ export default function InspeccionVehicular({ context, estado, vehiculos = [], o
         )}
       </div>
 
-      <label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><div><strong>Uso de la unidad:</strong> {form.tipoAsignacion === "TEMPORAL" ? "Temporal" : "Permanente"}{form.tipoAsignacion === "TEMPORAL" && form.asignacionInicio && form.asignacionFin ? ` (${form.asignacionInicio} a ${form.asignacionFin})` : ""}</div></div></div>}
+      <label>Nivel de combustible<select value={form.combustible} onChange={(event) => updateForm({ combustible: event.target.value })}><option value="">Selecciona</option>{["E", "1/4", "1/2", "3/4", "F"].map((value) => <option key={value}>{value}</option>)}</select></label><div><strong>Uso de la unidad:</strong> {form.tipoAsignacion === "TEMPORAL" ? "Temporal" : "Permanente"}{form.tipoAsignacion === "TEMPORAL" && form.asignacionInicio && form.asignacionFin ? ` (${formatOperationalDate(form.asignacionInicio)} a ${formatOperationalDate(form.asignacionFin)})` : ""}</div></div></div>}
     {currentView && (() => { const [key, label, image] = currentView; const points = form.danos[key] || []; const removePoint = (index, event) => { event.preventDefault(); event.stopPropagation(); setForm((current) => ({ ...current, danos: { ...current.danos, [key]: current.danos[key].filter((_, pointIndex) => pointIndex !== index) } })); setLastMarked("Marca eliminada."); }; return <div className="inspection-visual"><div className="inspection-section-heading"><div><h3>{label}</h3><p>Toca el diagrama para encerrar un daño. El círculo rojo confirma el punto marcado.</p></div><button type="button" className="inspection-secondary-button" onClick={() => clearView(key)} disabled={!points.length}>Limpiar vista</button></div><div className={`damage-map damage-map-${key}`}><div className="damage-stage" onPointerDown={(event) => markDamage(key, event)} role="application" aria-label={`${label}. Toca para marcar daños`}><img src={image} alt={`Diagrama de ${label}`} />{points.map((point, index) => <button key={`${point.x}-${point.y}-${index}`} type="button" className="damage-point" style={{ left: `${point.x}%`, top: `${point.y}%` }} onPointerDown={(event) => removePoint(index, event)} aria-label={`Eliminar marca ${index + 1}`} />)}</div></div><p className="damage-feedback" role="status" aria-live="polite">{lastMarked || "Aún no has marcado daños en esta vista."}</p></div>; })()}
     {step === 5 && <div className="inspection-checklist">
       <div>
