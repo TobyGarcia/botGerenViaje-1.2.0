@@ -1,10 +1,26 @@
 import { databasePool } from "../database/pool.js";
 import { sendActiveTripReminder } from "../bot/bot.js";
 
+function mexicoParts(date) {
+  return Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"
+  }).formatToParts(date).map(part => [part.type, part.value]));
+}
+
 export function dueTripReminderSlots(startedAt, now = new Date()) {
   const elapsedMs = +now - +new Date(startedAt);
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return [];
-  return elapsedMs >= 24 * 60 * 60000 ? [{ tipo: "24_HORAS", numero: 1 }] : [];
+  const slots = [];
+  if (elapsedMs >= 45 * 60000 && elapsedMs < 60 * 60000) slots.push({ tipo: "45_MIN", numero: 1 });
+  if (elapsedMs >= 60 * 60000 && elapsedMs < 6 * 60 * 60000) slots.push({ tipo: "1_HORA", numero: 1 });
+  const sixHourBlock = Math.floor(elapsedMs / (6 * 60 * 60000));
+  if (sixHourBlock >= 1) slots.push({ tipo: "6_HORAS", numero: sixHourBlock });
+  if (elapsedMs >= 24 * 60 * 60000) slots.push({ tipo: "24_HORAS", numero: 1 });
+  const parts = mexicoParts(now);
+  if (Number(parts.hour) >= 18) {
+    slots.push({ tipo: "CIERRE_OPERATIVO", numero: Number(`${parts.year}${parts.month}${parts.day}`) });
+  }
+  return slots;
 }
 
 async function claimReminder(client, idViaje, slot) {
