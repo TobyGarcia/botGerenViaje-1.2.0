@@ -32,6 +32,7 @@ import {
 } from "./bot/supervisor-bot.js";
 import { purgeExpiredAuditLogs } from "./services/audit-log.service.js";
 import { cancelExpiredPendingTrips } from "./services/viajes.service.js";
+import { processActiveTripReminders } from "./services/trip-reminders.service.js";
 
 const port = Number(
   process.env.PORT ||
@@ -393,6 +394,13 @@ const stalePendingTripsTimer = setInterval(() => {
   });
 }, 60 * 60 * 1000);
 stalePendingTripsTimer.unref();
+
+const tripReminderTimer = setInterval(() => {
+  void processActiveTripReminders().then((sent) => {
+    if (sent > 0) console.log(`Recordatorios de viajes activos enviados: ${sent}.`);
+  }).catch((error) => console.warn("No se pudieron procesar recordatorios de viajes:", error.message));
+}, 5 * 60 * 1000);
+tripReminderTimer.unref();
 
 process.on("unhandledRejection", (reason) => {
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "unhandled_rejection", message: reason?.message || String(reason) }));

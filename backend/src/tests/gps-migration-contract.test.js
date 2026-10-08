@@ -15,4 +15,5 @@ test("la migración GPS es repetible y forma parte del ejecutor", async () => {
   assert.match(migration, /ADD COLUMN IF NOT EXISTS guardado_local_en/);
   assert.match(migration, /'TELEGRAM_MINI_APP','PWA'/);
   assert.match(runner, /036_diagnostico_origen_gps\.sql/);
+  assert.match(runner, /037_recordatorios_viajes\.sql/);
 });

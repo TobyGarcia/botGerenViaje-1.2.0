@@ -39,6 +39,6 @@
 \ir ../migrations/034_asignaciones_temporales_vehiculo.sql
 \ir ../migrations/035_bitacora_auditoria.sql
 \ir ../migrations/036_diagnostico_origen_gps.sql
-
+\ir ../migrations/037_recordatorios_viajes.sql
 
 

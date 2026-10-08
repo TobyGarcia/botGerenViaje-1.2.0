@@ -261,6 +261,19 @@ export async function sendDriverManejoComentadoAuthorizationNotification({ teleg
   }
 }
 
+export async function sendActiveTripReminder({ telegramUserId, folio, horaSalida }) {
+  if (!telegramUserId) throw new Error("El conductor no tiene un usuario de Telegram asociado.");
+  const salida = horaSalida ? new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City", dateStyle: "short", timeStyle: "short"
+  }).format(new Date(horaSalida)) : "hora no disponible";
+  await getTelegramBot().telegram.sendMessage(String(telegramUserId), [
+    `⏱️ Tu viaje ${folio || "activo"} continúa en curso.`,
+    `Inicio: ${salida}.`,
+    "Si ya llegaste, recuerda finalizarlo y registrar el kilometraje final.",
+    "Si todavía estás viajando, puedes ignorar este mensaje."
+  ].join("\n"));
+}
+
 export async function sendDriverRegistrationSupervisorAlert({ conductor, pinGenerado = null }) {
   const supervisorGroupId = process.env.TELEGRAM_GROUP_SUPRVISOR_ID || process.env.TELEGRAM_GROUP_ID;
 
@@ -439,5 +452,4 @@ export async function sendSiniestroGroupAlert({ siniestro, pdfBuffer }) {
     console.error("Error al enviar alerta de siniestro al grupo principal por Telegram:", error.message);
   }
 }
-
 
