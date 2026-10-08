@@ -14,9 +14,12 @@ const valid = {
 };
 
 test("acepta una primera ubicación reciente y completa", () => {
-  const result = normalizeInitialTripLocation(valid, reference);
+  const result = normalizeInitialTripLocation({ ...valid, origenCaptura: "PWA", isBackground: true,
+    fechaGuardadoLocal: "2026-10-08T14:59:56.000Z" }, reference);
   assert.equal(result.latitud, 19.4326);
   assert.equal(result.fechaGps.toISOString(), valid.fechaGps);
+  assert.equal(result.origenCaptura, "PWA");
+  assert.equal(result.isBackground, true);
 });
 
 test("rechaza coordenadas nulas, identificadores inválidos y ubicaciones antiguas", () => {
