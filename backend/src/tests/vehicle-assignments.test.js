@@ -34,6 +34,8 @@ test("crea la opción solo hoy usando la fecha operativa", async () => {
     if (sql.includes("FROM vehiculos")) return { rows: [{ id_vehiculos: 5, id_conductor_asignado: null }] };
     if (sql.includes("SELECT id_asignacion_temporal")) return { rows: [], rowCount: 0 };
     if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+    if (sql.includes("FROM viajes v")) return { rows: [], rowCount: 0 };
+    if (sql.includes("UPDATE asignaciones_temporales")) return { rows: [], rowCount: 0 };
     if (sql.includes("SELECT 1 FROM asignaciones")) return { rows: [], rowCount: 0 };
     if (sql.includes("INSERT INTO asignaciones")) { insertParams = params; return { rows: [{ id_asignacion_temporal: 92 }], rowCount: 1 }; }
     throw new Error(`Consulta inesperada: ${sql}`);
@@ -49,6 +51,8 @@ test("rechaza periodos invertidos y traslapes", async () => {
     if (sql.includes("FROM vehiculos")) return { rows: [{ id_vehiculos: 5, id_conductor_asignado: null }] };
     if (sql.includes("SELECT id_asignacion_temporal")) return { rows: [], rowCount: 0 };
     if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+    if (sql.includes("FROM viajes v")) return { rows: [], rowCount: 0 };
+    if (sql.includes("UPDATE asignaciones_temporales")) return { rows: [], rowCount: 0 };
     if (sql.includes("SELECT 1 FROM asignaciones")) return { rows: conflict ? [{}] : [], rowCount: conflict ? 1 : 0 };
     return { rows: [], rowCount: 0 };
   });
@@ -56,4 +60,40 @@ test("rechaza periodos invertidos y traslapes", async () => {
     operationalDate: "2026-10-07", temporaryUse: { mode: "PERIODO", start: "2026-10-08", end: "2026-10-07" } }), /periodo temporal/);
   await assert.rejects(ensureVehicleAssignment({ client: base(true), idConductor: 7, idVehiculo: 5,
     operationalDate: "2026-10-07", temporaryUse: { mode: "PERIODO", start: "2026-10-07", end: "2026-10-09" } }), /otra asignación temporal/);
+});
+
+test("cancela la asignación anterior al cambiar de unidad sin viaje activo", async () => {
+  let cancelledWith;
+  const client = clientWith((sql, params) => {
+    if (sql.includes("FROM vehiculos")) return { rows: [{ id_vehiculos: 5, id_conductor_asignado: null }] };
+    if (sql.includes("SELECT id_asignacion_temporal")) return { rows: [], rowCount: 0 };
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+    if (sql.includes("FROM viajes v")) return { rows: [], rowCount: 0 };
+    if (sql.includes("UPDATE asignaciones_temporales")) { cancelledWith = params; return { rows: [], rowCount: 1 }; }
+    if (sql.includes("SELECT 1 FROM asignaciones")) return { rows: [], rowCount: 0 };
+    if (sql.includes("INSERT INTO asignaciones")) return { rows: [{ id_asignacion_temporal: 93 }], rowCount: 1 };
+    throw new Error(`Consulta inesperada: ${sql}`);
+  });
+
+  const result = await ensureVehicleAssignment({ client, idConductor: 7, idVehiculo: 5,
+    operationalDate: "2026-10-08", temporaryUse: { mode: "SOLO_HOY" } });
+
+  assert.deepEqual(cancelledWith, [7, 5, "2026-10-08", "2026-10-08"]);
+  assert.equal(result.idAssignment, 93);
+});
+
+test("impide cambiar de unidad mientras existe un viaje en curso", async () => {
+  let cancelled = false;
+  const client = clientWith((sql) => {
+    if (sql.includes("FROM vehiculos")) return { rows: [{ id_vehiculos: 5, id_conductor_asignado: null }] };
+    if (sql.includes("SELECT id_asignacion_temporal")) return { rows: [], rowCount: 0 };
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+    if (sql.includes("FROM viajes v")) return { rows: [{}], rowCount: 1 };
+    if (sql.includes("UPDATE asignaciones_temporales")) cancelled = true;
+    return { rows: [], rowCount: 0 };
+  });
+
+  await assert.rejects(ensureVehicleAssignment({ client, idConductor: 7, idVehiculo: 5,
+    operationalDate: "2026-10-08", temporaryUse: { mode: "SOLO_HOY" } }), /viaje en curso/);
+  assert.equal(cancelled, false);
 });
