@@ -5,6 +5,11 @@ import App from './App.jsx'
 import SupervisorApp from './SupervisorApp.jsx'
 import EvaluacionApp from './pages/EvaluacionApp.jsx'
 import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/Icons.jsx'
+import { installAppUpdateRecovery } from './services/app-update.js'
+
+if (typeof window !== 'undefined' && navigator.serviceWorker) {
+  installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
+}
 
 // Inicializar y expandir Telegram WebApp tan pronto como sea posible
 if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
