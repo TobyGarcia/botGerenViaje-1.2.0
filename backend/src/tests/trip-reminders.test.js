@@ -2,32 +2,26 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { dueTripReminderSlots } from "../services/trip-reminders.service.js";
 
-const start = new Date("2026-10-08T14:00:00.000Z"); // 08:00 México
-const at = minutes => new Date(+start + minutes * 60000);
+const start = new Date("2026-10-08T14:00:00.000Z");
+const after = milliseconds => new Date(+start + milliseconds);
 
-test("programa los recordatorios de 45 minutos y una hora una sola vez", () => {
-  assert.deepEqual(dueTripReminderSlots(start, at(44)), []);
-  assert.deepEqual(dueTripReminderSlots(start, at(45)), [{ tipo: "45_MIN", numero: 1 }]);
-  assert.deepEqual(dueTripReminderSlots(start, at(60)), [{ tipo: "1_HORA", numero: 1 }]);
+test("no recuerda un viaje antes de cumplir 24 horas", () => {
+  assert.deepEqual(dueTripReminderSlots(start, after(24 * 60 * 60000 - 1)), []);
 });
 
-test("genera un identificador distinto por cada bloque de seis horas", () => {
-  const midnightStart = new Date("2026-10-08T06:00:00.000Z");
-  const slots = dueTripReminderSlots(midnightStart, new Date(+midnightStart + (12 * 60 + 1) * 60000));
-  assert.deepEqual(slots, [{ tipo: "6_HORAS", numero: 2 }]);
+test("genera un único recordatorio al cumplir 24 horas", () => {
+  assert.deepEqual(dueTripReminderSlots(start, after(24 * 60 * 60000)), [
+    { tipo: "24_HORAS", numero: 1 }
+  ]);
 });
 
-test("un viaje antiguo recibe solo el recordatorio vigente y no una ráfaga", () => {
-  const slots = dueTripReminderSlots(start, new Date("2026-10-10T16:00:00.000Z"));
-  assert.equal(slots.length, 1);
-  assert.equal(slots[0].tipo, "6_HORAS");
+test("después de varios días conserva el mismo identificador para no repetirlo", () => {
+  assert.deepEqual(dueTripReminderSlots(start, after(72 * 60 * 60000)), [
+    { tipo: "24_HORAS", numero: 1 }
+  ]);
 });
 
-test("incluye el cierre operativo desde las 18:00 de México", () => {
-  const slots = dueTripReminderSlots(start, new Date("2026-10-09T00:00:00.000Z"));
-  assert.equal(slots.some(slot => slot.tipo === "CIERRE_OPERATIVO" && slot.numero === 20261008), true);
-});
-
-test("no programa recordatorios para fechas anteriores al inicio", () => {
-  assert.deepEqual(dueTripReminderSlots(start, new Date(+start - 1)), []);
+test("no programa recordatorios para fechas anteriores o inválidas", () => {
+  assert.deepEqual(dueTripReminderSlots(start, after(-1)), []);
+  assert.deepEqual(dueTripReminderSlots("fecha-inválida", new Date()), []);
 });
