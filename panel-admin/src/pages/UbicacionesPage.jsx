@@ -396,6 +396,19 @@ function UbicacionesPage() {
                       </span>
                     )}
                   </span>
+                  {locations.length > 0 && (() => {
+                    const gaps = locations.slice(1).map((item, index) =>
+                      Math.max(0, +new Date(item.fechaGps) - +new Date(locations[index].fechaGps)));
+                    const maxGap = gaps.length ? Math.max(...gaps) : 0;
+                    const delayed = locations.filter(item => item.guardadoLocalEn && item.creadoEn &&
+                      (+new Date(item.creadoEn) - +new Date(item.guardadoLocalEn)) > 300000).length;
+                    const quality = locations.length < 3 || maxGap > 15 * 60000
+                      ? "Insuficiente"
+                      : maxGap > 2 * 60000 ? "Intermitente" : "Completa";
+                    return <small className="trip-time-stamp">
+                      Calidad: {quality} · Mayor hueco: {Math.round(maxGap / 60000)} min · {delayed} sincronizadas con retraso
+                    </small>;
+                  })()}
                 </div>
 
                 {locations.length > 0 && (

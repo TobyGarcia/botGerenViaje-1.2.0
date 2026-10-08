@@ -33,4 +33,5 @@ test("inserta la primera ubicación usando la transacción recibida", async () =
   assert.match(calls[0].sql, /INSERT INTO ubicaciones_viaje/);
   assert.equal(calls[0].params[0], 44);
   assert.equal(calls[0].params[1], valid.clientLocationId);
+  assert.equal(calls[0].params[8], "MINI_APP");
 });

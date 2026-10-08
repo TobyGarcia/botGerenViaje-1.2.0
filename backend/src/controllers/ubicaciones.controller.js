@@ -293,6 +293,9 @@ function normalizeBatchLocation(location) {
   const clientLocationId = String(location?.clientLocationId || "");
   const esPuntoIntermedio = Boolean(location?.esPuntoIntermedio || location?.es_punto_intermedio);
   const nombrePunto = location?.nombrePunto || location?.nombre_punto || null;
+  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP"].includes(location?.origenCaptura) ? location.origenCaptura : "MINI_APP";
+  const isBackground = Boolean(location?.isBackground);
+  const fechaGuardadoLocal = new Date(location?.fechaGuardadoLocal || location?.fechaGps || location?.fecha_gps);
 
   if (!UUID_PATTERN.test(clientLocationId)) {
     return { valid: false, reason: "clientLocationId no es válido." };
@@ -325,6 +328,7 @@ function normalizeBatchLocation(location) {
   if (Number.isNaN(fechaGps.getTime())) {
     return { valid: false, reason: "La fecha GPS no es válida." };
   }
+  if (Number.isNaN(fechaGuardadoLocal.getTime())) return { valid: false, reason: "La fecha de guardado local no es válida." };
 
   return {
     valid: true,
@@ -337,7 +341,10 @@ function normalizeBatchLocation(location) {
       direccion,
       fechaGps,
       esPuntoIntermedio,
-      nombrePunto
+      nombrePunto,
+      origenCaptura,
+      isBackground,
+      fechaGuardadoLocal
     }
   };
 }
@@ -377,6 +384,7 @@ export async function registerTripLocationBatchController(request, response) {
       .map((item) => item.location);
     const rejectedItems = normalized.filter((item) => !item.valid);
     const rejected = rejectedItems.length;
+    const rejectedClientLocationIds = normalized.flatMap((item, index) => item.valid ? [] : [locations[index]?.clientLocationId]).filter(Boolean);
 
     if (rejected > 0) {
       console.warn(`[UbicacionesBatch] ${rejected} ubicaciones de ${locations.length} fueron rechazadas por validación:`, rejectedItems.map(i => i.reason));
@@ -394,7 +402,8 @@ export async function registerTripLocationBatchController(request, response) {
         recibidas: locations.length,
         insertadas: result.inserted,
         duplicadas: result.duplicates,
-        rechazadas: rejected
+        rechazadas: rejected,
+        idsRechazados: rejectedClientLocationIds
       }
     });
   } catch (error) {

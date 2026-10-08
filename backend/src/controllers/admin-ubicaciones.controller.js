@@ -80,6 +80,15 @@ function serializeLocation(location) {
     fechaGps:
       location.fecha_gps,
 
+    origenCaptura:
+      location.origen || "MINI_APP",
+
+    enSegundoPlano:
+      Boolean(location.en_segundo_plano),
+
+    guardadoLocalEn:
+      location.guardado_local_en,
+
     creadoEn:
       location.creado_en
   };

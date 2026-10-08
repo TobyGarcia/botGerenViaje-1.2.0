@@ -941,9 +941,13 @@ const [cancelledTrip, setCancelledTrip] =
 
     document.addEventListener("visibilitychange", resumeWhenVisible);
     window.addEventListener("online", syncWhenOnline);
+    window.addEventListener("focus", resumeWhenVisible);
+    window.addEventListener("pageshow", resumeWhenVisible);
     return () => {
       document.removeEventListener("visibilitychange", resumeWhenVisible);
       window.removeEventListener("online", syncWhenOnline);
+      window.removeEventListener("focus", resumeWhenVisible);
+      window.removeEventListener("pageshow", resumeWhenVisible);
     };
   }, [startedTrip?.idViaje, createdTrip?.idViaje]);
 
@@ -1016,18 +1020,21 @@ async function handleAddIntermediatePoint() {
 
     try {
       if (idViaje < 0) {
+        const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
+        if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
         const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
         stopTracking(); stopSilentAudioKeepAlive();
         setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
         safeStorage.setJSON("cached_active_trip", data);
         setMessage("Viaje finalizado y guardado en el teléfono. Se sincronizará al recuperar conexión.");
         setMessageType("success");
-        void captureAndQueueLocation(idViaje).finally(() => void syncOfflineState());
+        void syncOfflineState();
         return;
       }
       stopTracking({ clearState: false });
       stopSilentAudioKeepAlive();
-      await captureAndQueueLocation(idViaje);
+      const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
+      if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
       await syncPendingLocations(idViaje);
 
     const response = await finalizarViaje (

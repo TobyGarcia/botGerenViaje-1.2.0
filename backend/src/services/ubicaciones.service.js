@@ -226,9 +226,12 @@ export async function saveTripLocationBatch({
             direccion,
             fecha_gps,
             es_punto_intermedio,
-            nombre_punto
+            nombre_punto,
+            origen,
+            en_segundo_plano,
+            guardado_local_en
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           ON CONFLICT (id_viajes, client_location_id)
             WHERE client_location_id IS NOT NULL
             DO NOTHING
@@ -244,7 +247,10 @@ export async function saveTripLocationBatch({
           location.direccion,
           location.fechaGps,
           Boolean(location.esPuntoIntermedio || location.es_punto_intermedio),
-          location.nombrePunto || location.nombre_punto || null
+          location.nombrePunto || location.nombre_punto || null,
+          location.origenCaptura || "MINI_APP",
+          Boolean(location.isBackground),
+          location.fechaGuardadoLocal || location.fechaGps
         ]
       );
 

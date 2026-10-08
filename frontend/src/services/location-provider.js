@@ -1,4 +1,4 @@
-function normalizeLocation(location) {
+function normalizeLocation(location, proveedorCaptura) {
   const latitud = Number(location.latitude);
   const longitud = Number(location.longitude);
 
@@ -22,7 +22,8 @@ function normalizeLocation(location) {
     precisionMetros: location.accuracy ?? null,
     velocidad,
     direccion: location.heading ?? null,
-    fechaGps: new Date(location.timestamp ?? Date.now()).toISOString()
+    fechaGps: new Date(location.timestamp ?? Date.now()).toISOString(),
+    proveedorCaptura
   };
 }
 
@@ -38,7 +39,7 @@ function getBrowserLocation() {
         speed: position.coords.speed,
         heading: position.coords.heading,
         timestamp: position.timestamp
-      })),
+      }, "BROWSER_GEOLOCATION")),
       (error) => {
         // Fallback para Xiaomi/MIUI y ahorro de energía: Intentar con precisión estándar (red/celular)
         navigator.geolocation.getCurrentPosition(
@@ -49,7 +50,7 @@ function getBrowserLocation() {
             speed: posFallback.coords.speed,
             heading: posFallback.coords.heading,
             timestamp: posFallback.timestamp
-          })),
+          }, "BROWSER_GEOLOCATION_FALLBACK")),
           (errFallback) => reject(new Error(({
             1: "El permiso de ubicación fue rechazado.",
             2: "Ubicación no disponible (revisar configuración de ahorro de batería en Xiaomi).",
@@ -87,7 +88,7 @@ async function getTelegramLocation() {
     manager.getLocation((location) => {
       window.clearTimeout(timeoutId);
       if (location) {
-        resolve(normalizeLocation({ latitude: location.latitude, longitude: location.longitude, accuracy: location.horizontal_accuracy, timestamp: Date.now() }));
+        resolve(normalizeLocation({ latitude: location.latitude, longitude: location.longitude, accuracy: location.horizontal_accuracy, timestamp: Date.now() }, "TELEGRAM_LOCATION_MANAGER"));
       } else {
         reject(new Error("Telegram no proporcionó una ubicación."));
       }
@@ -97,7 +98,7 @@ async function getTelegramLocation() {
 
 export async function getCurrentLocation() {
   const isTelegramMiniApp = Boolean(window.Telegram?.WebApp?.initData);
-  if (!isTelegramMiniApp) return getBrowserLocation();
-  try { return await getTelegramLocation(); }
-  catch { return getBrowserLocation(); }
+  if (!isTelegramMiniApp) return { ...await getBrowserLocation(), origenCaptura: "PWA" };
+  try { return { ...await getTelegramLocation(), origenCaptura: "TELEGRAM_MINI_APP" }; }
+  catch { return { ...await getBrowserLocation(), origenCaptura: "TELEGRAM_MINI_APP" }; }
 }

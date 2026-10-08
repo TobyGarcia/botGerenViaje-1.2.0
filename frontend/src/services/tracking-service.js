@@ -1,6 +1,6 @@
 import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation } from "./location-provider.js";
-import { countPendingLocations, getPendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
+import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, getTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
@@ -15,6 +15,21 @@ let activeTripId = null;
 const syncPromises = new Map();
 let statusListener = null;
 let isStarting = false;
+let capturePromise = null;
+let trackingGeneration = 0;
+const LAST_LOCATION_PREFIX = "gv_last_gps_v2:";
+const DIAGNOSTIC_PREFIX = "gv_gps_diagnostic_v1:";
+
+function readJson(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; } }
+function writeJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+export function isDuplicateGpsReading(previous, current) {
+  return previous && previous.fechaGps === current.fechaGps &&
+    Number(previous.latitud) === Number(current.latitud) && Number(previous.longitud) === Number(current.longitud);
+}
+function recordDiagnostic(idViaje, update) {
+  const key = DIAGNOSTIC_PREFIX + Number(idViaje);
+  writeJson(key, { ...(readJson(key) || {}), ...update, actualizadoEn: new Date().toISOString() });
+}
 
 function notify(update) {
   statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
@@ -35,8 +50,15 @@ export async function syncPendingLocations(idViaje) {
     for (let index = 0; index < pending.length; index += SYNC_BATCH_SIZE) {
       const batch = pending.slice(index, index + SYNC_BATCH_SIZE);
       const response = await registrarUbicacionesLote(serverId, batch.map(p => ({ ...p, idViaje: serverId })));
-      if (response.data.rechazadas > 0) { await notifyPending(idViaje, { status: "Algunas ubicaciones requieren reintento" }); return { completed: false, pending: await countPendingLocations(idViaje) }; }
-      await removePendingLocations(batch.map((location) => location.clientLocationId));
+      const rejectedIds = new Set(response.data.idsRechazados || []);
+      if (response.data.rechazadas > 0 && rejectedIds.size === 0) {
+        await notifyPending(idViaje, { status: "Algunas ubicaciones requieren reintento" });
+        return { completed: false, pending: await countPendingLocations(idViaje) };
+      }
+      const rejected = batch.filter(location => rejectedIds.has(location.clientLocationId));
+      const accepted = batch.filter(location => !rejectedIds.has(location.clientLocationId));
+      if (rejected.length) await quarantinePendingLocations(rejected);
+      await removePendingLocations(accepted.map((location) => location.clientLocationId));
     }
     await notifyPending(idViaje, { status: "Sincronizado" });
     return { completed: true, pending: 0 };
@@ -56,10 +78,31 @@ export async function captureAndQueueLocation(idViaje, extraData = {}) {
 }
 
 async function captureAndStoreLocation(idViaje, extraData = {}) {
-  const location = await getCurrentLocation();
-  const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
-  const pendingLocation = { ...location, isBackground, ...extraData, clientLocationId: uuid(), idViaje: Number(idViaje) };
-  await savePendingLocation(pendingLocation);
+  if (capturePromise) {
+    const current = await capturePromise;
+    if (extraData.esPuntoIntermedio || extraData.esUbicacionInicial || extraData.esUbicacionFinal) {
+      return captureAndStoreLocation(idViaje, extraData);
+    }
+    return current;
+  }
+  capturePromise = (async () => {
+    const attemptAt = new Date().toISOString();
+    recordDiagnostic(idViaje, { ultimoIntentoEn: attemptAt });
+    const location = await getCurrentLocation();
+    const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
+    const previous = readJson(LAST_LOCATION_PREFIX + Number(idViaje));
+    if (isDuplicateGpsReading(previous, location) && !extraData.esPuntoIntermedio && !extraData.esUbicacionInicial && !extraData.esUbicacionFinal) {
+      recordDiagnostic(idViaje, { ultimaLecturaDuplicadaEn: attemptAt });
+      return { ...previous, duplicate: true };
+    }
+    const savedAt = new Date().toISOString();
+    const gapMs = previous ? Math.max(0, +new Date(location.fechaGps) - +new Date(previous.fechaGps)) : 0;
+    const pendingLocation = { ...location, isBackground, fechaGuardadoLocal: savedAt, ...extraData,
+      clientLocationId: uuid(), idViaje: Number(idViaje) };
+    await savePendingLocation(pendingLocation);
+    writeJson(LAST_LOCATION_PREFIX + Number(idViaje), pendingLocation);
+    recordDiagnostic(idViaje, { ultimaCapturaEn: location.fechaGps, ultimoGuardadoLocalEn: savedAt,
+      ultimoHuecoMs: gapMs > 90000 ? gapMs : 0, ultimoError: null, origenCaptura: location.origenCaptura });
   await notifyPending(idViaje, {
     status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
     lastCapture: pendingLocation.fechaGps,
@@ -68,6 +111,10 @@ async function captureAndStoreLocation(idViaje, extraData = {}) {
     isBackground
   });
   return pendingLocation;
+  })();
+  try { return await capturePromise; }
+  catch (error) { recordDiagnostic(idViaje, { ultimoError: error.message, ultimoErrorEn: new Date().toISOString() }); throw error; }
+  finally { capturePromise = null; }
 }
 
 export async function captureInitialTripLocation(idViaje) {
@@ -90,11 +137,16 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
 
 export async function startTracking(idViaje, { captureImmediately = true } = {}) {
   const normalizedId = Number(idViaje);
-  if (isStarting || (intervalId !== null && activeTripId === normalizedId)) return;
+  if (isStarting) return;
+  if (intervalId !== null && activeTripId === normalizedId) {
+    if (captureImmediately) await captureAndQueueLocation(normalizedId);
+    return;
+  }
 
   isStarting = true;
   try {
     stopTracking({ clearState: false });
+    const generation = ++trackingGeneration;
     activeTripId = normalizedId;
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
     
@@ -103,7 +155,9 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
 
     notify({ status: "Esperando permiso" });
     if (captureImmediately) await captureAndQueueLocation(normalizedId);
-    intervalId = window.setInterval(() => { captureAndQueueLocation(normalizedId); }, TRACKING_INTERVAL_MS);
+    intervalId = window.setInterval(() => {
+      if (generation === trackingGeneration) void captureAndQueueLocation(normalizedId);
+    }, TRACKING_INTERVAL_MS);
     await notifyPending(normalizedId, { status: "Activo" });
   } finally {
     isStarting = false;
@@ -111,6 +165,7 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
 }
 
 export function stopTracking({ clearState = true } = {}) {
+  trackingGeneration += 1;
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
   if (clearState) clearTrackingState();
   activeTripId = null;

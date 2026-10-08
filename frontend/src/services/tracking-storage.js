@@ -1,6 +1,7 @@
 const DATABASE_NAME = "gerenciamiento_viajes_offline";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const STORE_NAME = "ubicaciones_pendientes";
+const REJECTED_STORE_NAME = "ubicaciones_rechazadas";
 
 function openTrackingDatabase() {
   return new Promise((resolve, reject) => {
@@ -12,6 +13,9 @@ function openTrackingDatabase() {
         : database.createObjectStore(STORE_NAME, { keyPath: "clientLocationId" });
       if (!store.indexNames.contains("idViaje")) store.createIndex("idViaje", "idViaje");
       if (!store.indexNames.contains("fechaGps")) store.createIndex("fechaGps", "fechaGps");
+      if (!database.objectStoreNames.contains(REJECTED_STORE_NAME)) {
+        database.createObjectStore(REJECTED_STORE_NAME, { keyPath: "clientLocationId" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -43,6 +47,24 @@ export function getPendingLocations(idViaje) {
 }
 export function removePendingLocations(ids) {
   return ids.length ? withStore("readwrite", (store) => ids.forEach((id) => store.delete(id))) : Promise.resolve();
+}
+export async function quarantinePendingLocations(locations) {
+  if (!locations.length) return;
+  const database = await openTrackingDatabase();
+  try {
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction([STORE_NAME, REJECTED_STORE_NAME], "readwrite");
+      const pending = transaction.objectStore(STORE_NAME);
+      const rejected = transaction.objectStore(REJECTED_STORE_NAME);
+      for (const location of locations) {
+        rejected.put({ ...location, rechazadoEn: new Date().toISOString() });
+        pending.delete(location.clientLocationId);
+      }
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally { database.close(); }
 }
 export async function countPendingLocations(idViaje) { return (await getPendingLocations(idViaje)).length; }
 export function clearPendingLocations(idViaje) {

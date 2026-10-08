@@ -15,6 +15,9 @@ export function normalizeInitialTripLocation(value, referenceTime = new Date()) 
   const direccion = nullableNumber(value?.direccion);
   const fechaGps = new Date(value?.fechaGps ?? value?.fecha_gps);
   const reference = new Date(referenceTime);
+  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP"].includes(value?.origenCaptura) ? value.origenCaptura : "MINI_APP";
+  const isBackground = Boolean(value?.isBackground);
+  const fechaGuardadoLocal = new Date(value?.fechaGuardadoLocal || value?.fechaGps || value?.fecha_gps);
 
   if (!UUID_PATTERN.test(clientLocationId)) throw new Error("La primera ubicación GPS no tiene un identificador válido.");
   if (!Number.isFinite(latitud) || latitud < -90 || latitud > 90) throw new Error("La latitud de la primera ubicación GPS no es válida.");
@@ -28,16 +31,20 @@ export function normalizeInitialTripLocation(value, referenceTime = new Date()) 
   const age = reference.getTime() - fechaGps.getTime();
   if (age > 5 * 60 * 1000 || age < -60 * 1000) throw new Error("La primera ubicación GPS debe obtenerse inmediatamente antes de iniciar el viaje.");
 
-  return { clientLocationId, latitud, longitud, precisionMetros, velocidad, direccion, fechaGps };
+  if (Number.isNaN(fechaGuardadoLocal.getTime())) throw new Error("La fecha de guardado local de la primera ubicación GPS no es válida.");
+  return { clientLocationId, latitud, longitud, precisionMetros, velocidad, direccion, fechaGps,
+    origenCaptura, isBackground, fechaGuardadoLocal };
 }
 
 export async function insertInitialTripLocation(client, idViaje, value, referenceTime = new Date()) {
   const location = normalizeInitialTripLocation(value, referenceTime);
   await client.query(`INSERT INTO ubicaciones_viaje
-    (id_viajes,client_location_id,latitud,longitud,precision_metros,velocidad,direccion,fecha_gps,es_punto_intermedio,nombre_punto)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,NULL)
+    (id_viajes,client_location_id,latitud,longitud,precision_metros,velocidad,direccion,fecha_gps,
+     es_punto_intermedio,nombre_punto,origen,en_segundo_plano,guardado_local_en)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,NULL,$9,$10,$11)
     ON CONFLICT (id_viajes,client_location_id) WHERE client_location_id IS NOT NULL DO NOTHING`,
   [idViaje, location.clientLocationId, location.latitud, location.longitud, location.precisionMetros,
-    location.velocidad, location.direccion, location.fechaGps]);
+    location.velocidad, location.direccion, location.fechaGps, location.origenCaptura,
+    location.isBackground, location.fechaGuardadoLocal]);
   return location;
 }
