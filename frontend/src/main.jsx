@@ -6,8 +6,9 @@ import SupervisorApp from './SupervisorApp.jsx'
 import EvaluacionApp from './pages/EvaluacionApp.jsx'
 import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/Icons.jsx'
 import { installAppUpdateRecovery } from './services/app-update.js'
+import { Capacitor } from '@capacitor/core'
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
   installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
 }
 

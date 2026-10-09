@@ -1,8 +1,26 @@
 import { Component, useEffect, useRef, useState } from "react";
 import "../App.css";
+import { Capacitor } from "@capacitor/core";
 
-const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-const API_BASE_URL = configuredApiBaseUrl.replace(/\/api$/, "");
+const getEvaluacionApiBaseUrl = () => {
+  const envUrl = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (envUrl) {
+    return envUrl.replace(/\/api$/, "");
+  }
+  if (
+    Capacitor.isNativePlatform() ||
+    (typeof window !== "undefined" &&
+      (window.location.protocol === "capacitor:" ||
+        window.location.protocol === "file:" ||
+        (window.location.hostname === "localhost" && !window.location.port)))
+  ) {
+    return "https://gv.aspromex.mx";
+  }
+  return "";
+};
+
+const API_BASE_URL = getEvaluacionApiBaseUrl();
+
 
 const rubrosDef = [
   { id: "inspeccion_previa", title: "1. Inspección Pre-operacional", points: 15 },

@@ -1,4 +1,4 @@
-function normalizeLocation(location) {
+export function normalizeLocation(location) {
   const latitud = Number(location.latitude);
   const longitud = Number(location.longitude);
 

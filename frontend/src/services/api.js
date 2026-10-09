@@ -1,7 +1,25 @@
 import safeStorage from "../utils/safeStorage.js";
+import { Capacitor } from "@capacitor/core";
 
-const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL || "";
+export const getApiBaseUrl = () => {
+  const envUrl = String(import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (envUrl) {
+    return envUrl;
+  }
+  if (
+    (typeof Capacitor !== "undefined" && Capacitor?.isNativePlatform?.()) ||
+    (typeof window !== "undefined" &&
+      (window.location?.protocol === "capacitor:" ||
+        window.location?.protocol === "file:" ||
+        (window.location?.hostname === "localhost" && !window.location?.port)))
+  ) {
+    return "https://gv.aspromex.mx";
+  }
+  return "";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 
 async function request(path, options = {}) {
   const telegramInitData = window.Telegram?.WebApp?.initData || "";

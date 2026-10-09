@@ -79,11 +79,14 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
         setPin("");
       }
     } catch (err) {
-      const isNetworkError = !navigator.onLine ||
+      const isServerResponded = Boolean(err.status);
+      const isNetworkError = !isServerResponded && (
+        !navigator.onLine ||
         err.code === "NETWORK_ERROR" ||
         err.code === "NETWORK_TIMEOUT" ||
         err.message?.includes("Failed to fetch") ||
-        err.message?.includes("fetch");
+        err.message?.includes("fetch")
+      );
       if (isNetworkError) {
         const cachedDriver = safeStorage.getJSON("cached_driver", null);
         const savedPinDigest = safeStorage.getItem("offline_driver_pin_digest");

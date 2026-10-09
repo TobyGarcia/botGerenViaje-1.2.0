@@ -1,5 +1,11 @@
+import { Capacitor } from "@capacitor/core";
+
 export function installAppUpdateRecovery({ serviceWorker, windowObject, documentObject,
   version = typeof __APP_VERSION__ === 'undefined' ? null : __APP_VERSION__ }) {
+
+  if (typeof Capacitor !== "undefined" && Capacitor.isNativePlatform?.()) {
+    return () => {};
+  }
 
   let reloading = false;
   let edited = false;

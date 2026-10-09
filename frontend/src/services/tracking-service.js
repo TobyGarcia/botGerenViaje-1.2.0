@@ -1,16 +1,20 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { registrarUbicacionesLote } from "./api.js";
-import { getCurrentLocation } from "./location-provider.js";
+import { getCurrentLocation, normalizeLocation } from "./location-provider.js";
 import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
 
+const BackgroundGeolocationPlugin = registerPlugin("BackgroundGeolocation");
+
 const intervalValue = Number(import.meta.env?.VITE_GPS_TRACKING_INTERVAL_MS);
 const batchValue = Number(import.meta.env?.VITE_GPS_SYNC_BATCH_SIZE);
 const TRACKING_INTERVAL_MS = Number.isFinite(intervalValue) && intervalValue >= 1000 ? intervalValue : 30000;
 const SYNC_BATCH_SIZE = Number.isFinite(batchValue) && batchValue > 0 ? Math.min(batchValue, 200) : 100;
 let intervalId = null;
+let nativeWatcherId = null;
 let activeTripId = null;
 const syncPromises = new Map();
 let statusListener = null;
@@ -27,11 +31,11 @@ export function isDuplicateGpsReading(previous, current) {
 }
 
 function notify(update) {
-  statusListener?.({ idViaje: activeTripId, active: intervalId !== null, connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
+  statusListener?.({ idViaje: activeTripId, active: isTrackingActive(), connection: navigator.onLine ? "En línea" : "Sin conexión", ...update });
 }
 async function notifyPending(idViaje, update = {}) { notify({ pending: await countPendingLocations(idViaje), ...update }); }
 export function setTrackingStatusListener(listener) { statusListener = listener; }
-export function isTrackingActive() { return intervalId !== null; }
+export function isTrackingActive() { return intervalId !== null || nativeWatcherId !== null; }
 
 export async function syncPendingLocations(idViaje) {
   if (syncPromises.has(idViaje)) return syncPromises.get(idViaje);
@@ -64,6 +68,40 @@ export async function syncPendingLocations(idViaje) {
   finally { syncPromises.delete(idViaje); }
 }
 
+export async function queueNormalizedLocation(idViaje, location, extraData = {}) {
+  try {
+    const normalizedId = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
+    const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
+    const previous = readJson(LAST_LOCATION_PREFIX + String(normalizedId));
+    if (isDuplicateGpsReading(previous, location) && !extraData.esPuntoIntermedio && !extraData.esUbicacionInicial && !extraData.esUbicacionFinal) {
+      return { ...previous, duplicate: true };
+    }
+    const savedAt = new Date().toISOString();
+    const pendingLocation = {
+      ...location,
+      isBackground,
+      fechaGuardadoLocal: savedAt,
+      ...extraData,
+      clientLocationId: uuid(),
+      idViaje: normalizedId
+    };
+    await savePendingLocation(pendingLocation);
+    writeJson(LAST_LOCATION_PREFIX + String(normalizedId), pendingLocation);
+    await notifyPending(normalizedId, {
+      status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
+      lastCapture: pendingLocation.fechaGps,
+      latitude: pendingLocation.latitud,
+      longitude: pendingLocation.longitud,
+      isBackground
+    });
+    await syncPendingLocations(normalizedId);
+    return pendingLocation;
+  } catch (error) {
+    notify({ status: "Sin señal GPS", error: error.message });
+    return null;
+  }
+}
+
 export async function captureAndQueueLocation(idViaje, extraData = {}) {
   try {
     const pendingLocation = await captureAndStoreLocation(idViaje, extraData);
@@ -81,25 +119,26 @@ async function captureAndStoreLocation(idViaje, extraData = {}) {
     return current;
   }
   capturePromise = (async () => {
+    const normalizedId = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
     const location = await getCurrentLocation();
     const isBackground = typeof document !== "undefined" ? Boolean(document.hidden) : false;
-    const previous = readJson(LAST_LOCATION_PREFIX + Number(idViaje));
+    const previous = readJson(LAST_LOCATION_PREFIX + String(normalizedId));
     if (isDuplicateGpsReading(previous, location) && !extraData.esPuntoIntermedio && !extraData.esUbicacionInicial && !extraData.esUbicacionFinal) {
       return { ...previous, duplicate: true };
     }
     const savedAt = new Date().toISOString();
     const pendingLocation = { ...location, isBackground, fechaGuardadoLocal: savedAt, ...extraData,
-      clientLocationId: uuid(), idViaje: Number(idViaje) };
+      clientLocationId: uuid(), idViaje: normalizedId };
     await savePendingLocation(pendingLocation);
-    writeJson(LAST_LOCATION_PREFIX + Number(idViaje), pendingLocation);
-  await notifyPending(idViaje, {
-    status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
-    lastCapture: pendingLocation.fechaGps,
-    latitude: pendingLocation.latitud,
-    longitude: pendingLocation.longitud,
-    isBackground
-  });
-  return pendingLocation;
+    writeJson(LAST_LOCATION_PREFIX + String(normalizedId), pendingLocation);
+    await notifyPending(normalizedId, {
+      status: extraData.esPuntoIntermedio ? "Punto intermedio capturado" : "Ubicación capturada",
+      lastCapture: pendingLocation.fechaGps,
+      latitude: pendingLocation.latitud,
+      longitude: pendingLocation.longitud,
+      isBackground
+    });
+    return pendingLocation;
   })();
   try { return await capturePromise; }
   finally { capturePromise = null; }
@@ -123,10 +162,54 @@ export async function captureIntermediatePoint(idViaje, nombrePunto = "Punto Int
   });
 }
 
+async function startNativeWatcher(normalizedId) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const watcherId = await BackgroundGeolocationPlugin.addWatcher(
+        {
+          backgroundTitle: "Gerenciamiento de Viajes",
+          backgroundMessage: "Rastreando ubicación del viaje en segundo plano...",
+          requestPermissions: true,
+          stale: false,
+          distanceFilter: 10
+        },
+        async (rawLocation, err) => {
+          if (err) {
+            console.error("[BackgroundGeolocation] Error:", err);
+            notify({ status: "Error en GPS nativo", error: err.message || String(err) });
+            return;
+          }
+          if (rawLocation) {
+            try {
+              const normLoc = normalizeLocation({
+                latitude: rawLocation.latitude,
+                longitude: rawLocation.longitude,
+                accuracy: rawLocation.accuracy,
+                speed: rawLocation.speed,
+                heading: rawLocation.bearing,
+                timestamp: rawLocation.time
+              });
+              await queueNormalizedLocation(normalizedId, normLoc);
+            } catch (e) {
+              console.warn("[BackgroundGeolocation] Error procesando posición:", e);
+            }
+          }
+        }
+      );
+      return watcherId;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+  throw lastErr;
+}
+
 export async function startTracking(idViaje, { captureImmediately = true } = {}) {
-  const normalizedId = Number(idViaje);
+  const normalizedId = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
   if (isStarting) return;
-  if (intervalId !== null && activeTripId === normalizedId) {
+  if (isTrackingActive() && activeTripId === normalizedId) {
     if (captureImmediately) await captureAndQueueLocation(normalizedId);
     return;
   }
@@ -138,7 +221,18 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
     activeTripId = normalizedId;
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
     
-    // Iniciar bucle de audio silencioso estrictamente en móvil para evitar que el SO duerma el GPS
+    // Intento 1: Si es nativo (Android APK / iOS), usar el servicio Foreground Service de segundo plano
+    if (Capacitor.isNativePlatform()) {
+      try {
+        notify({ status: "Iniciando servicio de rastreo nativo en segundo plano..." });
+        nativeWatcherId = await startNativeWatcher(normalizedId);
+        console.log("[BackgroundGeolocation] Watcher nativo iniciado con éxito ID:", nativeWatcherId);
+      } catch (errNative) {
+        console.warn("[BackgroundGeolocation] Fallback a bucle de audio silencioso:", errNative);
+      }
+    }
+
+    // Mantener audio keep-alive como refuerzo y temporizador periódico
     void startSilentAudioKeepAlive().catch(() => {});
 
     notify({ status: "Esperando permiso" });
@@ -146,7 +240,9 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
     intervalId = window.setInterval(() => {
       if (generation === trackingGeneration) void captureAndQueueLocation(normalizedId);
     }, TRACKING_INTERVAL_MS);
-    await notifyPending(normalizedId, { status: "Activo" });
+    await notifyPending(normalizedId, { 
+      status: nativeWatcherId ? "Activo (Servicio nativo en 2º plano)" : "Activo" 
+    });
   } finally {
     isStarting = false;
   }
@@ -154,6 +250,10 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
 
 export function stopTracking({ clearState = true } = {}) {
   trackingGeneration += 1;
+  if (nativeWatcherId !== null) {
+    BackgroundGeolocationPlugin.removeWatcher({ id: nativeWatcherId }).catch(() => {});
+    nativeWatcherId = null;
+  }
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
   if (clearState) clearTrackingState();
   activeTripId = null;

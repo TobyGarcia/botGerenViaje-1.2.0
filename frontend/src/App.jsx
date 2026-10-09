@@ -54,6 +54,7 @@ import {
   captureAndQueueLocation,
   captureInitialTripLocation,
   captureIntermediatePoint,
+  isTrackingActive,
   setTrackingStatusListener,
   startTracking,
   stopTracking,
@@ -887,7 +888,6 @@ const [cancelledTrip, setCancelledTrip] =
 
     return () => {
       setTrackingStatusListener(null);
-      stopTracking({ clearState: false });
     };
   }, []);
 
@@ -897,7 +897,13 @@ const [cancelledTrip, setCancelledTrip] =
         if (document.visibilityState !== "visible") return;
         const localTrip = getOfflineTrip(safeStorage.getJSON("cached_driver")?.id_conductores);
         if (localTrip && !localTrip.synced) {
-          if (localTrip.startedAt && !localTrip.finishedAt) await startTracking(localTrip.localId);
+          if (localTrip.startedAt && !localTrip.finishedAt) {
+            if (!isTrackingActive()) {
+              await startTracking(localTrip.localId);
+            } else {
+              await syncPendingLocations(localTrip.localId);
+            }
+          }
           return;
         }
 
@@ -924,8 +930,10 @@ const [cancelledTrip, setCancelledTrip] =
         const response = await getViajeActivo();
         if (response.data?.estado === "EN_CURSO") {
           await syncPendingLocations(response.data.idViaje);
-          await startTracking(response.data.idViaje);
-        } else {
+          if (!isTrackingActive()) {
+            await startTracking(response.data.idViaje);
+          }
+        } else if (response?.data && ["FINALIZADO", "CANCELADO"].includes(response.data.estado)) {
           stopTracking();
         }
       } catch (error) {

@@ -61,13 +61,33 @@ function getAllowedOrigins() {
     .filter(Boolean);
 }
 
-const allowedOrigins = getAllowedOrigins();
+const allowedOrigins = new Set(getAllowedOrigins());
+
+// Android carga la SPA de Capacitor desde https://localhost. Según la versión
+// del runtime y la plataforma también puede utilizar capacitor://localhost o
+// http://localhost. Se mantienen como una lista explícita para que una petición
+// desde el APK no quede bloqueada por CORS al llamar a la API HTTPS pública.
+const capacitorOrigins = new Set(
+  String(
+    process.env.CAPACITOR_CORS_ORIGINS ||
+      "https://localhost,capacitor://localhost,http://localhost"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+
+function isAllowedOrigin(origin) {
+  return !origin ||
+    allowedOrigins.size === 0 ||
+    allowedOrigins.has(origin) ||
+    capacitorOrigins.has(origin);
+}
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.length === 0 ||
-          allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
 

@@ -39,8 +39,9 @@ async function withStore(mode, callback) {
 
 export function savePendingLocation(location) { return withStore("readwrite", (store) => store.put(location)); }
 export function getPendingLocations(idViaje) {
+  const key = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
   return withStore("readonly", (store, setResult) => {
-    const request = store.index("idViaje").getAll(Number(idViaje));
+    const request = store.index("idViaje").getAll(key);
     request.onsuccess = () => setResult(request.result.sort((a, b) => new Date(a.fechaGps) - new Date(b.fechaGps)));
   });
 }
@@ -67,8 +68,9 @@ export async function quarantinePendingLocations(locations) {
 }
 export async function countPendingLocations(idViaje) { return (await getPendingLocations(idViaje)).length; }
 export function clearPendingLocations(idViaje) {
+  const key = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
   return withStore("readwrite", (store) => {
-    const request = store.index("idViaje").openKeyCursor(IDBKeyRange.only(Number(idViaje)));
+    const request = store.index("idViaje").openKeyCursor(IDBKeyRange.only(key));
     request.onsuccess = () => { const cursor = request.result; if (cursor) { store.delete(cursor.primaryKey); cursor.continue(); } };
   });
 }
