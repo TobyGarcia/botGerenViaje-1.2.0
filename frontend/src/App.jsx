@@ -15,6 +15,7 @@ import {
   getLugares,
   getVehiculos,
   getViajeActivo,
+  getViajePorId,
   getInspeccionVehicular,
   enviarInspeccionVehicular,
   iniciarViaje,
@@ -36,6 +37,7 @@ import OfflineBanner from "./components/OfflineBanner.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import { formatOperationalDate } from "./utils/operational-date.js";
+import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
   IconMap,
   IconClock,
@@ -1079,9 +1081,33 @@ async function handleAddIntermediatePoint() {
       stopTracking();
       await syncPendingLocations(idViaje);
     } catch (error) {
-      setMessage(error.message);
-      setMessageType("error");
-      await startTracking(idViaje);
+      const recovered = idViaje > 0
+        ? await recoverFinishedTrip(idViaje, getViajePorId)
+        : { status: 'EN_CURSO' };
+      if (recovered.status === 'FINALIZADO') {
+        const data = { ...startedTrip, ...recovered.trip, estado: 'FINALIZADO' };
+        setFinishedTrip(data);
+        setStartedTrip(data);
+        setCreatedTrip(data);
+        setGerenciamientoPendiente(null);
+        safeStorage.removeItem('cached_gerenciamiento_pendiente');
+        safeStorage.removeItem('cached_active_trip');
+        stopTracking();
+        stopSilentAudioKeepAlive();
+        setMessage('Viaje finalizado correctamente. Se recuperó la confirmación del servidor.');
+        setMessageType('success');
+      } else {
+        setMessage(recovered.status === 'UNKNOWN'
+          ? 'No se pudo confirmar el cierre. El GPS permanece detenido; vuelve a consultar el viaje cuando recuperes conexión.'
+          : error.message);
+        setMessageType('error');
+        if (recovered.status === 'EN_CURSO') {
+          await startTracking(idViaje).catch(() => setGpsStatus('No se pudo reactivar el seguimiento GPS.'));
+        } else {
+          stopTracking({ clearState: recovered.status !== 'UNKNOWN' });
+          stopSilentAudioKeepAlive();
+        }
+      }
     } finally {
       setFinishingTrip(false);
     }

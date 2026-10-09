@@ -7,7 +7,7 @@ import EvaluacionApp from './pages/EvaluacionApp.jsx'
 import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/Icons.jsx'
 import { installAppUpdateRecovery } from './services/app-update.js'
 
-if (typeof window !== 'undefined' && navigator.serviceWorker) {
+if (typeof window !== 'undefined') {
   installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
 }
 
@@ -52,8 +52,6 @@ class RootErrorBoundary extends Component {
 
   handleClearCacheAndReload = async () => {
     try {
-      localStorage.clear();
-      sessionStorage.clear();
     } catch {}
 
     if (typeof window !== 'undefined' && window.caches) {

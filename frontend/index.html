@@ -36,7 +36,7 @@
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:10px;">' +
                   '<button type="button" onclick="window.location.reload(true)" style="background:#2e81ab;color:#ffffff;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:0.9rem;">Reintentar / Recargar</button>' +
-                  '<button type="button" onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}if(window.caches){caches.keys().then(function(k){k.forEach(function(c){caches.delete(c);});});}if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(sw){sw.unregister();});});}setTimeout(function(){window.location.reload(true);},300);" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:10px;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.82rem;">Limpiar Caché y Reiniciar</button>' +
+                  '<button type="button" onclick="if(window.caches){caches.keys().then(function(k){k.forEach(function(c){caches.delete(c);});});}if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(sw){sw.unregister();});});}setTimeout(function(){window.location.reload(true);},300);" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:10px;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.82rem;">Limpiar Caché y Reiniciar</button>' +
                 '</div>' +
               '</div>' +
             '</div>';
