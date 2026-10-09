@@ -161,10 +161,6 @@ export default function RegistroConductor({ telegramAuth, onRegistered, _onCance
         setError("Por favor ingresa tu nombre completo.");
         return false;
       }
-      if (!form.correo.trim()) {
-        setError("Por favor ingresa tu correo electrónico.");
-        return false;
-      }
       if (!form.telefono.trim()) {
         setError("Por favor ingresa tu número telefónico.");
         return false;
@@ -603,7 +599,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered, _onCance
             {/* Correo Electrónico */}
             <div className="registro-field">
               <label className="registro-label" htmlFor="email">
-                <span>Correo electrónico</span> <span className="registro-required">*</span>
+                <span>Correo electrónico (opcional)</span>
               </label>
               <input
                 id="email"
@@ -614,7 +610,6 @@ export default function RegistroConductor({ telegramAuth, onRegistered, _onCance
                 onChange={handleChange}
                 maxLength="150"
                 placeholder="ejemplo@correo.com"
-                required
               />
             </div>
 

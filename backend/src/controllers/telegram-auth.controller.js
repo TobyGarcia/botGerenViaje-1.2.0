@@ -144,6 +144,7 @@ export async function authenticateTelegramController(
 
 function validateDriverRegistration(body) {
   const nombre = typeof body?.nombre === "string" ? body.nombre.trim() : "";
+  const correo = typeof body?.correo === "string" ? body.correo.trim().toLowerCase() : "";
   const telefono = typeof body?.telefono === "string" ? body.telefono.trim() : "";
   const licenciaNumero = typeof body?.licenciaNumero === "string"
     ? body.licenciaNumero.trim()
@@ -204,7 +205,7 @@ function validateDriverRegistration(body) {
     licenciaReversoUrl = saveLicenseFileBase64(body.licenciaReversoBase64, body.licenciaReversoNombre || "", "licencia_reverso");
   }
 
-  return { nombre, telefono, licenciaNumero, tipoLicencia, empresa, puesto, licenciaVencimiento, fechaManejoComentado, licenciaUrl, licenciaReversoUrl };
+  return { nombre, correo: correo || null, telefono, licenciaNumero, tipoLicencia, empresa, puesto, licenciaVencimiento, fechaManejoComentado, licenciaUrl, licenciaReversoUrl };
 }
 
 

@@ -168,6 +168,7 @@ export async function findOrCreateTelegramUser({
 
 export async function registerTelegramDriver({
   telegramUserId,
+  correo,
   nombre,
   telefono,
   licenciaNumero,
@@ -222,20 +223,20 @@ export async function registerTelegramDriver({
       const updateResult = await client.query(
         `UPDATE conductores
          SET nombre = $1,
-             telefono = $2,
-             tipo_licencia = $3,
-             empresa = $4,
-             puesto = COALESCE($5, puesto),
-             licencia_vencimiento = $6,
-             licencia_vigente = $7,
-             fecha_manejo_comentado = COALESCE($8, fecha_manejo_comentado),
-             licencia_url = COALESCE($9, licencia_url),
-             licencia_reverso_url = COALESCE($10, licencia_reverso_url),
-             pin_hash = $11,
+             correo = COALESCE($3, correo),
+             tipo_licencia = $4,
+             empresa = $5,
+             puesto = COALESCE($6, puesto),
+             licencia_vencimiento = $7,
+             licencia_vigente = $8,
+             fecha_manejo_comentado = COALESCE($9, fecha_manejo_comentado),
+             licencia_url = COALESCE($10, licencia_url),
+             licencia_reverso_url = COALESCE($11, licencia_reverso_url),
+             pin_hash = $12,
              actualizado_en = CURRENT_TIMESTAMP
-         WHERE id_conductores = $12
+         WHERE id_conductores = $13
          RETURNING ${conductorColumns}`,
-        [nombre, telefono, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash, targetConductorId]
+        [nombre, telefono, correo, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash, targetConductorId]
       );
       conductor = updateResult.rows[0];
     } else {
@@ -243,12 +244,12 @@ export async function registerTelegramDriver({
       const conductorResult = await client.query(
         `
           INSERT INTO conductores (
-            nombre, telefono, licencia_numero, tipo_licencia, empresa, puesto, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
+            nombre, telefono, correo, licencia_numero, tipo_licencia, empresa, puesto, licencia_vencimiento, licencia_vigente, fecha_manejo_comentado, licencia_url, licencia_reverso_url, activo, aprobado_por_admin, pin_hash
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, FALSE, $12)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, FALSE, $13)
           RETURNING ${conductorColumns}
         `,
-        [nombre, telefono, licenciaNumero, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
+        [nombre, telefono, correo, licenciaNumero, tipoLicencia, empresa, puesto || null, licenciaVencimiento, licenciaVigente, fechaManejoComentado || null, licenciaUrl || null, licenciaReversoUrl || null, pinHash]
       );
       conductor = conductorResult.rows[0];
     }
