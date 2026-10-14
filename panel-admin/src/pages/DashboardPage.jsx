@@ -100,7 +100,6 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
 
   if (!data) return null;
 
-  return (
   const openDetails = () => onOpenDetails({
     title: "Manejos comentados por expirar",
     description: "Conductores que requieren registrar o renovar su evaluación de manejo comentado.",
@@ -120,6 +119,7 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
     onAction: onOpenManejoComentado
   });
 
+  return (
     <article className="kpi-card dashboard-kpi-clickable" style={{ borderLeft: "4px solid #eab308" }} role="button" tabIndex="0" onClick={openDetails} onKeyDown={(event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetails(); }
     }} aria-label="Ver detalle de manejos comentados por expirar">
@@ -325,8 +325,9 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
           onClose={() => setSelectedTripId(null)}
         />
       )}
-    </section>
+
       <DashboardInfoModal modal={infoModal} onClose={() => setInfoModal(null)} />
+    </section>
   );
 }
 
