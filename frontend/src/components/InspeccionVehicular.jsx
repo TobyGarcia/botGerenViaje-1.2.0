@@ -6,6 +6,7 @@ import pasajeroImage from "../assets/pasajero.png";
 import traseraImage from "../assets/trasera.png";
 import InspeccionRemolqueModal from "./InspeccionRemolqueModal.jsx";
 import { formatOperationalDate } from "../utils/operational-date.js";
+import { getVehiculos } from "../services/api.js";
 
 const views = [
   ["frontal", "🚘 Vista frontal", frontalImage],
@@ -140,6 +141,31 @@ function SignaturePad({ onSave, onCancel }) {
 }
 
 export default function InspeccionVehicular({ context, estado, vehiculos = [], onSubmit, saving, onClose }) {
+  const [catalogVehiculos, setCatalogVehiculos] = useState(() => {
+    if (Array.isArray(vehiculos) && vehiculos.length > 0) return vehiculos;
+    try {
+      const cached = JSON.parse(localStorage.getItem("cached_vehiculos") || "[]");
+      return Array.isArray(cached) ? cached : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (Array.isArray(vehiculos) && vehiculos.length > 0) {
+      setCatalogVehiculos(vehiculos);
+      return;
+    }
+    getVehiculos()
+      .then((res) => {
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && list.length > 0) {
+          setCatalogVehiculos(list);
+        }
+      })
+      .catch(() => {});
+  }, [vehiculos]);
+
   const [step, setStep] = useState(0);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [showRemolqueModal, setShowRemolqueModal] = useState(false);
@@ -433,7 +459,7 @@ export default function InspeccionVehicular({ context, estado, vehiculos = [], o
     {signatureOpen && <SignaturePad onCancel={() => setSignatureOpen(false)} onSave={saveSignature} />}
     {showRemolqueModal && (
       <InspeccionRemolqueModal
-        vehiculos={vehiculos}
+        vehiculos={catalogVehiculos.length > 0 ? catalogVehiculos : vehiculos}
         initialData={form.inspeccionRemolque || { idRemolque: form.idRemolque }}
         onClose={() => setShowRemolqueModal(false)}
         onSave={(remolqueData) => {

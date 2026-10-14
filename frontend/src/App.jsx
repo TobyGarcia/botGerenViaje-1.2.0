@@ -1761,6 +1761,7 @@ function isOutsideOperatingHours() {
           <InspeccionVehicular
             context={inspection.context}
             estado={inspection.inspection?.estado}
+            vehiculos={vehiculos}
             onSubmit={submitInspection}
             saving={inspectionSaving}
             onClose={() => setInspectionOpen(false)}

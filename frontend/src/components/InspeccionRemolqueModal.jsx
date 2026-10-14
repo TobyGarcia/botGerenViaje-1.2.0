@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import remolqueFrontalImg from "../assets/remolque_frontal.png";
 import remolqueDerechaImg from "../assets/remolque_derecha.png";
@@ -93,10 +93,11 @@ const STATE_TO_NUM = { "N/A": 0, "M": 1, "R": 2, "B": 3 };
 const NUM_TO_STATE = { 0: "N/A", 1: "M", 2: "R", 3: "B" };
 
 export default function InspeccionRemolqueModal({ vehiculos = [], initialData = {}, onSave, onClose }) {
-  // Filtrar unidades que contengan "remolque" en nombre, tipo o económico
+  // Filtrar unidades que correspondan a remolques (por tipo o descripción)
   const remolquesCatalog = vehiculos.filter((v) => {
-    const text = `${v.nombre || ""} ${v.tipo_vehiculo || ""} ${v.marca || ""} ${v.modelo || ""} ${v.numero_economico || ""}`.toLowerCase();
-    return text.includes("remolque");
+    const tipo = String(v.tipo_vehiculo || "").toLowerCase();
+    const text = `${v.nombre || ""} ${v.marca || ""} ${v.modelo || ""} ${v.numero_economico || ""}`.toLowerCase();
+    return tipo === "remolque" || text.includes("remolque") || text.includes("plana") || text.includes("trailer") || text.includes("dolly") || text.includes("lowboy") || text.includes("cama baja");
   });
 
   const availableRemolques = remolquesCatalog.length > 0 ? remolquesCatalog : vehiculos;
@@ -105,6 +106,14 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
   const [idRemolque, setIdRemolque] = useState(
     initialData?.idRemolque ? String(initialData.idRemolque) : (availableRemolques[0]?.id_vehiculos ? String(availableRemolques[0].id_vehiculos) : "")
   );
+
+  useEffect(() => {
+    if (!idRemolque && availableRemolques.length > 0) {
+      setIdRemolque(String(availableRemolques[0].id_vehiculos));
+    } else if (idRemolque && !availableRemolques.some((v) => String(v.id_vehiculos) === String(idRemolque)) && availableRemolques.length > 0) {
+      setIdRemolque(String(availableRemolques[0].id_vehiculos));
+    }
+  }, [availableRemolques, idRemolque]);
 
   const [checklist, setChecklist] = useState(initialData?.checklist || {});
   const [danos, setDanos] = useState(initialData?.danos || { frontal: [], derecha: [], trasera: [], izquierda: [] });
@@ -251,15 +260,21 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
                   onChange={(e) => setIdRemolque(e.target.value)}
                   style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid #94a3b8", padding: "0 12px", fontWeight: "600", fontSize: "0.9rem" }}
                 >
+                  <option value="" disabled>-- Selecciona un remolque --</option>
                   {availableRemolques.map((v) => (
-                    <option key={v.id_vehiculos} value={v.id_vehiculos}>
-                      {v.numero_economico} - {v.nombre} ({v.placas || "Sin placas"}) {v.marca ? `| ${v.marca}` : ""}
+                    <option key={v.id_vehiculos} value={String(v.id_vehiculos)}>
+                      {v.numero_economico || "S/N"} - {v.nombre || v.modelo} ({v.placas || "Sin placas"}) {v.marca ? `| ${v.marca}` : ""}
                     </option>
                   ))}
                 </select>
-                {remolquesCatalog.length === 0 && (
+                {availableRemolques.length === 0 && (
+                  <span style={{ fontSize: "0.8rem", color: "#dc2626", marginTop: "6px", display: "block" }}>
+                    ⚠️ No se encontraron unidades de remolque disponibles en el catálogo.
+                  </span>
+                )}
+                {availableRemolques.length > 0 && remolquesCatalog.length === 0 && (
                   <span style={{ fontSize: "0.75rem", color: "#d97706", marginTop: "6px", display: "block" }}>
-                    ⚠️ No se encontraron unidades con "Remolque" en su descripción. Se listan todas las unidades disponibles.
+                    ⚠️ No se encontraron unidades catalogadas como Remolque. Se listan todas las unidades disponibles.
                   </span>
                 )}
               </div>
