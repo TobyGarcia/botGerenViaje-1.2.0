@@ -31,7 +31,65 @@ const PerfilPage = lazy(() => import("./PerfilPage.jsx"));
 const GerenciamientoAdminPage = lazy(() => import("./GerenciamientoAdminPage.jsx"));
 
 
-function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
+function DashboardInfoModal({ modal, onClose }) {
+  useEffect(() => {
+    if (!modal) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [modal, onClose]);
+
+  if (!modal) return null;
+
+  return (
+    <div className="modal-overlay dashboard-info-overlay" role="presentation" onMouseDown={onClose}>
+      <section className="modal-card dashboard-info-modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-info-modal-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="dashboard-info-modal-header">
+          <div>
+            <span className="dashboard-info-modal-eyebrow">Resumen del inicio</span>
+            <h2 id="dashboard-info-modal-title">{modal.title}</h2>
+            {modal.description && <p>{modal.description}</p>}
+          </div>
+          <button type="button" className="dashboard-info-modal-close" onClick={onClose} aria-label="Cerrar modal">×</button>
+        </header>
+        <div className="dashboard-info-modal-body">
+          <div className="dashboard-info-metrics">
+            {(modal.metrics || []).map((metric) => (
+              <div className={`dashboard-info-metric ${metric.tone ? `is-${metric.tone}` : ""}`} key={metric.label}>
+                <span>{metric.label}</span><strong>{metric.value}</strong>
+              </div>
+            ))}
+          </div>
+          {modal.items?.length > 0 && (
+            <div className="dashboard-info-list-wrap">
+              <h3>{modal.listTitle || "Detalle"}</h3>
+              <ul className="dashboard-info-list">
+                {modal.items.map((item, index) => (
+                  <li key={item.key || index}>
+                    <span>{item.label}</span>
+                    {item.value && <strong className={item.tone ? `is-${item.tone}` : ""}>{item.value}</strong>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+        <footer className="dashboard-info-modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>Cerrar</button>
+          {modal.actionLabel && modal.onAction && (
+            <button type="button" className="primary-button" onClick={() => { onClose(); modal.onAction(); }}>
+              {modal.actionLabel}
+            </button>
+          )}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -43,7 +101,28 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado }) {
   if (!data) return null;
 
   return (
-    <article className="kpi-card" style={{ cursor: "pointer", borderLeft: "4px solid #eab308" }} onClick={onOpenManejoComentado}>
+  const openDetails = () => onOpenDetails({
+    title: "Manejos comentados por expirar",
+    description: "Conductores que requieren registrar o renovar su evaluación de manejo comentado.",
+    metrics: [
+      { label: "Total por atender", value: data.total_expiring, tone: "amber" },
+      { label: "Vencidos", value: data.vencidos_count, tone: "red" },
+      { label: "Próximos 30 días", value: data.proximos_count, tone: "blue" }
+    ],
+    listTitle: "Conductores por atender",
+    items: (data.items || []).map((item) => ({
+      key: item.id_conductores,
+      label: item.nombre,
+      value: item.estado_vigencia,
+      tone: item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "red" : "amber"
+    })),
+    actionLabel: "Abrir Manejo Comentado",
+    onAction: onOpenManejoComentado
+  });
+
+    <article className="kpi-card dashboard-kpi-clickable" style={{ borderLeft: "4px solid #eab308" }} role="button" tabIndex="0" onClick={openDetails} onKeyDown={(event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetails(); }
+    }} aria-label="Ver detalle de manejos comentados por expirar">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
         <span style={{ minWidth: 0, flex: 1 }}>Manejos Comentados por Expirar</span>
         <strong style={{ color: data.total_expiring > 0 ? "#d97706" : "inherit", flexShrink: 0 }}>{data.total_expiring}</strong>
@@ -187,6 +266,7 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
   const [error, setError] = useState("");
   const [selectedTripId, setSelectedTripId] = useState(null);
 
+  const [infoModal, setInfoModal] = useState(null);
   useEffect(() => {
     getAdminDashboardSummary()
       .then((response) => setSummary(response.data))
@@ -199,16 +279,16 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
   return (
     <section className="dashboard-overview">
       <section className="kpi-grid">
-        <ExpiringManejoComentadoWidget onOpenManejoComentado={onOpenManejoComentado} />
-        <article className="kpi-card"><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></article>
-        <article className="kpi-card"><span>Unidades</span><strong>{summary.unidades_total}</strong><small>{summary.unidades_activas} activas</small></article>
-        <article className="kpi-card"><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></article>
-        <button type="button" className="kpi-card inspection-notification-card" onClick={onOpenInspections}>
+        <ExpiringManejoComentadoWidget onOpenManejoComentado={onOpenManejoComentado} onOpenDetails={setInfoModal} />
+        <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Conductores", description: "Resumen de las personas registradas para operar unidades.", metrics: [{ label: "Registrados", value: summary.conductores_total, tone: "blue" }, { label: "Activos", value: summary.conductores_activos, tone: "green" }, { label: "Inactivos", value: Math.max(0, summary.conductores_total - summary.conductores_activos), tone: "gray" }], actionLabel: "Abrir Conductores", onAction: () => window.location.hash = "conductores" })}><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></button>
+        <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Unidades", description: "Estado general del catálogo de vehículos y unidades operativas.", metrics: [{ label: "Registradas", value: summary.unidades_total, tone: "blue" }, { label: "Activas", value: summary.unidades_activas, tone: "green" }, { label: "Inactivas", value: Math.max(0, summary.unidades_total - summary.unidades_activas), tone: "gray" }], actionLabel: "Abrir Unidades", onAction: () => window.location.hash = "unidades" })}><span>Unidades</span><strong>{summary.unidades_total}</strong><small>{summary.unidades_activas} activas</small></button>
+        <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Viajes registrados", description: "Resumen acumulado de los viajes guardados en la plataforma.", metrics: [{ label: "Registrados", value: summary.viajes_total, tone: "blue" }, { label: "En curso", value: summary.viajes_en_curso, tone: "green" }, { label: "Sin estar en curso", value: Math.max(0, summary.viajes_total - summary.viajes_en_curso), tone: "gray" }], actionLabel: "Abrir Viajes", onAction: () => window.location.hash = "viajes" })}><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></button>
+        <button type="button" className="kpi-card inspection-notification-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Inspecciones pendientes", description: pendingInspections ? "Estas inspecciones requieren revisión administrativa." : "No hay inspecciones pendientes de revisión.", metrics: [{ label: "Pendientes", value: pendingInspections, tone: pendingInspections ? "amber" : "green" }], actionLabel: "Abrir Inspecciones", onAction: onOpenInspections })}>
           <span>Inspecciones pendientes</span>
           <strong>{pendingInspections}</strong>
           <small>{pendingInspections ? "Requieren aprobación administrativa" : "No hay inspecciones por atender"}</small>
         </button>
-        <button type="button" className="kpi-card inspection-notification-card" style={{ borderLeft: "4px solid #0284c7" }} onClick={onOpenGerenciamiento}>
+        <button type="button" className="kpi-card inspection-notification-card dashboard-kpi-clickable" style={{ borderLeft: "4px solid #0284c7" }} onClick={() => setInfoModal({ title: "Gerenciamientos pendientes", description: pendingGerenciamientos ? "Viajes fuera de ciudad que requieren autorización." : "No hay gerenciamientos pendientes de autorización.", metrics: [{ label: "Pendientes", value: pendingGerenciamientos, tone: pendingGerenciamientos ? "amber" : "green" }], actionLabel: "Abrir Gerenciamientos", onAction: onOpenGerenciamiento })}>
           <span>Gerenciamientos pendientes</span>
           <strong style={{ color: "#0284c7" }}>{pendingGerenciamientos}</strong>
           <small>{pendingGerenciamientos ? "Viajes fuera de ciudad requieren aprobación" : "No hay gerenciamientos pendientes"}</small>
@@ -246,6 +326,7 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
         />
       )}
     </section>
+      <DashboardInfoModal modal={infoModal} onClose={() => setInfoModal(null)} />
   );
 }
 

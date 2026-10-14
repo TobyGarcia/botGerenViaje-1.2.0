@@ -1598,6 +1598,115 @@
 .kpi-card { display: grid; gap: 8px; }
 .kpi-card span, .kpi-card small, .activity-card p { color: #607986; }
 .kpi-card strong { color: #2e81ab; font-size: 2.4rem; }
+.dashboard-kpi-clickable {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.dashboard-kpi-clickable:hover {
+  border-color: #7cc5e5;
+  box-shadow: 0 10px 24px rgba(15, 77, 108, 0.1);
+  transform: translateY(-2px);
+}
+.dashboard-kpi-clickable:focus-visible {
+  outline: 3px solid rgba(2, 132, 199, 0.28);
+  outline-offset: 3px;
+}
+.dashboard-info-overlay { z-index: 12000; padding: 20px; }
+.dashboard-info-modal {
+  width: min(680px, 100%);
+  max-height: min(84vh, 760px);
+  overflow: hidden;
+  padding: 0;
+}
+.dashboard-info-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid #dceaf0;
+  background: linear-gradient(135deg, #f8fcfe, #eef8fc);
+}
+.dashboard-info-modal-header h2 { margin: 4px 0 6px; color: #163f53; }
+.dashboard-info-modal-header p { margin: 0; color: #607986; line-height: 1.5; }
+.dashboard-info-modal-eyebrow {
+  color: #0284c7;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dashboard-info-modal-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid #c9dfe8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #315566;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.dashboard-info-modal-close:hover { color: #b91c1c; border-color: #fecaca; background: #fff7f7; }
+.dashboard-info-modal-body { overflow-y: auto; padding: 22px 26px; }
+.dashboard-info-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 12px;
+}
+.dashboard-info-metric {
+  display: grid;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid #dceaf0;
+  border-radius: 12px;
+  background: #f8fbfc;
+}
+.dashboard-info-metric span { color: #607986; font-size: 0.82rem; }
+.dashboard-info-metric strong { color: #2e81ab; font-size: 1.65rem; }
+.dashboard-info-metric.is-green strong { color: #15803d; }
+.dashboard-info-metric.is-amber strong { color: #b45309; }
+.dashboard-info-metric.is-red strong { color: #dc2626; }
+.dashboard-info-metric.is-gray strong { color: #64748b; }
+.dashboard-info-list-wrap { margin-top: 20px; }
+.dashboard-info-list-wrap h3 { margin: 0 0 10px; color: #315566; font-size: 0.95rem; }
+.dashboard-info-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.dashboard-info-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 13px;
+  border: 1px solid #e2edf2;
+  border-radius: 10px;
+  color: #315566;
+  background: #ffffff;
+}
+.dashboard-info-list strong { font-size: 0.78rem; }
+.dashboard-info-list strong.is-red { color: #dc2626; }
+.dashboard-info-list strong.is-amber { color: #b45309; }
+.dashboard-info-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 26px 20px;
+  border-top: 1px solid #dceaf0;
+  background: #ffffff;
+}
 .inspection-notification-card { width:100%; border:1px solid #f1c46b; color:inherit; text-align:left; cursor:pointer; background:#fffaf0; }
 .inspection-notification-card:hover { border-color:#d89016; background:#fff4d8; }
 .inspection-notification-card strong { color:#b45309; }
@@ -1608,6 +1717,14 @@
 .activity-bar { width: 100%; min-height: 6px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, #51c8f3, #2e81ab); }
 .activity-value { color: #315566; font-weight: 800; }
 .activity-column small { color: #607986; text-transform: capitalize; }
+
+@media (max-width: 560px) {
+  .dashboard-info-overlay { padding: 10px; }
+  .dashboard-info-modal-header, .dashboard-info-modal-body { padding-left: 18px; padding-right: 18px; }
+  .dashboard-info-modal-actions { padding: 14px 18px 18px; }
+  .dashboard-info-modal-actions .primary-button,
+  .dashboard-info-modal-actions .secondary-button { flex: 1; }
+}
 
 @media (max-width: 780px) {
   .admin-layout {
@@ -2031,6 +2148,44 @@
 
 .conductores-table tbody tr:hover {
   background-color: #f1f5f9;
+}
+
+.manejo-column-filters th {
+  padding: 6px 5px 9px !important;
+  background: #eef6fa;
+}
+
+.manejo-column-filters input,
+.manejo-column-filters select {
+  width: 100%;
+  min-width: 78px;
+  height: 32px;
+  padding: 5px 7px;
+  border: 1px solid #cbdde6;
+  border-radius: 7px;
+  outline: none;
+  background: #ffffff;
+  color: #24495b;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.manejo-column-filters input:focus,
+.manejo-column-filters select:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.13);
+}
+
+.manejo-column-filters input::placeholder { color: #8aa0ac; }
+
+.manejo-column-filter-empty {
+  padding: 24px !important;
+  color: #607986;
+  text-align: center;
+  background: #fbfdfe;
 }
 
 /* Column widths for conductores-table (con icono de estado de Vencimiento y sin fechas largas) */

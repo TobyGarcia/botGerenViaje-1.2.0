@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "@e965/xlsx";
 import {
   getManejoComentadoConductores,
@@ -206,6 +206,10 @@ export default function ManejoComentadoPage({ user }) {
   const [cursos, setCursos] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("TODOS");
+  const [columnFilters, setColumnFilters] = useState({
+    conductor: "", telefono: "", licencia: "", vencimientoLicencia: "",
+    tipoLicencia: "", fechaRealizacion: "", proximaEvaluacion: "", score: "", estatus: ""
+  });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -589,9 +593,37 @@ export default function ManejoComentadoPage({ user }) {
 
   const canManage = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"].includes(user.rol);
 
-  const totalFilteredCond = conductores.length;
+  const filteredConductores = useMemo(() => {
+    const normalizedFilters = Object.fromEntries(
+      Object.entries(columnFilters).map(([key, value]) => [key, String(value || "").trim().toLocaleLowerCase("es-MX")])
+    );
+    const includesFilter = (value, filterKey) => {
+      const filter = normalizedFilters[filterKey];
+      return !filter || String(value ?? "").toLocaleLowerCase("es-MX").includes(filter);
+    };
+    return conductores.filter((conductor) => {
+      const conductorText = `${conductor.nombre || ""} ${conductor.empresa || ""}`;
+      const statusText = `${conductor.estado_vigencia || ""} ${getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}`;
+      return includesFilter(conductorText, "conductor")
+        && includesFilter(conductor.telefono || "Sin registro", "telefono")
+        && includesFilter(conductor.licencia_numero || "N/A", "licencia")
+        && includesFilter(formatDate(conductor.licencia_vencimiento), "vencimientoLicencia")
+        && includesFilter(conductor.tipo_licencia || "Automovilista", "tipoLicencia")
+        && includesFilter(formatDate(conductor.fecha_manejo_comentado), "fechaRealizacion")
+        && includesFilter(formatDate(conductor.fecha_vencimiento), "proximaEvaluacion")
+        && includesFilter(conductor.score ?? "-", "score")
+        && includesFilter(statusText, "estatus");
+    });
+  }, [conductores, columnFilters]);
+
+  const updateColumnFilter = (column, value) => {
+    setColumnFilters((current) => ({ ...current, [column]: value }));
+    setCurrentCondPage(1);
+  };
+
+  const totalFilteredCond = filteredConductores.length;
   const totalPagesCond = Math.max(1, Math.ceil(totalFilteredCond / itemsPerPage));
-  const paginatedConductores = conductores.slice(
+  const paginatedConductores = filteredConductores.slice(
     (currentCondPage - 1) * itemsPerPage,
     currentCondPage * itemsPerPage
   );
@@ -763,8 +795,23 @@ export default function ManejoComentadoPage({ user }) {
                         <th>Estatus</th>
                         <th style={{ textAlign: "center", width: "95px" }}>Acciones</th>
                       </tr>
+                      <tr className="manejo-column-filters">
+                        <th><input type="search" value={columnFilters.conductor} onChange={(e) => updateColumnFilter("conductor", e.target.value)} placeholder="Filtrar conductor" aria-label="Filtrar por conductor o empresa" /></th>
+                        <th><input type="search" inputMode="numeric" value={columnFilters.telefono} onChange={(e) => updateColumnFilter("telefono", e.target.value)} placeholder="Filtrar teléfono" aria-label="Filtrar por teléfono" /></th>
+                        <th><input type="search" value={columnFilters.licencia} onChange={(e) => updateColumnFilter("licencia", e.target.value)} placeholder="Filtrar licencia" aria-label="Filtrar por número de licencia" /></th>
+                        <th><input type="search" value={columnFilters.vencimientoLicencia} onChange={(e) => updateColumnFilter("vencimientoLicencia", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por vencimiento de licencia" /></th>
+                        <th><input type="search" value={columnFilters.tipoLicencia} onChange={(e) => updateColumnFilter("tipoLicencia", e.target.value)} placeholder="Filtrar tipo" aria-label="Filtrar por tipo de licencia" /></th>
+                        <th><input type="search" value={columnFilters.fechaRealizacion} onChange={(e) => updateColumnFilter("fechaRealizacion", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por fecha de realización" /></th>
+                        <th><input type="search" value={columnFilters.proximaEvaluacion} onChange={(e) => updateColumnFilter("proximaEvaluacion", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por próxima evaluación" /></th>
+                        <th><input type="search" inputMode="numeric" value={columnFilters.score} onChange={(e) => updateColumnFilter("score", e.target.value)} placeholder="Score" aria-label="Filtrar por score" /></th>
+                        <th><select value={columnFilters.estatus} onChange={(e) => updateColumnFilter("estatus", e.target.value)} aria-label="Filtrar por estatus"><option value="">Todos</option><option value="VIGENTE">Vigente</option><option value="PROXIMO_A_VENCER">Próximo a vencer</option><option value="VENCIDO">Vencido</option><option value="SIN_REGISTRO">Sin registro</option></select></th>
+                        <th aria-label="Sin filtro para acciones" />
+                      </tr>
                     </thead>
                     <tbody>
+                      {paginatedConductores.length === 0 && (
+                        <tr><td colSpan="10" className="manejo-column-filter-empty">Ningún conductor coincide con los filtros de las columnas.</td></tr>
+                      )}
                       {paginatedConductores.map((conductor) => (
                         <tr key={conductor.id_conductores}>
                           <td>
