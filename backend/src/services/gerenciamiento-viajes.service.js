@@ -1,6 +1,7 @@
 import { databasePool } from "../database/pool.js";
 import { createTrip } from "./viajes.service.js";
 import { saveInspection } from "./inspecciones.service.js";
+import { notifyTripApproval } from "./push-notifications.service.js";
 
 /**
  * Calcula de manera centralizada el Análisis de Riesgo (Tabuladores A al G)
@@ -550,6 +551,21 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
     }
 
     await client.query("COMMIT");
+
+    if (record?.id_conductor) {
+      try {
+        void notifyTripApproval({
+          driverId: record.id_conductor,
+          destino: record.destino,
+          estado,
+          observaciones,
+          viajeId: record.id_viaje
+        });
+      } catch (pushErr) {
+        console.warn("[GerenciamientoViajes] No se pudo enviar notificación push:", pushErr.message);
+      }
+    }
+
     return record ?? null;
   } catch (err) {
     await client.query("ROLLBACK");

@@ -1,5 +1,6 @@
 import { databasePool } from "../database/pool.js";
 import { sendActiveTripReminder } from "../bot/bot.js";
+import { notifyTripReminder } from "./push-notifications.service.js";
 
 function mexicoParts(date) {
   return Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City",
@@ -34,18 +35,25 @@ async function claimReminder(client, idViaje, slot) {
 }
 
 export async function processActiveTripReminders(now = new Date()) {
-  const { rows } = await databasePool.query(`SELECT v.id_viajes,v.folio,v.hora_salida,ut.telegram_user_id
+  const { rows } = await databasePool.query(`SELECT v.id_viajes,v.folio,v.hora_salida,v.id_conductores,ut.telegram_user_id
     FROM viajes v JOIN estados_viaje e USING(id_estado_viaje)
     LEFT JOIN usuarios_telegram ut ON ut.id_conductores=v.id_conductores AND ut.activo=TRUE
     WHERE e.nombre='EN_CURSO' AND v.hora_salida IS NOT NULL`);
   let sent = 0;
   for (const trip of rows) {
-    if (!trip.telegram_user_id) continue;
+    if (!trip.telegram_user_id && !trip.id_conductores) continue;
     for (const slot of dueTripReminderSlots(trip.hora_salida, now)) {
       const claim = await claimReminder(databasePool, trip.id_viajes, slot);
       if (!claim) continue;
       try {
-        await sendActiveTripReminder({ telegramUserId: trip.telegram_user_id, folio: trip.folio, horaSalida: trip.hora_salida });
+        if (trip.telegram_user_id) {
+          await sendActiveTripReminder({ telegramUserId: trip.telegram_user_id, folio: trip.folio, horaSalida: trip.hora_salida });
+        }
+        if (trip.id_conductores) {
+          const elapsedMs = +now - +new Date(trip.hora_salida);
+          const hours = Math.max(1, Math.round(elapsedMs / (60 * 60 * 1000)));
+          void notifyTripReminder({ driverId: trip.id_conductores, folio: trip.folio, hours, tipo: slot.tipo });
+        }
         await databasePool.query("UPDATE recordatorios_viaje SET estado='ENVIADO',enviado_en=$2,actualizado_en=CURRENT_TIMESTAMP,ultimo_error=NULL WHERE id_recordatorio=$1", [claim.id_recordatorio, now]);
         sent += 1;
       } catch (error) {

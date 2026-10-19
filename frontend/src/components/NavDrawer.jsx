@@ -1,12 +1,20 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   IconCar,
   IconMap,
   IconAlert,
   IconUser,
   IconCross,
-  IconCheck
+  IconCheck,
+  IconBell
 } from "./Icons.jsx";
+import {
+  isPushNotificationSupported,
+  getPushNotificationPermission,
+  subscribeToWebPush,
+  unsubscribeFromWebPush,
+  sendTestWebPushNotification
+} from "../services/push-notifications.js";
 
 const NAV_ITEMS = [
   {
@@ -48,6 +56,72 @@ export default function NavDrawer({
   showOfflineGuide = true,
   footerText = "AQUARIO · Control de Viajes"
 }) {
+  const [pushStatus, setPushStatus] = useState("unknown");
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const perm = getPushNotificationPermission();
+    setPushStatus(perm);
+  }, [isOpen]);
+
+  const handleEnablePush = async () => {
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      const res = await subscribeToWebPush({
+        userType: "conductor",
+        userId: conductor?.id_conductores,
+        userName: conductor?.nombre
+      });
+      if (res.success) {
+        setPushStatus("granted");
+        setPushMsg("✅ Notificaciones activadas.");
+      } else {
+        setPushMsg(`⚠️ ${res.message || "No se pudo activar."}`);
+      }
+    } catch (err) {
+      setPushMsg(`⚠️ Error: ${err.message}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleDisablePush = async () => {
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      await unsubscribeFromWebPush();
+      setPushStatus("default");
+      setPushMsg("Notificaciones desactivadas.");
+    } catch (err) {
+      setPushMsg(`⚠️ Error: ${err.message}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      const res = await sendTestWebPushNotification({
+        userType: "conductor",
+        userId: conductor?.id_conductores
+      });
+      if (res.success) {
+        setPushMsg("🔔 Alerta de prueba enviada al dispositivo.");
+      } else {
+        setPushMsg(`⚠️ ${res.message || "Error al enviar prueba."}`);
+      }
+    } catch (err) {
+      setPushMsg(`⚠️ Error: ${err.message}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -204,6 +278,111 @@ export default function NavDrawer({
               );
             })}
           </div>
+
+          {/* Tarjeta de Notificaciones Web Push */}
+          {isPushNotificationSupported() && (
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "14px",
+                background: "#ffffff",
+                border: "1px solid #d2e4ee",
+                borderRadius: "12px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.03)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "0.84rem", color: "#0f2b46" }}>
+                  <IconBell size={16} color="#0284c7" />
+                  <span>Notificaciones Web Push</span>
+                </div>
+                {pushStatus === "granted" && (
+                  <span style={{ fontSize: "0.68rem", fontWeight: "700", color: "#166534", background: "#dcfce7", padding: "2px 8px", borderRadius: "9999px" }}>
+                    Activas
+                  </span>
+                )}
+              </div>
+
+              <p style={{ margin: "0 0 10px", fontSize: "0.74rem", lineHeight: "1.35", color: "#64748b" }}>
+                {pushStatus === "granted"
+                  ? "Recibes avisos de aprobación de viaje y recordatorios incluso con la app cerrada."
+                  : "Activa notificaciones para recibir avisos de viajes aprobados o alertas operativas."}
+              </p>
+
+              {pushStatus === "granted" ? (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    disabled={pushLoading}
+                    onClick={handleTestPush}
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      background: "#0284c7",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "0.76rem",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "5px"
+                    }}
+                  >
+                    <IconBell size={13} color="#ffffff" /> {pushLoading ? "Enviando..." : "Probar alerta"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pushLoading}
+                    onClick={handleDisablePush}
+                    style={{
+                      padding: "8px 10px",
+                      background: "#f1f5f9",
+                      color: "#64748b",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      fontSize: "0.74rem",
+                      fontWeight: "600",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Desactivar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pushLoading}
+                  onClick={handleEnablePush}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    background: "#0284c7",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "0.8rem",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <IconBell size={15} color="#ffffff" /> {pushLoading ? "Activando..." : "Activar en este equipo"}
+                </button>
+              )}
+
+              {pushMsg && (
+                <div style={{ marginTop: "8px", fontSize: "0.72rem", color: pushMsg.startsWith("✅") ? "#166534" : "#b45309" }}>
+                  {pushMsg}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Guia discreta de uso sin internet */}
           {showOfflineGuide && (

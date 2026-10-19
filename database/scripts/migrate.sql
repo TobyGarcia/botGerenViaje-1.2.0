@@ -40,5 +40,4 @@
 \ir ../migrations/035_bitacora_auditoria.sql
 \ir ../migrations/036_diagnostico_origen_gps.sql
 \ir ../migrations/037_recordatorios_viajes.sql
-
-
+\ir ../migrations/038_web_push_subscriptions.sql

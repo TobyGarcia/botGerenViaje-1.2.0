@@ -3,6 +3,7 @@ import { generateSiniestroPdf } from "./siniestro-pdf.service.js";
 import { saveSiniestroPdfBuffer } from "../utils/file-storage.js";
 import { sendSiniestroGroupAlert } from "../bot/bot.js";
 import { sendSiniestroSupervisorAlert } from "../bot/supervisor-bot.js";
+import { notifySiniestroAlert } from "./push-notifications.service.js";
 
 function formatFolio() {
   const date = new Date();
@@ -107,15 +108,20 @@ export async function crearReporteSiniestro({
     console.error("Error al generar PDF del siniestro:", pdfErr.message);
   }
 
-  // 4. Enviar alertas en segundo plano a los grupos de Telegram (Bot de viajes & Bot Supervisor)
+  // 4. Enviar alertas en segundo plano a los grupos de Telegram y vía Web Push a supervisores
   (async () => {
     try {
       await Promise.allSettled([
         sendSiniestroGroupAlert({ siniestro: fullSiniestroData, pdfBuffer }),
-        sendSiniestroSupervisorAlert({ siniestro: fullSiniestroData, pdfBuffer })
+        sendSiniestroSupervisorAlert({ siniestro: fullSiniestroData, pdfBuffer }),
+        notifySiniestroAlert({
+          driverName: driverInfo.nombre,
+          tipoSiniestro,
+          folio
+        })
       ]);
     } catch (err) {
-      console.warn("Fallo al enviar alertas de siniestro a Telegram:", err.message);
+      console.warn("Fallo al enviar alertas de siniestro a Telegram o Web Push:", err.message);
     }
   })();
 

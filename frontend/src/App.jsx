@@ -66,6 +66,7 @@ import {
 } from "./services/background-audio.js";
 import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
+import { getPushNotificationPermission, subscribeToWebPush } from "./services/push-notifications.js";
 import { getOfflineTrip, getOfflinePermits, getPendingOfflineTrips, hasUnfinishedOfflineTrip, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
 import { createOfflineDraft, startOfflineTrip, finishOfflineTrip, discardOfflineDraft, refreshOfflinePermits, syncOfflineTrip } from "./services/offline-trips.js";
 
@@ -385,6 +386,14 @@ const [cancelledTrip, setCancelledTrip] =
       conductor: normalized
     });
     setShowPinLogin(false);
+
+    if (getPushNotificationPermission() === "granted" && normalized?.id_conductores) {
+      void subscribeToWebPush({
+        userType: "conductor",
+        userId: normalized.id_conductores,
+        userName: normalized.nombre
+      }).catch(() => {});
+    }
   }
 
   async function handleLogout() {

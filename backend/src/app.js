@@ -45,6 +45,7 @@ import driverAuthRoutes from "./routes/driver-auth.routes.js";
 import siniestrosRoutes from "./routes/siniestros.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import adminAuditRoutes from "./routes/admin-audit.routes.js";
+import pushNotificationsRoutes from "./routes/push-notifications.routes.js";
 import { auditRequest } from "./middlewares/audit-log.middleware.js";
 
 
@@ -182,6 +183,7 @@ app.use("/api/admin/analitica-combustible", adminAnaliticaCombustibleRoutes);
 app.use("/api/admin/auditoria", adminAuditRoutes);
 app.use("/api/manejo-comentado", manejoComentadoRoutes);
 app.use("/api/gerenciamiento-viajes", gerenciamientoViajesRoutes);
+app.use("/api/push", pushNotificationsRoutes);
 app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
 
 app.use((request, response) => {

@@ -9,6 +9,8 @@ admin-cookies.txt
 *cookies.txt
 *.pem
 *.key
+*.vapid-keys.json
+.vapid-keys.json
 
 # Dumps de base de datos y respaldos
 *.dump
