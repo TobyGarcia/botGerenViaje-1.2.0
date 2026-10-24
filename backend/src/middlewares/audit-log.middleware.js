@@ -1,19 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { classifyAuditEvent, sanitizeAuditDetails, writeAuditLog } from "../services/audit-log.service.js";
+import { classifyAuditEvent } from "../services/audit-log.service.js";
+import { auditContext, auditWriter, validRequestId } from "../services/operation-log.service.js";
 
 export function auditRequest(request, response, next) {
   const started = process.hrtime.bigint();
-  const requestId = request.get("X-Request-Id") || randomUUID();
+  const suppliedId = request.get("X-Request-Id");
+  const requestId = validRequestId(suppliedId) ? suppliedId : randomUUID();
   request.auditRequestId = requestId;
   response.setHeader("X-Request-Id", requestId);
-  response.once("finish", () => {
-    if (request.originalUrl.startsWith("/health")) return;
+  let logged = false;
+  const onComplete = () => {
+    if (logged) return;
+    logged = true;
+    if (request.originalUrl.startsWith("/health") || request.originalUrl.startsWith("/api/diagnosticos")) return;
     const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1e6));
     const admin = request.adminUser;
     const driver = request.driverUser;
-    const status = response.statusCode;
+    const status = response.writableFinished ? response.statusCode : 499;
     const entry = {
       requestId,
+      eventId: randomUUID(),
+      step: "http", result: status >= 400 ? "ERROR_HTTP" : "RESPUESTA",
+      version: process.env.APP_VERSION || "local",
+      tripId: Number(request.originalUrl.match(/\/viajes\/(\d+)/)?.[1]) || null,
       level: status >= 500 ? "ERROR" : status >= 400 ? "WARN" : "INFO",
       event: classifyAuditEvent(request.method, request.originalUrl, status),
       method: request.method,
@@ -27,12 +36,16 @@ export function auditRequest(request, response, next) {
       authSource: request.authSource || (admin ? "ADMIN_SESSION" : null),
       ip: request.ip || request.socket?.remoteAddress || null,
       userAgent: String(request.get("user-agent") || "").slice(0, 500) || null,
-      details: request.method === "GET" ? {} : sanitizeAuditDetails(request.body)
+      details: {
+        idViaje: request.body?.idViaje,
+        idConductor: request.body?.idConductor,
+        idVehiculo: request.body?.idVehiculo,
+        cantidad: Array.isArray(request.body?.ubicaciones) ? request.body.ubicaciones.length : undefined
+      }
     };
-    console.log(JSON.stringify({ timestamp: new Date().toISOString(), type: "http_audit", ...entry }));
-    void writeAuditLog(entry).catch(error => console.error(JSON.stringify({
-      timestamp: new Date().toISOString(), type: "audit_write_error", requestId, message: error.message
-    })));
-  });
-  next();
+    auditWriter.write(entry);
+  };
+  response.once("finish", onComplete);
+  response.once("close", onComplete);
+  auditContext.run({ requestId, request }, next);
 }

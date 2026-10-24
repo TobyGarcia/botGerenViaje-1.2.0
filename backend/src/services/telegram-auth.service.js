@@ -1,3 +1,4 @@
+import { traceOperation, recordOperation } from "./operation-log.service.js";
 import bcrypt from "bcryptjs";
 import {
   databasePool
@@ -153,6 +154,7 @@ export async function findOrCreateTelegramUser({
     }
 
     await client.query("COMMIT");
+    recordOperation({ step: "telegram-auth.transaction", result: "COMMIT" });
 
     return {
       telegramUser: row,
@@ -160,13 +162,14 @@ export async function findOrCreateTelegramUser({
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "telegram-auth.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
     client.release();
   }
 }
 
-export async function registerTelegramDriver({
+async function registerTelegramDriverImpl({
   telegramUserId,
   correo,
   nombre,
@@ -223,6 +226,7 @@ export async function registerTelegramDriver({
       const updateResult = await client.query(
         `UPDATE conductores
          SET nombre = $1,
+             telefono = $2,
              correo = COALESCE($3, correo),
              tipo_licencia = $4,
              empresa = $5,
@@ -262,6 +266,7 @@ export async function registerTelegramDriver({
     }
 
     await client.query("COMMIT");
+    recordOperation({ step: "telegram-auth.transaction", result: "COMMIT" });
     return {
       telegramUser: telegramUser ? { ...telegramUser, id_conductores: conductor.id_conductores, estado_registro: "PENDIENTE_APROBACION" } : { estado_registro: "PENDIENTE_APROBACION" },
       conductor,
@@ -270,8 +275,11 @@ export async function registerTelegramDriver({
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "telegram-auth.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
     client.release();
   }
 }
+
+export const registerTelegramDriver = traceOperation("telegram-auth.registerTelegramDriver", registerTelegramDriverImpl);

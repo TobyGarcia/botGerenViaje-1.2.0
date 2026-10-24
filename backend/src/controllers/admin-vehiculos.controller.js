@@ -431,7 +431,7 @@ export async function createAdminVehicleMileageReadingController(request, respon
       idUsuarioAdmin: request.adminUser.id_usuarios_admin, correctionOf
     });
     if (!data) return response.status(404).json({ success: false, message: "No se encontró el vehículo." });
-    return response.status(201).json({ success: true, data, message: "Lectura de kilometraje registrada correctamente." });
+    return response.status(201).json({ success: true, data, message: "Odómetro corregido y registrado en la bitácora." });
   } catch (error) {
     const status = ["MILEAGE_DECREASE", "MILEAGE_RECORD_NOT_FOUND"].includes(error.code) ? 409 : 500;
     return response.status(status).json({ success: false, message: error.message || "No fue posible registrar el kilometraje." });

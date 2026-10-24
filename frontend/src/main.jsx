@@ -1,3 +1,4 @@
+import { diagnostics, installClientDiagnostics } from './services/client-diagnostics.js';
 import { Component, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -8,8 +9,11 @@ import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/I
 import { installAppUpdateRecovery } from './services/app-update.js'
 import { Capacitor } from '@capacitor/core'
 
-if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
-  installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
+if (typeof window !== 'undefined') {
+  installClientDiagnostics(window);
+  if (!Capacitor.isNativePlatform()) {
+    installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
+  }
 }
 
 // Inicializar y expandir Telegram WebApp tan pronto como sea posible
@@ -33,6 +37,7 @@ class RootErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    diagnostics.record("RENDER_ERROR", { code: "REACT_RENDER_FAILED" });
     console.error("[RootErrorBoundary] Error no controlado en aplicación:", error, errorInfo);
     this.setState({ errorInfo });
     // Asegurar que Telegram WebApp retire la cortina incluso en caso de error

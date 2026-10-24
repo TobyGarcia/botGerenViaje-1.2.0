@@ -1,3 +1,5 @@
+import { diagnostics } from "./client-diagnostics.js";
+
 const DATABASE_NAME = "gerenciamiento_viajes_offline";
 const DATABASE_VERSION = 2;
 const STORE_NAME = "ubicaciones_pendientes";
@@ -18,7 +20,7 @@ function openTrackingDatabase() {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => { diagnostics.record("GPS_STORAGE_ERROR", { code: "INDEXEDDB_OPEN_FAILED" }); reject(request.error); };
   });
 }
 
@@ -34,6 +36,9 @@ async function withStore(mode, callback) {
       transaction.onabort = () => reject(transaction.error);
       callback(store, (value) => { result = value; });
     });
+  } catch (error) {
+    diagnostics.record("GPS_STORAGE_ERROR", { code: "INDEXEDDB_TRANSACTION_FAILED" });
+    throw error;
   } finally { database.close(); }
 }
 

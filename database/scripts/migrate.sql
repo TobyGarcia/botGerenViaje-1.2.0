@@ -40,5 +40,5 @@
 \ir ../migrations/035_bitacora_auditoria.sql
 \ir ../migrations/036_diagnostico_origen_gps.sql
 \ir ../migrations/037_recordatorios_viajes.sql
-
-
+\ir ../migrations/038_auditoria_eventos.sql
+\ir ../migrations/039_limitar_auditoria_info.sql

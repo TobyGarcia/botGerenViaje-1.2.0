@@ -1,5 +1,6 @@
 import safeStorage from "../utils/safeStorage.js";
 import { Capacitor } from "@capacitor/core";
+import { diagnostics } from "./client-diagnostics.js";
 
 export const getApiBaseUrl = () => {
   const envUrl = String(import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
@@ -22,6 +23,8 @@ const API_BASE_URL = getApiBaseUrl();
 
 
 async function request(path, options = {}) {
+  const requestId = globalThis.crypto?.randomUUID?.();
+  const isDiagnostics = path.startsWith("/api/diagnosticos");
   const telegramInitData = window.Telegram?.WebApp?.initData || "";
   const driverToken = safeStorage.getItem("driver_token") || "";
   const supervisorToken = safeStorage.getItem("supervisor_token") || safeStorage.getItem("admin_token") || "";
@@ -42,9 +45,12 @@ async function request(path, options = {}) {
     const response = await fetch(
       `${API_BASE_URL}${path}`,
       {
+        ...options,
+        credentials: "include",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          ...(requestId ? { "X-Request-Id": requestId } : {}),
           ...(telegramInitData
             ? { "X-Telegram-Init-Data": telegramInitData }
             : {}),
@@ -52,8 +58,7 @@ async function request(path, options = {}) {
             ? { "Authorization": `Bearer ${authToken}` }
             : {}),
           ...options.headers
-        },
-        ...options
+        }
       }
     );
 
@@ -75,6 +80,10 @@ async function request(path, options = {}) {
 
     return data;
   } catch (err) {
+    if (!isDiagnostics) diagnostics.record("API_ERROR", {
+      requestId, path: path.split("?")[0], status: err.status || 500,
+      code: err.name === "AbortError" ? "NETWORK_TIMEOUT" : err instanceof TypeError ? "NETWORK_ERROR" : "HTTP_ERROR"
+    });
     if (err.name === 'AbortError') {
       const timeoutError = new Error("Tiempo de espera agotado al conectar con el servidor.");
       timeoutError.code = "NETWORK_TIMEOUT";
@@ -383,3 +392,10 @@ export function createAdminDestino(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+diagnostics.setSender(events => {
+  const supervisor = window.location.pathname.startsWith("/supervisor");
+  return request("/api/diagnosticos/" + (supervisor ? "admin" : "driver"), {
+    method: "POST", body: JSON.stringify({ events }), timeout: 8000
+  });
+});

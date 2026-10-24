@@ -1,0 +1,25 @@
+# Monitor independiente. Sin depends_on: debe seguir vivo si backend/BD caen.
+# En otro host, usar URLs HTTPS públicas en .env.monitor y omitir la red interna.
+services:
+  audit-monitor:
+    build:
+      context: ./backend
+    command: ["node", "src/scripts/monitor-services.js"]
+    restart: unless-stopped
+    init: true
+    env_file: .env.monitor
+    volumes:
+      - audit_monitor_state:/state
+    networks:
+      - monitored_network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  audit_monitor_state:
+networks:
+  monitored_network:
+    external: true
+    name: ${MONITOR_DOCKER_NETWORK:-viajes_network_prod}

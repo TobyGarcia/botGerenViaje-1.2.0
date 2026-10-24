@@ -1,6 +1,7 @@
+import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 
-export async function saveTripLocation({
+async function saveTripLocationImpl({
   idViaje,
   latitude,
   longitude,
@@ -99,6 +100,7 @@ export async function saveTripLocation({
     );
 
     await client.query("COMMIT");
+    recordOperation({ step: "ubicaciones.transaction", result: "COMMIT" });
 
     return {
       ...locationResult.rows[0],
@@ -106,13 +108,14 @@ export async function saveTripLocation({
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "ubicaciones.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
     client.release();
   }
 }
 
-export async function saveIntermediatePoint({
+async function saveIntermediatePointImpl({
   idViaje,
   idConductor,
   latitude,
@@ -154,7 +157,7 @@ export async function saveIntermediatePoint({
   });
 }
 
-export async function saveTripLocationBatch({
+async function saveTripLocationBatchImpl({
   idViaje,
   idConductor,
   locations
@@ -258,6 +261,7 @@ export async function saveTripLocationBatch({
     }
 
     await client.query("COMMIT");
+    recordOperation({ step: "ubicaciones.transaction", result: "COMMIT" });
 
     return {
       inserted,
@@ -265,8 +269,15 @@ export async function saveTripLocationBatch({
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "ubicaciones.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
     client.release();
   }
 }
+
+export const saveTripLocation = traceOperation("ubicaciones.saveTripLocation", saveTripLocationImpl);
+
+export const saveTripLocationBatch = traceOperation("ubicaciones.saveTripLocationBatch", saveTripLocationBatchImpl);
+
+export const saveIntermediatePoint = traceOperation("ubicaciones.saveIntermediatePoint", saveIntermediatePointImpl);

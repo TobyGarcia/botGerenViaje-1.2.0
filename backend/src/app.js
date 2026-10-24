@@ -46,10 +46,13 @@ import siniestrosRoutes from "./routes/siniestros.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import adminAuditRoutes from "./routes/admin-audit.routes.js";
 import { auditRequest } from "./middlewares/audit-log.middleware.js";
+import clientDiagnosticsRoutes from "./routes/client-diagnostics.routes.js";
+import { recordOperation } from "./services/operation-log.service.js";
 
 
 
 const app = express();
+app.use(auditRequest);
 
 
 app.disable("x-powered-by");
@@ -105,7 +108,6 @@ app.use(cookieParser());
 app.use(express.urlencoded({
   extended: true
 }));
-app.use(auditRequest);
 
 app.get("/", (request, response) => {
   return response.status(200).json({
@@ -180,6 +182,7 @@ app.use (
 app.use("/api/admin/inspecciones", adminInspeccionesRoutes);
 app.use("/api/admin/analitica-combustible", adminAnaliticaCombustibleRoutes);
 app.use("/api/admin/auditoria", adminAuditRoutes);
+app.use("/api/diagnosticos", clientDiagnosticsRoutes);
 app.use("/api/manejo-comentado", manejoComentadoRoutes);
 app.use("/api/gerenciamiento-viajes", gerenciamientoViajesRoutes);
 app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
@@ -193,10 +196,7 @@ app.use((request, response) => {
 
 app.use(
   (error, request, response, next) => {
-    console.error(
-      "Error no controlado:",
-      error
-    );
+    recordOperation({ step: "express", result: "ERROR", level: "ERROR", error });
 
     return response.status(500).json({
       success: false,

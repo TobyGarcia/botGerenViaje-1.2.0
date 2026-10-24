@@ -1,8 +1,9 @@
+import { traceOperation } from "./operation-log.service.js";
 import bcrypt from "bcryptjs";
 import { databasePool } from "../database/pool.js";
 import { createDriverSessionToken } from "../utils/driver-session.js";
 
-export async function authenticateDriverWithPin({ idConductor, pin }) {
+async function authenticateDriverWithPinImpl({ idConductor, pin }) {
   if (!pin) {
     return { authenticated: false, reason: "MISSING_FIELDS" };
   }
@@ -182,7 +183,7 @@ export async function generateUniqueDriverPin(excludeConductorId = null, dbClien
   throw new Error("No fue posible generar un PIN único. Por favor ingresa uno manualmente.");
 }
 
-export async function setDriverPin({ idConductor, pin, client = null }) {
+async function setDriverPinImpl({ idConductor, pin, client = null }) {
   const cleanPin = String(pin).trim();
   if (!/^\d{4}$/.test(cleanPin)) {
     throw new Error("El PIN debe ser un código numérico de 4 dígitos.");
@@ -355,3 +356,7 @@ export async function updateDriverSelfProfile(idConductor, {
   const result = await databasePool.query(query, params);
   return result.rows[0] ?? null;
 }
+
+export const authenticateDriverWithPin = traceOperation("driver-auth.authenticateDriverWithPin", authenticateDriverWithPinImpl);
+
+export const setDriverPin = traceOperation("driver-auth.setDriverPin", setDriverPinImpl);

@@ -1,3 +1,4 @@
+import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { createHash } from "node:crypto";
 import { databasePool } from "../database/pool.js";
 import { cancelExpiredPendingTrips, createTrip, startTrip, finishTrip } from "./viajes.service.js";
@@ -8,6 +9,13 @@ import { normalizeInitialTripLocation } from "./initial-trip-location.service.js
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const goodStatus = value => ["VIGENTE", "PROXIMO_A_VENCER"].includes(value);
 const allowedInspection = value => ["APROBADA", "PENDIENTE_APROBACION"].includes(value);
+
+export function getOfflineAlertActions({ startedNow = false, finishedNow = false } = {}) {
+  return [
+    ...(startedNow ? ["iniciado"] : []),
+    ...(finishedNow ? ["finalizado"] : [])
+  ];
+}
 
 async function checkDriving(client, driverId, at) {
   const { rows } = await client.query(`SELECT c.fecha_manejo_comentado, e.fecha_evaluacion,
@@ -81,9 +89,11 @@ export function validateOfflineRequest(body, driverId, now = new Date()) {
   return { claims, trip, hash, initialLocation };
 }
 
-export async function syncOfflineTrip(body, driverId) {
+async function syncOfflineTripImpl(body, driverId) {
   const { claims, trip, hash, initialLocation } = validateOfflineRequest(body, driverId);
   const client = await databasePool.connect();
+  let startedNow = false;
+  let finishedNow = false;
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL TIME ZONE 'America/Mexico_City'");
@@ -132,6 +142,7 @@ export async function syncOfflineTrip(body, driverId) {
       if (conflict.rowCount) throw new Error("Hay otro viaje que entra en conflicto. El viaje local se conserva para revisión.");
       const created = await createTrip(trip, { client, recordedAt: body.startedAt });
       await startTrip({ idViaje: created.id_viajes, initialLocation }, { client, recordedAt: body.startedAt });
+      startedNow = true;
       row = (await client.query(`INSERT INTO viajes_offline
         (client_id,id_conductores,id_viajes,id_inspeccion,request_hash,inicio_dispositivo)
         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
@@ -144,13 +155,31 @@ export async function syncOfflineTrip(body, driverId) {
       if (!row.fin_dispositivo) {
         await finishTrip({ idViaje: row.id_viajes, kilometrajeFinal: body.kilometrajeFinal }, { client, recordedAt: body.finishedAt });
         await client.query("UPDATE viajes_offline SET fin_dispositivo=$2,kilometraje_final=$3 WHERE client_id=$1", [body.clientId, body.finishedAt, body.kilometrajeFinal]);
+        finishedNow = true;
       }
     }
     const result = (await client.query(`SELECT v.id_viajes AS "idViaje",v.folio,e.nombre AS estado,
       v.hora_salida AS "horaSalida",v.hora_llegada AS "horaLlegada",v.kilometraje_inicial AS "kilometrajeInicial",
-      v.kilometraje_final AS "kilometrajeFinal" FROM viajes v JOIN estados_viaje e USING(id_estado_viaje) WHERE id_viajes=$1`, [row.id_viajes])).rows[0];
+      v.kilometraje_final AS "kilometrajeFinal",v.acompanantes,v.motivo,
+      v.licencia_vigente AS "licenciaVigente",c.nombre AS conductor,
+      vh.nombre AS vehiculo,vh.numero_economico AS "numeroEconomico",
+      origen.nombre AS origen,destino.nombre AS destino
+      FROM viajes v
+      JOIN estados_viaje e USING(id_estado_viaje)
+      JOIN conductores c USING(id_conductores)
+      JOIN vehiculos vh USING(id_vehiculos)
+      JOIN lugares origen ON origen.id_lugares=v.id_origen
+      JOIN lugares destino ON destino.id_lugares=v.id_destino
+      WHERE id_viajes=$1`, [row.id_viajes])).rows[0];
     await client.query("COMMIT");
+    recordOperation({ step: "offline-viajes.transaction", result: "COMMIT" });
+    Object.defineProperty(result, "offlineAlertActions", {
+      value: getOfflineAlertActions({ startedNow, finishedNow }),
+      enumerable: false
+    });
     return result;
-  } catch (error) { await client.query("ROLLBACK"); throw error; }
+  } catch (error) { await client.query("ROLLBACK"); recordOperation({ step: "offline-viajes.transaction", result: "ROLLBACK", level: "WARN" }); throw error; }
   finally { client.release(); }
 }
+
+export const syncOfflineTrip = traceOperation("offline-viajes.syncOfflineTrip", syncOfflineTripImpl);

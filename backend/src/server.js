@@ -33,6 +33,7 @@ import {
 import { purgeExpiredAuditLogs } from "./services/audit-log.service.js";
 import { cancelExpiredPendingTrips } from "./services/viajes.service.js";
 import { processActiveTripReminders } from "./services/trip-reminders.service.js";
+import { startTelegramAudit, stopTelegramAudit } from "./services/telegram-audit.service.js";
 
 const port = Number(
   process.env.PORT ||
@@ -346,6 +347,7 @@ function startServer() {
 
 async function shutdown(signal) {
   shuttingDown = true;
+  stopTelegramAudit();
 
   console.log(
     `Señal ${signal} recibida. Cerrando servidor.`
@@ -377,6 +379,7 @@ process.once("SIGINT", () => {
   shutdown("SIGINT");
 });
 
+startTelegramAudit();
 startServer();
 
 const auditCleanupTimer = setInterval(() => {

@@ -5,7 +5,9 @@ import { getApprovalForStart, saveInspection } from "../services/inspecciones.se
 
 async function withMockedQuery(mock, action) {
   const original = databasePool.query;
-  databasePool.query = mock;
+  databasePool.query = (sql, ...args) => /bitacora_auditoria/.test(sql)
+    ? original.call(databasePool, sql, ...args)
+    : mock(sql, ...args);
   try {
     return await action();
   } finally {

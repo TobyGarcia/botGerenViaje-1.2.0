@@ -18,6 +18,7 @@ import {
   IconCerrarSesion
 } from "../components/Icons.jsx";
 
+const AuditoriaPage = lazy(() => import("./AuditoriaPage.jsx"));
 const ConductoresPage = lazy(() => import("./ConductoresPage.jsx"));
 const VehiculosPage = lazy(() => import("./VehiculosPage.jsx"));
 const DestinosPage = lazy(() => import("./DestinosPage.jsx"));
@@ -795,26 +796,6 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
   );
 }
 
-function ModulePlaceholder({ title }) {
-  return (
-    <section className="module-page">
-      <header className="module-header">
-        <div>
-          <span className="module-label">
-            Administración
-          </span>
-
-          <h1>{title}</h1>
-
-          <p>
-            Este módulo estará disponible próximamente.
-          </p>
-        </div>
-      </header>
-    </section>
-  );
-}
-
 const ROLES_SUPERVISOR_Y_SUPERIOR = ["ADMINISTRADOR", "GERENTE", "GERENTE_GENERAL", "COORDINADOR", "COORDINADOR_AREA", "COORDINADOR_QHSE", "SUPERVISOR", "QHSE", "INSTRUCTOR"];
 const ROLES_TODOS = [...ROLES_SUPERVISOR_Y_SUPERIOR, "OPERADOR", "CONSULTA"];
 
@@ -823,7 +804,8 @@ function getInitialAdminModule(userRol) {
   const validModulesSupervisor = [
     "inicio", "inspecciones", "gerenciamiento", "perfil",
     "monitoreo-activo", "analitica-combustible", "manejo-comentado",
-    "conductores", "unidades", "destinos", "ubicaciones", "viajes"
+    "conductores", "unidades", "destinos", "ubicaciones", "viajes",
+    ...(userRol === "ADMINISTRADOR" ? ["auditoria"] : [])
   ];
   const validModulesOperador = [
     "inicio", "perfil", "monitoreo-activo", "ubicaciones", "viajes"
@@ -884,7 +866,7 @@ function DashboardPage({ user, onLogout }) {
       const target = rawHash || "inicio";
       const canSupervisor = ROLES_SUPERVISOR_Y_SUPERIOR.includes(user?.rol);
       const allowed = canSupervisor
-        ? ["inicio", "inspecciones", "gerenciamiento", "perfil", "monitoreo-activo", "analitica-combustible", "manejo-comentado", "conductores", "unidades", "destinos", "ubicaciones", "viajes"]
+        ? ["inicio", "inspecciones", "gerenciamiento", "perfil", "monitoreo-activo", "analitica-combustible", "manejo-comentado", "conductores", "unidades", "destinos", "ubicaciones", "viajes", ...(user?.rol === "ADMINISTRADOR" ? ["auditoria"] : [])]
         : ["inicio", "perfil", "monitoreo-activo", "ubicaciones", "viajes"];
 
       if (allowed.includes(target)) {
@@ -942,10 +924,10 @@ function DashboardPage({ user, onLogout }) {
     };
   }, [user.rol]);
 
-  const rolesSupervisorYSuperior = ROLES_SUPERVISOR_Y_SUPERIOR;
   const rolesTodos = ROLES_TODOS;
 
   const modules = [
+    { id: "auditoria", label: "Auditoría y errores", icon: IconConfiguracion, roles: ["ADMINISTRADOR"] },
     { id: "monitoreo-activo", label: "Monitoreo en Vivo", icon: IconRadar, roles: rolesTodos },
     { id: "analitica-combustible", label: "Analítica Combustible", icon: IconCombustible, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
     { id: "manejo-comentado", label: "Manejo Comentado", icon: IconManejoComentado, roles: ROLES_SUPERVISOR_Y_SUPERIOR },
@@ -1109,6 +1091,7 @@ function DashboardPage({ user, onLogout }) {
         )}
 
         <Suspense fallback={<p className="table-status">Cargando módulo…</p>}>
+          {activeModule === "auditoria" && user.rol === "ADMINISTRADOR" && <AuditoriaPage />}
           {activeModule === "monitoreo-activo" && <MonitoreoActivoPage />}
           {activeModule === "analitica-combustible" && <AnaliticaCombustiblePage />}
           {activeModule === "manejo-comentado" && <ManejoComentadoPage user={user} />}
@@ -1122,24 +1105,7 @@ function DashboardPage({ user, onLogout }) {
           {activeModule === "perfil" && <PerfilPage user={user} onUpdated={() => window.location.reload()} />}
         </Suspense>
 
-        {modules
-          .filter(
-            (module) =>
-              module.id !== "monitoreo-activo" &&
-              module.id !== "analitica-combustible" &&
-              module.id !== "manejo-comentado" &&
-              module.id !== "conductores" &&
-              module.id !== "unidades" &&
-              module.id !== "destinos" &&
-              module.id !== "ubicaciones" &&
-              module.id !== "viajes" &&
-              module.id !== "gerenciamiento"
-          )
-          .map((module) =>
-            activeModule === module.id ? (
-              <ModulePlaceholder key={module.id} title={module.label} />
-            ) : null
-          )}
+
 
       </main>
     </div>

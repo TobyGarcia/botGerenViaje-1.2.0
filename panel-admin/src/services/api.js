@@ -669,3 +669,9 @@ export function assignUserPin(idUsuario, pin) {
 }
 
 
+
+export function getAuditLogs(filters = {}) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([,v]) => v !== "" && v != null));
+  return request("/admin/auditoria?" + query);
+}
+export function getAuditIssues() { return request("/admin/auditoria/issues"); }

@@ -1,4 +1,5 @@
 import { databasePool } from "../database/pool.js";
+import { randomUUID } from "node:crypto";
 
 const SENSITIVE_KEY = /(password|contrasena|contraseña|token|secret|authorization|cookie|pin|firma|imagen|foto|documento|pdf|licencia_url|initdata)/i;
 const LOCATION_KEY = /^(latitud|longitud|latitude|longitude|direccion|precision|velocidad)$/i;
@@ -34,18 +35,35 @@ export function classifyAuditEvent(method, path, status) {
 }
 
 export async function writeAuditLog(entry) {
-  await databasePool.query(`INSERT INTO bitacora_auditoria
+  // Production stores only failures. Full traces are enabled explicitly by isolated tests.
+  if (entry.level !== "ERROR" && process.env.AUDIT_PERSIST_ALL_LEVELS !== "true") return false;
+  const result = await databasePool.query(`INSERT INTO bitacora_auditoria
     (request_id,nivel,evento,metodo,ruta,status_http,duracion_ms,actor_tipo,actor_id,
-     actor_nombre,actor_email,origen_autenticacion,ip,user_agent,detalles)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb)
-    ON CONFLICT (request_id) DO NOTHING`, [
+     actor_nombre,actor_email,origen_autenticacion,ip,user_agent,detalles,
+     event_id,paso,resultado,version_app,id_viaje,codigo_error)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17,$18,$19,$20,$21)
+    ON CONFLICT (event_id) DO NOTHING`, [
     entry.requestId, entry.level, entry.event, entry.method, entry.path, entry.status,
     entry.durationMs, entry.actorType, entry.actorId, entry.actorName, entry.actorEmail,
-    entry.authSource, entry.ip, entry.userAgent, JSON.stringify(entry.details || {})
+    entry.authSource, entry.ip, entry.userAgent, JSON.stringify(sanitizeAuditDetails(entry.details || {})),
+    entry.eventId || randomUUID(), entry.step, entry.result, entry.version, entry.tripId, entry.errorCode
   ]);
+  if (result.rowCount > 0 && entry.level === "ERROR") await pruneAuditErrors(100);
+  return result.rowCount > 0;
 }
 
-export async function listAuditLogs({ page = 1, limit = 50, event, actorType, actorId, status, from, to }) {
+export async function pruneAuditErrors(limit = 100) {
+  const keep = Math.min(Math.max(Number(limit) || 100, 1), 1000);
+  return databasePool.query(`DELETE FROM bitacora_auditoria
+    WHERE nivel='ERROR' AND id_bitacora < COALESCE((
+      SELECT MIN(id_bitacora) FROM (
+        SELECT id_bitacora FROM bitacora_auditoria
+        WHERE nivel='ERROR' ORDER BY id_bitacora DESC LIMIT $1
+      ) recientes
+    ), 0)`, [keep]);
+}
+
+export async function listAuditLogs({ page = 1, limit = 50, event, actorType, actorId, status, from, to, requestId, level, tripId, folio }) {
   const where = [];
   const params = [];
   const add = (sql, value) => { params.push(value); where.push(sql.replace("?", `$${params.length}`)); };
@@ -55,17 +73,31 @@ export async function listAuditLogs({ page = 1, limit = 50, event, actorType, ac
   if (status) add("status_http=?", status);
   if (from) add("fecha>=?", from);
   if (to) add("fecha<=?", to);
+  if (requestId) add("request_id=?", requestId);
+  if (level) add("nivel=?", level);
+  if (tripId) add("id_viaje=?", tripId);
+  if (folio) add("id_viaje IN (SELECT id_viajes FROM viajes WHERE folio=?)", folio);
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
   const safePage = Math.max(Number(page) || 1, 1);
   const total = await databasePool.query(`SELECT COUNT(*)::int total FROM bitacora_auditoria ${clause}`, params);
   params.push(safeLimit, (safePage - 1) * safeLimit);
   const rows = await databasePool.query(`SELECT * FROM bitacora_auditoria ${clause}
-    ORDER BY fecha DESC LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+    ORDER BY fecha DESC, id_bitacora DESC LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
   return { rows: rows.rows, total: total.rows[0].total, page: safePage, limit: safeLimit };
 }
 
 export async function purgeExpiredAuditLogs(retentionDays = 180) {
   const days = Math.min(Math.max(Number(retentionDays) || 180, 30), 3650);
   return databasePool.query("DELETE FROM bitacora_auditoria WHERE fecha < CURRENT_TIMESTAMP - ($1 * INTERVAL '1 day')", [days]);
+}
+
+export async function listAuditIssues() {
+  const result = await databasePool.query(`SELECT paso, codigo_error, evento,
+    COUNT(*)::int cantidad, MAX(fecha) ultima_vez,
+    (array_agg(request_id ORDER BY fecha DESC))[1] request_id
+    FROM bitacora_auditoria WHERE nivel='ERROR'
+      AND fecha >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+    GROUP BY paso,codigo_error,evento ORDER BY ultima_vez DESC LIMIT 30`);
+  return result.rows;
 }

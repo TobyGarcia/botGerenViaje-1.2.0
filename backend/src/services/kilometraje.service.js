@@ -15,7 +15,8 @@ export async function registerMileageReading({
   idUsuarioAdmin = null,
   idRegistroCorregido = null,
   fechaLectura = null,
-  allowLower = false
+  allowLower = false,
+  replaceCurrent = false
 }) {
   const latestResult = await client.query(
     `SELECT kilometraje
@@ -49,10 +50,13 @@ export async function registerMileageReading({
 
   await client.query(
     `UPDATE vehiculos
-        SET kilometraje_actual = GREATEST(kilometraje_actual, $1),
+        SET kilometraje_actual = CASE
+              WHEN $3::boolean THEN $1
+              ELSE GREATEST(kilometraje_actual, $1)
+            END,
             actualizado_en = CURRENT_TIMESTAMP
       WHERE id_vehiculos = $2`,
-    [kilometraje, idVehiculo]
+    [kilometraje, idVehiculo, replaceCurrent]
   );
 
   return result.rows[0];

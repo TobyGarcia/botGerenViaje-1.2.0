@@ -31,8 +31,8 @@ test("persiste y consulta una entrada ficticia de auditoría", async (t) => {
   const requestId = randomUUID();
   t.after(() => databasePool.query("DELETE FROM bitacora_auditoria WHERE request_id=$1", [requestId]));
   await writeAuditLog({
-    requestId, level: "INFO", event: "CAMBIO_VIAJE", method: "POST",
-    path: "/api/viajes", status: 201, durationMs: 12, actorType: "CONDUCTOR",
+    requestId, level: "ERROR", event: "CAMBIO_VIAJE", method: "POST",
+    path: "/api/viajes", status: 500, durationMs: 12, actorType: "CONDUCTOR",
     actorId: 999999, actorName: "USUARIO FICTICIO", actorEmail: null,
     authSource: "PRUEBA", ip: "127.0.0.1", userAgent: "node-test",
     details: { idVehiculo: 123 }
@@ -41,4 +41,21 @@ test("persiste y consulta una entrada ficticia de auditoría", async (t) => {
   const row = result.rows.find(item => item.request_id === requestId);
   assert.equal(row.evento, "CAMBIO_VIAJE");
   assert.equal(row.detalles.idVehiculo, 123);
+  assert.equal(row.actor_nombre, "USUARIO FICTICIO");
+});
+
+test("no persiste INFO o WARN y conserva sólo los 100 ERROR más recientes", async (t) => {
+  const actorId = 999998;
+  t.after(() => databasePool.query("DELETE FROM bitacora_auditoria WHERE actor_id=$1", [actorId]));
+  for (const level of ["INFO", "WARN"]) await writeAuditLog({ requestId: randomUUID(), eventId: randomUUID(),
+    level, event: "PRUEBA", method: "GET", path: "/prueba-retencion", status: level === "INFO" ? 200 : 409,
+    durationMs: 1, actorType: "CONDUCTOR", actorId, actorName: "PRUEBA RETENCION", details: {} });
+  for (let index = 0; index < 105; index++) await writeAuditLog({ requestId: randomUUID(), eventId: randomUUID(),
+    level: "ERROR", event: "PRUEBA", method: "GET", path: "/prueba-retencion", status: 500,
+    durationMs: 1, actorType: "CONDUCTOR", actorId, actorName: "PRUEBA RETENCION", details: { index } });
+  const counts = await databasePool.query("SELECT nivel,COUNT(*)::int cantidad FROM bitacora_auditoria GROUP BY nivel");
+  const byLevel = Object.fromEntries(counts.rows.map(row => [row.nivel, row.cantidad]));
+  assert.equal(byLevel.INFO || 0, 0);
+  assert.equal(byLevel.WARN || 0, 0);
+  assert.equal(byLevel.ERROR, 100);
 });

@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 import bcrypt from "bcryptjs";
 import {
   databasePool
@@ -154,7 +155,7 @@ export async function listAdminDrivers({
   });
 }
 
-export async function approveAdminDriver({ idConductor, aprobado }) {
+async function approveAdminDriverImpl({ idConductor, aprobado }) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
@@ -204,7 +205,7 @@ export async function approveAdminDriver({ idConductor, aprobado }) {
 }
 
 
-export async function createAdminDriver({
+async function createAdminDriverImpl({
   nombre,
   telefono,
   licenciaNumero,
@@ -541,7 +542,7 @@ export async function updateAdminDriverStatus({
   }
 }
 
-export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
+async function assignVehicleToDriverImpl({ idConductor, idVehiculo }) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
@@ -618,7 +619,7 @@ export async function assignVehicleToDriver({ idConductor, idVehiculo }) {
   }
 }
 
-export async function toggleAdminDriverActive({ idConductor, activo }) {
+async function toggleAdminDriverActiveImpl({ idConductor, activo }) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
@@ -789,7 +790,7 @@ export async function getAdminConductorRole({ idConductor }) {
   };
 }
 
-export async function assignAdminConductorRole({
+async function assignAdminConductorRoleImpl({
   idConductor,
   modo = "NUEVO",
   data = {},
@@ -1112,3 +1113,13 @@ export async function assignAdminConductorRole({
   }
 }
 
+
+export const approveAdminDriver = traceOperation("admin-conductores.approveAdminDriver", approveAdminDriverImpl);
+
+export const createAdminDriver = traceOperation("admin-conductores.createAdminDriver", createAdminDriverImpl);
+
+export const assignVehicleToDriver = traceOperation("admin-conductores.assignVehicleToDriver", assignVehicleToDriverImpl);
+
+export const toggleAdminDriverActive = traceOperation("admin-conductores.toggleAdminDriverActive", toggleAdminDriverActiveImpl);
+
+export const assignAdminConductorRole = traceOperation("admin-conductores.assignAdminConductorRole", assignAdminConductorRoleImpl);

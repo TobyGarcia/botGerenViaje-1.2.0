@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 import { getAzureAccessToken } from "./azure-auth.service.js";
 
 const DEFAULT_SHAREPOINT_URL =
@@ -156,7 +157,7 @@ async function resolveSharePointSiteId(siteIdentifier, accessToken) {
  * Sube un archivo PDF a cualquier carpeta base de SharePoint mediante Microsoft Graph API,
  * organizándolo en subcarpetas por Año / Mes / Semana.
  */
-export async function uploadPdfToSharePoint({ filename, pdfBuffer, folio, date, baseFolder = "Inspecciones" }) {
+async function uploadPdfToSharePointImpl({ filename, pdfBuffer, folio, date, baseFolder = "Inspecciones" }) {
   const tenantId = process.env.AZURE_TENANT_ID;
   const clientId = process.env.AZURE_CLIENT_ID_S || process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET_S || process.env.AZURE_CLIENT_SECRET;
@@ -367,3 +368,5 @@ export async function uploadDriverLicenseToSharePoint({ driverName, fileBuffer, 
   }
 }
 
+
+export const uploadPdfToSharePoint = traceOperation("sharepoint.uploadPdfToSharePoint", uploadPdfToSharePointImpl);

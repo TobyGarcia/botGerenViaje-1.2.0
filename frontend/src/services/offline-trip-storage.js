@@ -1,3 +1,5 @@
+import { diagnostics } from "./client-diagnostics.js";
+
 const PREFIX = "gv_offline_trip_v1:";
 const PERMITS = "gv_offline_permits_v1:";
 
@@ -7,6 +9,7 @@ export function durableWrite(key, value) {
     window.localStorage.setItem(key, text);
     if (window.localStorage.getItem(key) !== text) throw new Error("write failed");
   } catch {
+    diagnostics.record("OFFLINE_STORAGE_ERROR", { code: "DURABLE_WRITE_FAILED" });
     throw new Error("No se pudo guardar en el teléfono. Libera espacio y habilita el almacenamiento antes de iniciar sin conexión.");
   }
 }

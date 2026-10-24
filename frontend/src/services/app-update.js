@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-
+import { diagnostics } from "./client-diagnostics.js";
 export function installAppUpdateRecovery({ serviceWorker, windowObject, documentObject,
   version = typeof __APP_VERSION__ === 'undefined' ? null : __APP_VERSION__ }) {
 
@@ -54,7 +54,7 @@ export function installAppUpdateRecovery({ serviceWorker, windowObject, document
         if (registration.installing) return;
       }
       if (pending && (!serviceWorker?.controller || registrations.length === 0)) reloadForNewWorker();
-    } catch { /* Reintentar después; conservar la aplicación y sus datos offline. */ }
+    } catch { diagnostics.record("APP_UPDATE", { code: "VERSION_CHECK_FAILED", status: 409 }); }
     finally { checking = false; }
   };
   const checkWhenVisible = () => {

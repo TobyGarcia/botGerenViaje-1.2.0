@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function nullableNumber(value) {
@@ -36,7 +37,7 @@ export function normalizeInitialTripLocation(value, referenceTime = new Date()) 
     origenCaptura, isBackground, fechaGuardadoLocal };
 }
 
-export async function insertInitialTripLocation(client, idViaje, value, referenceTime = new Date()) {
+async function insertInitialTripLocationImpl(client, idViaje, value, referenceTime = new Date()) {
   const location = normalizeInitialTripLocation(value, referenceTime);
   await client.query(`INSERT INTO ubicaciones_viaje
     (id_viajes,client_location_id,latitud,longitud,precision_metros,velocidad,direccion,fecha_gps,
@@ -48,3 +49,5 @@ export async function insertInitialTripLocation(client, idViaje, value, referenc
     location.isBackground, location.fechaGuardadoLocal]);
   return location;
 }
+
+export const insertInitialTripLocation = traceOperation("initial-trip-location.insertInitialTripLocation", insertInitialTripLocationImpl);

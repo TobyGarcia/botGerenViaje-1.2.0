@@ -1,3 +1,4 @@
+import { recordOperation } from "../services/operation-log.service.js";
 import { Telegraf } from "telegraf";
 
 import {
@@ -20,6 +21,7 @@ async function launchWithRetry(bot, { maxAttempts = 10, baseDelayMs = 3000 } = {
       await bot.launch({ dropPendingUpdates: true });
       return true;
     } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
       const isConflict =
         error?.response?.error_code === 409 ||
         /409/.test(error?.message || "");
@@ -212,6 +214,7 @@ export async function sendTripGroupAlert({
   try {
     await getTelegramBot().telegram.sendMessage(groupId, message);
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta al grupo:", error);
   }
 }
@@ -245,6 +248,7 @@ export async function sendDriverInspectionNotification({
       message.join("\n")
     );
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible notificar la decisión de inspección al conductor:", error);
   }
 }
@@ -257,6 +261,7 @@ export async function sendDriverManejoComentadoAuthorizationNotification({ teleg
   try {
     await getTelegramBot().telegram.sendMessage(String(telegramUserId), message);
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible notificar la autorización de manejo comentado:", error);
   }
 }
@@ -297,6 +302,7 @@ export async function sendDriverRegistrationSupervisorAlert({ conductor, pinGene
   try {
     await getTelegramBot().telegram.sendMessage(supervisorGroupId, message);
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta de registro de conductor al grupo de supervisores:", error);
   }
 }
@@ -311,6 +317,7 @@ export async function sendDriverApprovalNotification({ telegramUserId, approved 
   try {
     await getTelegramBot().telegram.sendMessage(String(telegramUserId), message);
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la notificación de aprobación al conductor:", error);
   }
 }
@@ -357,6 +364,7 @@ export async function sendDriverPinNotification({
       parse_mode: "Markdown"
     });
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar el PIN al conductor por Telegram:", error.message);
   }
 }
@@ -386,6 +394,7 @@ export async function sendDriverDeactivationNotification({ telegramUserId, condu
       parse_mode: "Markdown"
     });
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la notificación de estado al conductor por Telegram:", error.message);
   }
 }
@@ -449,6 +458,7 @@ export async function sendSiniestroGroupAlert({ siniestro, pdfBuffer }) {
       });
     }
   } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("Error al enviar alerta de siniestro al grupo principal por Telegram:", error.message);
   }
 }

@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function validDate(value) {
@@ -6,7 +7,7 @@ function validDate(value) {
   return Number.isFinite(+date) && date.toISOString().slice(0, 10) === value;
 }
 
-export async function ensureVehicleAssignment({ client, idConductor, idVehiculo, operationalDate, temporaryUse = null }) {
+async function ensureVehicleAssignmentImpl({ client, idConductor, idVehiculo, operationalDate, temporaryUse = null }) {
   const vehicle = (await client.query(
     `SELECT id_vehiculos, id_conductor_asignado FROM vehiculos
      WHERE id_vehiculos=$1 AND activo=TRUE AND en_mantenimiento=FALSE FOR UPDATE`,
@@ -97,3 +98,5 @@ export async function ensureVehicleAssignment({ client, idConductor, idVehiculo,
   )).rows[0];
   return { type: "TEMPORAL", idAssignment: assignment.id_asignacion_temporal, start, end };
 }
+
+export const ensureVehicleAssignment = traceOperation("vehicle-assignments.ensureVehicleAssignment", ensureVehicleAssignmentImpl);

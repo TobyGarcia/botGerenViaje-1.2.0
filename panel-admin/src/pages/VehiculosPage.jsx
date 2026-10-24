@@ -1507,6 +1507,10 @@ function formatIsoDate(value) {
                                     ? "Fin de Viaje"
                                     : row.tipo_registro === "MANUAL"
                                     ? "Ajuste Manual"
+                                    : row.tipo_registro === "AJUSTE_MANUAL"
+                                    ? "Ajuste Manual"
+                                    : row.tipo_registro === "CORRECCION"
+                                    ? "Corrección administrativa"
                                     : row.tipo_registro}
                                 </span>
                               </td>
@@ -1539,7 +1543,7 @@ function formatIsoDate(value) {
                   <form className="vehicle-mileage-form-card" onSubmit={saveMileage}>
                     <div className="vehicle-mileage-form-header">
                       <IconReloj size={16} style={{ color: "#0284c7" }} />
-                      <span>Registrar Ajuste Manual de Odómetro</span>
+                      <span>Corregir Odómetro Manualmente</span>
                     </div>
 
                     <div className="vehicle-mileage-form-grid">
@@ -1580,6 +1584,9 @@ function formatIsoDate(value) {
                           required
                           disabled={mileageSaving}
                         />
+                        <small>
+                          Puede ser menor o mayor que la lectura actual. La corrección quedará en la bitácora.
+                        </small>
                       </div>
                     </div>
 
@@ -1591,7 +1598,7 @@ function formatIsoDate(value) {
                         disabled={mileageSaving || !mileageForm.kilometraje}
                       >
                         <IconCheck size={16} />
-                        {mileageSaving ? "Guardando lectura..." : "Registrar Lectura"}
+                        {mileageSaving ? "Guardando corrección..." : "Registrar Corrección"}
                       </button>
                     </div>
                   </form>

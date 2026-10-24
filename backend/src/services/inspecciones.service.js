@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 
 const mexicoNowSql = "(timezone('America/Mexico_City', CURRENT_TIMESTAMP))";
@@ -35,7 +36,7 @@ export async function getInspectionContext({ idViaje, idConductor }) {
   return result.rows[0] ?? null;
 }
 
-export async function saveInspection({ idViaje, idConductor, data }) {
+async function saveInspectionImpl({ idViaje, idConductor, data }) {
   const context = await getInspectionContext({ idViaje, idConductor });
   if (!context) throw new Error("El viaje no pertenece al conductor autenticado.");
   if (context.estado === "APROBADA") throw new Error("La inspección ya fue aprobada y no puede modificarse.");
@@ -77,7 +78,7 @@ export async function saveInspection({ idViaje, idConductor, data }) {
   return result.rows[0];
 }
 
-export async function getApprovalForStart(idViaje, idConductor) {
+async function getApprovalForStartImpl(idViaje, idConductor) {
   const result = await databasePool.query(`
     SELECT i.estado, i.id_inspeccion, i.es_dia_siguiente
     FROM viajes v
@@ -99,7 +100,7 @@ export async function getApprovalForStart(idViaje, idConductor) {
   return result.rows[0] ?? null;
 }
 
-export async function getInspectionRequirement({ idViaje, idConductor }) {
+async function getInspectionRequirementImpl({ idViaje, idConductor }) {
   const context = await getInspectionContext({ idViaje, idConductor });
   if (!context) return null;
   const inspection = await getApprovalForStart(idViaje, idConductor);
@@ -171,7 +172,7 @@ export async function countPendingInspections() {
   return result.rows[0].total;
 }
 
-export async function approveInspection({ idInspeccion, idUsuarioAdmin, approved, comentario, firmaSupervisor = null }) {
+async function approveInspectionImpl({ idInspeccion, idUsuarioAdmin, approved, comentario, firmaSupervisor = null }) {
   const result = await databasePool.query(`
     UPDATE inspecciones_vehiculares
     SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3, firma_supervisor=$4,
@@ -198,3 +199,11 @@ export async function getStoredInspectionPdf(idInspeccion) {
   const result = await databasePool.query("SELECT pdf_nombre, pdf_documento, sharepoint_web_url FROM inspecciones_vehiculares WHERE id_inspeccion=$1", [idInspeccion]);
   return result.rows[0] ?? null;
 }
+
+export const saveInspection = traceOperation("inspecciones.saveInspection", saveInspectionImpl);
+
+export const getApprovalForStart = traceOperation("inspecciones.getApprovalForStart", getApprovalForStartImpl);
+
+export const getInspectionRequirement = traceOperation("inspecciones.getInspectionRequirement", getInspectionRequirementImpl);
+
+export const approveInspection = traceOperation("inspecciones.approveInspection", approveInspectionImpl);

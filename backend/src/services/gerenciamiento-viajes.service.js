@@ -1,3 +1,4 @@
+import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { createTrip } from "./viajes.service.js";
 import { saveInspection } from "./inspecciones.service.js";
@@ -46,7 +47,7 @@ export function calcularAnalisisRiesgo(data) {
   };
 }
 
-export async function createGerenciamientoViaje({ idConductor, data }) {
+async function createGerenciamientoViajeImpl({ idConductor, data }) {
   const riesgo = calcularAnalisisRiesgo(data);
 
   if (riesgo.esBloqueanteHoras) {
@@ -418,7 +419,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
   return result.rows;
 }
 
-export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, estado = 'APROBADO', observaciones = null }) {
+async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, estado = 'APROBADO', observaciones = null }) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
@@ -550,9 +551,11 @@ export async function aprovarGerenciamiento({ idGerenciamiento, idUsuarioAdmin, 
     }
 
     await client.query("COMMIT");
+    recordOperation({ step: "gerenciamiento-viajes.transaction", result: "COMMIT" });
     return record ?? null;
   } catch (err) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "gerenciamiento-viajes.transaction", result: "ROLLBACK", level: "WARN" });
     throw err;
   } finally {
     client.release();
@@ -611,3 +614,7 @@ export async function getStoredGerenciamientoPdf(idGerenciamiento) {
   );
   return result.rows[0] ?? null;
 }
+
+export const createGerenciamientoViaje = traceOperation("gerenciamiento-viajes.createGerenciamientoViaje", createGerenciamientoViajeImpl);
+
+export const aprovarGerenciamiento = traceOperation("gerenciamiento-viajes.aprovarGerenciamiento", aprovarGerenciamientoImpl);

@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation, normalizeLocation } from "./location-provider.js";
+import { diagnostics } from "./client-diagnostics.js";
 import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
@@ -56,7 +57,10 @@ export async function syncPendingLocations(idViaje) {
       }
       const rejected = batch.filter(location => rejectedIds.has(location.clientLocationId));
       const accepted = batch.filter(location => !rejectedIds.has(location.clientLocationId));
-      if (rejected.length) await quarantinePendingLocations(rejected);
+      if (rejected.length) {
+        diagnostics.record("GPS_SYNC", { code: "LOCATIONS_REJECTED", status: 409 });
+        await quarantinePendingLocations(rejected);
+      }
       await removePendingLocations(accepted.map((location) => location.clientLocationId));
     }
     await notifyPending(idViaje, { status: "Sincronizado" });
@@ -107,7 +111,10 @@ export async function captureAndQueueLocation(idViaje, extraData = {}) {
     const pendingLocation = await captureAndStoreLocation(idViaje, extraData);
     await syncPendingLocations(idViaje);
     return pendingLocation;
-  } catch (error) { notify({ status: "Sin señal GPS", error: error.message }); return null; }
+  } catch (error) {
+    diagnostics.record("GPS_ERROR", { code: "CAPTURE_FAILED" });
+    notify({ status: "Sin señal GPS", error: error.message }); return null;
+  }
 }
 
 async function captureAndStoreLocation(idViaje, extraData = {}) {
@@ -148,6 +155,7 @@ export async function captureInitialTripLocation(idViaje) {
   try {
     return await captureAndStoreLocation(idViaje, { esUbicacionInicial: true });
   } catch (error) {
+    diagnostics.record("GPS_ERROR", { code: "INITIAL_CAPTURE_FAILED" });
     notify({ status: "Se requiere GPS para iniciar", error: error.message });
     throw new Error(`No se pudo obtener y guardar la ubicación GPS inicial: ${error.message}`);
   }

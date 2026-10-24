@@ -1,4 +1,5 @@
 import { getOfflinePermits, syncOfflineTrip } from "../services/offline-viajes.service.js";
+import { sendTripGroupAlert } from "../bot/bot.js";
 
 export async function offlinePermitsController(req, res) {
   try {
@@ -12,7 +13,11 @@ export async function offlinePermitsController(req, res) {
 
 export async function offlineSyncController(req, res) {
   try {
-    return res.json({ success: true, data: await syncOfflineTrip(req.body, req.driverUser.id_conductores) });
+    const trip = await syncOfflineTrip(req.body, req.driverUser.id_conductores);
+    for (const action of trip.offlineAlertActions || []) {
+      await sendTripGroupAlert({ action, trip });
+    }
+    return res.json({ success: true, data: trip });
   } catch (error) {
     const infrastructureError = error.code && !["MILEAGE_DECREASE"].includes(error.code);
     return res.status(infrastructureError ? 503 : 409).json({ success: false,

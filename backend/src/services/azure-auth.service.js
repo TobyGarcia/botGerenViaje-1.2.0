@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 
 const tokenCache = new Map();
@@ -81,7 +82,7 @@ export function getAzureOAuthLoginUrl({ redirectUri, state = "admin_login" }) {
 /**
  * Intercambia el código de autorización devuelto por Microsoft por un Access Token del usuario.
  */
-export async function exchangeCodeForUserToken({ code, redirectUri }) {
+async function exchangeCodeForUserTokenImpl({ code, redirectUri }) {
   const tenantId = process.env.AZURE_TENANT_ID || "common";
   const clientId = process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET;
@@ -115,7 +116,7 @@ export async function exchangeCodeForUserToken({ code, redirectUri }) {
 /**
  * Consulta la identidad real y verificada del usuario usando la API de Microsoft Graph (/v1.0/me).
  */
-export async function getVerifiedUserProfileFromMicrosoft(userAccessToken) {
+async function getVerifiedUserProfileFromMicrosoftImpl(userAccessToken) {
   const response = await fetch("https://graph.microsoft.com/v1.0/me", {
     headers: {
       Authorization: `Bearer ${userAccessToken}`
@@ -198,7 +199,7 @@ export async function findUserInWhitelist(email) {
 /**
  * Valida un correo contra el dominio del Tenant y contra la Lista Blanca de la BD.
  */
-export async function validateTenantEmailAndWhitelist(email) {
+async function validateTenantEmailAndWhitelistImpl(email) {
   const domainCheck = validateTenantDomain(email);
   if (!domainCheck.valid) {
     return { authorized: false, reason: domainCheck.reason };
@@ -224,3 +225,9 @@ export async function validateTenantEmailAndWhitelist(email) {
     user: whitelistUser
   };
 }
+
+export const exchangeCodeForUserToken = traceOperation("azure-auth.exchangeCodeForUserToken", exchangeCodeForUserTokenImpl);
+
+export const getVerifiedUserProfileFromMicrosoft = traceOperation("azure-auth.getVerifiedUserProfileFromMicrosoft", getVerifiedUserProfileFromMicrosoftImpl);
+
+export const validateTenantEmailAndWhitelist = traceOperation("azure-auth.validateTenantEmailAndWhitelist", validateTenantEmailAndWhitelistImpl);

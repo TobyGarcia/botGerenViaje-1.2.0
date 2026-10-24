@@ -1,3 +1,4 @@
+import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
@@ -75,7 +76,7 @@ export function isExpiredNeverStartedPendingTrip(trip, operationalDate) {
     String(trip.fecha || "") < String(operationalDate || "");
 }
 
-export async function cancelExpiredPendingTrips({
+async function cancelExpiredPendingTripsImpl({
   client: externalClient = null,
   operationalDate = null,
   idConductor = null,
@@ -119,17 +120,17 @@ export async function cancelExpiredPendingTrips({
       )
       SELECT COUNT(*)::integer AS cancelled FROM logged`,
     [effectiveDate, idConductor, idVehiculo]);
-    if (ownsTransaction) await client.query("COMMIT");
+    if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
     return Number(result.rows[0]?.cancelled || 0);
   } catch (error) {
-    if (ownsTransaction) await client.query("ROLLBACK");
+    if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }
     throw error;
   } finally {
     if (ownsTransaction) client.release();
   }
 }
 
-export async function createTrip({
+async function createTripImpl({
   idConductor,
   idVehiculo,
   idOrigen,
@@ -283,7 +284,7 @@ export async function createTrip({
       });
 
       if (samePendingRequest) {
-        if (ownsTransaction) await client.query("COMMIT");
+        if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
         return {
           ...openTrip,
           conductor: conductor.nombre,
@@ -429,7 +430,7 @@ export async function createTrip({
       allowLower: Boolean(esGerenciamiento)
     });
 
-    if (ownsTransaction) await client.query("COMMIT");
+    if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
 
     return {
       ...trip,
@@ -440,14 +441,14 @@ export async function createTrip({
     };
     
   } catch (error) {
-    if (ownsTransaction) await client.query("ROLLBACK");
+    if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }
     throw error;
   } finally {
     if (ownsTransaction) client.release();
   }
 }
 
-export async function startTrip({
+async function startTripImpl({
   idViaje,
   initialLocation
 }, { client: externalClient = null, recordedAt = null } = {}) {
@@ -692,7 +693,7 @@ export async function startTrip({
       ]
     );
 
-    if (ownsTransaction) await client.query("COMMIT");
+    if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
 
     return {
       idViaje: updatedTrip.id_viajes,
@@ -717,13 +718,13 @@ export async function startTrip({
         trip.numero_economico
     };
   } catch (error) {
-    if (ownsTransaction) await client.query("ROLLBACK");
+    if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }
     throw error;
   } finally {
     if (ownsTransaction) client.release();
   }
 }
-export async function finishTrip({
+async function finishTripImpl({
   idViaje,
   kilometrajeFinal
 }, { client: externalClient = null, recordedAt = null } = {}) {
@@ -896,7 +897,7 @@ export async function finishTrip({
       ]
     );
 
-    if (ownsTransaction) await client.query("COMMIT");
+    if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
 
     return {
       idViaje:
@@ -933,13 +934,13 @@ export async function finishTrip({
         trip.numero_economico
     };
   } catch (error) {
-    if (ownsTransaction) await client.query("ROLLBACK");
+    if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }
     throw error;
   } finally {
     if (ownsTransaction) client.release();
   }
 }
-export async function cancelTrip({ idViaje, observaciones = "Viaje cancelado" }) {
+async function cancelTripImpl({ idViaje, observaciones = "Viaje cancelado" }) {
   const client = await databasePool.connect();
 
   try {
@@ -1037,6 +1038,7 @@ export async function cancelTrip({ idViaje, observaciones = "Viaje cancelado" })
     );
 
     await client.query("COMMIT");
+    recordOperation({ step: "viajes.transaction", result: "COMMIT" });
 
     return {
       idViaje: updatedTrip.id_viajes,
@@ -1049,6 +1051,7 @@ export async function cancelTrip({ idViaje, observaciones = "Viaje cancelado" })
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
     client.release();
@@ -1234,3 +1237,13 @@ export async function getTripById({
 
   return result.rows[0] ?? null;
 }
+
+export const createTrip = traceOperation("viajes.createTrip", createTripImpl);
+
+export const startTrip = traceOperation("viajes.startTrip", startTripImpl);
+
+export const finishTrip = traceOperation("viajes.finishTrip", finishTripImpl);
+
+export const cancelTrip = traceOperation("viajes.cancelTrip", cancelTripImpl);
+
+export const cancelExpiredPendingTrips = traceOperation("viajes.cancelExpiredPendingTrips", cancelExpiredPendingTripsImpl);

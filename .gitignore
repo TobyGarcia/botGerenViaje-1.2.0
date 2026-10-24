@@ -2,6 +2,8 @@
 .env
 .env.production
 .env.local
+.env.monitor
+monitor-state/
 .env.*.local
 
 # Archivos de sesión y credenciales sensibles
@@ -53,3 +55,6 @@ ngrok-entrypoint.sh
 render.yaml
 
 
+# Respaldos y descriptores generados durante despliegues
+rollback/
+compose.monitor.image.json

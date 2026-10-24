@@ -1,3 +1,4 @@
+import { traceOperation } from "./operation-log.service.js";
 import {
   databasePool
 } from "../database/pool.js";
@@ -137,7 +138,7 @@ export async function listAdminVehicles({
   return result.rows;
 }
 
-export async function createAdminVehicle({
+async function createAdminVehicleImpl({
   marca,
   modelo,
   numeroEconomico,
@@ -345,7 +346,7 @@ export async function getAdminVehicleDetail(idVehiculo) {
   return result.rows[0] ?? null;
 }
 
-export async function updateAdminVehicle({
+async function updateAdminVehicleImpl({
   idVehiculo, marca, modelo, numeroEconomico, placas, numeroPoliza,
   seguroVencimiento, numeroSerie, tipoVehiculo, tipoPropiedad,
   color = null, idConductorAsignado = null, idSupervisorAsignado = null, personalAsignadoNombre = null
@@ -402,7 +403,7 @@ export async function updateAdminVehicle({
   }
 }
 
-export async function updateAdminVehicleStatus({
+async function updateAdminVehicleStatusImpl({
   idVehiculo,
   activo
 }) {
@@ -423,7 +424,7 @@ export async function updateAdminVehicleStatus({
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
-export async function updateAdminVehicleMaintenance({ idVehiculo, enMantenimiento, motivo = null, fechaInicio = null }) {
+async function updateAdminVehicleMaintenanceImpl({ idVehiculo, enMantenimiento, motivo = null, fechaInicio = null }) {
   const result = await databasePool.query(
     `
       UPDATE vehiculos
@@ -569,11 +570,28 @@ export async function createAdminVehicleMileageReading({
       }
     }
 
+    // El formulario administrativo es una herramienta de corrección. Cuando no
+    // se indicó una lectura concreta, enlazamos automáticamente la última para
+    // conservar la trazabilidad del valor que fue sustituido.
+    if (!correctionOf) {
+      const latest = await client.query(
+        `SELECT id_historial_kilometraje
+           FROM historial_kilometraje_vehiculos
+          WHERE id_vehiculos = $1
+          ORDER BY fecha_lectura DESC, id_historial_kilometraje DESC
+          LIMIT 1`,
+        [idVehiculo]
+      );
+      correctionOf = latest.rows[0]?.id_historial_kilometraje ?? null;
+    }
+
     const reading = await registerMileageReading({
       client, idVehiculo, kilometraje,
       tipoRegistro: correctionOf ? "CORRECCION" : "AJUSTE_MANUAL",
       origen: "PANEL_ADMIN", observaciones, idUsuarioAdmin,
-      idRegistroCorregido: correctionOf, allowLower: Boolean(correctionOf)
+      idRegistroCorregido: correctionOf,
+      allowLower: true,
+      replaceCurrent: true
     });
     await client.query("COMMIT");
     return reading;
@@ -582,3 +600,11 @@ export async function createAdminVehicleMileageReading({
     throw error;
   } finally { client.release(); }
 }
+
+export const createAdminVehicle = traceOperation("admin-vehiculos.createAdminVehicle", createAdminVehicleImpl);
+
+export const updateAdminVehicle = traceOperation("admin-vehiculos.updateAdminVehicle", updateAdminVehicleImpl);
+
+export const updateAdminVehicleStatus = traceOperation("admin-vehiculos.updateAdminVehicleStatus", updateAdminVehicleStatusImpl);
+
+export const updateAdminVehicleMaintenance = traceOperation("admin-vehiculos.updateAdminVehicleMaintenance", updateAdminVehicleMaintenanceImpl);
