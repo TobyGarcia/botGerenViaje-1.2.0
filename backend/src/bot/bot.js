@@ -202,6 +202,9 @@ export async function sendTripGroupAlert({
       `Ruta: ${trip.origen ?? "No registrado"} → ${trip.destino ?? "No registrado"}`,
       `Kilometraje: ${trip.kilometrajeInicial ?? "No registrado"} → ${trip.kilometrajeFinal ?? "No registrado"} km`,
       `Kilómetros recorridos: ${trip.kilometrosRecorridos ?? "No registrado"} km`,
+      `Paradas técnicas: ${Array.isArray(trip.paradasTecnicas) && trip.paradasTecnicas.length
+        ? trip.paradasTecnicas.map((stop) => `${stop.nombre_punto || "Punto intermedio"} (${formatTime(stop.fecha_gps)})`).join(", ")
+        : "Ninguna"}`,
       trip.motivo ? `Motivo: ${trip.motivo}` : null,
       `Hora de salida: ${formatTime(trip.horaSalida)}`,
       `Hora de finalización: ${formatTime(trip.horaLlegada)}`
@@ -224,6 +227,36 @@ export async function sendTripGroupAlert({
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta al grupo:", error);
+  }
+}
+
+export async function sendTechnicalStopAlert({ trip, stop }) {
+  const groupId = process.env.TELEGRAM_GROUP_ID;
+  if (!groupId) return;
+
+  const formatTime = (value) => value
+    ? new Intl.DateTimeFormat("es-MX", {
+      timeZone: "America/Mexico_City",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value))
+    : "No registrada";
+
+  const message = [
+    "🚏 PARADA TÉCNICA REGISTRADA",
+    `Folio: ${trip?.folio ?? "No disponible"}`,
+    `Conductor: ${trip?.conductor ?? "No disponible"}`,
+    `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
+    trip?.numeroEconomico ? `Número económico: ${trip.numeroEconomico}` : null,
+    `Parada: ${stop?.nombrePunto ?? stop?.nombre_punto ?? "Punto intermedio"}`,
+    `Hora: ${formatTime(stop?.gpsTimestamp ?? stop?.fecha_gps)}`
+  ].filter(Boolean).join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(groupId, message);
+  } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
+    console.error("No fue posible enviar la alerta de parada técnica:", error);
   }
 }
 

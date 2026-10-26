@@ -906,6 +906,17 @@ async function finishTripImpl({
       ]
     );
 
+    const technicalStopsResult = await client.query(
+      `
+        SELECT nombre_punto, fecha_gps
+        FROM ubicaciones_viaje
+        WHERE id_viajes = $1
+          AND es_punto_intermedio = TRUE
+        ORDER BY fecha_gps ASC, id_ubicaciones_viaje ASC
+      `,
+      [idViaje]
+    );
+
     if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
 
     return {
@@ -949,7 +960,10 @@ async function finishTripImpl({
         trip.motivo,
 
       numeroEconomico:
-        trip.numero_economico
+        trip.numero_economico,
+
+      paradasTecnicas:
+        technicalStopsResult.rows
     };
   } catch (error) {
     if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }

@@ -4,6 +4,8 @@ import {
 } from "../services/ubicaciones.service.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
+import { sendTechnicalStopAlert } from "../bot/bot.js";
+import { getTripById } from "../services/viajes.service.js";
 
 const MAX_BATCH_SIZE = 200;
 const UUID_PATTERN =
@@ -254,6 +256,9 @@ export async function registerIntermediatePointController(request, response) {
       esPuntoIntermedio: true,
       nombrePunto
     });
+
+    const trip = await getTripById({ idViaje });
+    void sendTechnicalStopAlert({ trip, stop: location });
 
     return response.status(201).json({
       success: true,
