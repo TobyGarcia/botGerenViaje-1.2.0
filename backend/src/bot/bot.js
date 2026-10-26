@@ -199,6 +199,11 @@ export async function sendTripGroupAlert({
     finalizado: [
       "🚐 Viaje FINALIZADO",
       ...baseDetails,
+      `Ruta: ${trip.origen ?? "No registrado"} → ${trip.destino ?? "No registrado"}`,
+      `Kilometraje: ${trip.kilometrajeInicial ?? "No registrado"} → ${trip.kilometrajeFinal ?? "No registrado"} km`,
+      `Kilómetros recorridos: ${trip.kilometrosRecorridos ?? "No registrado"} km`,
+      trip.motivo ? `Motivo: ${trip.motivo}` : null,
+      `Hora de salida: ${formatTime(trip.horaSalida)}`,
       `Hora de finalización: ${formatTime(trip.horaLlegada)}`
     ],
     cancelado: [

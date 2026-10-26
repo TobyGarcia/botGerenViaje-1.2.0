@@ -750,7 +750,10 @@ async function finishTripImpl({
           vh.numero_economico,
           vh.kilometraje_actual,
 
-          c.nombre AS conductor
+          c.nombre AS conductor,
+          origen.nombre AS origen,
+          destino.nombre AS destino,
+          v.motivo
         FROM viajes v
 
         INNER JOIN estados_viaje ev
@@ -763,6 +766,12 @@ async function finishTripImpl({
 
         INNER JOIN conductores c
           ON c.id_conductores = v.id_conductores
+
+        INNER JOIN lugares origen
+          ON origen.id_lugares = v.id_origen
+
+        INNER JOIN lugares destino
+          ON destino.id_lugares = v.id_destino
 
         WHERE v.id_viajes = $1
 
@@ -929,6 +938,15 @@ async function finishTripImpl({
 
       conductor:
         trip.conductor,
+
+      origen:
+        trip.origen,
+
+      destino:
+        trip.destino,
+
+      motivo:
+        trip.motivo,
 
       numeroEconomico:
         trip.numero_economico
