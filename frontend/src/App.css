@@ -2535,15 +2535,23 @@ form#urban-trip-form {
 
 .vehicle-search-input {
   flex: 1;
+  min-width: 0;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.84rem;
   background: #ffffff;
   color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0284c7;
   outline: none;
   font-family: inherit;
   transition: border-color 0.15s ease;
+}
+
+.vehicle-search-input::placeholder {
+  color: #64748b;
+  opacity: 1;
 }
 
 .vehicle-search-input:focus {
