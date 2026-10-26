@@ -353,10 +353,10 @@ const [cancelledTrip, setCancelledTrip] =
         if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
         const cached = safeStorage.getJSON("cached_active_trip");
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
-        if (record.synced) {
+        if (record.synced && !before?.synced) {
           setOfflineNotice(`Viaje y GPS sincronizados correctamente. Folio: ${record.serverTrip.folio}`);
           window.setTimeout(() => setOfflineNotice(""), 8000);
-        } else {
+        } else if (!record.synced) {
           setOfflineNotice(record.serverTrip
             ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
             : "Viaje pendiente de sincronización.");
