@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { randomUUID } from 'node:crypto'
 
-const buildVersion = randomUUID();
+const buildVersion = process.env.APP_VERSION || randomUUID();
 
 // https://vite.dev/config/
 export default defineConfig({
