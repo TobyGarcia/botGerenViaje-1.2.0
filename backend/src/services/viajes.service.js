@@ -1087,6 +1087,14 @@ export async function getActiveTrip({ idConductor }) {
         vh.placas,
         vh.kilometraje_actual,
 
+        COALESCE(inspeccion.lleva_remolque, FALSE) AS lleva_remolque,
+        inspeccion.id_remolque,
+        remolque.nombre AS remolque_nombre,
+        remolque.marca AS remolque_marca,
+        remolque.modelo AS remolque_modelo,
+        remolque.numero_economico AS remolque_numero_economico,
+        remolque.placas AS remolque_placas,
+
         origen.id_lugares AS id_origen,
         origen.nombre AS origen,
 
@@ -1114,6 +1122,18 @@ export async function getActiveTrip({ idConductor }) {
       INNER JOIN vehiculos vh
         ON vh.id_vehiculos =
            v.id_vehiculos
+
+      LEFT JOIN inspecciones_vehiculares inspeccion
+        ON inspeccion.id_inspeccion = (
+          SELECT i.id_inspeccion
+          FROM inspecciones_vehiculares i
+          WHERE i.id_viajes = v.id_viajes
+          ORDER BY i.id_inspeccion DESC
+          LIMIT 1
+        )
+
+      LEFT JOIN vehiculos remolque
+        ON remolque.id_vehiculos = inspeccion.id_remolque
 
       INNER JOIN lugares origen
         ON origen.id_lugares =
@@ -1197,6 +1217,14 @@ export async function getTripById({
         vh.placas,
         vh.kilometraje_actual,
 
+        COALESCE(inspeccion.lleva_remolque, FALSE) AS lleva_remolque,
+        inspeccion.id_remolque,
+        remolque.nombre AS remolque_nombre,
+        remolque.marca AS remolque_marca,
+        remolque.modelo AS remolque_modelo,
+        remolque.numero_economico AS remolque_numero_economico,
+        remolque.placas AS remolque_placas,
+
         origen.id_lugares AS id_origen,
         origen.nombre AS origen,
 
@@ -1215,6 +1243,18 @@ export async function getTripById({
       INNER JOIN vehiculos vh
         ON vh.id_vehiculos =
            v.id_vehiculos
+
+      LEFT JOIN inspecciones_vehiculares inspeccion
+        ON inspeccion.id_inspeccion = (
+          SELECT i.id_inspeccion
+          FROM inspecciones_vehiculares i
+          WHERE i.id_viajes = v.id_viajes
+          ORDER BY i.id_inspeccion DESC
+          LIMIT 1
+        )
+
+      LEFT JOIN vehiculos remolque
+        ON remolque.id_vehiculos = inspeccion.id_remolque
 
       INNER JOIN lugares origen
         ON origen.id_lugares =

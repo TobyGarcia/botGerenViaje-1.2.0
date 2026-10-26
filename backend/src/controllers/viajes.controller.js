@@ -293,9 +293,11 @@ export async function startTripController(
       initialLocation
     });
 
+    const alertTrip = await getTripById({ idViaje });
+
     // La alerta es secundaria al cambio de estado. Un fallo de Telegram no
     // debe convertir un inicio ya confirmado en un error para el conductor.
-    void sendTripGroupAlert({ action: "iniciado", trip }).catch((alertError) => {
+    void sendTripGroupAlert({ action: "iniciado", trip: { ...trip, ...alertTrip } }).catch((alertError) => {
       console.error("No fue posible enviar la alerta de viaje iniciado:", alertError);
     });
 
