@@ -401,6 +401,14 @@ export async function registerTripLocationBatchController(request, response) {
       locations: validLocations
     });
 
+    const technicalStops = result.insertedLocations.filter((location) => location.es_punto_intermedio);
+    if (technicalStops.length > 0) {
+      const trip = await getTripById({ idViaje });
+      for (const stop of technicalStops) {
+        void sendTechnicalStopAlert({ trip, stop });
+      }
+    }
+
     return response.status(200).json({
       success: true,
       data: {

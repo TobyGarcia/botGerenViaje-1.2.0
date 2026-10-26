@@ -215,6 +215,7 @@ async function saveTripLocationBatchImpl({
     }
 
     let inserted = 0;
+    const insertedLocations = [];
 
     for (const location of locations) {
       const result = await client.query(
@@ -238,7 +239,7 @@ async function saveTripLocationBatchImpl({
           ON CONFLICT (id_viajes, client_location_id)
             WHERE client_location_id IS NOT NULL
             DO NOTHING
-          RETURNING id_ubicaciones_viaje
+          RETURNING id_ubicaciones_viaje, fecha_gps, es_punto_intermedio, nombre_punto
         `,
         [
           idViaje,
@@ -258,6 +259,7 @@ async function saveTripLocationBatchImpl({
       );
 
       inserted += result.rowCount;
+      if (result.rows[0]) insertedLocations.push(result.rows[0]);
     }
 
     await client.query("COMMIT");
@@ -265,7 +267,8 @@ async function saveTripLocationBatchImpl({
 
     return {
       inserted,
-      duplicates: locations.length - inserted
+      duplicates: locations.length - inserted,
+      insertedLocations
     };
   } catch (error) {
     await client.query("ROLLBACK");
