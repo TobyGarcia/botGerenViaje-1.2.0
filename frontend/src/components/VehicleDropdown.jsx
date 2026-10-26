@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { IconTrash } from "./Icons.jsx";
 
 export default function VehicleDropdown({
   vehiculos = [],
@@ -237,7 +238,7 @@ export default function VehicleDropdown({
                 className="vehicle-search-clear"
                 aria-label="Limpiar búsqueda"
               >
-                ×
+                <IconTrash size={15} color="currentColor" />
               </button>
             )}
           </div>
