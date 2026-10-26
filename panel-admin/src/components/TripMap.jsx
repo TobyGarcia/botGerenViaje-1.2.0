@@ -326,7 +326,7 @@ function TripMap({ locations = [] }) {
       .catch((err) => {
         if (isMounted) {
           setMapMode("POINTS");
-          setRoadError("Ruta vial no disponible. Se muestran las ubicaciones GPS registradas.");
+          setRoadError("Ruta aproximada: no se pudo ajustar a las calles.");
           console.warn("[TripMap] Ruta vial no disponible; se muestran puntos GPS:", err);
         }
       })
@@ -621,7 +621,7 @@ function TripMap({ locations = [] }) {
         )}
 
         {/* Polilínea directa de puntos cuando solo se ven coordenadas */}
-        {mapMode === "POINTS" && !roadError && rawPositions.length > 1 && (
+        {(mapMode === "POINTS" || roadError) && rawPositions.length > 1 && (
           <Polyline
             positions={rawPositions}
             pathOptions={{
