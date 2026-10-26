@@ -2582,6 +2582,19 @@ function isOutsideOperatingHours() {
           </button>
         </div>
 
+        <div className="gv-trip-emergency-action-row">
+          <button
+            type="button"
+            onClick={() => setShowSiniestroModal(true)}
+            className="gv-btn-emergency-action"
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c.77-1.333 2.694-1.333 3.464 0l3.34 16.268c.31 1.333-.192 3-1.732 3z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Reportar Siniestro / Incidente</span>
+          </button>
+        </div>
+
         <div className="gv-trip-finish-section">
           <form onSubmit={handleFinishTrip}>
             <div>
@@ -2680,7 +2693,7 @@ function isOutsideOperatingHours() {
 )}
 
 {/* Tarjeta de Emergencia / Siniestro en Ruta (FUERA de la tarjeta del viaje) */}
-{startedTrip && !finishedTrip && !cancelledTrip && (
+{false && startedTrip && !finishedTrip && !cancelledTrip && (
   <section className="gv-emergency-alert-card" data-purpose="emergency-report-card">
     <div className="gv-emergency-header">
       <div className="gv-emergency-icon-box">

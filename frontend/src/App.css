@@ -2970,6 +2970,8 @@ form#urban-trip-form {
 }
 
 /* Mid Actions (Punto Intermedio & Sincronizar) */
+.gv-trip-emergency-action-row { grid-column: 1 / -1; width: 100%; }
+.gv-trip-emergency-action-row .gv-btn-emergency-action { width: 100%; }
 .gv-trip-mid-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
