@@ -2711,7 +2711,7 @@ function isOutsideOperatingHours() {
 )}
 
 {/* Sitios de Reporte de Ruta */}
-{startedTrip && !finishedTrip && !cancelledTrip && gerenciamientoDoc?.sitios_reporte?.length > 0 && (
+{false && startedTrip && !finishedTrip && !cancelledTrip && gerenciamientoDoc?.sitios_reporte?.length > 0 && (
   <section className="gv-telemetry-card">
 
     {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
