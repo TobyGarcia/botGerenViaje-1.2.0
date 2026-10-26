@@ -248,8 +248,12 @@ export async function sendTechnicalStopAlert({ trip, stop }) {
     `Conductor: ${trip?.conductor ?? "No disponible"}`,
     `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
     trip?.numeroEconomico ? `Número económico: ${trip.numeroEconomico}` : null,
+    trip?.lleva_remolque
+      ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
+      : null,
     `Parada: ${stop?.nombrePunto ?? stop?.nombre_punto ?? "Punto intermedio"}`,
-    `Hora: ${formatTime(stop?.gpsTimestamp ?? stop?.fecha_gps)}`
+    `Hora: ${formatTime(stop?.gpsTimestamp ?? stop?.fecha_gps)}`,
+    `Estado del viaje: ${trip?.estado ?? "EN_CURSO"}`
   ].filter(Boolean).join("\n");
 
   try {
