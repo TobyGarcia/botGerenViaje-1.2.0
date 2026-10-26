@@ -1,6 +1,7 @@
 import {
   Router
 } from "express";
+import { routeRoadController } from "../controllers/osrm.controller.js";
 
 import {
   getAdminTripLocationDetailController,
@@ -20,6 +21,8 @@ const router =
 router.use(
   requireAdminSession
 );
+
+router.post("/ruta-vial", requireAdminRoles(ROLES_TODOS_OPERATIVOS), routeRoadController);
 
 router.get(
   "/",

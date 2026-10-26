@@ -2,7 +2,7 @@
 // prefijo /api. Se admite también el valor anterior terminado en /api para
 // que los despliegues existentes no construyan URLs como /api/api/...
 const configuredApiBaseUrl = String(
-  import.meta.env.VITE_API_BASE_URL || ""
+  import.meta.env?.VITE_API_BASE_URL || ""
 ).replace(/\/+$/, "");
 
 const API_BASE_URL = configuredApiBaseUrl.replace(
@@ -87,6 +87,12 @@ export function getAdminSession() {
   return request(
     "/admin/auth/session"
   );
+}
+
+export function getRoadGeometry(points, signal) {
+  return request("/admin/ubicaciones-viaje/ruta-vial", {
+    method: "POST", signal, body: JSON.stringify({ points })
+  });
 }
 
 export function logoutAdmin() {

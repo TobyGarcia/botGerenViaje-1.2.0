@@ -263,8 +263,9 @@ function TripMap({ locations = [] }) {
   );
 
   // Estado del trazado ajustado a calles con OSRM
-  const [roadGeometry, setRoadGeometry] = useState(rawPositions);
+  const [roadGeometry, setRoadGeometry] = useState([]);
   const [isSnappingRoad, setIsSnappingRoad] = useState(false);
+  const [roadError, setRoadError] = useState("");
 
   // Distancias acumuladas en metros a lo largo de roadGeometry para interpolación fluida uniforme
   const roadDistances = useMemo(() => {
@@ -305,28 +306,39 @@ function TripMap({ locations = [] }) {
   // Ajustar ruta a calles reales con OSRM al cargar ubicaciones
   useEffect(() => {
     if (validLocations.length < 2) {
-      setRoadGeometry(rawPositions);
+      setRoadGeometry([]);
       return;
     }
 
     let isMounted = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    setRoadGeometry([]);
+    setRoadError("");
     setIsSnappingRoad(true);
 
-    fetchSnappedRoadGeometry(validLocations)
+    fetchSnappedRoadGeometry(validLocations, { signal: controller.signal })
       .then((snapped) => {
         if (isMounted && snapped && snapped.length > 0) {
           setRoadGeometry(snapped);
         }
       })
       .catch((err) => {
-        console.warn("[TripMap] No fue posible ajustar a calles, usando trazado directo:", err);
+        if (isMounted) {
+          setMapMode("POINTS");
+          setRoadError("Ruta vial no disponible. Se muestran las ubicaciones GPS registradas.");
+          console.warn("[TripMap] Ruta vial no disponible; se muestran puntos GPS:", err);
+        }
       })
       .finally(() => {
+        clearTimeout(timeout);
         if (isMounted) setIsSnappingRoad(false);
       });
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, [validLocations, rawPositions]);
 
@@ -508,6 +520,7 @@ function TripMap({ locations = [] }) {
 
   return (
     <div className="trip-map-wrapper">
+      {roadError && <div role="status" style={{ position: "absolute", bottom: 12, left: 12, right: 12, zIndex: 1000, background: "white", padding: 10, borderRadius: 8 }}>{roadError}</div>}
       {/* Dock Flotante de Modos de Vista - UI/UX PRO MAX */}
       <div className="map-pro-dock" role="tablist" aria-label="Modos de visualización del mapa">
         <button
@@ -608,7 +621,7 @@ function TripMap({ locations = [] }) {
         )}
 
         {/* Polilínea directa de puntos cuando solo se ven coordenadas */}
-        {mapMode === "POINTS" && rawPositions.length > 1 && (
+        {mapMode === "POINTS" && !roadError && rawPositions.length > 1 && (
           <Polyline
             positions={rawPositions}
             pathOptions={{
