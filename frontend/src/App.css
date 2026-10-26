@@ -3117,11 +3117,12 @@ form#urban-trip-form {
 
 .gv-finish-btn-wrapper {
   margin-top: 12px;
+  width: 100%;
 }
 
 .gv-btn-finish {
   width: 100%;
-  height: 46px;
+  height: 40px;
   background: #8b2626;
   color: #ffffff;
   font-size: 0.78rem;
