@@ -44,6 +44,7 @@ import gerenciamientoViajesRoutes from "./routes/gerenciamiento-viajes.routes.js
 import driverAuthRoutes from "./routes/driver-auth.routes.js";
 import siniestrosRoutes from "./routes/siniestros.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import { androidUpdateController } from "./controllers/android-update.controller.js";
 import adminAuditRoutes from "./routes/admin-audit.routes.js";
 import { auditRequest } from "./middlewares/audit-log.middleware.js";
 import clientDiagnosticsRoutes from "./routes/client-diagnostics.routes.js";
@@ -118,6 +119,7 @@ app.get("/", (request, response) => {
 });
 
 app.use("/health", healthRoutes);
+app.get("/api/android/update", androidUpdateController);
 
 app.use(
   "/api/catalogos",

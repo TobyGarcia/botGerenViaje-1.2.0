@@ -43,6 +43,22 @@ async function withStore(mode, callback) {
 }
 
 export function savePendingLocation(location) { return withStore("readwrite", (store) => store.put(location)); }
+export async function countAllStoredLocations() {
+  const database = await openTrackingDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction([STORE_NAME, REJECTED_STORE_NAME], "readonly");
+      let total = 0;
+      for (const name of [STORE_NAME, REJECTED_STORE_NAME]) {
+        const request = transaction.objectStore(name).count();
+        request.onsuccess = () => { total += request.result; };
+      }
+      transaction.oncomplete = () => resolve(total);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally { database.close(); }
+}
 export function getPendingLocations(idViaje) {
   const key = Number(idViaje) > 0 ? Number(idViaje) : idViaje;
   return withStore("readonly", (store, setResult) => {

@@ -10,9 +10,9 @@ const config: CapacitorConfig = {
   appName: "Gerenciamiento de Viajes",
   webDir: "dist",
   server: {
-    url: "https://gv.aspromex.mx/conductor/",
+    url: process.env.ANDROID_WEB_URL || "https://gv.aspromex.mx/conductor/",
     cleartext: false,
-    allowNavigation: ["gv.aspromex.mx"]
+    allowNavigation: [new URL(process.env.ANDROID_WEB_URL || "https://gv.aspromex.mx/conductor/").hostname]
   },
   android: {
     allowMixedContent: false,

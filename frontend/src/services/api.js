@@ -7,6 +7,9 @@ export const getApiBaseUrl = () => {
   if (envUrl) {
     return envUrl;
   }
+  if (Capacitor.isNativePlatform() && typeof window !== "undefined" && window.location.protocol === "https:") {
+    return window.location.origin;
+  }
   if (
     (typeof Capacitor !== "undefined" && Capacitor?.isNativePlatform?.()) ||
     (typeof window !== "undefined" &&

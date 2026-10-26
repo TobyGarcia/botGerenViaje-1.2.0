@@ -5,6 +5,7 @@ import {
   useCallback
 } from "react";
 import "./App.css";
+import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
 
 import {
   cancelarViaje,
@@ -1792,6 +1793,7 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
+        <AndroidUpdateNotice trip={createdTrip} />
         {offlineNotice && <div role="status" className={offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") ? "message message-success" : "inspection-load-error"}>
           <p>{offlineNotice}</p>
           {!offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") && (
