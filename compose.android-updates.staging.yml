@@ -1,0 +1,5 @@
+# Activar solo en pruebas junto al compose del servidor y el override OSRM.
+services:
+  backend:
+    environment:
+      ANDROID_UPDATE_DISCOVERY: testing

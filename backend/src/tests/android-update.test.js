@@ -26,3 +26,37 @@ test("no ofrece versiones sin configurar y rechaza enlaces de otros repositorios
     else process.env.ANDROID_UPDATE_TESTING = previous;
   }
 });
+
+test("descubre solo releases publicados del canal testing y selecciona mayor código", async () => {
+  const originalFetch = globalThis.fetch;
+  const previous = process.env.ANDROID_UPDATE_DISCOVERY;
+  const previousRaw = process.env.ANDROID_UPDATE_TESTING;
+  const base = "https://github.com/TobyGarcia/botGerenViaje-1.2.0/releases/download/";
+  const release = (code, draft = false) => ({ tag_name: `android-testing-v1.1.0-${code}`, draft, prerelease: true,
+    assets: ["update.json", "gv-mobility.apk"].map((name) => ({ name, browser_download_url: `${base}android-testing-v1.1.0-${code}/${name}` })) });
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(url);
+    return { ok: true, json: async () => url.startsWith("https://api.github.com/")
+      ? [release(99, true), release(2), release(3)]
+      : { versionCode: 3, versionName: "1.1.0", channel: "testing", sha256: "a".repeat(64), downloadUrl: `${base}android-testing-v1.1.0-3/gv-mobility.apk` } };
+  };
+  try {
+    process.env.ANDROID_UPDATE_DISCOVERY = "testing";
+    delete process.env.ANDROID_UPDATE_TESTING;
+    const response = { set() {}, status() { return this; }, json(value) { this.value = value; } };
+    await androidUpdateController({ query: { channel: "testing" } }, response);
+    assert.equal(response.value.versionCode, 3);
+    assert.equal(response.value.available, true);
+    await androidUpdateController({ query: { channel: "testing" } }, response);
+    assert.equal(calls.length, 2);
+    await androidUpdateController({ query: { channel: "stable" } }, response);
+    assert.equal(response.value.available, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previous === undefined) delete process.env.ANDROID_UPDATE_DISCOVERY;
+    else process.env.ANDROID_UPDATE_DISCOVERY = previous;
+    if (previousRaw === undefined) delete process.env.ANDROID_UPDATE_TESTING;
+    else process.env.ANDROID_UPDATE_TESTING = previousRaw;
+  }
+});

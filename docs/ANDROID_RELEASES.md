@@ -35,6 +35,16 @@ La APK actual usa `server.url`: carga las pantallas web del servidor. Cambios
 web pueden llegar sin instalar otra APK. Cambios nativos requieren otra APK.
 Esto todavía no equivale a una aplicación con SQLite y rastreo autónomo nativo.
 
+## Descubrimiento de versiones publicadas
+
+En pruebas se puede usar `compose.android-updates.staging.yml`, que configura
+`ANDROID_UPDATE_DISCOVERY=testing`. El backend consulta los últimos 100 releases
+públicos, ignora borradores y otros canales y selecciona el mayor versionCode.
+Comprueba los assets y el manifiesto; conserva la respuesta 60 segundos.
+Publicar una prerelease de testing activa el aviso sin modificar variables por
+versión. `ANDROID_UPDATE_TESTING`, si existe, tiene prioridad como valor manual.
+El canal stable permanece desactivado salvo configuración explícita.
+
 No iniciar una instalación durante un viaje ni con datos pendientes. El aviso
 de la aplicación debe comprobar ambas condiciones inmediatamente antes de
 abrir la descarga; Android conserva el control final de la instalación.
