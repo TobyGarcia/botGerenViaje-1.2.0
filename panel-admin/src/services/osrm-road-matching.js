@@ -589,6 +589,25 @@ export async function fetchSnappedRoadGeometry(locations = []) {
     (l) => Boolean(l.esPuntoIntermedio || l.es_punto_intermedio)
   );
 
+  // Una parada técnica representa un desvío real que debe formar parte de la
+  // ruta mostrada. Map-matching puede elegir una transición más corta y
+  // suavizar ese desvío, por lo que aquí se rutea cada tramo con OSRM usando
+  // las paradas como waypoints obligatorios.
+  if (intermediateStops.length > 0) {
+    const anchors = [cleanLocations[0], ...intermediateStops, cleanLocations[cleanLocations.length - 1]];
+    const routeSegments = [];
+
+    for (let i = 0; i < anchors.length - 1; i += 1) {
+      const from = [Number(anchors[i].latitud), Number(anchors[i].longitud)];
+      const to = [Number(anchors[i + 1].latitud), Number(anchors[i + 1].longitud)];
+      const segment = await fetchOsrmRouteBridge(from, to);
+      if (segment.length > 0) routeSegments.push(segment);
+    }
+
+    const waypointGeometry = await assembleSegments(routeSegments);
+    if (waypointGeometry.length > 1) return waypointGeometry;
+  }
+
   // Chunks de 10 puntos (límite estricto de OSRM /match) con solape de 2 para mantener continuidad
   const chunks = [];
   const step = CHUNK_SIZE - OVERLAP; // 8 puntos por avance
