@@ -166,6 +166,12 @@ function App() {
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
   const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(() => getCachedJson("cached_gerenciamiento_pendiente", null));
 
+  useEffect(() => {
+    if (!message || messageType !== "success") return undefined;
+    const timer = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message, messageType]);
+
   // Estado para modal/formulario de nuevo destino
   const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
   const [newDestinoForm, setNewDestinoForm] = useState({ nombre: "", direccion: "" });
@@ -2284,7 +2290,7 @@ function isOutsideOperatingHours() {
 
      
 
-      {createdTrip && (
+      {createdTrip && !startedTrip && (
         <section className="gv-success-alert" data-purpose="status-notification">
           <div className="gv-alert-icon-box">
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
