@@ -353,9 +353,14 @@ const [cancelledTrip, setCancelledTrip] =
         if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
         const cached = safeStorage.getJSON("cached_active_trip");
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
-        setOfflineNotice(record.synced ? `Viaje y GPS sincronizados. Folio: ${record.serverTrip.folio}`
-          : record.serverTrip ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
-          : "Viaje pendiente de sincronización.");
+        if (record.synced) {
+          setOfflineNotice(`Viaje y GPS sincronizados correctamente. Folio: ${record.serverTrip.folio}`);
+          window.setTimeout(() => setOfflineNotice(""), 8000);
+        } else {
+          setOfflineNotice(record.serverTrip
+            ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
+            : "Viaje pendiente de sincronización.");
+        }
       }
       await refreshOfflinePermits(driverId);
     } catch (error) {
@@ -1781,9 +1786,11 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        {offlineNotice && <div role="status" className="inspection-load-error">
+        {offlineNotice && <div role="status" className={offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") ? "message message-success" : "inspection-load-error"}>
           <p>{offlineNotice}</p>
-          <button type="button" onClick={syncOfflineState}>Sincronizar viaje guardado</button>
+          {!offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") && (
+            <button type="button" onClick={syncOfflineState}>Sincronizar viaje guardado</button>
+          )}
         </div>}
         {createdTrip ? (
           <div className="gv-screen-header">
