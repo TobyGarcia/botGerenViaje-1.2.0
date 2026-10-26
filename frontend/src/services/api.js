@@ -1,25 +1,11 @@
 import safeStorage from "../utils/safeStorage.js";
 import { Capacitor } from "@capacitor/core";
 import { diagnostics } from "./client-diagnostics.js";
+import { resolveApiOrigin } from "./api-origin.js";
 
 export const getApiBaseUrl = () => {
-  const envUrl = String(import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-  if (envUrl) {
-    return envUrl;
-  }
-  if (Capacitor.isNativePlatform() && typeof window !== "undefined" && window.location.protocol === "https:") {
-    return window.location.origin;
-  }
-  if (
-    (typeof Capacitor !== "undefined" && Capacitor?.isNativePlatform?.()) ||
-    (typeof window !== "undefined" &&
-      (window.location?.protocol === "capacitor:" ||
-        window.location?.protocol === "file:" ||
-        (window.location?.hostname === "localhost" && !window.location?.port)))
-  ) {
-    return "https://gv.aspromex.mx";
-  }
-  return "";
+  return resolveApiOrigin({ configuredUrl: import.meta.env?.VITE_API_BASE_URL,
+    native: Capacitor.isNativePlatform(), location: typeof window !== "undefined" ? window.location : undefined });
 };
 
 const API_BASE_URL = getApiBaseUrl();
