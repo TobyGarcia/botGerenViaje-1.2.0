@@ -293,7 +293,11 @@ export async function startTripController(
       initialLocation
     });
 
-    await sendTripGroupAlert({ action: "iniciado", trip });
+    // La alerta es secundaria al cambio de estado. Un fallo de Telegram no
+    // debe convertir un inicio ya confirmado en un error para el conductor.
+    void sendTripGroupAlert({ action: "iniciado", trip }).catch((alertError) => {
+      console.error("No fue posible enviar la alerta de viaje iniciado:", alertError);
+    });
 
     return response.status(200).json({
       success: true,
@@ -306,6 +310,34 @@ export async function startTripController(
       "Error iniciando viaje:",
       error
     );
+
+    // El cliente puede reintentar si la respuesta original expiró mientras se
+    // enviaba la alerta. En ese caso el viaje ya está iniciado: responder con
+    // éxito hace idempotente la operación y evita un falso error EN_CURSO.
+    if (error.message?.includes("estado EN_CURSO")) {
+      const currentTrip = await getTripById({ idViaje: Number(request.params.idViaje) });
+      if (currentTrip?.estado === "EN_CURSO") {
+        return response.status(200).json({
+          success: true,
+          message: "El viaje ya se encontraba iniciado.",
+          data: {
+            idViaje: currentTrip.id_viajes,
+            folio: currentTrip.folio,
+            estado: currentTrip.estado,
+            horaSalida: currentTrip.hora_salida,
+            kilometrajeInicial: currentTrip.kilometraje_inicial,
+            licenciaVigente: currentTrip.licencia_vigente,
+            acompanantes: currentTrip.acompanantes,
+            motivo: currentTrip.motivo,
+            origen: currentTrip.origen,
+            destino: currentTrip.destino,
+            conductor: currentTrip.conductor,
+            vehiculo: currentTrip.vehiculo,
+            numeroEconomico: currentTrip.numero_economico
+          }
+        });
+      }
+    }
 
     let manejoAuthorizationRequested = false;
     if (error.message?.includes("manejo comentado")) {
