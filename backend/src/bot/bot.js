@@ -251,6 +251,7 @@ export async function sendTechnicalStopAlert({ trip, stop }) {
     trip?.lleva_remolque
       ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
       : null,
+    `Destino: ${trip?.destino ?? "No registrado"}`,
     `Parada: ${stop?.nombrePunto ?? stop?.nombre_punto ?? "Punto intermedio"}`,
     `Hora: ${formatTime(stop?.gpsTimestamp ?? stop?.fecha_gps)}`,
     `Estado del viaje: ${trip?.estado ?? "EN_CURSO"}`
