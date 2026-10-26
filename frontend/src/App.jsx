@@ -2710,54 +2710,9 @@ function isOutsideOperatingHours() {
   </section>
 )}
 
-{/* Tarjeta de Telemetría GPS y Sitios de Reporte */}
-{startedTrip && !finishedTrip && !cancelledTrip && (
+{/* Sitios de Reporte de Ruta */}
+{startedTrip && !finishedTrip && !cancelledTrip && gerenciamientoDoc?.sitios_reporte?.length > 0 && (
   <section className="gv-telemetry-card">
-    <div className="gv-telemetry-header">
-      <div className="gv-telemetry-title-group">
-        <span className="gv-radar-pulse">
-          <span className="gv-radar-pulse-ping" />
-          <span className="gv-radar-pulse-dot" />
-        </span>
-        <h3 className="gv-telemetry-title">Rastreo GPS</h3>
-      </div>
-      <span className={`gv-telemetry-status-badge ${trackingInfo.active ? "active" : "inactive"}`}>
-        {trackingInfo.active ? "Activo" : "Detenido"}
-      </span>
-    </div>
-
-    <dl className="gv-telemetry-dl">
-      <div className="gv-telemetry-row">
-        <dt>Seguimiento GPS:</dt>
-        <dd style={{ color: trackingInfo.active ? "#047857" : "#64748b", fontWeight: 700 }}>
-          {trackingInfo.active ? "Activo" : "Detenido"}
-        </dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Estado:</dt>
-        <dd className="gv-badge-mono">{trackingInfo.status || gpsStatus}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Última captura:</dt>
-        <dd>{trackingInfo.lastCapture ? new Date(trackingInfo.lastCapture).toLocaleTimeString("es-MX") : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Latitud:</dt>
-        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.latitude) ? trackingInfo.latitude.toFixed(6) : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Longitud:</dt>
-        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Pendientes:</dt>
-        <dd>{trackingInfo.pending ?? 0}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Conexión:</dt>
-        <dd>{trackingInfo.connection}</dd>
-      </div>
-    </dl>
 
     {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
     {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
@@ -2801,14 +2756,6 @@ function isOutsideOperatingHours() {
       </div>
     )}
 
-    {lastLocation && (
-      <div className="location-details" style={{ marginTop: "12px" }}>
-        <p><strong>Latitud:</strong> {Number(lastLocation.latitude).toFixed(6)}</p>
-        <p><strong>Longitud:</strong> {Number(lastLocation.longitude).toFixed(6)}</p>
-        <p><strong>Precisión:</strong> {lastLocation.accuracy !== null ? `${Math.round(Number(lastLocation.accuracy))} metros` : "No disponible"}</p>
-        <p><strong>Último envío:</strong> {new Date(lastLocation.serverTimestamp).toLocaleTimeString("es-MX")}</p>
-      </div>
-    )}
   </section>
 )}
       {showAddDestinoModal && (
