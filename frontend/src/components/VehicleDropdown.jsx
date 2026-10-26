@@ -214,6 +214,20 @@ export default function VehicleDropdown({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre o no. económico..."
               className="vehicle-search-input"
+              aria-label="Buscar unidad vehicular"
+              style={{
+                display: "block",
+                flex: "1 1 auto",
+                width: "100%",
+                minWidth: 0,
+                boxSizing: "border-box",
+                color: "#0f172a",
+                WebkitTextFillColor: "#0f172a",
+                caretColor: "#0284c7",
+                opacity: 1,
+                backgroundColor: "#ffffff",
+                textAlign: "left"
+              }}
               onClick={(e) => e.stopPropagation()}
             />
             {search && (
