@@ -29,7 +29,7 @@ public final class GpsDatabase extends SQLiteOpenHelper {
     }
     public synchronized void put(String name, String value) {
         ContentValues values = new ContentValues(); values.put("name", name); values.put("value", value);
-        getWritableDatabase().insertWithOnConflict("settings", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if(getWritableDatabase().insertWithOnConflict("settings", null, values, SQLiteDatabase.CONFLICT_REPLACE)==-1) throw new android.database.sqlite.SQLiteException("No se pudo guardar el estado GPS");
     }
     public synchronized String read(String name, String fallback) {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT value FROM settings WHERE name=?", new String[]{name})) {
@@ -42,7 +42,11 @@ public final class GpsDatabase extends SQLiteOpenHelper {
         if (!Double.isFinite(lat) || !Double.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180 || (lat==0 && lon==0)) throw new IllegalArgumentException("GPS inválido");
         ContentValues values = new ContentValues();
         values.put("id", point.getString("clientLocationId")); values.put("trip", String.valueOf(point.get("idViaje"))); values.put("gps",point.getString("fechaGps")); values.put("payload", point.toString());
-        getWritableDatabase().insertWithOnConflict("locations", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        if(getWritableDatabase().insertWithOnConflict("locations", null, values, SQLiteDatabase.CONFLICT_IGNORE)==-1) {
+            try(Cursor c=getReadableDatabase().rawQuery("SELECT id FROM locations WHERE id=?",new String[]{point.getString("clientLocationId")})) {
+                if(!c.moveToFirst())throw new android.database.sqlite.SQLiteException("No se pudo guardar la ubicación GPS");
+            }
+        }
     }
     public synchronized boolean saveIfActive(JSONObject point) throws Exception {
         if(!"true".equals(read("active","false")) || !read("trip","").equals(String.valueOf(point.get("idViaje")))) return false;
@@ -68,7 +72,7 @@ public final class GpsDatabase extends SQLiteOpenHelper {
     }
     public synchronized void session(String trip, long server, long driver, String origin, String token) {
         ContentValues values = new ContentValues(); values.put("trip",trip); values.put("server",server); values.put("driver",driver); values.put("origin",origin); values.put("token",token);
-        getWritableDatabase().insertWithOnConflict("sessions",null,values,SQLiteDatabase.CONFLICT_REPLACE);
+        if(getWritableDatabase().insertWithOnConflict("sessions",null,values,SQLiteDatabase.CONFLICT_REPLACE)==-1) throw new android.database.sqlite.SQLiteException("No se pudo guardar la sesión GPS");
     }
     public synchronized JSONArray sessions() throws Exception {
         JSONArray result = new JSONArray();
@@ -78,7 +82,7 @@ public final class GpsDatabase extends SQLiteOpenHelper {
     }
     public synchronized void completion(String trip, JSONObject value) throws Exception {
         ContentValues values=new ContentValues(); values.put("trip",trip); values.put("payload",value.toString());
-        getWritableDatabase().insertWithOnConflict("completions",null,values,SQLiteDatabase.CONFLICT_IGNORE);
+        if(getWritableDatabase().insertWithOnConflict("completions",null,values,SQLiteDatabase.CONFLICT_IGNORE)==-1 && completion(trip)==null) throw new android.database.sqlite.SQLiteException("No se pudo guardar el cierre del viaje");
         if(trip.equals(read("trip","")))put("active","false");
     }
     public synchronized JSONObject completion(String trip) throws Exception {

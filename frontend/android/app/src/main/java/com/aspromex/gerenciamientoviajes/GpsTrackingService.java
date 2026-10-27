@@ -5,6 +5,7 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.location.*;
+import android.net.*;
 import android.os.*;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
@@ -21,12 +22,31 @@ public class GpsTrackingService extends Service implements LocationListener {
     private final ExecutorService syncExecutor=Executors.newSingleThreadExecutor();
     private final java.util.concurrent.atomic.AtomicBoolean syncQueued=new java.util.concurrent.atomic.AtomicBoolean(false);
     private GpsDatabase db;
+    private ConnectivityManager connectivity;
+    private final ConnectivityManager.NetworkCallback networkCallback=new ConnectivityManager.NetworkCallback(){
+        @Override public void onCapabilitiesChanged(Network network,NetworkCapabilities capabilities){
+            if(capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))requestSync();
+        }
+    };
+    private void requestSync(){
+        if(connectivity==null)return;
+        NetworkCapabilities capabilities=connectivity.getNetworkCapabilities(connectivity.getActiveNetwork());
+        if(capabilities==null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+            db.put("syncStatus","Sin internet · ubicaciones guardadas en el teléfono");return;
+        }
+        if(!syncExecutor.isShutdown() && syncQueued.compareAndSet(false,true)) {
+            try{syncExecutor.execute(()->{try{GpsSync.run(getApplicationContext());GpsSync.schedule(getApplicationContext());}finally{syncQueued.set(false);}});}
+            catch(java.util.concurrent.RejectedExecutionException ignored){syncQueued.set(false);}
+        }
+    }
     private final Runnable tick=new Runnable(){public void run(){
         if(!"true".equals(db.read("active","false"))){stopSelf();return;}
-        showNotification(); if(syncQueued.compareAndSet(false,true))syncExecutor.execute(()->{try{GpsSync.run(getApplicationContext());GpsSync.schedule(getApplicationContext());}finally{syncQueued.set(false);}});
+        showNotification(); requestSync();
         handler.postDelayed(this,30000);
     }};
     @Override public void onCreate(){super.onCreate();db=GpsDatabase.get(this);manager=(LocationManager)getSystemService(LOCATION_SERVICE);
+        connectivity=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        try{connectivity.registerDefaultNetworkCallback(networkCallback);}catch(SecurityException ignored){}
         if(Build.VERSION.SDK_INT>=26){NotificationManager notifications=getSystemService(NotificationManager.class);
             notifications.createNotificationChannel(new NotificationChannel(CHANNEL,"Viaje activo y seguimiento GPS",NotificationManager.IMPORTANCE_LOW));
             notifications.createNotificationChannel(new NotificationChannel("gv_trip_reminder","Recordar finalizar viaje",NotificationManager.IMPORTANCE_DEFAULT));}
@@ -53,11 +73,13 @@ public class GpsTrackingService extends Service implements LocationListener {
         long start=Long.parseLong(db.read("startedAt","0")); long last=Long.parseLong(db.read("lastCaptureMillis","0"));
         String gps=last>0?"Último GPS: hace "+Math.max(0,(System.currentTimeMillis()-last)/1000)+" s":db.read("gpsStatus","Esperando GPS");
         if(last>0 && System.currentTimeMillis()-last>120000)gps="Sin captura GPS reciente";
-        int pending=db.count(db.read("trip",""),true);
+        int pending=db.count(db.read("trip",""),false);
+        int rejected=db.count(db.read("trip",""),true)-pending;
         return new NotificationCompat.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentTitle("Viaje en curso · "+db.read("folio","GV Mobility"))
             .setContentText(gps+" · "+pending+" pendientes")
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(gps+"\n"+pending+" ubicaciones pendientes\n"+db.read("syncStatus","Guardando en el teléfono")))
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(gps+"\n"+pending+" ubicaciones por enviar"+(rejected>0?" · "+rejected+" para revisión":"")+"\n"+db.read("syncStatus","Guardando en el teléfono")))
+            .setCategory(NotificationCompat.CATEGORY_SERVICE).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setOngoing(true).setOnlyAlertOnce(true).setWhen(start).setUsesChronometer(start>0)
             .setContentIntent(open(false)).addAction(0,"Abrir viaje",open(false)).addAction(0,"Finalizar viaje",open(true)).build();
     }
@@ -87,11 +109,13 @@ public class GpsTrackingService extends Service implements LocationListener {
                 .put("origenCaptura","ANDROID_NATIVE").put("isBackground",true);
             // Se escribe ANTES de informar a la pantalla y de cualquier petición HTTP.
             if(!db.saveIfActive(point))return;db.put("lastCaptureMillis",String.valueOf(location.getTime()));db.put("lastLocation",point.toString());
-            db.put("gpsStatus","Capturando GPS nativo");GpsSync.schedule(this);showNotification();
+            db.put("gpsStatus","Capturando GPS nativo");GpsSync.schedule(this);requestSync();showNotification();
         }catch(Exception error){db.put("gpsStatus","Error de almacenamiento GPS: revisar teléfono");showNotification();}
     }
     @Override public void onProviderDisabled(String provider){db.put("gpsStatus","GPS desactivado");showNotification();}
     @Override public void onProviderEnabled(String provider){db.put("gpsStatus","Esperando señal GPS");}
-    @Override public void onDestroy(){handler.removeCallbacksAndMessages(null);try{if(manager!=null)manager.removeUpdates(this);}catch(SecurityException ignored){}syncExecutor.shutdown();GpsSync.schedule(this);super.onDestroy();}
+    @Override public void onDestroy(){handler.removeCallbacksAndMessages(null);try{if(manager!=null)manager.removeUpdates(this);}catch(SecurityException ignored){}
+        try{if(connectivity!=null)connectivity.unregisterNetworkCallback(networkCallback);}catch(IllegalArgumentException ignored){}
+        syncExecutor.shutdown();GpsSync.schedule(this);super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }

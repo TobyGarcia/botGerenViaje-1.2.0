@@ -13,9 +13,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 final class GpsSync {
     private static final AtomicBoolean running = new AtomicBoolean(false);
-    static void schedule(Context context) {
-        if (GpsDatabase.get(context).count(null,true)==0 && GpsDatabase.get(context).completionCount()==0) return;
+    static synchronized void schedule(Context context) {
         JobScheduler scheduler=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        if (GpsDatabase.get(context).count(null,false)==0 && GpsDatabase.get(context).completionCount()==0) return;
+        // Replacing the same ID resets its latency/backoff and can interrupt a running job.
+        for (JobInfo pending : scheduler.getAllPendingJobs()) if (pending.getId()==7312) return;
         scheduler.schedule(new JobInfo.Builder(7312,new ComponentName(context,GpsSyncJob.class))
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setMinimumLatency(30000)
             .setBackoffCriteria(30000,JobInfo.BACKOFF_POLICY_EXPONENTIAL).setPersisted(true).build());
@@ -69,7 +71,7 @@ final class GpsSync {
                     db.completed(trip); db.put("closed:"+trip,"confirmed");
                 }
             }
-            db.put("syncStatus",db.count(null,true)>0?"Hay capturas pendientes o para revisión":"Sincronizado");
+            db.put("syncStatus",db.count(null,true)>0?"Hay capturas pendientes o para revisión":db.completionCount()>0?"Cierre pendiente de sincronizar":"Sincronizado");
             return db.count(null,false)==0 && db.completionCount()==0;
         } catch(Exception error) {
             db.put("syncStatus", error.getMessage()==null?"Pendiente de sincronizar":error.getMessage());

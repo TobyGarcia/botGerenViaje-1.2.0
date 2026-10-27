@@ -44,6 +44,7 @@ public class NativeGpsPlugin extends Plugin {
             configureSession(call);
             if(!trip.equals(db.read("trip","")) || !"true".equals(db.read("active","false"))) {
                 db.put("startedAt",String.valueOf(BridgeNumbers.integer(call.getData().opt("startedAt"),System.currentTimeMillis())));db.put("lastCaptureMillis","0");
+                db.put("lastLocation","{}");
                 db.put("lastReminder","0");
             }
             db.put("trip",trip);db.put("folio",call.getString("folio","Viaje "+trip));
