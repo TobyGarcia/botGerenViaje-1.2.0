@@ -1667,6 +1667,7 @@ function isOutsideOperatingHours() {
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
+          <AndroidUpdateNotice trip={createdTrip} />
           <PinLoginForm
             onSuccess={handlePinLoginSuccess}
             onRegisterClick={() => setShowConductorRegister(true)}
@@ -1839,7 +1840,7 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        <AndroidUpdateNotice trip={createdTrip} />
+        <AndroidUpdateNotice trip={createdTrip} authenticated />
         {offlineNotice && <div role="status" className={offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") ? "message message-success" : "inspection-load-error"}>
           <p>{offlineNotice}</p>
           {!offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") && (
