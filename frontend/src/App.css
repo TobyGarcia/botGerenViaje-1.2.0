@@ -2424,8 +2424,9 @@ form#urban-trip-form {
 .vehicle-select-trigger.is-open {
   background: #ffffff;
   border-color: #0284c7;
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
+
+.vehicle-select-trigger:focus-within { border-color: #0284c7; }
 
 .vehicle-select-trigger.is-disabled {
   opacity: 0.6;
@@ -2550,7 +2551,7 @@ form#urban-trip-form {
   }
 }
 
-.vehicle-select-trigger .vehicle-search-input {
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input {
   display: block;
   flex: 1 1 0%;
   width: 100%;
@@ -2560,7 +2561,7 @@ form#urban-trip-form {
   border-radius: 0;
   padding: 6px 0;
   font-size: 0.88rem;
-  background: #ffffff;
+  background: transparent !important;
   color: #0f172a;
   -webkit-text-fill-color: #0f172a;
   caret-color: #0284c7;
@@ -2578,7 +2579,8 @@ form#urban-trip-form {
   opacity: 1;
 }
 
-.vehicle-select-trigger .vehicle-search-input:focus-visible {
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input:focus,
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input:focus-visible {
   outline: none;
 }
 
