@@ -1,0 +1,63 @@
+.gv-camera-dialog {
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 40px));
+  max-width: none;
+  height: min(820px, calc(100dvh - 40px));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #ffffff18;
+  border-radius: 26px;
+  overflow: hidden;
+  background: #0c1821;
+  color: #f8fafc;
+  box-shadow: 0 32px 100px #0008;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.gv-camera-dialog[open] { display: flex; flex-direction: column; }
+.gv-camera-dialog::backdrop { background: #04101cd9; backdrop-filter: blur(7px); }
+.gv-camera-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; }
+.gv-camera-heading { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.gv-camera-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; flex: 0 0 auto; background: #12394b; color: #70d5f8; }
+.gv-camera-heading h2 { margin: 0; color: #fff; font-size: 18px; font-weight: 750; line-height: 1.3; }
+.gv-camera-heading p { margin: 4px 0 0; color: #a4b4c0; font-size: 11px; line-height: 1.4; }
+.gv-camera-dialog button.gv-camera-control { display: grid; place-items: center; flex: 0 0 auto; box-sizing: border-box; width: 44px; height: 44px; min-height: 44px; padding: 0; margin: 0; border: 1px solid #ffffff24; border-radius: 50%; background: #ffffff0b; background-image: none; color: #f8fafc; box-shadow: none; font: inherit; line-height: 1; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.gv-camera-dialog button.gv-camera-control:hover:not(:disabled) { background: #ffffff1c; transform: none; }
+.gv-camera-dialog button.gv-camera-control:focus-visible { outline: 3px solid #72d8fa; outline-offset: 4px; }
+.gv-camera-dialog button.gv-camera-control:disabled { opacity: .35; cursor: default; }
+.gv-camera-stage { position: relative; display: grid; place-items: center; flex: 1 1 auto; min-height: 0; margin: 0 12px; overflow: hidden; border-radius: 18px; background: #02070b; }
+.gv-camera-video { display: block; width: 100%; height: 100%; min-height: 0; position: absolute; inset: 0; object-fit: contain; }
+.gv-camera-video-front { transform: scaleX(-1); }
+.gv-camera-live { position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid #ffffff24; border-radius: 20px; background: #08121cbf; color: #e2edf3; font-size: 11px; backdrop-filter: blur(8px); }
+.gv-camera-live > span { width: 6px; height: 6px; border-radius: 50%; background: #59dfb5; }
+.gv-camera-state { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; padding: 28px; text-align: center; background: #071019ed; color: #aabecb; }
+.gv-camera-state p { max-width: 310px; margin: 0; color: inherit; font-size: 13px; line-height: 1.6; }
+.gv-camera-state h3 { margin: 0; color: #f1f5f9; font-size: 17px; }
+.gv-camera-error > svg { color: #efbb7d; }
+.gv-camera-spinner { width: 28px; height: 28px; border: 2px solid #ffffff25; border-top-color: #70d5f8; border-radius: 50%; animation: gv-camera-spin .8s linear infinite; }
+.gv-camera-dialog button.gv-camera-retry { width: auto; height: 44px; padding: 0 18px; border-radius: 12px; background: #087fae; font-size: 13px; font-weight: 700; }
+.gv-camera-footer { flex: 0 0 auto; padding: 18px 28px 24px; }
+.gv-camera-footer .gv-camera-hint { margin: 0 0 18px; color: #a4b4c0; text-align: center; font-size: 12px; line-height: 1.5; }
+.gv-camera-controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; justify-items: center; }
+.gv-camera-mode { color: #72d8fa; letter-spacing: 1.8px; font-size: 10px; font-weight: 800; }
+.gv-camera-dialog button.gv-camera-shutter { width: 76px; height: 76px; min-height: 76px; border: 2px solid #fff; background: transparent; padding: 5px; }
+.gv-camera-shutter > span { display: block; width: 100%; height: 100%; border-radius: 50%; background: #fff; transition: transform .15s ease; }
+.gv-camera-shutter:active:not(:disabled) > span { transform: scale(.9); }
+.gv-camera-dialog button.gv-camera-flip { width: 48px; height: 48px; }
+@keyframes gv-camera-spin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+  .gv-camera-dialog { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
+  .gv-camera-header { padding: calc(16px + env(safe-area-inset-top)) 18px 16px; }
+  .gv-camera-footer { padding: 18px 24px calc(24px + env(safe-area-inset-bottom)); }
+  .gv-camera-stage { margin: 0 10px; border-radius: 16px; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .gv-camera-dialog[open] { display: grid; grid-template-columns: minmax(0, 1fr) 140px; grid-template-rows: auto minmax(0, 1fr); }
+  .gv-camera-header { grid-column: 1 / -1; padding: 10px 16px; }
+  .gv-camera-stage { height: 100%; margin-bottom: 10px; }
+  .gv-camera-footer { padding: 10px 16px; }
+  .gv-camera-controls { grid-template-columns: 1fr; gap: 18px; }
+  .gv-camera-footer .gv-camera-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .gv-camera-spinner { animation: none; } .gv-camera-dialog button.gv-camera-control, .gv-camera-shutter > span { transition: none; } }

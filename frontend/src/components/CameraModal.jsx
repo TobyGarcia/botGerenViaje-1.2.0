@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { IconCamera, IconRotate, IconAlert } from "./Icons.jsx";
 import { createCameraSession, cameraErrorMessage } from "../services/camera-session.js";
 import { createPortal } from "react-dom";
+import "./CameraModal.css";
 
 export default function CameraModal({ onCapture, onClose }) {
   const videoRef = useRef(null);
+  const dialogRef = useRef(null);
   const streamRef = useRef(null);
   const sessionRef = useRef(null);
   const mountedRef = useRef(false);
@@ -15,6 +17,14 @@ export default function CameraModal({ onCapture, onClose }) {
   const [capturing, setCapturing] = useState(false);
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog?.showModal();
+    return () => { dialog?.close(); document.body.style.overflow = previousOverflow; };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -99,187 +109,41 @@ export default function CameraModal({ onCapture, onClose }) {
   }
 
   return createPortal(
-    <div
-      className="modal-overlay"
-      style={{
-        zIndex: 10000,
-        backgroundColor: "rgba(0, 0, 0, 0.92)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        padding: "12px",
-        boxSizing: "border-box"
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Tomar fotografía"
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "460px",
-          maxHeight: "96vh",
-          background: "#0f172a",
-          borderRadius: "16px",
-          overflow: "hidden",
-          boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5)",
-          display: "flex",
-          flexDirection: "column",
-          border: "1px solid #334155"
-        }}
-      >
-        {/* Encabezado */}
-        <div
-          style={{
-            padding: "12px 16px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid #1e293b",
-            background: "#0f172a"
-          }}
-        >
-          <span style={{ color: "#f8fafc", fontWeight: "600", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
-            <IconCamera size={18} color="#38bdf8" /> Visor de Cámara
-          </span>
-          <button
-            type="button"
-            onClick={handleClose}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#94a3b8",
-              fontSize: "1.6rem",
-              lineHeight: 1,
-              cursor: "pointer",
-              padding: "4px"
-            }}
-            aria-label="Cerrar cámara"
-          >
-            ×
-          </button>
+    <dialog ref={dialogRef} className="gv-camera-dialog" aria-labelledby="gv-camera-title"
+      onCancel={event => { event.preventDefault(); handleClose(); }}>
+      <header className="gv-camera-header">
+        <div className="gv-camera-heading">
+          <span className="gv-camera-mark" aria-hidden="true"><IconCamera size={21} /></span>
+          <div><h2 id="gv-camera-title">Tomar foto</h2><p>Encuadra y mantén el teléfono estable</p></div>
         </div>
-
-        {/* Área del video / visor */}
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "4/3",
-            background: "#000",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden"
-          }}
-        >
-          {loading && (
-            <p style={{ color: "#38bdf8", fontSize: "0.9rem" }}>Iniciando cámara...</p>
-          )}
-
-          {cameraError && (
-            <div style={{ padding: "20px", textAlign: "center", color: "#fca5a5" }}>
-              <div style={{ marginBottom: "8px" }}><IconAlert size={32} color="#fca5a5" /></div>
-              <p style={{ fontSize: "0.88rem", margin: 0 }}>{cameraError}</p>
-            </div>
-          )}
-          <video
-              ref={videoRef}
-              playsInline
-              autoPlay
-              muted
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                transform: facingMode === "user" ? "scaleX(-1)" : "none",
-                display: cameraError ? "none" : "block"
-              }}
-            />
-        </div>
-
-        {/* Acciones */}
-        <div
-          style={{
-            padding: "14px 16px",
-            display: "flex",
-            gap: "10px",
-            justifyContent: "center",
-            alignItems: "center",
-            flexWrap: "wrap",
-            background: "#0f172a"
-          }}
-        >
-          {cameraError && <button type="button" onClick={() => { setCapturing(false); setAttempt(value => value + 1); }} style={{ background: "#0284c7", color: "white", border: 0, borderRadius: "20px", padding: "12px 18px" }}>Reintentar cámara</button>}
-          {!cameraError && !loading && (
-            <>
-              <button
-                type="button"
-                onClick={toggleCameraFacing}
-                style={{
-                  background: "#334155",
-                  color: "#f8fafc",
-                  border: "none",
-                  padding: "10px 14px",
-                  borderRadius: "20px",
-                  fontSize: "0.85rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                <IconRotate size={16} /> Voltear
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTakeSnapshot}
-                disabled={capturing}
-                style={{
-                  background: "#16a34a",
-                  color: "#ffffff",
-                  border: "none",
-                  padding: "12px 20px",
-                  borderRadius: "24px",
-                  fontSize: "0.95rem",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(22, 163, 74, 0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                <IconCamera size={18} /> {capturing ? "Capturando…" : "Capturar Foto"}
-              </button>
-            </>
-          )}
-
-          <button
-            type="button"
-            onClick={handleClose}
-            style={{
-              background: "#475569",
-              color: "#f8fafc",
-              border: "none",
-              padding: "10px 16px",
-              borderRadius: "20px",
-              fontSize: "0.85rem",
-              cursor: "pointer"
-            }}
-          >
-            Cerrar
-          </button>
-        </div>
+        <button type="button" className="gv-camera-control gv-camera-close" onClick={handleClose} aria-label="Cerrar cámara">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <div className="gv-camera-stage">
+        <video ref={videoRef} playsInline autoPlay muted className={facingMode === "user" ? "gv-camera-video gv-camera-video-front" : "gv-camera-video"}
+          style={{ visibility: cameraError ? "hidden" : "visible" }} />
+        {!loading && !cameraError && <span className="gv-camera-live"><span aria-hidden="true" />{facingMode === "user" ? "Cámara frontal" : "Cámara trasera"}</span>}
+        {loading && <div className="gv-camera-state" role="status"><span className="gv-camera-spinner" aria-hidden="true" /><p>Abriendo cámara…</p></div>}
+        {cameraError && <div className="gv-camera-state gv-camera-error" role="alert">
+          <IconAlert size={30} /><h3>No pudimos abrir la cámara</h3><p>{cameraError}</p>
+          <button type="button" className="gv-camera-control gv-camera-retry" onClick={() => { setCapturing(false); setAttempt(value => value + 1); }}>Volver a intentar</button>
+        </div>}
       </div>
-    </div>, document.body
+      <footer className="gv-camera-footer">
+        <p className="gv-camera-hint" role="status">{capturing ? "Preparando tu fotografía…" : loading ? "Permite el acceso a la cámara para continuar" : cameraError ? "Puedes cerrar el visor y volver cuando estés listo" : "Toca el círculo para tomar la foto"}</p>
+        <div className="gv-camera-controls">
+          <span className="gv-camera-mode" aria-hidden="true">FOTO</span>
+          <button type="button" className="gv-camera-control gv-camera-shutter" onClick={handleTakeSnapshot}
+            disabled={loading || capturing || Boolean(cameraError)} aria-label={capturing ? "Capturando fotografía" : "Capturar foto"}>
+            <span />
+          </button>
+          <button type="button" className="gv-camera-control gv-camera-flip" onClick={toggleCameraFacing}
+            disabled={loading || capturing || Boolean(cameraError)} aria-label="Cambiar cámara">
+            <IconRotate size={24} />
+          </button>
+        </div>
+      </footer>
+    </dialog>, document.body
   );
 }
