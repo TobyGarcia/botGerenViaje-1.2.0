@@ -15,7 +15,7 @@ const diagramFiles = {
   remolque_trasera: new URL("../assets/inspection-diagrams/remolque_trasera.png", import.meta.url),
   remolque_derecha: new URL("../assets/inspection-diagrams/remolque_derecha.png", import.meta.url),
   remolque_izquierdo: new URL("../assets/inspection-diagrams/remolque_izquierdo.png", import.meta.url),
-  logoAquario: new URL("../assets/aquario-logo.png", import.meta.url)
+  logoGv: new URL("../assets/gv-logo-hd.png", import.meta.url)
 };
 
 function pdfEscape(value) {
@@ -175,8 +175,8 @@ export function buildInspectionPdf(data) {
   const diagrams = Object.fromEntries(
     Object.entries(diagramFiles).map(([view, url]) => {
       try {
-        // Aplanar el logo AQUARIO sobre fondo azul marino (#1b516f -> RGB 27, 81, 111)
-        const bg = view === "logoAquario" ? [27, 81, 111] : [255, 255, 255];
+        // Conservar el contraste del logo GV transparente sobre el encabezado.
+        const bg = view === "logoGv" ? [27, 81, 111] : [255, 255, 255];
         return [view, readPng(readFileSync(fileURLToPath(url)), bg)];
       } catch { return [view, null]; }
     }).filter(([, img]) => img !== null)
@@ -209,13 +209,13 @@ export function buildInspectionPdf(data) {
   // CABECERA SUPERIOR (Y: 748 a 780)
   rect(commands, MARGIN, 748, 540, 32, { stroke: border, lineWidth: 0.8 });
 
-  // Cuadro Izquierdo - Logo AQUARIO
+  // Cuadro izquierdo - Logo GV en resolución original
   rect(commands, MARGIN, 748, 120, 32, { fill: darkNavy, stroke: border, lineWidth: 0.8 });
-  if (imageReferences.logoAquario) {
-    drawImage(commands, imageReferences.logoAquario.name, imageReferences.logoAquario.image, MARGIN + 4, 750, 112, 28);
+  if (imageReferences.logoGv) {
+    drawImage(commands, imageReferences.logoGv.name, imageReferences.logoGv.image, MARGIN + 4, 750, 112, 28);
   } else {
-    drawText(commands, "AQUARIO", 96, 762, 13.5, { bold: true, fill: textWhite, align: "center" });
-    drawText(commands, "SERVICIOS INDUSTRIALES", 96, 752, 5.2, { bold: true, fill: "#51c8f3", align: "center" });
+    drawText(commands, "GV MOBILITY", 96, 762, 11, { bold: true, fill: textWhite, align: "center" });
+    drawText(commands, "MOVIMIENTO QUE CONECTA", 96, 752, 5.2, { bold: true, fill: "#51c8f3", align: "center" });
   }
 
   // Cuadro Central - Nombre de Empresa
