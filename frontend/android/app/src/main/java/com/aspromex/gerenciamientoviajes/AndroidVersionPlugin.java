@@ -7,25 +7,35 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import android.content.pm.PackageInfo;
 import androidx.core.content.pm.PackageInfoCompat;
-import android.content.Intent;
-import android.net.Uri;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @CapacitorPlugin(name = "AndroidVersion")
 public class AndroidVersionPlugin extends Plugin {
-    @PluginMethod
-    public void openDownload(PluginCall call) {
-        try {
-            Uri uri = Uri.parse(call.getString("url", ""));
-            if (!"https".equals(uri.getScheme()) || !"github.com".equals(uri.getHost()) ||
-                !uri.getPath().startsWith("/TobyGarcia/botGerenViaje-1.2.0/releases/download/")) {
-                call.reject("Enlace de actualización inválido.");
-                return;
-            }
-            getActivity().startActivity(new Intent(Intent.ACTION_VIEW, uri));
-            call.resolve();
-        } catch (Exception exception) {
-            call.reject("No fue posible abrir la descarga.");
-        }
+    private static final ExecutorService IO=Executors.newSingleThreadExecutor();
+    private static final AtomicBoolean BUSY=new AtomicBoolean(false);
+    @PluginMethod public void getDownloadStatus(PluginCall call) {
+        JSObject result=new JSObject();result.put("downloading",BUSY.get());
+        result.put("progress",NativeApkUpdater.total>0?Math.min(100,(int)(NativeApkUpdater.downloaded*100/NativeApkUpdater.total)):-1);call.resolve(result);
+    }
+    @PluginMethod public void downloadUpdate(PluginCall call) {
+        if(!BUSY.compareAndSet(false,true)){call.reject("Ya hay una descarga en curso.");return;}
+        IO.execute(()->{try {
+            NativeApkUpdater.download(getContext(),call.getString("url",""),call.getString("sha256","").toLowerCase(java.util.Locale.ROOT),
+                BridgeNumbers.integer(call.getData().opt("versionCode"),0));call.resolve();
+        }catch(Exception error){call.reject(error.getMessage()==null?"No se pudo descargar la actualización.":error.getMessage());}
+        finally{BUSY.set(false);}});
+    }
+    @PluginMethod public void installUpdate(PluginCall call) {
+        IO.execute(()->{try {
+            NativeApkUpdater.verifyReady(getContext());
+            getActivity().runOnUiThread(()->{try {
+                boolean permission=NativeApkUpdater.needsPermission(getContext());
+                getActivity().startActivity(NativeApkUpdater.installIntent(getContext()));
+                JSObject result=new JSObject();result.put("permissionRequired",permission);call.resolve(result);
+            }catch(Exception error){call.reject("No se pudo abrir el instalador de Android.");}});
+        }catch(Exception error){call.reject("Descarga nuevamente la actualización antes de instalar.");}});
     }
     @PluginMethod
     public void getInfo(PluginCall call) {

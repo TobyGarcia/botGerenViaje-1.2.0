@@ -13,6 +13,9 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
   const [update, setUpdate] = useState(null);
   const [message, setMessage] = useState("");
   const [checking, setChecking] = useState(false);
+  const [stage, setStage] = useState("");
+  const [progress, setProgress] = useState(null);
+  const [readyVersion, setReadyVersion] = useState(null);
   const [snoozedUntil, setSnoozedUntil] = useState(0);
   const enabled = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
   useEffect(() => {
@@ -30,8 +33,21 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
     return () => watcher.stop();
   }, [enabled]);
 
+  useEffect(() => {
+    if (stage !== "downloading") return;
+    let active = true;
+    const timer = setInterval(() => {
+      void AndroidVersion.getDownloadStatus().then(status => {
+        if (active && status.downloading) setProgress(status.progress >= 0 ? status.progress : null);
+      }).catch(() => {});
+    }, 500);
+    return () => { active = false; clearInterval(timer); };
+  }, [stage]);
+
   async function download() {
     setChecking(true);
+    setStage("checking");
+    setMessage("");
     try {
       if (trip && !["FINALIZADO", "CANCELADO"].includes(trip.estado)) throw new Error("Termina el viaje antes de actualizar.");
       const state = JSON.parse(localStorage.getItem("gerenciamiento_viajes_tracking_state") || "null");
@@ -60,13 +76,22 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
       }
       const url = new URL(update.downloadUrl);
       if (url.protocol !== "https:" || url.hostname !== "github.com" || !url.pathname.startsWith("/TobyGarcia/botGerenViaje-1.2.0/releases/download/")) throw new Error("Enlace de actualización inválido.");
-      await AndroidVersion.openDownload({ url: url.href });
-      setMessage("Confirma la instalación en Android cuando termine la descarga.");
+      if (readyVersion !== update.versionCode) {
+        setStage("downloading"); setProgress(null);
+        await AndroidVersion.downloadUpdate({ url: url.href, sha256: update.sha256, versionCode: update.versionCode });
+        setReadyVersion(update.versionCode);
+      }
+      setStage("installing");
+      const installation = await AndroidVersion.installUpdate();
+      setMessage(installation.permissionRequired
+        ? "Activa «Permitir desde esta fuente» para GV Mobility. Vuelve aquí y pulsa «Instalar actualización»."
+        : "Confirma la actualización en el instalador de Android. Si la cancelaste, puedes volver a instalar sin descargar otra vez.");
     } catch (error) { setMessage(error.message || "No fue posible verificar los datos pendientes."); }
-    finally { setChecking(false); }
+    finally { setChecking(false); setStage(""); setProgress(null); }
   }
 
   if (!enabled || !update || Date.now() < snoozedUntil) return null;
   return <AndroidUpdateDialog version={update.versionName} checking={checking} message={message} onDownload={download}
+    stage={stage} progress={progress} ready={readyVersion === update.versionCode}
     onLater={() => { setSnoozedUntil(Date.now() + 30 * 60000); setMessage(""); }} />;
 }

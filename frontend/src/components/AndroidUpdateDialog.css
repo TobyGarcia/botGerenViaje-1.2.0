@@ -27,5 +27,8 @@
 .android-update-dialog .android-update-later { margin-top: 7px; background: transparent; color: #607284; box-shadow: none; }
 .android-update-dialog button:focus-visible { outline: 3px solid #85d2f6; outline-offset: 3px; }
 .android-update-dialog button:disabled { opacity: .65; cursor: wait; }
+.android-update-download { display: grid; gap: 9px; margin: 0 0 18px; font-size: 13px; color: #285872; }
+.android-update-download progress { width: 100%; height: 10px; accent-color: #0089c7; }
+.android-update-download span:last-child { font-size: 11px; color: #607284; }
 @media (prefers-reduced-motion: no-preference) { .android-update-dialog[open] { animation: android-update-enter .18s ease-out; } }
 @keyframes android-update-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

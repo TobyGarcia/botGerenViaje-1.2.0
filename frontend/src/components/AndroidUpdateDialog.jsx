@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./AndroidUpdateDialog.css";
 
-export default function AndroidUpdateDialog({ version, checking, message, onDownload, onLater }) {
+export default function AndroidUpdateDialog({ version, checking, message, onDownload, onLater, stage, progress, ready }) {
   const dialog = useRef(null);
   useEffect(() => {
     const element = dialog.current;
@@ -22,8 +22,13 @@ export default function AndroidUpdateDialog({ version, checking, message, onDown
     <span className="android-update-version">Versión {version}</span>
     <p className="android-update-hint">Si tienes un viaje activo, puedes hacerlo al terminar y sincronizar tus datos.</p>
     {message && <p className="android-update-feedback" role="alert">{message}</p>}
+    {stage === "downloading" && <div className="android-update-download" role="status">
+      <span>{progress === null ? "Descargando actualización…" : `Descargando actualización: ${progress}%`}</span>
+      <progress aria-label="Descarga de actualización" max="100" value={progress === null ? undefined : progress} />
+      <span>La descarga se guarda dentro de la aplicación.</span>
+    </div>}
     <button className="android-update-primary" type="button" disabled={checking} onClick={onDownload} autoFocus>
-      {checking ? "Verificando…" : "Actualizar ahora"}
+      {checking ? (stage === "downloading" ? "Descargando…" : stage === "installing" ? "Preparando instalación…" : "Verificando…") : ready ? "Instalar actualización" : "Actualizar ahora"}
     </button>
     <button className="android-update-later" type="button" disabled={checking} onClick={onLater}>Más tarde</button>
   </dialog>, document.body);

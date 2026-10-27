@@ -39,7 +39,25 @@ y se sincroniza el inicio; las ubicaciones permanecen en SQLite mientras tanto.
 El endpoint requiere aplicar `040_android_native_gps.sql` antes de instalar la
 APK. Los clientes anteriores siguen siendo compatibles.
 
-## Notificaciones
+## Actualizador dentro de la APK
+
+Desde 1.2.6, la modal descarga por HTTPS al caché privado y muestra el progreso,
+sin abrir el navegador. Sigue únicamente redirecciones HTTPS hacia los hosts de
+assets de GitHub, limita tamaño/tiempo y comprueba SHA-256, paquete, versión
+superior y mismos firmantes antes de abrir el instalador. Una descarga fallida
+se puede reintentar; las copias incompletas no se instalan. La copia completa
+se reutiliza si se cancela la instalación o falta autorizar esta fuente.
+
+La primera instalación desde GV Mobility puede abrir los ajustes de Android
+para «Permitir desde esta fuente»; al volver se pulsa «Instalar actualización».
+Android solicita la confirmación final: no es una instalación silenciosa.
+Actualizar sobre 1.2.5 requiere una última descarga externa para incorporar
+este código nativo. No desinstalar ni borrar datos para actualizar.
+
+Validar en teléfono: progreso, caída de internet/reintento, permiso de fuente,
+cancelación del instalador y actualización real sobre una versión anterior.
+
+## Aviso durante el viaje
 
 Durante el viaje: folio, tiempo transcurrido, antigüedad GPS, cola y acceso a
 abrir/finalizar. Finalizar abre el odómetro, nunca cierra sin confirmación.
