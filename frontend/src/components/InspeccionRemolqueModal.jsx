@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import remolqueFrontalImg from "../assets/remolque_frontal.png";
+import { isTrailer } from "../utils/vehicle-kind.js";
 import remolqueDerechaImg from "../assets/remolque_derecha.png";
 import remolqueTraseraImg from "../assets/remolque_trasera.png";
 import remolqueIzquierdoImg from "../assets/remolque_izquierdo.png";
@@ -93,14 +94,7 @@ const STATE_TO_NUM = { "N/A": 0, "M": 1, "R": 2, "B": 3 };
 const NUM_TO_STATE = { 0: "N/A", 1: "M", 2: "R", 3: "B" };
 
 export default function InspeccionRemolqueModal({ vehiculos = [], initialData = {}, onSave, onClose }) {
-  // Filtrar unidades que correspondan a remolques (por tipo o descripción)
-  const remolquesCatalog = vehiculos.filter((v) => {
-    const tipo = String(v.tipo_vehiculo || "").toLowerCase();
-    const text = `${v.nombre || ""} ${v.marca || ""} ${v.modelo || ""} ${v.numero_economico || ""}`.toLowerCase();
-    return tipo === "remolque" || text.includes("remolque") || text.includes("plana") || text.includes("trailer") || text.includes("dolly") || text.includes("lowboy") || text.includes("cama baja");
-  });
-
-  const availableRemolques = remolquesCatalog.length > 0 ? remolquesCatalog : vehiculos;
+  const availableRemolques = vehiculos.filter(isTrailer);
 
   const [step, setStep] = useState(0);
   const [idRemolque, setIdRemolque] = useState(
@@ -179,12 +173,12 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
   }
 
   function canContinue() {
-    if (step === 0) return Boolean(idRemolque);
+    if (step === 0) return availableRemolques.some(v => String(v.id_vehiculos) === String(idRemolque));
     return true;
   }
 
   function handleSave() {
-    if (!idRemolque) {
+    if (!availableRemolques.some(v => String(v.id_vehiculos) === String(idRemolque))) {
       alert("Por favor selecciona la unidad de Remolque.");
       return;
     }
@@ -270,11 +264,6 @@ export default function InspeccionRemolqueModal({ vehiculos = [], initialData = 
                 {availableRemolques.length === 0 && (
                   <span style={{ fontSize: "0.8rem", color: "#dc2626", marginTop: "6px", display: "block" }}>
                     ⚠️ No se encontraron unidades de remolque disponibles en el catálogo.
-                  </span>
-                )}
-                {availableRemolques.length > 0 && remolquesCatalog.length === 0 && (
-                  <span style={{ fontSize: "0.75rem", color: "#d97706", marginTop: "6px", display: "block" }}>
-                    ⚠️ No se encontraron unidades catalogadas como Remolque. Se listan todas las unidades disponibles.
                   </span>
                 )}
               </div>

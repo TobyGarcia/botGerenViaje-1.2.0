@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { IconTrash } from "./Icons.jsx";
+import { isTrailer } from "../utils/vehicle-kind.js";
 
 export default function VehicleDropdown({
-  vehiculos = [],
+  vehiculos: catalogoVehiculos = [],
   value = "",
   onChange,
   assignedVehicle = null,
@@ -12,6 +13,7 @@ export default function VehicleDropdown({
   id = "unit-selector",
   name = "idVehiculo"
 }) {
+  const vehiculos = catalogoVehiculos.filter(vehicle => !isTrailer(vehicle));
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
@@ -110,7 +112,7 @@ export default function VehicleDropdown({
         type="text"
         id={id}
         name={name}
-        value={value || ""}
+        value={selectedVehicle ? value : ""}
         onChange={() => {}}
         required={required}
         tabIndex={-1}
