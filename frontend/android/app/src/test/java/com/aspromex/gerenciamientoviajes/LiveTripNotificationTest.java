@@ -50,14 +50,14 @@ public class LiveTripNotificationTest {
         }finally{service.destroy();}
     }
 
-    @Test public void dismissingDoesNotStopGpsOrEraseQueueAndIsNotRepostedForSameTrip() throws Exception {
+    @Test public void dismissedNoticeReturnsWithoutRepromotingOrStoppingGps() throws Exception {
         var service=Robolectric.buildService(GpsTrackingService.class).create();
         try {
             Notification notice=service.get().buildTripNotification();
             Intent dismissal=Shadows.shadowOf(notice.deleteIntent).getSavedIntent();
             new GpsNotificationDismissedReceiver().onReceive(context,dismissal);
             service.get().showNotification();
-            assertEquals(0,notifications.getActiveNotifications().length);
+            assertEquals(1,notifications.getActiveNotifications().length);
             assertEquals("true",db.read("active","false"));assertEquals(1,db.count("11",false));assertNull(db.completion("11"));
             assertFalse(service.get().buildTripNotification().extras.getBoolean(NotificationCompat.EXTRA_REQUEST_PROMOTED_ONGOING));
             db.put("trip","12");db.put("folio","VJ-TEST-0012");

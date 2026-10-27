@@ -36,6 +36,7 @@ import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
+import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import OdometerCorrection from "./components/OdometerCorrection.jsx";
@@ -368,11 +369,7 @@ const [cancelledTrip, setCancelledTrip] =
   const syncOfflineState = useCallback(async () => {
     const driverId = telegramAuth?.conductor?.id_conductores;
     if (!driverId) return;
-    const before = getOfflineTrip(driverId);
-    const pendingCount = getPendingOfflineTrips(driverId).length;
-    if (pendingCount) setOfflineNotice(before?.startedAt
-      ? `${pendingCount} viaje${pendingCount === 1 ? "" : "s"} guardado${pendingCount === 1 ? "" : "s"} en el teléfono. Pendiente${pendingCount === 1 ? "" : "s"} de sincronizar con el servidor.`
-      : "Viaje preparado en el teléfono con la inspección previa del día.");
+    setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
     if (!navigator.onLine) return;
     try {
       const record = await syncOfflineTrip(driverId);
@@ -383,18 +380,11 @@ const [cancelledTrip, setCancelledTrip] =
         if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
         const cached = safeStorage.getJSON("cached_active_trip");
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
-        if (record.synced && !before?.synced) {
-          setOfflineNotice(`Viaje y GPS sincronizados correctamente. Folio: ${record.serverTrip.folio}`);
-          window.setTimeout(() => setOfflineNotice(""), 8000);
-        } else if (!record.synced) {
-          setOfflineNotice(record.serverTrip
-            ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
-            : "Viaje pendiente de sincronización.");
-        }
       }
+      setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
       await refreshOfflinePermits(driverId);
     } catch (error) {
-      if (before && !before.synced) setOfflineNotice(`El viaje sigue guardado en el teléfono. ${error.message}`);
+      setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId), error.message));
     }
   }, [telegramAuth?.conductor?.id_conductores]);
   useEffect(() => {
@@ -1851,11 +1841,9 @@ function isOutsideOperatingHours() {
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         <AndroidUpdateNotice trip={createdTrip} authenticated />
-        {offlineNotice && <div role="status" className={offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") ? "message message-success" : "inspection-load-error"}>
+        {offlineNotice && <div role="status" className="offline-trip-notice">
           <p>{offlineNotice}</p>
-          {!offlineNotice.startsWith("Viaje y GPS sincronizados correctamente.") && (
-            <button type="button" onClick={syncOfflineState}>Sincronizar viaje guardado</button>
-          )}
+          <button type="button" onClick={syncOfflineState}>Sincronizar pendientes</button>
         </div>}
         {createdTrip ? (
           <div className="gv-screen-header">

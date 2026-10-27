@@ -68,9 +68,10 @@ el estado GPS y la cola. Si falta GPS reciente el indicador compacto lo avisa.
 
 La promoción depende del sistema, fabricante y ajustes del usuario; no aumenta
 la fiabilidad del sensor GPS. Si el usuario oculta el aviso se recuerda para
-ese viaje y no se vuelve a publicar desde los ticks/capturas. Esto no detiene
-GPS ni borra ubicaciones. Un reinicio del servicio puede exigir el aviso base
-foreground, pero no vuelve a pedir promoción para ese mismo viaje. El siguiente
+ese viaje. Desde 1.2.14, el servicio restaura el aviso estándar con el próximo
+tick (30 segundos solicitados al sistema) o captura GPS, sin volver a pedir
+promoción Live Update para el viaje que se ocultó. Esto no detiene GPS ni borra
+ubicaciones; nunca se restaura después de finalizar/cancelar. El siguiente
 viaje comienza con su propio aviso. Los recordatorios normales siguen separados.
 
 Durante el viaje: folio, tiempo transcurrido, antigüedad GPS, cola y acceso a

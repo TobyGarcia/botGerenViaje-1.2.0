@@ -100,7 +100,9 @@ public class GpsTrackingService extends Service implements LocationListener {
     void showNotification(){
         if(!"true".equals(db.read("active","false")))return;
         NotificationManager notifications=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-        if(!db.read("trip","").equals(db.read("notificationDismissedTrip","")))notifications.notify(NOTIFICATION,buildTripNotification());
+        // The running service restores its ordinary notice on the next GPS/timer update.
+        // A dismissed Live Update is not promoted again for this same trip.
+        notifications.notify(NOTIFICATION,buildTripNotification());
         long elapsed=System.currentTimeMillis()-Long.parseLong(db.read("startedAt","0"));
         long reminder=Long.parseLong(db.read("reminderMillis","7200000"));
         if(elapsed>=reminder && System.currentTimeMillis()-Long.parseLong(db.read("lastReminder","0"))>=3600000){

@@ -1994,6 +1994,19 @@
   gap: 12px;
 }
 
+.offline-trip-notice {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #ecd59d;
+  border-radius: 14px;
+  background: #fff9eb;
+  color: #72551e;
+}
+.offline-trip-notice p { margin: 0; font-size: 14px; line-height: 1.5; }
+.offline-trip-notice button { width: 100%; min-height: 44px; padding: 10px 14px; border: 0; border-radius: 10px; background: #087fae; color: #fff; font: inherit; font-weight: 700; }
+
 .temporary-period-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
