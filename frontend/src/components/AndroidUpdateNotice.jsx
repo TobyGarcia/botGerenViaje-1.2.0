@@ -33,7 +33,7 @@ export default function AndroidUpdateNotice({ trip }) {
         const key = localStorage.key(i);
         if (key.startsWith("gv_offline_trip_v1:")) {
           const saved = JSON.parse(localStorage.getItem(key) || "null");
-          if (saved && (!Array.isArray(saved) || saved.length > 0)) {
+          if (saved && (Array.isArray(saved) ? saved.some(record => !record.synced) : !saved.synced)) {
             throw new Error("Sincroniza los viajes guardados antes de actualizar.");
           }
         }

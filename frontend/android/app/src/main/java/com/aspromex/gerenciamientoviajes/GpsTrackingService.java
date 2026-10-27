@@ -78,6 +78,8 @@ public class GpsTrackingService extends Service implements LocationListener {
         long age=SystemClock.elapsedRealtimeNanos()-location.getElapsedRealtimeNanos();
         if(age<0 || age>120000000000L || location.getTime()<=0)return;
         try {
+            JSONObject last=new JSONObject(db.read("lastLocation","{}"));
+            if(GpsTime.iso(location.getTime()).equals(last.optString("fechaGps")) && location.getLatitude()==last.optDouble("latitud") && location.getLongitude()==last.optDouble("longitud"))return;
             JSONObject point=new JSONObject().put("clientLocationId",UUID.randomUUID().toString()).put("idViaje",db.read("trip",""))
                 .put("latitud",location.getLatitude()).put("longitud",location.getLongitude()).put("precisionMetros",location.hasAccuracy()?location.getAccuracy():JSONObject.NULL)
                 .put("velocidad",location.hasSpeed()?location.getSpeed()*3.6:JSONObject.NULL).put("direccion",location.hasBearing()?location.getBearing():JSONObject.NULL)
@@ -90,6 +92,6 @@ public class GpsTrackingService extends Service implements LocationListener {
     }
     @Override public void onProviderDisabled(String provider){db.put("gpsStatus","GPS desactivado");showNotification();}
     @Override public void onProviderEnabled(String provider){db.put("gpsStatus","Esperando señal GPS");}
-    @Override public void onDestroy(){handler.removeCallbacksAndMessages(null);if(manager!=null)manager.removeUpdates(this);syncExecutor.shutdown();GpsSync.schedule(this);super.onDestroy();}
+    @Override public void onDestroy(){handler.removeCallbacksAndMessages(null);try{if(manager!=null)manager.removeUpdates(this);}catch(SecurityException ignored){}syncExecutor.shutdown();GpsSync.schedule(this);super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }

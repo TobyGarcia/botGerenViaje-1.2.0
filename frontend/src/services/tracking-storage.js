@@ -70,6 +70,7 @@ async function migrateToNative() {
   })().catch(error => { nativeMigration = null; throw error; });
   return nativeMigration;
 }
+export async function prepareNativeStorage() { if (hasNativeGps()) await migrateToNative(); }
 
 export async function savePendingLocation(location) {
   if (hasNativeGps()) { await migrateToNative(); return NativeGps.storage({ operation: "save", point: location }); }
@@ -123,7 +124,10 @@ export async function quarantinePendingLocations(locations) {
     });
   } finally { database.close(); }
 }
-export async function countPendingLocations(idViaje) { return (await getPendingLocations(idViaje)).length; }
+export async function countPendingLocations(idViaje) {
+  if (hasNativeGps()) { await migrateToNative(); return (await NativeGps.status({ trip: String(idViaje) })).pending; }
+  return (await getPendingLocations(idViaje)).length;
+}
 export async function clearPendingLocations(idViaje) {
   if (hasNativeGps()) throw new Error("Las capturas SQLite solo se retiran por confirmación del servidor.");
   const key = Number(idViaje) > 0 ? Number(idViaje) : idViaje;

@@ -2,7 +2,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation, normalizeLocation } from "./location-provider.js";
 import { diagnostics } from "./client-diagnostics.js";
-import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
+import { countPendingLocations, getPendingLocations, prepareNativeStorage, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
@@ -41,7 +41,7 @@ export function isTrackingActive() { return intervalId !== null || nativeWatcher
 
 export async function syncPendingLocations(idViaje) {
   if (hasNativeGps()) {
-    await getPendingLocations(idViaje); // Migrar la cola anterior antes del primer envío nativo.
+    await prepareNativeStorage(); // Migrar la cola anterior antes del primer envío nativo.
     await NativeGps.configure(nativeTripOptions(idViaje));
     const result = await NativeGps.sync({ trip: String(idViaje) });
     await notifyPending(idViaje, { status: result.pending ? "Guardado en SQLite; pendiente de sincronizar" : "Sincronizado" });
@@ -239,7 +239,7 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
 
     if (hasNativeGps()) {
-      await getPendingLocations(normalizedId);
+      await prepareNativeStorage();
       await NativeGps.start(nativeTripOptions(normalizedId));
       nativeWatcherId = "sqlite";
       if (captureImmediately) await captureAndQueueLocation(normalizedId);
