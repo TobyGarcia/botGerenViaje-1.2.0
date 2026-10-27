@@ -46,6 +46,7 @@ public class NativeGpsPlugin extends Plugin {
                 db.put("startedAt",String.valueOf(BridgeNumbers.integer(call.getData().opt("startedAt"),System.currentTimeMillis())));db.put("lastCaptureMillis","0");
                 db.put("lastLocation","{}");
                 db.put("lastReminder","0");
+                db.put("notificationDismissedTrip","");
             }
             db.put("trip",trip);db.put("folio",call.getString("folio","Viaje "+trip));
             long reminder=BridgeNumbers.integer(call.getData().opt("reminderMillis"),7200000L);db.put("reminderMillis",String.valueOf(Math.max(60000,reminder)));

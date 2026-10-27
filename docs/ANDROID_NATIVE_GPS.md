@@ -59,6 +59,20 @@ cancelación del instalador y actualización real sobre una versión anterior.
 
 ## Aviso durante el viaje
 
+Desde 1.2.13, la misma APK solicita Live Updates en Android 16 compatible,
+mediante AndroidX Core 1.17, permiso `POST_PROMOTED_NOTIFICATIONS` y una
+notificación BigText estándar ongoing. En Android 7–15 mantiene el servicio
+foreground y el aviso persistente normal con las mismas acciones y datos.
+No hay porcentaje de recorrido inventado: se muestra el tiempo transcurrido,
+el estado GPS y la cola. Si falta GPS reciente el indicador compacto lo avisa.
+
+La promoción depende del sistema, fabricante y ajustes del usuario; no aumenta
+la fiabilidad del sensor GPS. Si el usuario oculta el aviso se recuerda para
+ese viaje y no se vuelve a publicar desde los ticks/capturas. Esto no detiene
+GPS ni borra ubicaciones. Un reinicio del servicio puede exigir el aviso base
+foreground, pero no vuelve a pedir promoción para ese mismo viaje. El siguiente
+viaje comienza con su propio aviso. Los recordatorios normales siguen separados.
+
 Durante el viaje: folio, tiempo transcurrido, antigüedad GPS, cola y acceso a
 abrir/finalizar. Finalizar abre el odómetro, nunca cierra sin confirmación.
 Recordatorio a las 2 horas y como máximo una vez por hora, persistiendo el

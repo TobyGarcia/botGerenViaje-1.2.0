@@ -54,7 +54,7 @@ public class GpsTrackingService extends Service implements LocationListener {
     @Override public int onStartCommand(Intent intent,int flags,int startId){
         if(!"true".equals(db.read("active","false"))){stopSelf();return START_NOT_STICKY;}
         try {
-            startForeground(NOTIFICATION,notification());
+            startForeground(NOTIFICATION,buildTripNotification());
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancel(7314);
             if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){db.put("gpsStatus","Permiso GPS interrumpido");showNotification();return START_STICKY;}
             manager.removeUpdates(this);
@@ -69,24 +69,38 @@ public class GpsTrackingService extends Service implements LocationListener {
         Intent intent=new Intent(this,MainActivity.class).setAction(finish?"gv.finish":"gv.open").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(this,finish?7311:7310,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
-    private android.app.Notification notification(){
+    android.app.Notification buildTripNotification(){
         long start=Long.parseLong(db.read("startedAt","0")); long last=Long.parseLong(db.read("lastCaptureMillis","0"));
         String gps=last>0?"Último GPS: hace "+Math.max(0,(System.currentTimeMillis()-last)/1000)+" s":db.read("gpsStatus","Esperando GPS");
         if(last>0 && System.currentTimeMillis()-last>120000)gps="Sin captura GPS reciente";
         int pending=db.count(db.read("trip",""),false);
         int rejected=db.count(db.read("trip",""),true)-pending;
-        return new NotificationCompat.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_stat_gv)
+        String trip=db.read("trip","");
+        boolean dismissed=trip.equals(db.read("notificationDismissedTrip",""));
+        Intent dismissedIntent=new Intent(this,GpsNotificationDismissedReceiver.class).putExtra("trip",trip)
+            .setData(android.net.Uri.parse("gv://trip/"+android.net.Uri.encode(trip)));
+        PendingIntent onDismiss=PendingIntent.getBroadcast(this,7315,dismissedIntent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder builder=new NotificationCompat.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_stat_gv)
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(),R.drawable.gv_notification_logo))
             .setContentTitle("Viaje en curso · "+db.read("folio","GV Mobility"))
             .setContentText(gps+" · "+pending+" pendientes")
             .setStyle(new NotificationCompat.BigTextStyle().bigText(gps+"\n"+pending+" ubicaciones por enviar"+(rejected>0?" · "+rejected+" para revisión":"")+"\n"+db.read("syncStatus","Guardando en el teléfono")))
             .setCategory(NotificationCompat.CATEGORY_SERVICE).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setOngoing(true).setOnlyAlertOnce(true).setWhen(start).setUsesChronometer(start>0)
-            .setContentIntent(open(false)).addAction(0,"Abrir viaje",open(false)).addAction(0,"Finalizar viaje",open(true)).build();
+            .setOngoing(true).setAutoCancel(false).setOnlyAlertOnce(true).setWhen(start).setUsesChronometer(start>0)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setDeleteIntent(onDismiss)
+            .setContentIntent(open(false)).addAction(0,"Abrir viaje",open(false)).addAction(0,"Finalizar viaje",open(true));
+        if(Build.VERSION.SDK_INT>=36 && !dismissed) {
+            builder.setRequestPromotedOngoing(true);
+            // Keep the elapsed-time chip when GPS is fresh; show a short warning otherwise.
+            if(last==0 || System.currentTimeMillis()-last>120000)builder.setShortCriticalText("Sin GPS");
+        }
+        return builder.build();
     }
-    private void showNotification(){
+    void showNotification(){
+        if(!"true".equals(db.read("active","false")))return;
         NotificationManager notifications=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-        notifications.notify(NOTIFICATION,notification());
+        if(!db.read("trip","").equals(db.read("notificationDismissedTrip","")))notifications.notify(NOTIFICATION,buildTripNotification());
         long elapsed=System.currentTimeMillis()-Long.parseLong(db.read("startedAt","0"));
         long reminder=Long.parseLong(db.read("reminderMillis","7200000"));
         if(elapsed>=reminder && System.currentTimeMillis()-Long.parseLong(db.read("lastReminder","0"))>=3600000){
