@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { getApiBaseUrl, getViajeActivo } from "../services/api.js";
 import { countAllStoredLocations } from "../services/tracking-storage.js";
 import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { watchAndroidUpdates } from "../services/update-checker.js";
 import safeStorage from "../utils/safeStorage.js";
+import AndroidUpdateDialog from "./AndroidUpdateDialog.jsx";
 
 const AndroidVersion = registerPlugin("AndroidVersion");
 
@@ -12,9 +13,7 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
   const [update, setUpdate] = useState(null);
   const [message, setMessage] = useState("");
   const [checking, setChecking] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchMessage, setSearchMessage] = useState("");
-  const checker = useRef(null);
+  const [snoozedUntil, setSnoozedUntil] = useState(0);
   const enabled = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
   useEffect(() => {
     if (!enabled) return;
@@ -26,12 +25,9 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
         const available = await readApiJson(response);
         return available.available && available.versionCode > info.versionCode ? available : null;
       },
-      onResult: available => { setUpdate(available); setSearchMessage(available ? "" : "La aplicación está actualizada."); },
-      onError: () => setSearchMessage("No se pudieron consultar las actualizaciones. Reintenta con conexión."),
-      onChecking: setSearching
+      onResult: available => setUpdate(available)
     });
-    checker.current = watcher;
-    return () => { watcher.stop(); checker.current = null; };
+    return () => watcher.stop();
   }, [enabled]);
 
   async function download() {
@@ -70,12 +66,7 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
     finally { setChecking(false); }
   }
 
-  if (!enabled) return null;
-  return <div className="message message-success" role="status" style={{ maxWidth: 520, margin: "12px auto", width: "calc(100% - 32px)" }}>
-    {update ? <><p>Disponible GV Mobility {update.versionName}. Actualiza al terminar y sincronizar tus viajes.</p>
-    <button type="button" disabled={checking} onClick={download}>{checking ? "Verificando…" : "Descargar actualización"}</button></>
-      : <p>{searching ? "Buscando actualizaciones…" : searchMessage}</p>}
-    <button type="button" disabled={searching || checking} onClick={() => checker.current?.refresh()}>Buscar actualizaciones</button>
-    {message && <p>{message}</p>}
-  </div>;
+  if (!enabled || !update || Date.now() < snoozedUntil) return null;
+  return <AndroidUpdateDialog version={update.versionName} checking={checking} message={message} onDownload={download}
+    onLater={() => { setSnoozedUntil(Date.now() + 30 * 60000); setMessage(""); }} />;
 }
