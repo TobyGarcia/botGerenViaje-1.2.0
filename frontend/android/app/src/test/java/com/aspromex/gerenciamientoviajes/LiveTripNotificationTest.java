@@ -50,7 +50,7 @@ public class LiveTripNotificationTest {
         }finally{service.destroy();}
     }
 
-    @Test public void dismissingDoesNotStopGpsOrEraseQueueAndIsNotRepostedForSameTrip() {
+    @Test public void dismissingDoesNotStopGpsOrEraseQueueAndIsNotRepostedForSameTrip() throws Exception {
         var service=Robolectric.buildService(GpsTrackingService.class).create();
         try {
             Notification notice=service.get().buildTripNotification();
