@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 })
 public class NativeGpsPlugin extends Plugin {
     private static final ExecutorService IO=Executors.newSingleThreadExecutor();
+    private static final ExecutorService NETWORK=Executors.newSingleThreadExecutor();
     static volatile boolean finishRequested=false;
     @PluginMethod public void ensurePermissions(PluginCall call) {
         requestPermissionForAliases(Build.VERSION.SDK_INT>=33?new String[]{"location","notifications"}:new String[]{"location"},call,"permissionsReady");
@@ -72,7 +73,7 @@ public class NativeGpsPlugin extends Plugin {
         value.put("stored",db.count(null,true)+db.completionCount());value.put("gpsStatus", "true".equals(db.read("active","false")) && System.currentTimeMillis()-Long.parseLong(db.read("lastCaptureMillis","0"))>120000 ? "Sin captura GPS reciente" : db.read("gpsStatus","Detenido"));value.put("syncStatus",db.read("syncStatus",""));
         value.put("lastLocation",new JSONObject(db.read("lastLocation","{}")));value.put("finishRequested",finishRequested);if(call.getBoolean("consumeAction",false))finishRequested=false;call.resolve(value);
     }catch(Exception error){call.reject(error.getMessage());}});}
-    @PluginMethod public void sync(PluginCall call){IO.execute(()->{GpsSync.run(getContext());GpsSync.schedule(getContext());JSObject result=new JSObject();GpsDatabase db=GpsDatabase.get(getContext());result.put("pending",db.count(call.getString("trip"),false));result.put("completions",db.completionCount());call.resolve(result);});}
+    @PluginMethod public void sync(PluginCall call){NETWORK.execute(()->{GpsSync.run(getContext());GpsSync.schedule(getContext());JSObject result=new JSObject();GpsDatabase db=GpsDatabase.get(getContext());result.put("pending",db.count(call.getString("trip"),false));result.put("completions",db.completionCount());call.resolve(result);});}
     @PluginMethod public void storage(PluginCall call){IO.execute(()->{try{
         GpsDatabase db=GpsDatabase.get(getContext());String op=call.getString("operation","");JSObject result=new JSObject();
         switch(op){

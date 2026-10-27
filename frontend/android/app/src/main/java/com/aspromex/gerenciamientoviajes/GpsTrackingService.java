@@ -19,10 +19,11 @@ public class GpsTrackingService extends Service implements LocationListener {
     private LocationManager manager;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ExecutorService syncExecutor=Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.atomic.AtomicBoolean syncQueued=new java.util.concurrent.atomic.AtomicBoolean(false);
     private GpsDatabase db;
     private final Runnable tick=new Runnable(){public void run(){
         if(!"true".equals(db.read("active","false"))){stopSelf();return;}
-        showNotification(); syncExecutor.execute(()->{GpsSync.run(getApplicationContext());GpsSync.schedule(getApplicationContext());});
+        showNotification(); if(syncQueued.compareAndSet(false,true))syncExecutor.execute(()->{try{GpsSync.run(getApplicationContext());GpsSync.schedule(getApplicationContext());}finally{syncQueued.set(false);}});
         handler.postDelayed(this,30000);
     }};
     @Override public void onCreate(){super.onCreate();db=GpsDatabase.get(this);manager=(LocationManager)getSystemService(LOCATION_SERVICE);
