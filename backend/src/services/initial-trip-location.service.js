@@ -16,7 +16,7 @@ export function normalizeInitialTripLocation(value, referenceTime = new Date()) 
   const direccion = nullableNumber(value?.direccion);
   const fechaGps = new Date(value?.fechaGps ?? value?.fecha_gps);
   const reference = new Date(referenceTime);
-  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP"].includes(value?.origenCaptura) ? value.origenCaptura : "MINI_APP";
+  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP", "ANDROID_NATIVE"].includes(value?.origenCaptura) ? value.origenCaptura : "MINI_APP";
   const isBackground = Boolean(value?.isBackground);
   const fechaGuardadoLocal = new Date(value?.fechaGuardadoLocal || value?.fechaGps || value?.fecha_gps);
 

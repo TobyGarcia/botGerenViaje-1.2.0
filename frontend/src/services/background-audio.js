@@ -174,6 +174,7 @@ function setupMediaSession() {
 }
 
 export async function startSilentAudioKeepAlive() {
+  if (globalThis.Capacitor?.isPluginAvailable?.("NativeGps")) return;
   isAudioActive = true;
   setupGestureUnlock();
 

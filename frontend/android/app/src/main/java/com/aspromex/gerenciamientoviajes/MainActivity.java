@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.content.Intent;
 import java.util.ArrayList;
 import java.util.List;
 import androidx.core.app.ActivityCompat;
@@ -14,8 +15,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AndroidVersionPlugin.class);
+        registerPlugin(NativeGpsPlugin.class);
         super.onCreate(savedInstanceState);
         requestRequiredPermissions();
+        NativeGpsPlugin.finishRequested = "gv.finish".equals(getIntent().getAction());
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if ("gv.finish".equals(intent.getAction())) NativeGpsPlugin.finishRequested = true;
     }
 
     private void requestRequiredPermissions() {

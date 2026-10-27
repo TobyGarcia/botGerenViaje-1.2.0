@@ -29,6 +29,8 @@ jobs:
       ANDROID_VERSION_CODE: ${{ inputs.version_code }}
       ANDROID_UPDATE_CHANNEL: ${{ inputs.channel }}
       ANDROID_WEB_URL: ${{ vars.ANDROID_WEB_URL }}
+      ANDROID_BUNDLED: 'true'
+      VITE_API_BASE_URL: ${{ vars.ANDROID_WEB_URL }}
       ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android-release.jks
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -58,6 +60,8 @@ jobs:
           test "$ANDROID_VERSION_CODE" -le 2100000000
           test -n "$ANDROID_WEB_URL"
           [[ "$ANDROID_WEB_URL" == https://* ]]
+          export VITE_API_BASE_URL="$(node -e 'console.log(new URL(process.env.ANDROID_WEB_URL).origin)')"
+          echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" >> "$GITHUB_ENV"
           test -n "$KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"

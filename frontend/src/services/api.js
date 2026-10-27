@@ -187,16 +187,25 @@ export function cancelarViaje(idViaje) {
   });
 }
 
-export function getViajeActivo(){
-  return request(
-    "/api/viajes/activo"
-  );
+async function applyNativeClose(response) {
+  if (response?.data && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("NativeGps")) {
+    const { NativeGps } = await import("./native-gps.js");
+    const trip = response.data;
+    const closed = await NativeGps.storage({ operation: "closed", trip: String(trip.idViaje ?? trip.id_viajes) });
+    if (closed.value && closed.value !== "confirmed") {
+      const pending = JSON.parse(closed.value);
+      return { ...response, data: { ...trip, estado: pending.action === "cancelado" ? "CANCELADO" : "FINALIZADO",
+        kilometrajeFinal: pending.kilometrajeFinal, horaLlegada: pending.recordedAt, cierrePendiente: true } };
+    }
+  }
+  return response;
+}
+export async function getViajeActivo(){
+  return applyNativeClose(await request("/api/viajes/activo"));
 }
 
-export function getViajePorId(idViaje){
-  return request(
-    `/api/viajes/${idViaje}`
-  );
+export async function getViajePorId(idViaje){
+  return applyNativeClose(await request(`/api/viajes/${idViaje}`));
 }
 
 export function autenticarTelegram(

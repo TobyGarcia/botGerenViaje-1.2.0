@@ -15,6 +15,7 @@ export default defineConfig({
     } },
     react(),
     VitePWA({
+      disable: process.env.ANDROID_BUNDLED === 'true',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       devOptions: {

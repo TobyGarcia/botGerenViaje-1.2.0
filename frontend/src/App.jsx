@@ -6,6 +6,7 @@ import {
 } from "react";
 import "./App.css";
 import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
+import { NativeGps, hasNativeGps, queueNativeCompletion } from "./services/native-gps.js";
 
 import {
   cancelarViaje,
@@ -156,6 +157,21 @@ function App() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
   const [createdTrip, setCreatedTrip] = useState(() => getCachedJson("cached_active_trip", null));
+  useEffect(() => {
+    if (!hasNativeGps()) return;
+    const inspectAction = async () => {
+      if (document.hidden) return;
+      const state = await NativeGps.status({ consumeAction: true }).catch(() => null);
+      if (state?.finishRequested) {
+        setMessage("Revisa el odómetro y confirma la finalización del viaje.");
+        setMessageType("success");
+        setTimeout(() => { const input = document.getElementById("odometer-final"); input?.scrollIntoView({ behavior: "smooth", block: "center" }); input?.focus(); }, 500);
+      }
+    };
+    void inspectAction();
+    const timer = setInterval(inspectAction, 2000);
+    return () => clearInterval(timer);
+  }, []);
   const [startingTrip, setStartingTrip] = useState(false);
   const [startedTrip, setStartedTrip] = useState(() => {
     const trip = getCachedJson("cached_active_trip", null);
@@ -400,6 +416,12 @@ const [cancelledTrip, setCancelledTrip] =
   }
 
   async function handleLogout() {
+    if (hasNativeGps()) {
+      const state = await NativeGps.status({});
+      if (state.active || state.stored > 0) {
+        setMessage("Finaliza el viaje y sincroniza los datos guardados antes de cerrar sesión.");setMessageType("error");return;
+      }
+    }
     if (startedTrip && startedTrip.estado === "EN_CURSO") {
       const confirmed = window.confirm(
         "Tienes un viaje en curso. Si cierras sesión, el viaje seguirá registrado en el sistema y podrás retomarlo volviendo a ingresar con tu PIN. ¿Deseas salir?"
@@ -1053,6 +1075,18 @@ async function handleAddIntermediatePoint() {
         void syncOfflineState();
         return;
       }
+      if (hasNativeGps()) {
+        const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
+        if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
+        const completion = await queueNativeCompletion(idViaje, { action: "finalizado", kilometrajeFinal: finalMileage });
+        stopTracking();
+        const data = { ...createdTrip, estado: "FINALIZADO", kilometrajeFinal: finalMileage, horaLlegada: completion.recordedAt, cierrePendiente: true };
+        safeStorage.setJSON("cached_active_trip", data);
+        setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
+        setMessage("Viaje finalizado en el teléfono. Las ubicaciones y el cierre se enviarán al servidor al recuperar conexión.");
+        setMessageType("success");
+        return;
+      }
       stopTracking({ clearState: false });
       stopSilentAudioKeepAlive();
       const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
@@ -1160,6 +1194,14 @@ async function handleAddIntermediatePoint() {
     setMessage("");
 
     try {
+      if (hasNativeGps() && idViaje > 0 && startedTrip) {
+        await queueNativeCompletion(idViaje, { action: "cancelado" });
+        stopTracking();
+        const data = { ...createdTrip, estado: "CANCELADO", cierrePendiente: true };
+        safeStorage.setJSON("cached_active_trip", data);
+        setCancelledTrip(data); setStartedTrip(null); setCreatedTrip(data);
+        setMessage("Cancelación guardada en el teléfono; pendiente de sincronización.");setMessageType("success");return;
+      }
       const response = idViaje < 0
         ? (discardOfflineDraft(telegramAuth.conductor.id_conductores, idViaje), { data: { estado: "CANCELADO" } })
         : await cancelarViaje(idViaje);

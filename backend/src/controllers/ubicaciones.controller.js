@@ -298,7 +298,7 @@ function normalizeBatchLocation(location) {
   const clientLocationId = String(location?.clientLocationId || "");
   const esPuntoIntermedio = Boolean(location?.esPuntoIntermedio || location?.es_punto_intermedio);
   const nombrePunto = location?.nombrePunto || location?.nombre_punto || null;
-  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP"].includes(location?.origenCaptura) ? location.origenCaptura : "MINI_APP";
+  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP", "ANDROID_NATIVE"].includes(location?.origenCaptura) ? location.origenCaptura : "MINI_APP";
   const isBackground = Boolean(location?.isBackground);
   const fechaGuardadoLocal = new Date(location?.fechaGuardadoLocal || location?.fechaGps || location?.fecha_gps);
 
