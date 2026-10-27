@@ -1,6 +1,7 @@
 import { Component, useEffect, useRef, useState } from "react";
 import "../App.css";
 import { getApiBaseUrl } from "../services/api.js";
+import { apiFetch as fetch } from "../services/http-transport.js";
 
 const getEvaluacionApiBaseUrl = () => {
   return getApiBaseUrl();

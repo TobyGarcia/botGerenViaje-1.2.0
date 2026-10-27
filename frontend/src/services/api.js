@@ -2,6 +2,7 @@ import safeStorage from "../utils/safeStorage.js";
 import { Capacitor } from "@capacitor/core";
 import { diagnostics } from "./client-diagnostics.js";
 import { resolveApiOrigin } from "./api-origin.js";
+import { apiFetch, readApiJson } from "./http-transport.js";
 
 export const getApiBaseUrl = () => {
   return resolveApiOrigin({ configuredUrl: import.meta.env?.VITE_API_BASE_URL,
@@ -31,7 +32,7 @@ async function request(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${path}`,
       {
         ...options,
@@ -51,11 +52,7 @@ async function request(path, options = {}) {
       }
     );
 
-    const contentType =
-      response.headers.get("content-type") || "";
-    const data = contentType.includes("application/json")
-      ? await response.json()
-      : null;
+    const data = await readApiJson(response);
 
     if (!response.ok) {
       const error = new Error(

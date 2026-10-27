@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { getApiBaseUrl, getViajeActivo } from "../services/api.js";
 import { countAllStoredLocations } from "../services/tracking-storage.js";
+import { apiFetch, readApiJson } from "../services/http-transport.js";
 
 const AndroidVersion = registerPlugin("AndroidVersion");
 
@@ -15,9 +16,9 @@ export default function AndroidUpdateNotice({ trip }) {
     const timer = setTimeout(() => controller.abort(), 10000);
     (async () => {
       const info = await AndroidVersion.getInfo();
-      const response = await fetch(`${getApiBaseUrl()}/api/android/update?channel=${encodeURIComponent(info.channel)}`, { signal: controller.signal });
+      const response = await apiFetch(`${getApiBaseUrl()}/api/android/update?channel=${encodeURIComponent(info.channel)}`, { signal: controller.signal });
       if (!response.ok) return;
-      const available = await response.json();
+      const available = await readApiJson(response);
       if (!controller.signal.aborted && available.available && available.versionCode > info.versionCode) setUpdate(available);
     })().catch(() => {}).finally(() => clearTimeout(timer));
     return () => { clearTimeout(timer); controller.abort(); };

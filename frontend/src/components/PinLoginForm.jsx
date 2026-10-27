@@ -64,7 +64,7 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
       setError("");
       const result = await loginConductorConPin(pinToVerify);
 
-      if (result.success && result.data?.token) {
+      if (result?.success && result.data?.token) {
         // Almacenar token y perfil de conductor
         safeStorage.setItem("driver_token", result.data.token);
         if (result.data.conductor) {
@@ -76,7 +76,7 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
           onSuccess(result.data.conductor);
         }
       } else {
-        setError(result.message || "PIN incorrecto. Verifica e intenta nuevamente.");
+        setError(result?.message || "No se pudo confirmar el acceso. Verifica tu conexión e intenta nuevamente.");
         setPin("");
       }
     } catch (err) {
