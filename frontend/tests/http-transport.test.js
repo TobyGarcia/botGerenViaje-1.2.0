@@ -24,3 +24,9 @@ test("PWA conserva fetch y native respeta cancelación previa", async () => {
   await assert.rejects(apiFetch("https://testing.example/api", { signal: AbortSignal.abort() }, { native: true }), { name: "AbortError" });
   assert.equal(calls, 1);
 });
+test("errores de red nativos permiten el acceso offline previamente autorizado", async () => {
+  for (const message of ["Unable to resolve host", "Connection timed out"]) {
+    await assert.rejects(apiFetch("https://testing.example/api", {}, { native: true, http: { request: async () => { throw new Error(message); } } }),
+      { code: message.includes("timed out") ? "NETWORK_TIMEOUT" : "NETWORK_ERROR" });
+  }
+});
