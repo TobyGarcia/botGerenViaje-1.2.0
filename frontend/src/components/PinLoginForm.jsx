@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { loginConductorConPin } from "../services/api";
 import PwaInstallPrompt from "./PwaInstallPrompt";
 import safeStorage from "../utils/safeStorage";
@@ -228,7 +229,7 @@ export default function PinLoginForm({ onSuccess, onCancel, onRegisterClick }) {
           </button>
         )}
       </div>
-      <PwaInstallPrompt />
+      {!Capacitor.isNativePlatform() && <PwaInstallPrompt />}
     </div>
   );
 }

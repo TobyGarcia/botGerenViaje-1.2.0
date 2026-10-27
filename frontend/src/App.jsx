@@ -161,11 +161,15 @@ function App() {
     if (!hasNativeGps()) return;
     const inspectAction = async () => {
       if (document.hidden) return;
-      const state = await NativeGps.status({ consumeAction: true }).catch(() => null);
+      const state = await NativeGps.status({}).catch(() => null);
       if (state?.finishRequested) {
+        const input = document.getElementById("odometer-final");
+        if (!input && state.active) return;
+        await NativeGps.status({ consumeAction: true });
+        if (!state.active) return;
         setMessage("Revisa el odómetro y confirma la finalización del viaje.");
         setMessageType("success");
-        setTimeout(() => { const input = document.getElementById("odometer-final"); input?.scrollIntoView({ behavior: "smooth", block: "center" }); input?.focus(); }, 500);
+        input?.scrollIntoView({ behavior: "smooth", block: "center" }); input?.focus();
       }
     };
     void inspectAction();
