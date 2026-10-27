@@ -2464,40 +2464,6 @@ form#urban-trip-form {
   align-items: center;
 }
 
-.vehicle-trigger-placeholder {
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 500;
-}
-
-.vehicle-trigger-selected-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.vehicle-trigger-name {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vehicle-trigger-eco-badge {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #0284c7;
-  background: #e0f2fe;
-  padding: 1px 6px;
-  border-radius: 6px;
-  border: 1px solid #bae6fd;
-  white-space: nowrap;
-}
-
 .vehicle-trigger-assigned-tag {
   font-size: 0.7rem;
   font-weight: 700;
@@ -2518,6 +2484,10 @@ form#urban-trip-form {
 }
 
 .vehicle-trigger-clear-btn {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  box-shadow: none;
   background: none;
   border: none;
   color: #94a3b8;
@@ -2541,6 +2511,13 @@ form#urban-trip-form {
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex: 0 0 32px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .vehicle-trigger-chevron.chevron-up {
@@ -2573,32 +2550,16 @@ form#urban-trip-form {
   }
 }
 
-.vehicle-search-bar {
-  padding: 8px 10px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.vehicle-search-icon {
-  width: 16px;
-  height: 16px;
-  color: #64748b;
-  flex-shrink: 0;
-}
-
-.vehicle-search-input {
+.vehicle-select-trigger .vehicle-search-input {
   display: block;
   flex: 1 1 0%;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.84rem;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 0;
+  font-size: 0.88rem;
   background: #ffffff;
   color: #0f172a;
   -webkit-text-fill-color: #0f172a;
@@ -2608,6 +2569,8 @@ form#urban-trip-form {
   outline: none;
   font-family: inherit;
   transition: border-color 0.15s ease;
+  box-shadow: none;
+  user-select: text;
 }
 
 .vehicle-search-input::placeholder {
@@ -2615,9 +2578,11 @@ form#urban-trip-form {
   opacity: 1;
 }
 
-.vehicle-search-input:focus {
-  border-color: #0284c7;
+.vehicle-select-trigger .vehicle-search-input:focus-visible {
+  outline: none;
 }
+
+.vehicle-item-row.is-active { background: #e0f2fe; }
 
 .vehicle-search-clear {
   width: auto;
