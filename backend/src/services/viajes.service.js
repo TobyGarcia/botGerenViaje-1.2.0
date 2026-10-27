@@ -2,6 +2,7 @@ import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
+import { normalizeOdometerCorrection, saveOdometerCorrection, applyOdometerCorrection, correctionHash } from "./odometer-correction.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { ensureVehicleAssignment } from "./vehicle-assignments.service.js";
 
@@ -139,7 +140,8 @@ async function createTripImpl({
   kilometrajeInicial,
   motivo,
   esGerenciamiento = false,
-  usoTemporal = null
+  usoTemporal = null,
+  odometerCorrection = null
 }, { client: externalClient = null } = {}) {
   if (!esGerenciamiento && isOutsideOperatingHours()) {
     throw new Error("El horario operativo para viajes locales/urbanos es de 6:00 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
@@ -206,6 +208,12 @@ async function createTripImpl({
     if (vehicle.en_mantenimiento) {
       throw new Error("El vehículo está en mantenimiento.");
     }
+    const correction = normalizeOdometerCorrection(odometerCorrection, Number(kilometrajeInicial));
+    if (!correction && !esGerenciamiento && Number(kilometrajeInicial) < Number(vehicle.kilometraje_actual)) {
+      throw new Error("La lectura es menor al registro. Reporta la diferencia con motivo y foto del odómetro.");
+    }
+    const effectiveMileage = correction ? Number(kilometrajeInicial) : esGerenciamiento
+      ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial;
 
     const placesResult = await client.query(
       `
@@ -277,13 +285,15 @@ async function createTripImpl({
     if (openTrip) {
       const samePendingRequest = isSamePendingTripRequest(openTrip, {
         idVehiculo, idOrigen, idDestino,
-        kilometrajeInicial: esGerenciamiento
-          ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0))
-          : kilometrajeInicial,
+        kilometrajeInicial: effectiveMileage,
         motivo, acompanantes
       });
 
       if (samePendingRequest) {
+        if (correction) {
+          const existing = (await client.query("SELECT request_hash FROM ajustes_odometro_viaje WHERE id_viajes=$1", [openTrip.id_viajes])).rows[0];
+          if (existing?.request_hash !== correctionHash(correction, effectiveMileage)) throw new Error("El viaje pendiente tiene otro reporte de odómetro. Continúa el viaje original o cancélalo antes de cambiarlo.");
+        }
         if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
         return {
           ...openTrip,
@@ -390,13 +400,14 @@ async function createTripImpl({
         pendingState.id_estado_viaje,
         JSON.stringify(acompanantes),
         conductor.licencia_vigente,
-        esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
+        effectiveMileage,
         motivo,
         dateIso
       ]
     );
 
     const trip = tripResult.rows[0];
+    await saveOdometerCorrection(client, { ...trip, idVehiculo, idConductor }, correction, effectiveMileage, vehicle.kilometraje_actual);
 
     await client.query(
       `
@@ -419,11 +430,11 @@ async function createTripImpl({
       ]
     );
 
-    await registerMileageReading({
+    if (!correction) await registerMileageReading({
       client,
       idVehiculo,
       idViaje: trip.id_viajes,
-      kilometraje: esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
+      kilometraje: effectiveMileage,
       tipoRegistro: "INICIAL_VIAJE",
       origen: "MINI_APP",
       observaciones: `Kilometraje inicial del viaje ${trip.folio}.`,
@@ -434,6 +445,7 @@ async function createTripImpl({
 
     return {
       ...trip,
+      kilometrajeInicial: effectiveMileage,
       conductor: conductor.nombre,
       vehiculo: vehicle.nombre,
       numeroEconomico: vehicle.numero_economico,
@@ -637,6 +649,8 @@ async function startTripImpl({
         "No se encontró el estado EN_CURSO."
       );
     }
+
+    await applyOdometerCorrection(client, trip, recordedAt);
 
     const updateResult = await client.query(
       `

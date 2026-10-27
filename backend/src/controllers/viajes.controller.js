@@ -239,7 +239,8 @@ export async function createTripController(
       acompanantes: normalizedCompanions,
       kilometrajeInicial,
       motivo,
-      usoTemporal: request.body.usoTemporal || null
+      usoTemporal: request.body.usoTemporal || null,
+      odometerCorrection: request.body.odometerCorrection || null
     });
 
     return response.status(201).json({

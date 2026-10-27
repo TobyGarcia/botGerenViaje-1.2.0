@@ -3,6 +3,8 @@ import { crearGerenciamientoViaje } from "../services/api.js";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import VehicleDropdown from "./VehicleDropdown.jsx";
+import OdometerCorrection from "./OdometerCorrection.jsx";
+import { odometerCorrectionPayload } from "../utils/odometer-correction.js";
 import { formatOperationalDate } from "../utils/operational-date.js";
 import {
   IconMapPin,
@@ -179,6 +181,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
   );
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [odometerReport, setOdometerReport] = useState(null);
   const totalSteps = 5;
 
   const stepMeta = [
@@ -495,6 +498,8 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
         setErrorMessage("Por favor ingresa el Kilometraje Inicial del vehículo.");
         return false;
       }
+      try { odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometraje, currentVehicleObj?.kilometraje_actual); }
+      catch (error) { setErrorMessage(error.message); return false; }
     }
     return true;
   }
@@ -598,6 +603,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
 
       const payload = {
         ...form,
+        odometerCorrection: odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometraje, currentVehicleObj?.kilometraje_actual),
         idConductor: selectedDriver.id_conductores || driverId,
         tipoAsignacion: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
         ...(usesTemporaryVehicle ? { usoTemporal: {
@@ -850,6 +856,8 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
                 placeholder="Ej: 207"
               />
               <p className="gw-field-hint">Verificar con el odómetro del tablero del vehículo asignado.</p>
+              <OdometerCorrection vehicleId={form.idVehiculo} reading={form.kilometraje} previousReading={currentVehicleObj?.kilometraje_actual}
+                report={odometerReport} onChange={setOdometerReport} />
             </div>
           </section>
         )}

@@ -33,6 +33,7 @@ import {
 import { purgeExpiredAuditLogs } from "./services/audit-log.service.js";
 import { cancelExpiredPendingTrips } from "./services/viajes.service.js";
 import { processActiveTripReminders } from "./services/trip-reminders.service.js";
+import { processOdometerAlerts } from "./services/odometer-alerts.service.js";
 import { startTelegramAudit, stopTelegramAudit } from "./services/telegram-audit.service.js";
 
 const port = Number(
@@ -404,6 +405,11 @@ const tripReminderTimer = setInterval(() => {
   }).catch((error) => console.warn("No se pudieron procesar recordatorios de viajes:", error.message));
 }, 5 * 60 * 1000);
 tripReminderTimer.unref();
+
+const odometerAlertTimer = setInterval(() => {
+  void processOdometerAlerts().catch(error => console.warn("No se pudieron procesar avisos de odómetro:", error.message));
+}, 15000);
+odometerAlertTimer.unref();
 
 process.on("unhandledRejection", (reason) => {
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "unhandled_rejection", message: reason?.message || String(reason) }));

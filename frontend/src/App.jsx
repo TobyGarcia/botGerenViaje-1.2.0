@@ -38,6 +38,8 @@ import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
+import OdometerCorrection from "./components/OdometerCorrection.jsx";
+import { odometerCorrectionPayload } from "./utils/odometer-correction.js";
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -144,6 +146,7 @@ function App() {
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
   const [conductores, setConductores] = useState(() => getCachedJson("cached_conductores", []));
   const [vehiculos, setVehiculos] = useState(() => getCachedJson("cached_vehiculos", []));
+  const [odometerReport, setOdometerReport] = useState(null);
   const [lugares, setLugares] = useState(() => getCachedJson("cached_lugares", []));
   const [loading, setLoading] = useState(() => {
     const token = safeStorage.getItem("driver_token");
@@ -1071,6 +1074,7 @@ async function handleAddIntermediatePoint() {
         const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
         const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
+        setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
         stopTracking(); stopSilentAudioKeepAlive();
         setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
         safeStorage.setJSON("cached_active_trip", data);
@@ -1329,12 +1333,16 @@ function isOutsideOperatingHours() {
 
     if (
       !Number.isInteger(kilometrajeInicial) ||
-      kilometrajeInicial < kilometrajeRegistrado
+      kilometrajeInicial < 0
     ) {
-      setMessage("El kilometraje inicial no puede ser menor al registrado.");
+      setMessage("Captura un kilometraje inicial válido, mayor o igual a cero.");
       setMessageType("error");
       return;
     }
+
+    let odometerCorrection;
+    try { odometerCorrection = odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometrajeInicial, kilometrajeRegistrado); }
+    catch (error) { setMessage(error.message); setMessageType("error"); return; }
 
     savingRef.current = true;
     setSaving(true);
@@ -1358,6 +1366,7 @@ function isOutsideOperatingHours() {
         idDestino: Number(form.idDestino),
         acompanantes,
         kilometrajeInicial,
+        ...(odometerCorrection ? { odometerCorrection } : {}),
         motivo: form.motivo.trim(),
         ...(usesTemporaryVehicle ? { usoTemporal: {
           mode: form.usoTemporalModo,
@@ -1453,6 +1462,7 @@ function isOutsideOperatingHours() {
         ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, initialLocation) }
         : await iniciarViaje(idViaje, initialLocation);
       const startedData = response.data ?? {};
+      if (idViaje < 0) setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
       const horaSalida =
         startedData.horaSalida ??
         startedData.hora_salida;
@@ -2099,7 +2109,7 @@ function isOutsideOperatingHours() {
                         name="kilometrajeInicial"
                         value={form.kilometrajeInicial}
                         onChange={handleChange}
-                        min={selectedVehicle?.kilometraje_actual ?? 0}
+                        min={0}
                         step="1"
                         placeholder="0"
                         required
@@ -2113,6 +2123,8 @@ function isOutsideOperatingHours() {
                       </svg>
                       Confirma el kilometraje mostrado en el tablero físico antes de iniciar.
                     </p>
+                    <OdometerCorrection vehicleId={form.idVehiculo} reading={form.kilometrajeInicial} previousReading={selectedVehicle?.kilometraje_actual}
+                      report={odometerReport} onChange={setOdometerReport} />
                   </div>
                 </section>
               );

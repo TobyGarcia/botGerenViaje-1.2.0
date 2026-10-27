@@ -5,6 +5,7 @@ import { cancelExpiredPendingTrips, createTrip, startTrip, finishTrip } from "./
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { mexicoClock, signOfflinePermit, verifyOfflinePermit } from "../utils/offline-trip-permit.js";
 import { normalizeInitialTripLocation } from "./initial-trip-location.service.js";
+import { normalizeOdometerCorrection } from "./odometer-correction.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const goodStatus = value => ["VIGENTE", "PROXIMO_A_VENCER"].includes(value);
@@ -85,6 +86,8 @@ export function validateOfflineRequest(body, driverId, now = new Date()) {
     throw new Error("La hora o el kilometraje de cierre no son válidos.");
   }
   const trip = Object.fromEntries(["idConductor", "idVehiculo", "idOrigen", "idDestino", "kilometrajeInicial", "motivo", "acompanantes"].map(k => [k, p[k]]));
+  const correction = normalizeOdometerCorrection(p.odometerCorrection, trip.kilometrajeInicial);
+  if (correction) trip.odometerCorrection = correction;
   const hash = createHash("sha256").update(JSON.stringify({ trip, startedAt: body.startedAt, permit: body.permit, initialLocation })).digest("hex");
   return { claims, trip, hash, initialLocation };
 }
