@@ -75,7 +75,8 @@ public class GpsTrackingService extends Service implements LocationListener {
         if(last>0 && System.currentTimeMillis()-last>120000)gps="Sin captura GPS reciente";
         int pending=db.count(db.read("trip",""),false);
         int rejected=db.count(db.read("trip",""),true)-pending;
-        return new NotificationCompat.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_mylocation)
+        return new NotificationCompat.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_stat_gv)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(),R.drawable.gv_notification_logo))
             .setContentTitle("Viaje en curso · "+db.read("folio","GV Mobility"))
             .setContentText(gps+" · "+pending+" pendientes")
             .setStyle(new NotificationCompat.BigTextStyle().bigText(gps+"\n"+pending+" ubicaciones por enviar"+(rejected>0?" · "+rejected+" para revisión":"")+"\n"+db.read("syncStatus","Guardando en el teléfono")))
@@ -90,7 +91,8 @@ public class GpsTrackingService extends Service implements LocationListener {
         long reminder=Long.parseLong(db.read("reminderMillis","7200000"));
         if(elapsed>=reminder && System.currentTimeMillis()-Long.parseLong(db.read("lastReminder","0"))>=3600000){
             db.put("lastReminder",String.valueOf(System.currentTimeMillis()));
-            notifications.notify(7313,new NotificationCompat.Builder(this,"gv_trip_reminder").setSmallIcon(android.R.drawable.ic_dialog_info)
+            notifications.notify(7313,new NotificationCompat.Builder(this,"gv_trip_reminder").setSmallIcon(R.drawable.ic_stat_gv)
+                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(),R.drawable.gv_notification_logo))
                 .setContentTitle("¿Tu viaje terminó?").setContentText("Recuerda finalizar "+db.read("folio","el viaje")+" y registrar el odómetro.")
                 .setContentIntent(open(true)).setAutoCancel(true).build());
         }

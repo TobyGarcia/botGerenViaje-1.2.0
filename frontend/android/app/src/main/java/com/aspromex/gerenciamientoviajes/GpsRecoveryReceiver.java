@@ -13,7 +13,8 @@ public class GpsRecoveryReceiver extends BroadcastReceiver {
         NotificationManager notifications=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
         if(Build.VERSION.SDK_INT>=26)notifications.createNotificationChannel(new NotificationChannel("gv_trip_reminder","Recordar finalizar viaje",NotificationManager.IMPORTANCE_DEFAULT));
         PendingIntent open=PendingIntent.getActivity(context,7314,new Intent(context,MainActivity.class).setAction("gv.open"),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        try{notifications.notify(7314,new NotificationCompat.Builder(context,"gv_trip_reminder").setSmallIcon(android.R.drawable.ic_dialog_info)
+        try{notifications.notify(7314,new NotificationCompat.Builder(context,"gv_trip_reminder").setSmallIcon(R.drawable.ic_stat_gv)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(context.getResources(),R.drawable.gv_notification_logo))
             .setContentTitle("Tienes un viaje pendiente").setContentText("Abre "+db.read("folio","el viaje")+" para reanudar GPS o finalizarlo.")
             .setContentIntent(open).setAutoCancel(true).build());}catch(SecurityException ignored){}
     }
