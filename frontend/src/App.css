@@ -1994,15 +1994,41 @@
   gap: 12px;
 }
 
-.urban-route-connector-line {
-  position: absolute;
-  left: 20px;
-  top: 38px;
-  bottom: 38px;
-  width: 2px;
-  border-left: 2px dashed #cbd5e1;
-  pointer-events: none;
-  z-index: 1;
+.temporary-period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.temporary-period-grid .temporary-period-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.temporary-period-field input[type="date"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px 12px;
+  color-scheme: light;
+  font: inherit;
+}
+
+@media (max-width: 520px) {
+  .temporary-period-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .urban-route-dot {
@@ -2015,11 +2041,11 @@
 }
 
 .urban-route-dot.green {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 0 4px #d1fae5;
+  box-shadow: 0 0 0 5px #d1fae5;
 }
 
 .urban-route-pin {
@@ -2037,6 +2063,23 @@
   width: 18px;
   height: 18px;
   color: #f43f5e;
+}
+
+.urban-route-container .urban-field-group {
+  gap: 8px;
+}
+
+.urban-route-container .urban-field-label {
+  padding-left: 2px;
+}
+
+.urban-route-container .urban-autocomplete-wrap input {
+  height: 50px !important;
+  border-radius: 14px !important;
+}
+
+.urban-route-container .urban-autocomplete-wrap:focus-within input {
+  border-color: #0284c7 !important;
 }
 
 form#urban-trip-form {

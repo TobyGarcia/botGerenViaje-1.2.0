@@ -827,9 +827,9 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
                   <option value="PERIODO">Elegir otro periodo</option>
                 </select>
                 {form.usoTemporalModo === "PERIODO" && (
-                  <div className="gw-grid-2">
-                    <label>Inicio<input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleInputChange} className="gw-input" required /></label>
-                    <label>Fin<input type="date" name="usoTemporalFin" value={form.usoTemporalFin} min={form.usoTemporalInicio || undefined} onChange={handleInputChange} className="gw-input" required /></label>
+                  <div className="temporary-period-grid">
+                    <label className="temporary-period-field"><span>Fecha de inicio</span><input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleInputChange} className="gw-input" required /></label>
+                    <label className="temporary-period-field"><span>Fecha de fin</span><input type="date" name="usoTemporalFin" value={form.usoTemporalFin} min={form.usoTemporalInicio || undefined} onChange={handleInputChange} className="gw-input" required /></label>
                   </div>
                 )}
                 <p className="gw-field-hint">No modifica la unidad permanente configurada en el panel.</p>

@@ -2067,11 +2067,11 @@ function isOutsideOperatingHours() {
                         <option value="PERIODO">Elegir otro periodo</option>
                       </select>
                       {form.usoTemporalModo === "PERIODO" && (
-                        <div className="urban-grid-2">
-                          <label className="urban-field-label">Inicio
+                        <div className="temporary-period-grid">
+                          <label className="temporary-period-field"><span>Fecha de inicio</span>
                             <input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleChange} className="urban-input" required />
                           </label>
-                          <label className="urban-field-label">Fin
+                          <label className="temporary-period-field"><span>Fecha de fin</span>
                             <input type="date" name="usoTemporalFin" value={form.usoTemporalFin} onChange={handleChange} className="urban-input" min={form.usoTemporalInicio || undefined} required />
                           </label>
                         </div>
@@ -2126,7 +2126,6 @@ function isOutsideOperatingHours() {
               </div>
 
               <div className="urban-route-container">
-                <div className="urban-route-connector-line"></div>
 
                 <div className="urban-field-group">
                   <label className="urban-field-label">Origen</label>
