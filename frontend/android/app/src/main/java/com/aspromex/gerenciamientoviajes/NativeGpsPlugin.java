@@ -43,11 +43,11 @@ public class NativeGpsPlugin extends Plugin {
             if("true".equals(db.read("active","false")) && !trip.equals(db.read("trip","")))throw new IllegalStateException("Ya hay otro viaje nativo activo");
             configureSession(call);
             if(!trip.equals(db.read("trip","")) || !"true".equals(db.read("active","false"))) {
-                db.put("startedAt",String.valueOf(call.getLong("startedAt",System.currentTimeMillis())));db.put("lastCaptureMillis","0");
+                db.put("startedAt",String.valueOf(BridgeNumbers.integer(call.getData().opt("startedAt"),System.currentTimeMillis())));db.put("lastCaptureMillis","0");
                 db.put("lastReminder","0");
             }
             db.put("trip",trip);db.put("folio",call.getString("folio","Viaje "+trip));
-            long reminder=call.getLong("reminderMillis",7200000L);db.put("reminderMillis",String.valueOf(Math.max(60000,reminder)));
+            long reminder=BridgeNumbers.integer(call.getData().opt("reminderMillis"),7200000L);db.put("reminderMillis",String.valueOf(Math.max(60000,reminder)));
             db.put("active","true");
             getActivity().runOnUiThread(()->{try {
                 ContextCompat.startForegroundService(getContext(),new Intent(getContext(),GpsTrackingService.class));call.resolve();
@@ -55,7 +55,7 @@ public class NativeGpsPlugin extends Plugin {
         }catch(Exception error){call.reject(error.getMessage());}});
     }
     private void configureSession(PluginCall call) throws Exception {
-        String origin=call.getString("origin",""),token=call.getString("token","");long driver=call.getLong("driver",0L);
+        String origin=call.getString("origin",""),token=call.getString("token","");long driver=BridgeNumbers.integer(call.getData().opt("driver"),0L);
         if(!"https://gvmobility.aspromex.mx".equals(origin) || driver<=0 || token.isEmpty()) throw new SecurityException("Configura sesión de conductor y servidor de pruebas antes de rastrear");
         GpsDatabase db=GpsDatabase.get(getContext());String encrypted=GpsSecrets.encrypt(token);
         String trip=call.getString("trip","");
@@ -63,7 +63,7 @@ public class NativeGpsPlugin extends Plugin {
             JSONObject old=db.sessions().getJSONObject(i);
             if(old.getLong("driver")==driver && old.getString("origin").equals(origin)) db.session(old.getString("trip"),old.getLong("server"),driver,origin,encrypted);
         }
-        if(!trip.isEmpty()) db.session(trip,call.getLong("server",0L),driver,origin,encrypted);
+        if(!trip.isEmpty()) db.session(trip,BridgeNumbers.integer(call.getData().opt("server"),0L),driver,origin,encrypted);
     }
     @PluginMethod public void configure(PluginCall call){IO.execute(()->{try{configureSession(call);call.resolve();GpsSync.schedule(getContext());}catch(Exception error){call.reject(error.getMessage());}});}
     @PluginMethod public void stop(PluginCall call){IO.execute(()->{GpsDatabase db=GpsDatabase.get(getContext());db.put("active","false");getContext().stopService(new Intent(getContext(),GpsTrackingService.class));
