@@ -1,71 +1,65 @@
 import { useEffect, useRef, useState } from "react";
 import { IconCamera, IconRotate, IconAlert } from "./Icons.jsx";
+import { createCameraSession, cameraErrorMessage } from "../services/camera-session.js";
+import { createPortal } from "react-dom";
 
 export default function CameraModal({ onCapture, onClose }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const sessionRef = useRef(null);
+  const mountedRef = useRef(false);
   const [facingMode, setFacingMode] = useState("environment");
   const [cameraError, setCameraError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const [capturing, setCapturing] = useState(false);
+
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
-    let activeStream = null;
+    let disposed = false;
+    const session = createCameraSession(navigator.mediaDevices);
+    sessionRef.current = session;
 
     async function initCamera() {
       setLoading(true);
       setCameraError("");
 
       try {
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-        }
-
-        const constraints = {
-          video: facingMode ? { facingMode: facingMode } : true,
-          audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const stream = await session.start(facingMode);
+        if (!stream || disposed) return;
         streamRef.current = stream;
-        activeStream = stream;
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setLoading(false);
+        if (!disposed) setLoading(false);
       } catch (err) {
-        console.warn("Fallo al acceder a la cámara mediante WebRTC:", err);
-        setCameraError(
-          "No se pudo acceder al visor directo de cámara. Puedes seleccionar la opción de 'Elegir archivo'."
-        );
+        if (disposed) return;
+        session.stop();
+        setCameraError(cameraErrorMessage(err));
         setLoading(false);
       }
     }
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      initCamera();
-    } else {
-      setCameraError("Tu navegador no soporta el visor directo de cámara.");
-      setLoading(false);
-    }
+    void initCamera();
 
     return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((track) => track.stop());
-      }
+      disposed = true;
+      session.stop();
     };
-  }, [facingMode]);
+  }, [facingMode, attempt]);
 
   function stopTracks() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-    }
+    sessionRef.current?.stop();
+    streamRef.current = null;
   }
 
   function handleTakeSnapshot() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || capturing || loading || !video.videoWidth || !video.videoHeight || video.readyState < 2) return;
+    setCapturing(true);
 
     const width = video.videoWidth || 640;
     const height = video.videoHeight || 480;
@@ -75,15 +69,20 @@ export default function CameraModal({ onCapture, onClose }) {
     canvas.height = height;
 
     const ctx = canvas.getContext("2d");
+    if (!ctx) { setCapturing(false); setCameraError("No se pudo preparar la fotografía. Vuelve a intentarlo."); return; }
     ctx.drawImage(video, 0, 0, width, height);
 
     canvas.toBlob(
       (blob) => {
+        if (!mountedRef.current) return;
         if (blob) {
           const file = new File([blob], `camara_${Date.now()}.jpg`, { type: "image/jpeg" });
           stopTracks();
           onCapture(file);
+        } else {
+          setCameraError("No se pudo capturar la fotografía. Vuelve a intentarlo.");
         }
+        setCapturing(false);
       },
       "image/jpeg",
       0.9
@@ -99,7 +98,7 @@ export default function CameraModal({ onCapture, onClose }) {
     onClose();
   }
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay"
       style={{
@@ -119,6 +118,7 @@ export default function CameraModal({ onCapture, onClose }) {
       }}
       role="dialog"
       aria-modal="true"
+      aria-label="Tomar fotografía"
     >
       <div
         style={{
@@ -183,13 +183,13 @@ export default function CameraModal({ onCapture, onClose }) {
             <p style={{ color: "#38bdf8", fontSize: "0.9rem" }}>Iniciando cámara...</p>
           )}
 
-          {cameraError ? (
+          {cameraError && (
             <div style={{ padding: "20px", textAlign: "center", color: "#fca5a5" }}>
               <div style={{ marginBottom: "8px" }}><IconAlert size={32} color="#fca5a5" /></div>
               <p style={{ fontSize: "0.88rem", margin: 0 }}>{cameraError}</p>
             </div>
-          ) : (
-            <video
+          )}
+          <video
               ref={videoRef}
               playsInline
               autoPlay
@@ -198,10 +198,10 @@ export default function CameraModal({ onCapture, onClose }) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                transform: facingMode === "user" ? "scaleX(-1)" : "none"
+                transform: facingMode === "user" ? "scaleX(-1)" : "none",
+                display: cameraError ? "none" : "block"
               }}
             />
-          )}
         </div>
 
         {/* Acciones */}
@@ -216,6 +216,7 @@ export default function CameraModal({ onCapture, onClose }) {
             background: "#0f172a"
           }}
         >
+          {cameraError && <button type="button" onClick={() => { setCapturing(false); setAttempt(value => value + 1); }} style={{ background: "#0284c7", color: "white", border: 0, borderRadius: "20px", padding: "12px 18px" }}>Reintentar cámara</button>}
           {!cameraError && !loading && (
             <>
               <button
@@ -241,6 +242,7 @@ export default function CameraModal({ onCapture, onClose }) {
               <button
                 type="button"
                 onClick={handleTakeSnapshot}
+                disabled={capturing}
                 style={{
                   background: "#16a34a",
                   color: "#ffffff",
@@ -256,7 +258,7 @@ export default function CameraModal({ onCapture, onClose }) {
                   gap: "6px"
                 }}
               >
-                <IconCamera size={18} /> Capturar Foto
+                <IconCamera size={18} /> {capturing ? "Capturando…" : "Capturar Foto"}
               </button>
             </>
           )}
@@ -278,6 +280,6 @@ export default function CameraModal({ onCapture, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
