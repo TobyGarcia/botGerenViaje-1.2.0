@@ -25,16 +25,25 @@ export function filterJitterAndCleanPoints(locations = []) {
       return (Number.isFinite(delta) && delta !== 0 ? delta :
         (a.idUbicacion ?? a.id_ubicaciones_viaje ?? 0) - (b.idUbicacion ?? b.id_ubicaciones_viaje ?? 0));
     });
-  // Conservar cada parada y cada lectura distinta, incluso desvíos y retornos.
-  return points.filter((p, i) => i === 0 || i === points.length - 1 ||
-    p.esPuntoIntermedio || p.es_punto_intermedio ||
-    calculateDistanceMeters(points[i - 1].latitud, points[i - 1].longitud, p.latitud, p.longitud) >= 5);
+  return points;
 }
 
-// Todos los GPS válidos participan como waypoints, incluidas las paradas.
-// Los bloques comparten un punto; no se podan bucles ni se inventan puentes.
-export async function fetchSnappedRoadGeometry(locations = [], { signal } = {}) {
+// Solo estos puntos son restricciones de OSRM. Las lecturas GPS normales se
+// conservan para la vista y validación, pero no deben obligar al vehículo a
+// regresar o desviarse para visitarlas exactamente.
+export function getMandatoryRoutePoints(locations = []) {
   const points = filterJitterAndCleanPoints(locations);
+  if (points.length < 2) return points;
+
+  return points.filter((point, index) =>
+    index === 0 ||
+    index === points.length - 1 ||
+    Boolean(point.esPuntoIntermedio || point.es_punto_intermedio)
+  );
+}
+
+export async function fetchSnappedRoadGeometry(locations = [], { signal } = {}) {
+  const points = getMandatoryRoutePoints(locations);
   if (points.length < 2) return [];
   const geometry = [];
   for (let offset = 0; offset < points.length - 1; offset += 9) {
