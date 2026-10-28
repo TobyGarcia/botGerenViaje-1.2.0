@@ -50,10 +50,10 @@ test("envía solo puntos obligatorios por bloques solapados y cancela antes de c
     }));
     const result = await fetchSnappedRoadGeometry(points);
     assert.equal(result.length, 4);
-    assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0], [[19, -90], [19.005, -90], [19.01, -90], [19.011, -90]]);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(calls[0], [[19, -90], [19.005, -90]]);
     await assert.rejects(fetchSnappedRoadGeometry(points, { signal: AbortSignal.abort() }), { name: "AbortError" });
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 3);
   } finally { globalThis.fetch = original; }
 });
 

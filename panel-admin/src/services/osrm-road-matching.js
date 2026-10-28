@@ -43,13 +43,17 @@ export function getMandatoryRoutePoints(locations = []) {
 }
 
 export async function fetchSnappedRoadGeometry(locations = [], { signal } = {}) {
+  const readings = filterJitterAndCleanPoints(locations);
   const points = getMandatoryRoutePoints(locations);
   if (points.length < 2) return [];
   const geometry = [];
-  for (let offset = 0; offset < points.length - 1; offset += 9) {
+  for (let offset = 0; offset < points.length - 1; offset += 1) {
     signal?.throwIfAborted();
-    const chunk = points.slice(offset, offset + 10).map((p) => [p.latitud, p.longitud]);
-    const result = await getRoadGeometry(chunk, signal);
+    const start = readings.findIndex((p) => p.latitud === points[offset].latitud && p.longitud === points[offset].longitud);
+    const end = readings.findIndex((p, i) => i > start && p.latitud === points[offset + 1].latitud && p.longitud === points[offset + 1].longitud);
+    const references = readings.slice(start + 1, end).map((p) => [p.latitud, p.longitud]);
+    const chunk = points.slice(offset, offset + 2).map((p) => [p.latitud, p.longitud]);
+    const result = await getRoadGeometry(chunk, signal, references);
     if (!Array.isArray(result.geometry) || result.geometry.length < 2) throw new Error("Ruta vial incompleta.");
     if (geometry.length && calculateDistanceMeters(...geometry[geometry.length - 1], ...result.geometry[0]) > 5) {
       throw new Error("No fue posible unir los tramos por carretera.");

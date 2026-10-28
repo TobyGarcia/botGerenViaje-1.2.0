@@ -89,9 +89,9 @@ export function getAdminSession() {
   );
 }
 
-export function getRoadGeometry(points, signal) {
+export function getRoadGeometry(points, signal, references = []) {
   return request("/admin/ubicaciones-viaje/ruta-vial", {
-    method: "POST", signal, body: JSON.stringify({ points })
+    method: "POST", signal, body: JSON.stringify({ points, references })
   });
 }
 
