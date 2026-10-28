@@ -727,7 +727,7 @@ function TripMap({ locations = [] }) {
             position={[Number(location.latitud), Number(location.longitud)]}
             icon={createNumberedStopIcon(idx + 1)}
           >
-            <Tooltip permanent direction="top" offset={[0, -32]} className="custom-intermediate-tooltip">
+            <Tooltip direction="top" offset={[0, -32]} className="custom-intermediate-tooltip">
               <span className="intermediate-tooltip-content">
                 <strong>{location.nombrePunto || location.nombre_punto || `Parada #${idx + 1}`}</strong>
               </span>
