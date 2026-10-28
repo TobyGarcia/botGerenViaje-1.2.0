@@ -47,11 +47,13 @@ export async function fetchSnappedRoadGeometry(locations = [], { signal } = {}) 
   const points = getMandatoryRoutePoints(locations);
   if (points.length < 2) return [];
   const geometry = [];
+  let cursor = 0;
   for (let offset = 0; offset < points.length - 1; offset += 1) {
     signal?.throwIfAborted();
-    const start = readings.findIndex((p) => p.latitud === points[offset].latitud && p.longitud === points[offset].longitud);
+    const start = cursor;
     const end = readings.findIndex((p, i) => i > start && p.latitud === points[offset + 1].latitud && p.longitud === points[offset + 1].longitud);
     const references = readings.slice(start + 1, end).map((p) => [p.latitud, p.longitud]);
+    cursor = end;
     const chunk = points.slice(offset, offset + 2).map((p) => [p.latitud, p.longitud]);
     const result = await getRoadGeometry(chunk, signal, references);
     if (!Array.isArray(result.geometry) || result.geometry.length < 2) throw new Error("Ruta vial incompleta.");
