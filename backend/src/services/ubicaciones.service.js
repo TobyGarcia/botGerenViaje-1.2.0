@@ -174,6 +174,7 @@ async function saveTripLocationBatchImpl({
           v.id_conductores,
           v.hora_salida,
           v.hora_llegada,
+          v.actualizado_en,
           ev.nombre AS estado
         FROM viajes v
         INNER JOIN estados_viaje ev
@@ -195,7 +196,7 @@ async function saveTripLocationBatchImpl({
       throw new Error("El viaje no pertenece al conductor autenticado.");
     }
 
-    if (!["EN_CURSO", "FINALIZADO"].includes(trip.estado)) {
+    if (!["EN_CURSO", "FINALIZADO", "CANCELADO"].includes(trip.estado)) {
       throw new Error(`No se pueden registrar ubicaciones en un viaje con estado ${trip.estado}.`);
     }
 
@@ -203,7 +204,9 @@ async function saveTripLocationBatchImpl({
     const startLimit = trip.hora_salida
       ? new Date(trip.hora_salida).getTime() - 24 * 60 * 60 * 1000
       : now - 24 * 60 * 60 * 1000;
-    const endLimit = trip.hora_llegada
+    const endLimit = trip.estado === "CANCELADO"
+      ? new Date(trip.actualizado_en).getTime() + 60000
+      : trip.hora_llegada
       ? new Date(trip.hora_llegada).getTime() + 10 * 60 * 1000
       : now + 10 * 60 * 1000;
 

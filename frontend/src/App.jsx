@@ -72,7 +72,7 @@ import {
 import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
 import { getOfflineTrip, getOfflinePermits, getPendingOfflineTrips, hasUnfinishedOfflineTrip, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
-import { createOfflineDraft, startOfflineTrip, finishOfflineTrip, discardOfflineDraft, refreshOfflinePermits, syncOfflineTrip } from "./services/offline-trips.js";
+import { createOfflineDraft, startOfflineTrip, finishOfflineTrip, cancelOfflineTrip, refreshOfflinePermits, syncOfflineTrip } from "./services/offline-trips.js";
 
 const initialForm = {
   idConductor: "",
@@ -377,7 +377,8 @@ const [cancelledTrip, setCancelledTrip] =
         const view = offlineTripView(record);
         setCreatedTrip(current => current?.idViaje === record.localId ? view : current);
         setStartedTrip(current => current?.idViaje === record.localId ? view : current);
-        if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
+        if (record.cancelledAt) setCancelledTrip(current => current?.idViaje === record.localId ? view : current);
+        else if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
         const cached = safeStorage.getJSON("cached_active_trip");
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
       }
@@ -759,8 +760,9 @@ const [cancelledTrip, setCancelledTrip] =
         const view = offlineTripView(localTrip);
         setCreatedTrip(view);
         safeStorage.setJSON("cached_active_trip", view);
-        setStartedTrip(localTrip.startedAt ? view : null);
-        setFinishedTrip(localTrip.finishedAt ? view : null);
+        setStartedTrip(localTrip.startedAt && !localTrip.finishedAt ? view : null);
+        setFinishedTrip(localTrip.finishedAt && !localTrip.cancelledAt ? view : null);
+        setCancelledTrip(localTrip.cancelledAt ? view : null);
         setKilometrajeFinal(String(localTrip.kilometrajeFinal ?? localTrip.trip.kilometrajeInicial));
         if (localTrip.startedAt && !localTrip.finishedAt) void startTracking(localTrip.localId).catch(() => {});
         setLoading(false);
@@ -1201,7 +1203,7 @@ async function handleAddIntermediatePoint() {
         setMessage("Cancelación guardada en el teléfono; pendiente de sincronización.");setMessageType("success");return;
       }
       const response = idViaje < 0
-        ? (discardOfflineDraft(telegramAuth.conductor.id_conductores, idViaje), { data: { estado: "CANCELADO" } })
+        ? { data: cancelOfflineTrip(telegramAuth.conductor.id_conductores, idViaje) }
         : await cancelarViaje(idViaje);
       const cancelledData = response.data ?? {};
 
@@ -1217,7 +1219,8 @@ async function handleAddIntermediatePoint() {
         ...cancelledData,
         estado: "CANCELADO"
       }));
-      setMessage("Viaje cancelado correctamente.");
+      setMessage(idViaje < 0 ? "Cancelación guardada en el teléfono. Puedes crear otro viaje; se sincronizará al recuperar conexión." : "Viaje cancelado correctamente.");
+      if (idViaje < 0 && navigator.onLine) void syncOfflineState();
       setMessageType("success");
     } catch (error) {
       setMessage(error.message);
