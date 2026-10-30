@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import TripDetailModal from "../components/TripDetailModal.jsx";
 import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados, getAdminVehiculoDetalle } from "../services/api.js";
 import logoGv from "../assets/LOGOGV.png";
@@ -262,6 +262,50 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
 }
 
 
+function AvailableUnitsList({ units, onSelect }) {
+  const listRef = useRef(null);
+  const paused = useRef(false);
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let direction = 1;
+    let previous = 0;
+    let frame;
+    let holdUntil = 0;
+    let position = list.scrollTop;
+    function step(time) {
+      const elapsed = previous ? Math.min(time - previous, 50) : 0;
+      previous = time;
+      const limit = list.scrollHeight - list.clientHeight;
+      if (!paused.current && time >= holdUntil && limit > 0) {
+        position = Math.max(0, Math.min(limit, position + direction * elapsed * 0.022));
+        list.scrollTop = position;
+        if ((direction > 0 && list.scrollTop >= limit - 1) || (direction < 0 && list.scrollTop <= 1)) {
+          direction *= -1;
+          holdUntil = time + 1800;
+        }
+      } else { position = list.scrollTop; }
+      frame = requestAnimationFrame(step);
+    }
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [units]);
+  function resume() {
+    const list = listRef.current;
+    paused.current = Boolean(list && (list.matches(":hover") || list.contains(document.activeElement)));
+  }
+  return <ul ref={listRef} className="dashboard-available-list" onMouseEnter={() => { paused.current = true; }} onMouseLeave={resume}
+    onFocusCapture={() => { paused.current = true; }} onBlurCapture={resume}
+    onTouchStart={() => { paused.current = true; }} onTouchEnd={resume} onTouchCancel={resume}>
+    {units.map(unit => <li key={unit.id_vehiculos}>
+      <button type="button" className="dashboard-unit-detail-button" onClick={() => onSelect(unit)} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
+        <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
+        <small>{unit.placas || "Sin placas"}</small>
+      </button>
+    </li>)}
+  </ul>;
+}
+
 function DashboardOverview({ pendingInspections, pendingGerenciamientos, notificationError, onOpenInspections, onOpenGerenciamiento, onOpenManejoComentado }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
@@ -306,15 +350,7 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
         <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Conductores", description: "Resumen de las personas registradas para operar unidades.", metrics: [{ label: "Registrados", value: summary.conductores_total, tone: "blue" }, { label: "Activos", value: summary.conductores_activos, tone: "green" }, { label: "Inactivos", value: Math.max(0, summary.conductores_total - summary.conductores_activos), tone: "gray" }], actionLabel: "Abrir Conductores", onAction: () => window.location.hash = "conductores" })}><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></button>
         <article className="kpi-card dashboard-available-units">
           <div className="dashboard-available-heading"><span>Unidades disponibles</span><small>{(summary.unidades_disponibles || []).length} disponibles</small></div>
-          <small>Sin remolques · Activas, sin mantenimiento y sin viaje en curso</small>
-          {(summary.unidades_disponibles || []).length ? <ul className="dashboard-available-list">
-            {summary.unidades_disponibles.map(unit => <li key={unit.id_vehiculos}>
-              <button type="button" className="dashboard-unit-detail-button" onClick={() => openAvailableVehicle(unit)} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
-              <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
-              <small>{unit.placas || "Sin placas"}</small>
-              </button>
-            </li>)}
-          </ul> : <p className="table-status">No hay unidades disponibles en este momento.</p>}
+          {(summary.unidades_disponibles || []).length ? <AvailableUnitsList units={summary.unidades_disponibles} onSelect={openAvailableVehicle} /> : <p className="table-status">No hay unidades disponibles en este momento.</p>}
         </article>
         <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Viajes registrados", description: "Resumen acumulado de los viajes guardados en la plataforma.", metrics: [{ label: "Registrados", value: summary.viajes_total, tone: "blue" }, { label: "En curso", value: summary.viajes_en_curso, tone: "green" }, { label: "Sin estar en curso", value: Math.max(0, summary.viajes_total - summary.viajes_en_curso), tone: "gray" }], actionLabel: "Abrir Viajes", onAction: () => window.location.hash = "viajes" })}><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></button>
         <button type="button" className="kpi-card inspection-notification-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Inspecciones pendientes", description: pendingInspections ? "Estas inspecciones requieren revisión administrativa." : "No hay inspecciones pendientes de revisión.", metrics: [{ label: "Pendientes", value: pendingInspections, tone: pendingInspections ? "amber" : "green" }], actionLabel: "Abrir Inspecciones", onAction: onOpenInspections })}>
