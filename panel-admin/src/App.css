@@ -1727,7 +1727,13 @@
 .dashboard-info-metric.is-amber strong { color: #b45309; }
 .dashboard-info-metric.is-red strong { color: #dc2626; }
 .dashboard-info-metric.is-gray strong { color: #64748b; }
-.dashboard-info-list-wrap { margin-top: 20px; }
+.dashboard-info-list-wrap { margin-top: 0; }
+.dashboard-info-metrics + .dashboard-info-list-wrap { margin-top: 20px; }
+.dashboard-info-list .dashboard-modal-unit { padding: 12px; border-radius: 10px; }
+.dashboard-modal-unit > div { display: grid; gap: 5px; min-width: 0; }
+.dashboard-modal-unit b { font-size: 14px; color: #245b75; overflow-wrap: anywhere; }
+.dashboard-modal-unit small { font-size: 12px; color: #607986; }
+.dashboard-modal-unit .dashboard-modal-unit-arrow { font-size: 26px; color: #2e81ab; }
 .dashboard-info-list-wrap h3 { margin: 0 0 10px; color: #315566; font-size: 0.95rem; }
 .dashboard-info-list {
   display: grid;
