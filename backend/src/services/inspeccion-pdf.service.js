@@ -233,11 +233,15 @@ export function buildInspectionPdf(data) {
     const col = index % 3;
     const x = 432 + col * 48;
     const width = index === 4 ? 96 : 48;
-    const y = 765 - row * 14;
-    rect(commands, x, y, width, 14, { fill: lightCyan, stroke: border });
-    drawText(commands, label, x + 2, y + 8.5, 4.4, { bold: true, fill: darkNavy });
-    drawText(commands, truncate(value, index === 4 ? 30 : 13), x + 2, y + 2.4, 4.4, { fill: textDark });
+    const y = 764 - row * 16;
+    rect(commands, x, y, width, 16, { fill: lightCyan });
+    drawText(commands, label, x + 2, y + 10, 4.4, { bold: true, fill: darkNavy });
+    drawText(commands, truncate(value, index === 4 ? 30 : 13), x + 2, y + 3, 4.4, { fill: textDark });
   });
+  // Una sola cuadrícula, alineada con el contorno de 32 puntos de altura.
+  line(commands, 432, 764, 576, 764, 0.4, border);
+  line(commands, 480, 748, 480, 780, 0.4, border);
+  line(commands, 528, 764, 528, 780, 0.4, border);
 
   // SUB-BARRA DE TÍTULO "INSPECCIÓN VEHICULAR" (Y: 734 a 746)
   rect(commands, MARGIN, 734, 540, 12, { fill: darkNavy, stroke: border });
