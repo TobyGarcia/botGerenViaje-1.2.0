@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import TripDetailModal from "../components/TripDetailModal.jsx";
-import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados } from "../services/api.js";
+import { getAdminDashboardSummary, getAdminInspeccionesPendientesCount, getManejoComentadoResumenExpirados, getAdminVehiculoDetalle } from "../services/api.js";
 import logoGv from "../assets/LOGOGV.png";
 import isologoGv from "../assets/ISOLOGO.png";
 import {
@@ -268,6 +268,28 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
   const [selectedTripId, setSelectedTripId] = useState(null);
 
   const [infoModal, setInfoModal] = useState(null);
+  async function openAvailableVehicle(unit) {
+    const vehicleId = unit.id_vehiculos;
+    setInfoModal({ vehicleId, title: unit.numero_economico || unit.nombre || "Unidad", description: "Cargando información del vehículo…" });
+    try {
+      const { data: vehicle } = await getAdminVehiculoDetalle(vehicleId);
+      const fields = [
+        ["Nombre", vehicle.nombre], ["Marca", vehicle.marca], ["Modelo", vehicle.modelo],
+        ["Número económico", vehicle.numero_economico], ["Placas", vehicle.placas],
+        ["Tipo", vehicle.tipo_vehiculo], ["Color", vehicle.color],
+        ["Kilometraje", vehicle.kilometraje_actual == null ? null : `${Number(vehicle.kilometraje_actual).toLocaleString("es-MX")} km`],
+        ["Personal asignado", vehicle.personal_asignado], ["Número de serie", vehicle.numero_serie],
+        ["Póliza", vehicle.numero_poliza], ["Vencimiento del seguro", vehicle.seguro_vencimiento ? String(vehicle.seguro_vencimiento).slice(0, 10) : null]
+      ];
+      setInfoModal(current => current?.vehicleId === vehicleId ? {
+        vehicleId, title: vehicle.numero_economico || vehicle.nombre || "Unidad",
+        description: `Estado actual: ${(vehicle.disponibilidad || "Sin información").replaceAll("_", " ")}`,
+        listTitle: "Información del vehículo", items: fields.map(([label, value]) => ({ label, value: value || "Sin registro" }))
+      } : current);
+    } catch (error) {
+      setInfoModal(current => current?.vehicleId === vehicleId ? { ...current, description: `No se pudo consultar el vehículo: ${error.message}` } : current);
+    }
+  }
   useEffect(() => {
     getAdminDashboardSummary()
       .then((response) => setSummary(response.data))
@@ -287,8 +309,10 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
           <small>Sin remolques · Activas, sin mantenimiento y sin viaje en curso</small>
           {(summary.unidades_disponibles || []).length ? <ul className="dashboard-available-list">
             {summary.unidades_disponibles.map(unit => <li key={unit.id_vehiculos}>
+              <button type="button" className="dashboard-unit-detail-button" onClick={() => openAvailableVehicle(unit)} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
               <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
               <small>{unit.placas || "Sin placas"}</small>
+              </button>
             </li>)}
           </ul> : <p className="table-status">No hay unidades disponibles en este momento.</p>}
         </article>
