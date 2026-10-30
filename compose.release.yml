@@ -1,0 +1,14 @@
+# Overlay de producción. RELEASE_VERSION debe identificar el commit aprobado.
+# Usar siempre con compose.prod.yml y el proyecto botgerenviaje-120.
+services:
+  backend:
+    image: gv-production-backend:${RELEASE_VERSION:?Definir RELEASE_VERSION}
+    environment:
+      OSRM_URL: ${OSRM_URL:?Definir el servicio de rutas aprobado para producción}
+  frontend:
+    image: gv-production-frontend:${RELEASE_VERSION:?Definir RELEASE_VERSION}
+    build:
+      args:
+        APP_VERSION: ${RELEASE_VERSION:?Definir RELEASE_VERSION}
+  panel-admin:
+    image: gv-production-panel-admin:${RELEASE_VERSION:?Definir RELEASE_VERSION}
