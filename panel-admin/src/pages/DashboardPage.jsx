@@ -803,7 +803,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
           <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
       ) : (
-        <AutoScrollList key={rankingTab} as="div" className="ranking-list">
+        <div key={rankingTab} className="ranking-list">
           {list.map((item, index) => {
             const count = Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas);
             const percentage = Math.max(8, Math.round((count / maxVal) * 100));
@@ -865,7 +865,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
               </div>
             );
           })}
-        </AutoScrollList>
+        </div>
       )}
     </section>
   );
