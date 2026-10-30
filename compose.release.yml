@@ -4,7 +4,10 @@ services:
   backend:
     image: gv-production-backend:${RELEASE_VERSION:?Definir RELEASE_VERSION}
     environment:
-      OSRM_URL: ${OSRM_URL:?Definir el servicio de rutas aprobado para producción}
+      OSRM_URL: http://osrm-production:5000
+    depends_on:
+      osrm-production:
+        condition: service_started
   frontend:
     image: gv-production-frontend:${RELEASE_VERSION:?Definir RELEASE_VERSION}
     build:
@@ -12,3 +15,14 @@ services:
         APP_VERSION: ${RELEASE_VERSION:?Definir RELEASE_VERSION}
   panel-admin:
     image: gv-production-panel-admin:${RELEASE_VERSION:?Definir RELEASE_VERSION}
+  osrm-production:
+    image: ghcr.io/project-osrm/osrm-backend@sha256:55dbfd47d984c2cacd64e32901b4321c86b5ec761438e69aa053dc78698a786f
+    restart: unless-stopped
+    command: ['osrm-routed', '--algorithm', 'mld', '--threads', '1', '--max-matching-size', '1000', '/data/zona.osrm']
+    mem_limit: 512m
+    cpus: 1
+    read_only: true
+    volumes:
+      - ${OSRM_DATA_DIR:?Definir directorio del grafo validado}:/data:ro
+    networks:
+      - viajes_network
