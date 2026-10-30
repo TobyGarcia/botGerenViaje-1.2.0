@@ -1,8 +1,10 @@
+import { getVehiculos } from "./catalogos.service.js";
 import {
   databasePool
 } from "../database/pool.js";
 
 export async function getAdminDashboardSummary() {
+  const availableVehicles = await getVehiculos();
   const [summaryResult, activityResult] = await Promise.all([
     databasePool.query(
       `
@@ -182,6 +184,7 @@ export async function getAdminDashboardSummary() {
   }
 
   return {
+    unidades_disponibles: availableVehicles.map(({ id_vehiculos, nombre, marca, modelo, numero_economico, placas }) => ({ id_vehiculos, nombre, marca, modelo, numero_economico, placas })),
     ...summaryResult.rows[0],
     actividad: activityResult.rows,
     ranking_unidades,
