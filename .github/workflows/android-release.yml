@@ -12,6 +12,10 @@ on:
         type: choice
         options: [testing, stable]
         default: testing
+      reuse_testing_signature:
+        description: 'Reutilizar la firma existente de android-testing para el APK estable'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -20,7 +24,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: android-${{ inputs.channel }}
+    environment: ${{ inputs.reuse_testing_signature && 'android-testing' || format('android-{0}', inputs.channel) }}
     defaults:
       run:
         working-directory: frontend
@@ -28,9 +32,9 @@ jobs:
       ANDROID_VERSION_NAME: ${{ inputs.version }}
       ANDROID_VERSION_CODE: ${{ inputs.version_code }}
       ANDROID_UPDATE_CHANNEL: ${{ inputs.channel }}
-      ANDROID_WEB_URL: ${{ vars.ANDROID_WEB_URL }}
+      ANDROID_WEB_URL: ${{ inputs.channel == 'stable' && 'https://gv.aspromex.mx/conductor/' || vars.ANDROID_WEB_URL }}
       ANDROID_BUNDLED: 'true'
-      VITE_API_BASE_URL: ${{ vars.ANDROID_WEB_URL }}
+      VITE_API_BASE_URL: ${{ inputs.channel == 'stable' && 'https://gv.aspromex.mx' || vars.ANDROID_WEB_URL }}
       ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android-release.jks
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
