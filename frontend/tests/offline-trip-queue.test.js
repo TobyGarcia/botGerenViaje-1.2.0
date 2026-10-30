@@ -23,7 +23,20 @@ const {
   storeServerMapping,
   resolveOfflineTripId
 } = await import("../src/services/offline-trip-storage.js");
-const { startOfflineTrip } = await import("../src/services/offline-trips.js");
+const { startOfflineTrip, cancelOfflineTrip } = await import("../src/services/offline-trips.js");
+
+test("cancelar offline conserva el registro y libera el viaje activo incluso tras reabrir", () => {
+  const local = record({ clientId: "cancel-test", localId: -99 });
+  local.initialLocation = { clientLocationId: "gps-keep" };
+  saveOfflineTrip(local);
+  const result = cancelOfflineTrip(7, -99);
+  assert.equal(result.estado, "CANCELADO");
+  assert.equal(hasUnfinishedOfflineTrip(7), false);
+  assert.equal(getPendingOfflineTrips(7).length, 1);
+  assert.equal(getSyncableOfflineTrips(7).length, 1);
+  assert.deepEqual(getOfflineTrip(7, -99).initialLocation, local.initialLocation);
+  assert.equal(cancelOfflineTrip(7, -99).horaLlegada, result.horaLlegada);
+});
 
 function record({ clientId, localId, finishedAt = null, synced = false }) {
   return {

@@ -67,6 +67,10 @@ export async function getOfflinePermits(driverId, now = new Date()) {
 export function validateOfflineRequest(body, driverId, now = new Date()) {
   if (!body || !UUID.test(body.clientId || "")) throw new Error("El identificador local no es válido.");
   const claims = verifyOfflinePermit(body.permit, driverId, body.startedAt, now);
+  if (body.cancelledAt && (body.finishedAt || !Number.isFinite(+new Date(body.cancelledAt)) ||
+      +new Date(body.cancelledAt) < +new Date(body.startedAt) || +new Date(body.cancelledAt) > +now + 60000)) {
+    throw new Error("La fecha de cancelación no es válida.");
+  }
   if (!body.initialLocation) throw new Error("El viaje sin conexión no contiene la primera ubicación GPS.");
   const initialLocation = normalizeInitialTripLocation(body.initialLocation, body.startedAt);
   const p = body.trip || {};
@@ -141,7 +145,7 @@ async function syncOfflineTripImpl(body, driverId) {
         (e.nombre IN ('PENDIENTE','EN_CURSO') OR
          (v.hora_salida IS NOT NULL AND v.hora_salida < COALESCE($4::timestamptz, CURRENT_TIMESTAMP) AT TIME ZONE 'America/Mexico_City'
           AND COALESCE(v.hora_llegada,v.actualizado_en) > $3::timestamptz AT TIME ZONE 'America/Mexico_City')) LIMIT 1`,
-      [driverId, claims.vehicleId, body.startedAt, body.finishedAt || null]);
+      [driverId, claims.vehicleId, body.startedAt, body.cancelledAt || body.finishedAt || null]);
       if (conflict.rowCount) throw new Error("Hay otro viaje que entra en conflicto. El viaje local se conserva para revisión.");
       const created = await createTrip(trip, { client, recordedAt: body.startedAt });
       await startTrip({ idViaje: created.id_viajes, initialLocation }, { client, recordedAt: body.startedAt });
@@ -150,6 +154,18 @@ async function syncOfflineTripImpl(body, driverId) {
         (client_id,id_conductores,id_viajes,id_inspeccion,request_hash,inicio_dispositivo)
         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [body.clientId, driverId, created.id_viajes, claims.inspectionId, hash, body.startedAt])).rows[0];
+    }
+    if (body.cancelledAt) {
+      const current = (await client.query(`SELECT v.id_estado_viaje,e.nombre AS estado FROM viajes v JOIN estados_viaje e USING(id_estado_viaje) WHERE id_viajes=$1 FOR UPDATE OF v`, [row.id_viajes])).rows[0];
+      if (row.fin_dispositivo && (+new Date(row.fin_dispositivo) !== +new Date(body.cancelledAt) || current?.estado !== "CANCELADO")) throw new Error("El viaje ya tiene otro cierre.");
+      if (!row.fin_dispositivo) {
+        if (current?.estado !== "EN_CURSO") throw new Error("El viaje ya no puede cancelarse.");
+        const cancelled = (await client.query("SELECT id_estado_viaje FROM estados_viaje WHERE nombre='CANCELADO' AND activo=TRUE LIMIT 1")).rows[0];
+        if (!cancelled) throw new Error("No existe el estado CANCELADO.");
+        await client.query("UPDATE viajes SET id_estado_viaje=$2,actualizado_en=$3::timestamptz AT TIME ZONE 'America/Mexico_City' WHERE id_viajes=$1", [row.id_viajes,cancelled.id_estado_viaje,body.cancelledAt]);
+        await client.query("INSERT INTO historial_estados_viaje(id_viajes,id_estado_anterior,id_estado_nuevo,observaciones) VALUES($1,$2,$3,$4)", [row.id_viajes,current.id_estado_viaje,cancelled.id_estado_viaje,"Cancelado sin conexión por el conductor"]);
+        await client.query("UPDATE viajes_offline SET fin_dispositivo=$2 WHERE client_id=$1", [body.clientId,body.cancelledAt]);
+      }
     }
     if (body.finishedAt) {
       if (row.fin_dispositivo && (+new Date(row.fin_dispositivo) !== +new Date(body.finishedAt) || row.kilometraje_final !== body.kilometrajeFinal)) {

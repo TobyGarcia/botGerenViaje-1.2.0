@@ -88,7 +88,7 @@ export function matchingPermit(permits, driverId, vehicleId, at = new Date()) {
 export function offlineTripView(record) {
   return { ...record.display, idViaje: record.localId, id_viajes: record.localId,
     folio: record.serverTrip?.folio || `LOCAL-${record.clientId.slice(0, 8).toUpperCase()}`,
-    estado: record.finishedAt ? "FINALIZADO" : record.startedAt ? "EN_CURSO" : "PENDIENTE",
+    estado: record.cancelledAt ? "CANCELADO" : record.finishedAt ? "FINALIZADO" : record.startedAt ? "EN_CURSO" : "PENDIENTE",
     horaSalida: record.startedAt, horaLlegada: record.finishedAt,
     kilometrajeInicial: record.trip.kilometrajeInicial, kilometrajeFinal: record.kilometrajeFinal,
     offline: true, offlineSynced: Boolean(record.synced), idConductor: record.trip.idConductor };
