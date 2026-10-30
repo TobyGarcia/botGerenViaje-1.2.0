@@ -1593,6 +1593,15 @@
 
 .dashboard-overview { display: grid; gap: 24px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.dashboard-available-units { grid-column: span 2; align-content: start; }
+.dashboard-available-heading { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dashboard-available-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.dashboard-available-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e8f0f4; }
+.dashboard-available-list li:last-child { border-bottom: 0; }
+.dashboard-available-list li div { display: grid; gap: 3px; min-width: 0; }
+.dashboard-available-list b { color: #246785; font-size: 14px; }
+.dashboard-available-list span, .dashboard-available-list small { font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .dashboard-available-units { grid-column: auto; } }
 .kpi-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .kpi-card, .activity-card { padding: 24px; border: 1px solid #d6e8ef; border-radius: 16px; background: #ffffff; }
 .kpi-card { display: grid; gap: 8px; }
