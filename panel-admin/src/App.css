@@ -1769,9 +1769,9 @@
   border-top: 1px solid #dceaf0;
   background: #ffffff;
 }
-.inspection-notification-card { width:100%; border:1px solid #f1c46b; color:inherit; text-align:left; cursor:pointer; background:#fffaf0; }
-.inspection-notification-card:hover { border-color:#d89016; background:#fff4d8; }
-.inspection-notification-card strong { color:#b45309; }
+.inspection-notification-card { width:100%; color:inherit; text-align:left; cursor:pointer; background:#fff; }
+.inspection-notification-card.has-pending { border-color:#dfc9a7; }
+.inspection-notification-card.has-pending:hover { border-color:#cbb38d; }
 .activity-card h2, .activity-card p { margin: 0; }
 .activity-chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 14px; min-height: 220px; margin-top: 24px; }
 .activity-column { display: grid; grid-template-rows: auto 160px auto; justify-items: center; gap: 8px; }
