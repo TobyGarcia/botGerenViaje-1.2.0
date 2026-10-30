@@ -224,6 +224,7 @@ export function buildInspectionPdf(data) {
   drawText(commands, "Servicios Industriales", 294, 754, 9.5, { bold: true, fill: brandBlue, align: "center" });
 
   // Cuadro Derecho - Datos del Documento
+  rect(commands, 432, 748, 144, 32, { fill: lightCyan, stroke: border, lineWidth: 0.8 });
   const documentNumber = `SII-MX-${new Date(data.aprobado_en || Date.now()).getFullYear()}-LOG-${String(data.id_viajes || "").padStart(3, "0")}`;
   const fechaAprobacion = formatShortDate(data.aprobado_en || Date.now());
 
@@ -231,11 +232,11 @@ export function buildInspectionPdf(data) {
     const row = Math.floor(index / 3);
     const col = index % 3;
     const x = 432 + col * 48;
-    const width = 48;
+    const width = index === 4 ? 96 : 48;
     const y = 765 - row * 14;
     rect(commands, x, y, width, 14, { fill: lightCyan, stroke: border });
     drawText(commands, label, x + 2, y + 8.5, 4.4, { bold: true, fill: darkNavy });
-    drawText(commands, truncate(value, 13), x + 2, y + 2.4, 4.4, { fill: textDark });
+    drawText(commands, truncate(value, index === 4 ? 30 : 13), x + 2, y + 2.4, 4.4, { fill: textDark });
   });
 
   // SUB-BARRA DE TÍTULO "INSPECCIÓN VEHICULAR" (Y: 734 a 746)
