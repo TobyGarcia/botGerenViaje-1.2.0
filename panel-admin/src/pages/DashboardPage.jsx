@@ -132,7 +132,7 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
         {data.vencidos_count} vencidos / {data.proximos_count} próximos (30 días)
       </small>
       {data.items && data.items.length > 0 && (
-        <AutoScrollList className="dashboard-available-list dashboard-expiring-list">
+        <AutoScrollList className="dashboard-available-list dashboard-expiring-list" enabled={data.items.length > 2}>
           {data.items.map((item) => (
             <li key={item.id_conductores}>
               <div>
@@ -265,12 +265,14 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
 }
 
 
-function AutoScrollList({ children, className = "", as: Tag = "ul" }) {
+function AutoScrollList({ children, className = "", as: Tag = "ul", enabled = true }) {
   const listRef = useRef(null);
   const paused = useRef(false);
   useEffect(() => {
     const list = listRef.current;
-    if (!list || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!list) return;
+    if (!enabled) { list.scrollTop = 0; return; }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let direction = 1;
     let previous = 0;
     let frame;
@@ -280,7 +282,7 @@ function AutoScrollList({ children, className = "", as: Tag = "ul" }) {
       const elapsed = previous ? Math.min(time - previous, 50) : 0;
       previous = time;
       const limit = list.scrollHeight - list.clientHeight;
-      if (!paused.current && time >= holdUntil && limit > 0) {
+      if (!paused.current && time >= holdUntil && limit > 2) {
         position = Math.max(0, Math.min(limit, position + direction * elapsed * 0.022));
         list.scrollTop = position;
         if ((direction > 0 && list.scrollTop >= limit - 1) || (direction < 0 && list.scrollTop <= 1)) {
@@ -292,7 +294,7 @@ function AutoScrollList({ children, className = "", as: Tag = "ul" }) {
     }
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [children]);
+  }, [children, enabled]);
   function resume() {
     const list = listRef.current;
     paused.current = Boolean(list && (list.matches(":hover") || list.contains(document.activeElement)));
