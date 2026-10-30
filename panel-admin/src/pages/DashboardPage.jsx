@@ -69,8 +69,10 @@ function DashboardInfoModal({ modal, onClose }) {
               <ul className="dashboard-info-list">
                 {modal.items.map((item, index) => (
                   <li key={item.key || index}>
+                    {item.onClick ? <button type="button" className="dashboard-unit-detail-button" onClick={item.onClick}><span>{item.label}</span><small>{item.value}</small></button> : <>
                     <span>{item.label}</span>
                     {item.value && <strong className={item.tone ? `is-${item.tone}` : ""}>{item.value}</strong>}
+                    </>}
                   </li>
                 ))}
               </ul>
@@ -121,7 +123,7 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
   });
 
   return (
-    <article className="kpi-card dashboard-kpi-clickable" style={{ borderLeft: "4px solid #eab308" }} role="button" tabIndex="0" onClick={openDetails} onKeyDown={(event) => {
+    <article className="kpi-card dashboard-kpi-clickable dashboard-expiring-card" style={{ borderLeft: "4px solid #eab308" }} role="button" tabIndex="0" onClick={openDetails} onKeyDown={(event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetails(); }
     }} aria-label="Ver detalle de manejos comentados por expirar">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
@@ -309,7 +311,7 @@ function AutoScrollList({ children, className = "", as: Tag = "ul", enabled = tr
 function AvailableUnitsList({ units, onSelect }) {
   return <AutoScrollList className="dashboard-available-list">
     {units.map(unit => <li key={unit.id_vehiculos}>
-      <button type="button" className="dashboard-unit-detail-button" onClick={() => onSelect(unit)} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
+      <button type="button" className="dashboard-unit-detail-button" onClick={event => { event.stopPropagation(); onSelect(unit); }} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
         <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
         <small>{unit.placas || "Sin placas"}</small>
       </button>
@@ -359,8 +361,8 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
       <section className="kpi-grid dashboard-summary-grid">
         <ExpiringManejoComentadoWidget onOpenManejoComentado={onOpenManejoComentado} onOpenDetails={setInfoModal} />
         <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Conductores", description: "Resumen de las personas registradas para operar unidades.", metrics: [{ label: "Registrados", value: summary.conductores_total, tone: "blue" }, { label: "Activos", value: summary.conductores_activos, tone: "green" }, { label: "Inactivos", value: Math.max(0, summary.conductores_total - summary.conductores_activos), tone: "gray" }], actionLabel: "Abrir Conductores", onAction: () => window.location.hash = "conductores" })}><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></button>
-        <article className="kpi-card dashboard-available-units">
-          <div className="dashboard-available-heading"><span>Unidades disponibles</span><small>{(summary.unidades_disponibles || []).length} disponibles</small></div>
+        <article className="kpi-card dashboard-available-units" onClick={() => setInfoModal({ title: "Unidades disponibles", description: `${(summary.unidades_disponibles || []).length} unidades disponibles`, listTitle: "Selecciona una unidad para ver su información", items: (summary.unidades_disponibles || []).map(unit => ({ key: unit.id_vehiculos, label: `${unit.numero_economico || "Sin número económico"} · ${unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}`, value: unit.placas || "Sin placas", onClick: () => openAvailableVehicle(unit) })) })}>
+          <div className="dashboard-available-heading"><button type="button" className="dashboard-units-title">Unidades disponibles</button><small>{(summary.unidades_disponibles || []).length} disponibles</small></div>
           {(summary.unidades_disponibles || []).length ? <AvailableUnitsList units={summary.unidades_disponibles} onSelect={openAvailableVehicle} /> : <p className="table-status">No hay unidades disponibles en este momento.</p>}
         </article>
         <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Viajes registrados", description: "Resumen acumulado de los viajes guardados en la plataforma.", metrics: [{ label: "Registrados", value: summary.viajes_total, tone: "blue" }, { label: "En curso", value: summary.viajes_en_curso, tone: "green" }, { label: "Sin estar en curso", value: Math.max(0, summary.viajes_total - summary.viajes_en_curso), tone: "gray" }], actionLabel: "Abrir Viajes", onAction: () => window.location.hash = "viajes" })}><span>Viajes registrados</span><strong>{summary.viajes_total}</strong><small>{summary.viajes_en_curso} en curso</small></button>
