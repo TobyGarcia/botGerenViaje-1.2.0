@@ -1622,7 +1622,6 @@
 .dashboard-overview .dashboard-auto-scroll { overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; min-height: 0; overscroll-behavior: contain; }
 .dashboard-overview .dashboard-auto-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .dashboard-expiring-list { max-height: 72px; margin: 6px 0 0; padding-left: 14px; font-size: 0.78rem; color: #475569; text-align: left; overflow-wrap: anywhere; }
-.dashboard-overview .ranking-list.dashboard-auto-scroll { max-height: 360px; }
 .dashboard-available-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e8f0f4; }
 .dashboard-available-list li:last-child { border-bottom: 0; }
 .dashboard-unit-detail-button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 5px; border: 0; border-radius: 6px; background: transparent; text-align: left; font: inherit; cursor: pointer; }
