@@ -204,8 +204,6 @@ export default function ManejoComentadoPage({ user }) {
   });
   const [conductores, setConductores] = useState([]);
   const [cursos, setCursos] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("TODOS");
   const [columnFilters, setColumnFilters] = useState({
     conductor: "", telefono: "", licencia: "", vencimientoLicencia: "",
     tipoLicencia: "", fechaRealizacion: "", proximaEvaluacion: "", score: "", estatus: ""
@@ -262,7 +260,7 @@ export default function ManejoComentadoPage({ user }) {
     setLoading(true);
     try {
       const [resCond, resCur] = await Promise.all([
-        getManejoComentadoConductores({ search, status: filterStatus }),
+        getManejoComentadoConductores({}),
         getCursosManejoComentado()
       ]);
       setConductores(resCond.data || []);
@@ -273,7 +271,7 @@ export default function ManejoComentadoPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [search, filterStatus]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -744,38 +742,6 @@ export default function ManejoComentadoPage({ user }) {
 
       {activeTab === "conductores" && (
         <>
-          <section className="module-toolbar" style={{ marginBottom: "20px" }}>
-            <label className="search-field">
-              <span>Buscar</span>
-              <input
-                type="search"
-                placeholder="Nombre, licencia o teléfono"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentCondPage(1);
-                }}
-              />
-            </label>
-
-            <label className="status-filter">
-              <span>Estado</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value);
-                  setCurrentCondPage(1);
-                }}
-              >
-                <option value="TODOS">Todos los estatus</option>
-                <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
-                <option value="PROXIMO_A_VENCER">Próximos a vencer (&lt;= 30 días)</option>
-                <option value="VENCIDO">Vencidos</option>
-                <option value="SIN_REGISTRO">Sin registro</option>
-              </select>
-            </label>
-          </section>
-
           <section className="table-panel">
             {loading ? (
               <p className="table-status">Cargando estado de manejo comentado...</p>
