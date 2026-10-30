@@ -132,13 +132,13 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
         {data.vencidos_count} vencidos / {data.proximos_count} próximos (30 días)
       </small>
       {data.items && data.items.length > 0 && (
-        <ul style={{ margin: "6px 0 0 0", padding: "0 0 0 14px", fontSize: "0.78rem", color: "#475569", textAlign: "left", wordBreak: "break-word" }}>
-          {data.items.slice(0, 2).map((item) => (
+        <AutoScrollList className="dashboard-expiring-list">
+          {data.items.map((item) => (
             <li key={item.id_conductores}>
               {item.nombre.split(" ")[0]} - <span style={{ color: item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "#dc2626" : "#d97706", fontWeight: "bold" }}>{item.estado_vigencia}</span>
             </li>
           ))}
-        </ul>
+        </AutoScrollList>
       )}
     </article>
   );
@@ -167,7 +167,7 @@ function ActiveTripsCardWidget({ viajesActivos = [], onSelectTrip }) {
           <small>No hay viajes en curso ni pendientes</small>
         </div>
       ) : (
-        <ul className="active-trips-mini-list">
+        <AutoScrollList className="active-trips-mini-list">
           {viajesActivos.map((item, index) => {
             const isEnCurso = item.estado === "EN_CURSO";
             return (
@@ -195,7 +195,7 @@ function ActiveTripsCardWidget({ viajesActivos = [], onSelectTrip }) {
               </li>
             );
           })}
-        </ul>
+        </AutoScrollList>
       )}
     </article>
   );
@@ -223,7 +223,7 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
           <small>No hay viajes registrados recientemente</small>
         </div>
       ) : (
-        <ul className="active-trips-mini-list">
+        <AutoScrollList className="active-trips-mini-list">
           {viajesRecientes.map((item, index) => {
             const isFinalizado = item.estado === "FINALIZADO";
             const isCancelado = item.estado === "CANCELADO";
@@ -255,14 +255,14 @@ function RecentTripsCardWidget({ viajesRecientes = [], onSelectTrip }) {
               </li>
             );
           })}
-        </ul>
+        </AutoScrollList>
       )}
     </article>
   );
 }
 
 
-function AvailableUnitsList({ units, onSelect }) {
+function AutoScrollList({ children, className = "", as: Tag = "ul" }) {
   const listRef = useRef(null);
   const paused = useRef(false);
   useEffect(() => {
@@ -289,21 +289,27 @@ function AvailableUnitsList({ units, onSelect }) {
     }
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [units]);
+  }, [children]);
   function resume() {
     const list = listRef.current;
     paused.current = Boolean(list && (list.matches(":hover") || list.contains(document.activeElement)));
   }
-  return <ul ref={listRef} className="dashboard-available-list" onMouseEnter={() => { paused.current = true; }} onMouseLeave={resume}
+  return <Tag ref={listRef} className={`dashboard-auto-scroll ${className}`} onMouseEnter={() => { paused.current = true; }} onMouseLeave={resume}
     onFocusCapture={() => { paused.current = true; }} onBlurCapture={resume}
     onTouchStart={() => { paused.current = true; }} onTouchEnd={resume} onTouchCancel={resume}>
+    {children}
+  </Tag>;
+}
+
+function AvailableUnitsList({ units, onSelect }) {
+  return <AutoScrollList className="dashboard-available-list">
     {units.map(unit => <li key={unit.id_vehiculos}>
       <button type="button" className="dashboard-unit-detail-button" onClick={() => onSelect(unit)} aria-label={`Ver información de ${unit.numero_economico || unit.nombre || "unidad"}`}>
         <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
         <small>{unit.placas || "Sin placas"}</small>
       </button>
     </li>)}
-  </ul>;
+  </AutoScrollList>;
 }
 
 function DashboardOverview({ pendingInspections, pendingGerenciamientos, notificationError, onOpenInspections, onOpenGerenciamiento, onOpenManejoComentado }) {
@@ -797,7 +803,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
           <p>No hay suficientes registros de viajes para calcular el ranking de {isUnidades ? "unidades" : isDestinos ? "destinos" : "conductores"}.</p>
         </div>
       ) : (
-        <div key={rankingTab} className="ranking-list">
+        <AutoScrollList key={rankingTab} as="div" className="ranking-list">
           {list.map((item, index) => {
             const count = Number(isConductores || isUnidades ? item.total_viajes : item.total_visitas);
             const percentage = Math.max(8, Math.round((count / maxVal) * 100));
@@ -859,7 +865,7 @@ function RankingWidget({ rankingUnidades = [], rankingDestinos = [], rankingCond
               </div>
             );
           })}
-        </div>
+        </AutoScrollList>
       )}
     </section>
   );
