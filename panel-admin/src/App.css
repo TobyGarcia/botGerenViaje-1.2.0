@@ -1619,6 +1619,9 @@
 .dashboard-available-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
 .dashboard-available-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e8f0f4; }
 .dashboard-available-list li:last-child { border-bottom: 0; }
+.dashboard-unit-detail-button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 5px; border: 0; border-radius: 6px; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+.dashboard-unit-detail-button:hover { background: #edf7fc; }
+.dashboard-unit-detail-button:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
 .dashboard-available-list li div { display: grid; gap: 3px; min-width: 0; }
 .dashboard-available-list b { color: #246785; font-size: 14px; }
 .dashboard-available-list span, .dashboard-available-list small { font-size: 13px; overflow-wrap: anywhere; }
