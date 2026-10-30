@@ -9,7 +9,7 @@ const webUrl = process.env.ANDROID_WEB_URL || "https://gvmobility.aspromex.mx/co
 const bundled = process.env.ANDROID_BUNDLED === "true";
 const config: CapacitorConfig = {
   appId: "com.aspromex.gerenciamientoviajes",
-  appName: "Gerenciamiento de Viajes",
+  appName: "GVMobility",
   webDir: "dist",
   server: {
     ...(bundled ? { hostname: new URL(webUrl).hostname, androidScheme: "https" } : { url: webUrl }),
