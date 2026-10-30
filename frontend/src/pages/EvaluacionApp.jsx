@@ -1,22 +1,10 @@
 import { Component, useEffect, useRef, useState } from "react";
 import "../App.css";
-import { Capacitor } from "@capacitor/core";
+import { getApiBaseUrl } from "../services/api.js";
+import { apiFetch as fetch } from "../services/http-transport.js";
 
 const getEvaluacionApiBaseUrl = () => {
-  const envUrl = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-  if (envUrl) {
-    return envUrl.replace(/\/api$/, "");
-  }
-  if (
-    Capacitor.isNativePlatform() ||
-    (typeof window !== "undefined" &&
-      (window.location.protocol === "capacitor:" ||
-        window.location.protocol === "file:" ||
-        (window.location.hostname === "localhost" && !window.location.port)))
-  ) {
-    return "https://gv.aspromex.mx";
-  }
-  return "";
+  return getApiBaseUrl();
 };
 
 const API_BASE_URL = getEvaluacionApiBaseUrl();

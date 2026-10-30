@@ -178,6 +178,9 @@ export async function sendTripGroupAlert({
     `Unidad: ${trip.vehiculo ?? "No disponible"}`,
     trip.numeroEconomico
       ? `Número económico: ${trip.numeroEconomico}`
+      : null,
+    trip.lleva_remolque
+      ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
       : null
   ];
 
@@ -196,6 +199,14 @@ export async function sendTripGroupAlert({
     finalizado: [
       "🚐 Viaje FINALIZADO",
       ...baseDetails,
+      `Ruta: ${trip.origen ?? "No registrado"} → ${trip.destino ?? "No registrado"}`,
+      `Kilometraje: ${trip.kilometrajeInicial ?? "No registrado"} → ${trip.kilometrajeFinal ?? "No registrado"} km`,
+      `Kilómetros recorridos: ${trip.kilometrosRecorridos ?? "No registrado"} km`,
+      `Paradas técnicas: ${Array.isArray(trip.paradasTecnicas) && trip.paradasTecnicas.length
+        ? trip.paradasTecnicas.map((stop) => `${stop.nombre_punto || "Punto intermedio"} (${formatTime(stop.fecha_gps)})`).join(", ")
+        : "Ninguna"}`,
+      trip.motivo ? `Motivo: ${trip.motivo}` : null,
+      `Hora de salida: ${formatTime(trip.horaSalida)}`,
       `Hora de finalización: ${formatTime(trip.horaLlegada)}`
     ],
     cancelado: [
@@ -216,6 +227,41 @@ export async function sendTripGroupAlert({
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta al grupo:", error);
+  }
+}
+
+export async function sendTechnicalStopAlert({ trip, stop }) {
+  const groupId = process.env.TELEGRAM_GROUP_ID;
+  if (!groupId) return;
+
+  const formatTime = (value) => value
+    ? new Intl.DateTimeFormat("es-MX", {
+      timeZone: "America/Mexico_City",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value))
+    : "No registrada";
+
+  const message = [
+    "🚏 PARADA TÉCNICA REGISTRADA",
+    `Folio: ${trip?.folio ?? "No disponible"}`,
+    `Conductor: ${trip?.conductor ?? "No disponible"}`,
+    `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
+    trip?.numeroEconomico ? `Número económico: ${trip.numeroEconomico}` : null,
+    trip?.lleva_remolque
+      ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
+      : null,
+    `Destino: ${trip?.destino ?? "No registrado"}`,
+    `Parada: ${stop?.nombrePunto ?? stop?.nombre_punto ?? "Punto intermedio"}`,
+    `Hora: ${formatTime(stop?.gpsTimestamp ?? stop?.fecha_gps)}`,
+    `Estado del viaje: ${trip?.estado ?? "EN_CURSO"}`
+  ].filter(Boolean).join("\n");
+
+  try {
+    await getTelegramBot().telegram.sendMessage(groupId, message);
+  } catch (error) {
+    recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
+    console.error("No fue posible enviar la alerta de parada técnica:", error);
   }
 }
 

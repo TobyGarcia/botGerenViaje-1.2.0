@@ -1994,15 +1994,54 @@
   gap: 12px;
 }
 
-.urban-route-connector-line {
-  position: absolute;
-  left: 20px;
-  top: 38px;
-  bottom: 38px;
-  width: 2px;
-  border-left: 2px dashed #cbd5e1;
-  pointer-events: none;
-  z-index: 1;
+.offline-trip-notice {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #ecd59d;
+  border-radius: 14px;
+  background: #fff9eb;
+  color: #72551e;
+}
+.offline-trip-notice p { margin: 0; font-size: 14px; line-height: 1.5; }
+.offline-trip-notice button { width: 100%; min-height: 44px; padding: 10px 14px; border: 0; border-radius: 10px; background: #087fae; color: #fff; font: inherit; font-weight: 700; }
+
+.temporary-period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.temporary-period-grid .temporary-period-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.temporary-period-field input[type="date"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px 12px;
+  color-scheme: light;
+  font: inherit;
+}
+
+@media (max-width: 520px) {
+  .temporary-period-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .urban-route-dot {
@@ -2015,11 +2054,11 @@
 }
 
 .urban-route-dot.green {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 0 4px #d1fae5;
+  box-shadow: 0 0 0 5px #d1fae5;
 }
 
 .urban-route-pin {
@@ -2037,6 +2076,23 @@
   width: 18px;
   height: 18px;
   color: #f43f5e;
+}
+
+.urban-route-container .urban-field-group {
+  gap: 8px;
+}
+
+.urban-route-container .urban-field-label {
+  padding-left: 2px;
+}
+
+.urban-route-container .urban-autocomplete-wrap input {
+  height: 50px !important;
+  border-radius: 14px !important;
+}
+
+.urban-route-container .urban-autocomplete-wrap:focus-within input {
+  border-color: #0284c7 !important;
 }
 
 form#urban-trip-form {
@@ -2368,8 +2424,9 @@ form#urban-trip-form {
 .vehicle-select-trigger.is-open {
   background: #ffffff;
   border-color: #0284c7;
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
+
+.vehicle-select-trigger:focus-within { border-color: #0284c7; }
 
 .vehicle-select-trigger.is-disabled {
   opacity: 0.6;
@@ -2408,40 +2465,6 @@ form#urban-trip-form {
   align-items: center;
 }
 
-.vehicle-trigger-placeholder {
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 500;
-}
-
-.vehicle-trigger-selected-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.vehicle-trigger-name {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vehicle-trigger-eco-badge {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #0284c7;
-  background: #e0f2fe;
-  padding: 1px 6px;
-  border-radius: 6px;
-  border: 1px solid #bae6fd;
-  white-space: nowrap;
-}
-
 .vehicle-trigger-assigned-tag {
   font-size: 0.7rem;
   font-weight: 700;
@@ -2462,6 +2485,10 @@ form#urban-trip-form {
 }
 
 .vehicle-trigger-clear-btn {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  box-shadow: none;
   background: none;
   border: none;
   color: #94a3b8;
@@ -2485,6 +2512,13 @@ form#urban-trip-form {
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex: 0 0 32px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .vehicle-trigger-chevron.chevron-up {
@@ -2517,40 +2551,46 @@ form#urban-trip-form {
   }
 }
 
-.vehicle-search-bar {
-  padding: 8px 10px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.vehicle-search-icon {
-  width: 16px;
-  height: 16px;
-  color: #64748b;
-  flex-shrink: 0;
-}
-
-.vehicle-search-input {
-  flex: 1;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.84rem;
-  background: #ffffff;
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input {
+  display: block;
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 0;
+  font-size: 0.88rem;
+  background: transparent !important;
   color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0284c7;
+  text-align: left;
+  opacity: 1;
   outline: none;
   font-family: inherit;
   transition: border-color 0.15s ease;
+  box-shadow: none;
+  user-select: text;
 }
 
-.vehicle-search-input:focus {
-  border-color: #0284c7;
+.vehicle-search-input::placeholder {
+  color: #64748b;
+  opacity: 1;
 }
+
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input:focus,
+.custom-vehicle-select-container .vehicle-select-trigger input.vehicle-search-input:focus-visible {
+  outline: none;
+}
+
+.vehicle-item-row.is-active { background: #e0f2fe; }
 
 .vehicle-search-clear {
+  width: auto;
+  min-width: 24px;
+  flex: 0 0 24px;
+  height: 24px;
   background: none;
   border: none;
   color: #94a3b8;
@@ -2970,6 +3010,15 @@ form#urban-trip-form {
 }
 
 /* Mid Actions (Punto Intermedio & Sincronizar) */
+.gv-trip-emergency-action-row {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.gv-trip-emergency-action-row .gv-btn-emergency-action {
+  width: 100%;
+  height: 40px;
+}
 .gv-trip-mid-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3108,11 +3157,12 @@ form#urban-trip-form {
 
 .gv-finish-btn-wrapper {
   margin-top: 12px;
+  width: 100%;
 }
 
 .gv-btn-finish {
   width: 100%;
-  height: 46px;
+  height: 40px;
   background: #8b2626;
   color: #ffffff;
   font-size: 0.78rem;
@@ -3302,13 +3352,13 @@ form#urban-trip-form {
 .gv-btn-emergency-action {
   width: 100%;
   height: 44px;
-  background: linear-gradient(135deg, #b91c1c 0%, #9f1239 100%);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
   color: #ffffff;
   font-size: 0.78rem;
   font-weight: 700;
   border-radius: 12px;
   border: none;
-  box-shadow: 0 6px 20px -3px rgba(185, 28, 28, 0.3);
+  box-shadow: 0 6px 20px -3px rgba(217, 119, 6, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3318,7 +3368,7 @@ form#urban-trip-form {
 }
 
 .gv-btn-emergency-action:hover {
-  background: linear-gradient(135deg, #991b1b 0%, #881337 100%);
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
 }
 
 .gv-btn-emergency-action:active {

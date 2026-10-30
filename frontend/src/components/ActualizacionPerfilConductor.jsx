@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { actualizarPerfilConductor } from "../services/api.js";
 import "./ActualizacionPerfilConductor.css";
+import CameraModal from "./CameraModal.jsx";
 
 const TIPOS_LICENCIA_OPCIONES = [
   { value: "AUTOMOVILISTA", label: "AUTOMOVILISTA" },
@@ -39,6 +40,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [cameraSide, setCameraSide] = useState(null);
 
   const handleFileChange = (e, side) => {
     const file = e.target.files?.[0];
@@ -348,6 +350,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                   </div>
                 )}
 
+                <button type="button" className="perfil-upload-btn-label" onClick={() => setCameraSide("frente")}>Tomar foto</button>
                 <label className="perfil-upload-btn-label">
                   <span>Seleccionar archivo</span>
                   <input
@@ -383,6 +386,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                   </div>
                 )}
 
+                <button type="button" className="perfil-upload-btn-label" onClick={() => setCameraSide("reverso")}>Tomar foto</button>
                 <label className="perfil-upload-btn-label">
                   <span>Seleccionar archivo</span>
                   <input
@@ -423,6 +427,10 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
           </div>
         </form>
       </section>
+      {cameraSide && <CameraModal onClose={() => setCameraSide(null)} onCapture={file => {
+        handleFileChange({ target: { files: [file] } }, cameraSide);
+        setCameraSide(null);
+      }} />}
     </div>
   );
 }

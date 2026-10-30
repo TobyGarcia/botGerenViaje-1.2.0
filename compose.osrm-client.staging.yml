@@ -1,0 +1,6 @@
+# Usar junto al compose del ambiente de pruebas. Configurar OSRM_URL cuando
+# el servidor disponga de un motor interno con el grafo de la región.
+services:
+  backend:
+    environment:
+      OSRM_URL: ${OSRM_URL:-https://router.project-osrm.org}

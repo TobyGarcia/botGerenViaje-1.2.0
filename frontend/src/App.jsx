@@ -5,6 +5,8 @@ import {
   useCallback
 } from "react";
 import "./App.css";
+import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
+import { NativeGps, hasNativeGps, queueNativeCompletion } from "./services/native-gps.js";
 
 import {
   cancelarViaje,
@@ -34,8 +36,11 @@ import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
+import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
+import OdometerCorrection from "./components/OdometerCorrection.jsx";
+import { odometerCorrectionPayload } from "./utils/odometer-correction.js";
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -142,6 +147,7 @@ function App() {
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
   const [conductores, setConductores] = useState(() => getCachedJson("cached_conductores", []));
   const [vehiculos, setVehiculos] = useState(() => getCachedJson("cached_vehiculos", []));
+  const [odometerReport, setOdometerReport] = useState(null);
   const [lugares, setLugares] = useState(() => getCachedJson("cached_lugares", []));
   const [loading, setLoading] = useState(() => {
     const token = safeStorage.getItem("driver_token");
@@ -155,6 +161,25 @@ function App() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
   const [createdTrip, setCreatedTrip] = useState(() => getCachedJson("cached_active_trip", null));
+  useEffect(() => {
+    if (!hasNativeGps()) return;
+    const inspectAction = async () => {
+      if (document.hidden) return;
+      const state = await NativeGps.status({}).catch(() => null);
+      if (state?.finishRequested) {
+        const input = document.getElementById("odometer-final");
+        if (!input && state.active) return;
+        await NativeGps.status({ consumeAction: true });
+        if (!state.active) return;
+        setMessage("Revisa el odómetro y confirma la finalización del viaje.");
+        setMessageType("success");
+        input?.scrollIntoView({ behavior: "smooth", block: "center" }); input?.focus();
+      }
+    };
+    void inspectAction();
+    const timer = setInterval(inspectAction, 2000);
+    return () => clearInterval(timer);
+  }, []);
   const [startingTrip, setStartingTrip] = useState(false);
   const [startedTrip, setStartedTrip] = useState(() => {
     const trip = getCachedJson("cached_active_trip", null);
@@ -165,6 +190,12 @@ function App() {
   const lastAppliedAssignedVehicleIdRef = useRef(null);
   const [activeTabMode, setActiveTabMode] = useState("urban"); // "urban" | "gerenciamiento"
   const [gerenciamientoPendiente, setGerenciamientoPendiente] = useState(() => getCachedJson("cached_gerenciamiento_pendiente", null));
+
+  useEffect(() => {
+    if (!message || messageType !== "success") return undefined;
+    const timer = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message, messageType]);
 
   // Estado para modal/formulario de nuevo destino
   const [showAddDestinoModal, setShowAddDestinoModal] = useState(false);
@@ -338,11 +369,7 @@ const [cancelledTrip, setCancelledTrip] =
   const syncOfflineState = useCallback(async () => {
     const driverId = telegramAuth?.conductor?.id_conductores;
     if (!driverId) return;
-    const before = getOfflineTrip(driverId);
-    const pendingCount = getPendingOfflineTrips(driverId).length;
-    if (pendingCount) setOfflineNotice(before?.startedAt
-      ? `${pendingCount} viaje${pendingCount === 1 ? "" : "s"} guardado${pendingCount === 1 ? "" : "s"} en el teléfono. Pendiente${pendingCount === 1 ? "" : "s"} de sincronizar con el servidor.`
-      : "Viaje preparado en el teléfono con la inspección previa del día.");
+    setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
     if (!navigator.onLine) return;
     try {
       const record = await syncOfflineTrip(driverId);
@@ -353,13 +380,11 @@ const [cancelledTrip, setCancelledTrip] =
         if (record.finishedAt) setFinishedTrip(current => current?.idViaje === record.localId ? view : current);
         const cached = safeStorage.getJSON("cached_active_trip");
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
-        setOfflineNotice(record.synced ? `Viaje y GPS sincronizados. Folio: ${record.serverTrip.folio}`
-          : record.serverTrip ? `Inicio sincronizado: ${record.serverTrip.folio}. El cierre y GPS se enviarán al recuperar conexión.`
-          : "Viaje pendiente de sincronización.");
       }
+      setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
       await refreshOfflinePermits(driverId);
     } catch (error) {
-      if (before && !before.synced) setOfflineNotice(`El viaje sigue guardado en el teléfono. ${error.message}`);
+      setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId), error.message));
     }
   }, [telegramAuth?.conductor?.id_conductores]);
   useEffect(() => {
@@ -388,6 +413,12 @@ const [cancelledTrip, setCancelledTrip] =
   }
 
   async function handleLogout() {
+    if (hasNativeGps()) {
+      const state = await NativeGps.status({});
+      if (state.active || state.stored > 0) {
+        setMessage("Finaliza el viaje y sincroniza los datos guardados antes de cerrar sesión.");setMessageType("error");return;
+      }
+    }
     if (startedTrip && startedTrip.estado === "EN_CURSO") {
       const confirmed = window.confirm(
         "Tienes un viaje en curso. Si cierras sesión, el viaje seguirá registrado en el sistema y podrás retomarlo volviendo a ingresar con tu PIN. ¿Deseas salir?"
@@ -1033,12 +1064,25 @@ async function handleAddIntermediatePoint() {
         const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
         const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
+        setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
         stopTracking(); stopSilentAudioKeepAlive();
         setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
         safeStorage.setJSON("cached_active_trip", data);
         setMessage("Viaje finalizado y guardado en el teléfono. Se sincronizará al recuperar conexión.");
         setMessageType("success");
         void syncOfflineState();
+        return;
+      }
+      if (hasNativeGps()) {
+        const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
+        if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
+        const completion = await queueNativeCompletion(idViaje, { action: "finalizado", kilometrajeFinal: finalMileage });
+        stopTracking();
+        const data = { ...createdTrip, estado: "FINALIZADO", kilometrajeFinal: finalMileage, horaLlegada: completion.recordedAt, cierrePendiente: true };
+        safeStorage.setJSON("cached_active_trip", data);
+        setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
+        setMessage("Viaje finalizado en el teléfono. Las ubicaciones y el cierre se enviarán al servidor al recuperar conexión.");
+        setMessageType("success");
         return;
       }
       stopTracking({ clearState: false });
@@ -1148,6 +1192,14 @@ async function handleAddIntermediatePoint() {
     setMessage("");
 
     try {
+      if (hasNativeGps() && idViaje > 0 && startedTrip) {
+        await queueNativeCompletion(idViaje, { action: "cancelado" });
+        stopTracking();
+        const data = { ...createdTrip, estado: "CANCELADO", cierrePendiente: true };
+        safeStorage.setJSON("cached_active_trip", data);
+        setCancelledTrip(data); setStartedTrip(null); setCreatedTrip(data);
+        setMessage("Cancelación guardada en el teléfono; pendiente de sincronización.");setMessageType("success");return;
+      }
       const response = idViaje < 0
         ? (discardOfflineDraft(telegramAuth.conductor.id_conductores, idViaje), { data: { estado: "CANCELADO" } })
         : await cancelarViaje(idViaje);
@@ -1271,12 +1323,16 @@ function isOutsideOperatingHours() {
 
     if (
       !Number.isInteger(kilometrajeInicial) ||
-      kilometrajeInicial < kilometrajeRegistrado
+      kilometrajeInicial < 0
     ) {
-      setMessage("El kilometraje inicial no puede ser menor al registrado.");
+      setMessage("Captura un kilometraje inicial válido, mayor o igual a cero.");
       setMessageType("error");
       return;
     }
+
+    let odometerCorrection;
+    try { odometerCorrection = odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometrajeInicial, kilometrajeRegistrado); }
+    catch (error) { setMessage(error.message); setMessageType("error"); return; }
 
     savingRef.current = true;
     setSaving(true);
@@ -1300,6 +1356,7 @@ function isOutsideOperatingHours() {
         idDestino: Number(form.idDestino),
         acompanantes,
         kilometrajeInicial,
+        ...(odometerCorrection ? { odometerCorrection } : {}),
         motivo: form.motivo.trim(),
         ...(usesTemporaryVehicle ? { usoTemporal: {
           mode: form.usoTemporalModo,
@@ -1395,6 +1452,7 @@ function isOutsideOperatingHours() {
         ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, initialLocation) }
         : await iniciarViaje(idViaje, initialLocation);
       const startedData = response.data ?? {};
+      if (idViaje < 0) setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
       const horaSalida =
         startedData.horaSalida ??
         startedData.hora_salida;
@@ -1609,6 +1667,7 @@ function isOutsideOperatingHours() {
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
+          <AndroidUpdateNotice trip={createdTrip} />
           <PinLoginForm
             onSuccess={handlePinLoginSuccess}
             onRegisterClick={() => setShowConductorRegister(true)}
@@ -1781,9 +1840,10 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        {offlineNotice && <div role="status" className="inspection-load-error">
+        <AndroidUpdateNotice trip={createdTrip} authenticated />
+        {offlineNotice && <div role="status" className="offline-trip-notice">
           <p>{offlineNotice}</p>
-          <button type="button" onClick={syncOfflineState}>Sincronizar viaje guardado</button>
+          <button type="button" onClick={syncOfflineState}>Sincronizar pendientes</button>
         </div>}
         {createdTrip ? (
           <div className="gv-screen-header">
@@ -2005,11 +2065,11 @@ function isOutsideOperatingHours() {
                         <option value="PERIODO">Elegir otro periodo</option>
                       </select>
                       {form.usoTemporalModo === "PERIODO" && (
-                        <div className="urban-grid-2">
-                          <label className="urban-field-label">Inicio
+                        <div className="temporary-period-grid">
+                          <label className="temporary-period-field"><span>Fecha de inicio</span>
                             <input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleChange} className="urban-input" required />
                           </label>
-                          <label className="urban-field-label">Fin
+                          <label className="temporary-period-field"><span>Fecha de fin</span>
                             <input type="date" name="usoTemporalFin" value={form.usoTemporalFin} onChange={handleChange} className="urban-input" min={form.usoTemporalInicio || undefined} required />
                           </label>
                         </div>
@@ -2037,7 +2097,7 @@ function isOutsideOperatingHours() {
                         name="kilometrajeInicial"
                         value={form.kilometrajeInicial}
                         onChange={handleChange}
-                        min={selectedVehicle?.kilometraje_actual ?? 0}
+                        min={0}
                         step="1"
                         placeholder="0"
                         required
@@ -2051,6 +2111,8 @@ function isOutsideOperatingHours() {
                       </svg>
                       Confirma el kilometraje mostrado en el tablero físico antes de iniciar.
                     </p>
+                    <OdometerCorrection vehicleId={form.idVehiculo} reading={form.kilometrajeInicial} previousReading={selectedVehicle?.kilometraje_actual}
+                      report={odometerReport} onChange={setOdometerReport} />
                   </div>
                 </section>
               );
@@ -2064,7 +2126,6 @@ function isOutsideOperatingHours() {
               </div>
 
               <div className="urban-route-container">
-                <div className="urban-route-connector-line"></div>
 
                 <div className="urban-field-group">
                   <label className="urban-field-label">Origen</label>
@@ -2277,7 +2338,7 @@ function isOutsideOperatingHours() {
 
      
 
-      {createdTrip && (
+      {createdTrip && !startedTrip && (
         <section className="gv-success-alert" data-purpose="status-notification">
           <div className="gv-alert-icon-box">
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -2575,6 +2636,17 @@ function isOutsideOperatingHours() {
           </button>
         </div>
 
+        <div className="gv-trip-emergency-action-row">
+          <button
+            type="button"
+            onClick={() => setShowSiniestroModal(true)}
+            className="gv-btn-emergency-action"
+          >
+            <IconAlert size={16} color="#ffffff" />
+            <span>Reportar Siniestro / Incidente</span>
+          </button>
+        </div>
+
         <div className="gv-trip-finish-section">
           <form onSubmit={handleFinishTrip}>
             <div>
@@ -2673,7 +2745,7 @@ function isOutsideOperatingHours() {
 )}
 
 {/* Tarjeta de Emergencia / Siniestro en Ruta (FUERA de la tarjeta del viaje) */}
-{startedTrip && !finishedTrip && !cancelledTrip && (
+{false && startedTrip && !finishedTrip && !cancelledTrip && (
   <section className="gv-emergency-alert-card" data-purpose="emergency-report-card">
     <div className="gv-emergency-header">
       <div className="gv-emergency-icon-box">
@@ -2703,54 +2775,9 @@ function isOutsideOperatingHours() {
   </section>
 )}
 
-{/* Tarjeta de Telemetría GPS y Sitios de Reporte */}
-{startedTrip && !finishedTrip && !cancelledTrip && (
+{/* Sitios de Reporte de Ruta */}
+{false && startedTrip && !finishedTrip && !cancelledTrip && gerenciamientoDoc?.sitios_reporte?.length > 0 && (
   <section className="gv-telemetry-card">
-    <div className="gv-telemetry-header">
-      <div className="gv-telemetry-title-group">
-        <span className="gv-radar-pulse">
-          <span className="gv-radar-pulse-ping" />
-          <span className="gv-radar-pulse-dot" />
-        </span>
-        <h3 className="gv-telemetry-title">Rastreo GPS</h3>
-      </div>
-      <span className={`gv-telemetry-status-badge ${trackingInfo.active ? "active" : "inactive"}`}>
-        {trackingInfo.active ? "Activo" : "Detenido"}
-      </span>
-    </div>
-
-    <dl className="gv-telemetry-dl">
-      <div className="gv-telemetry-row">
-        <dt>Seguimiento GPS:</dt>
-        <dd style={{ color: trackingInfo.active ? "#047857" : "#64748b", fontWeight: 700 }}>
-          {trackingInfo.active ? "Activo" : "Detenido"}
-        </dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Estado:</dt>
-        <dd className="gv-badge-mono">{trackingInfo.status || gpsStatus}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Última captura:</dt>
-        <dd>{trackingInfo.lastCapture ? new Date(trackingInfo.lastCapture).toLocaleTimeString("es-MX") : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Latitud:</dt>
-        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.latitude) ? trackingInfo.latitude.toFixed(6) : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Longitud:</dt>
-        <dd style={{ fontFamily: "monospace" }}>{Number.isFinite(trackingInfo.longitude) ? trackingInfo.longitude.toFixed(6) : "Aún no disponible"}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Pendientes:</dt>
-        <dd>{trackingInfo.pending ?? 0}</dd>
-      </div>
-      <div className="gv-telemetry-row">
-        <dt>Conexión:</dt>
-        <dd>{trackingInfo.connection}</dd>
-      </div>
-    </dl>
 
     {/* Sitios de Reporte para viajes de Gerenciamiento en Curso */}
     {gerenciamientoDoc && gerenciamientoDoc.sitios_reporte && gerenciamientoDoc.sitios_reporte.length > 0 && (
@@ -2794,14 +2821,6 @@ function isOutsideOperatingHours() {
       </div>
     )}
 
-    {lastLocation && (
-      <div className="location-details" style={{ marginTop: "12px" }}>
-        <p><strong>Latitud:</strong> {Number(lastLocation.latitude).toFixed(6)}</p>
-        <p><strong>Longitud:</strong> {Number(lastLocation.longitude).toFixed(6)}</p>
-        <p><strong>Precisión:</strong> {lastLocation.accuracy !== null ? `${Math.round(Number(lastLocation.accuracy))} metros` : "No disponible"}</p>
-        <p><strong>Último envío:</strong> {new Date(lastLocation.serverTimestamp).toLocaleTimeString("es-MX")}</p>
-      </div>
-    )}
   </section>
 )}
       {showAddDestinoModal && (

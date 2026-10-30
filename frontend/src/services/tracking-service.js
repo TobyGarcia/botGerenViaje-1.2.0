@@ -2,11 +2,12 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { registrarUbicacionesLote } from "./api.js";
 import { getCurrentLocation, normalizeLocation } from "./location-provider.js";
 import { diagnostics } from "./client-diagnostics.js";
-import { countPendingLocations, getPendingLocations, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
+import { countPendingLocations, getPendingLocations, prepareNativeStorage, quarantinePendingLocations, removePendingLocations, savePendingLocation } from "./tracking-storage.js";
 import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
 import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
+import { NativeGps, hasNativeGps, nativeTripOptions } from "./native-gps.js";
 
 const BackgroundGeolocationPlugin = registerPlugin("BackgroundGeolocation");
 
@@ -39,6 +40,13 @@ export function setTrackingStatusListener(listener) { statusListener = listener;
 export function isTrackingActive() { return intervalId !== null || nativeWatcherId !== null; }
 
 export async function syncPendingLocations(idViaje) {
+  if (hasNativeGps()) {
+    await prepareNativeStorage(); // Migrar la cola anterior antes del primer envío nativo.
+    await NativeGps.configure(nativeTripOptions(idViaje));
+    const result = await NativeGps.sync({ trip: String(idViaje) });
+    await notifyPending(idViaje, { status: result.pending ? "Guardado en SQLite; pendiente de sincronizar" : "Sincronizado" });
+    return { completed: result.pending === 0, pending: result.pending };
+  }
   if (syncPromises.has(idViaje)) return syncPromises.get(idViaje);
   const syncPromise = (async () => {
     const pending = await getPendingLocations(idViaje);
@@ -153,6 +161,7 @@ async function captureAndStoreLocation(idViaje, extraData = {}) {
 
 export async function captureInitialTripLocation(idViaje) {
   try {
+    if (hasNativeGps()) await NativeGps.ensurePermissions();
     return await captureAndStoreLocation(idViaje, { esUbicacionInicial: true });
   } catch (error) {
     diagnostics.record("GPS_ERROR", { code: "INITIAL_CAPTURE_FAILED" });
@@ -228,6 +237,22 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
     const generation = ++trackingGeneration;
     activeTripId = normalizedId;
     saveTrackingState({ idViaje: normalizedId, trackingActivo: true, intervaloMs: TRACKING_INTERVAL_MS, iniciadoEn: new Date().toISOString() });
+
+    if (hasNativeGps()) {
+      await prepareNativeStorage();
+      await NativeGps.start(nativeTripOptions(normalizedId));
+      nativeWatcherId = "sqlite";
+      if (captureImmediately) await captureAndQueueLocation(normalizedId);
+      intervalId = window.setInterval(async () => {
+        if (generation !== trackingGeneration) return;
+        const state = await NativeGps.status({ trip: String(normalizedId) }).catch(() => null);
+        if (!state) return;
+        notify({ status: state.gpsStatus, pending: state.pending, lastCapture: state.lastLocation?.fechaGps,
+          latitude: state.lastLocation?.latitud, longitude: state.lastLocation?.longitud });
+      }, 5000);
+      await notifyPending(normalizedId, { status: "Seguimiento nativo con SQLite" });
+      return;
+    }
     
     // Intento 1: Si es nativo (Android APK / iOS), usar el servicio Foreground Service de segundo plano
     if (Capacitor.isNativePlatform()) {
@@ -259,7 +284,9 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
 export function stopTracking({ clearState = true } = {}) {
   trackingGeneration += 1;
   if (nativeWatcherId !== null) {
-    BackgroundGeolocationPlugin.removeWatcher({ id: nativeWatcherId }).catch(() => {});
+    if (nativeWatcherId === "sqlite") {
+      if (clearState) void NativeGps.stop().catch(() => {});
+    } else BackgroundGeolocationPlugin.removeWatcher({ id: nativeWatcherId }).catch(() => {});
     nativeWatcherId = null;
   }
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }

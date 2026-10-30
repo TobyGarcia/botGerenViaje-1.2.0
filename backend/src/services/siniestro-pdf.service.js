@@ -6,7 +6,7 @@ const PAGE_HEIGHT = 792;
 const MARGIN = 24;
 const CONTENT_WIDTH = 564;
 
-const logoAquarioUrl = new URL("../assets/aquario-logo.png", import.meta.url);
+const logoGvUrl = new URL("../assets/gv-logo-hd.png", import.meta.url);
 
 function pdfEscape(value) {
   return String(value ?? "")
@@ -161,8 +161,8 @@ function text(commands, x, y, str, options = {}) {
 }
 
 export function generateSiniestroPdf(siniestro) {
-  const logoBuffer = readFileSync(logoAquarioUrl);
-  const logoPng = readPng(logoBuffer, [255, 255, 255]);
+  const logoBuffer = readFileSync(logoGvUrl);
+  const logoPng = readPng(logoBuffer, [15, 23, 42]);
 
   const objects = [];
   const addObject = (content) => {
@@ -223,10 +223,12 @@ export function generateSiniestroPdf(siniestro) {
 
   // Encabezado
   rect(commands, MARGIN, PAGE_HEIGHT - 65, CONTENT_WIDTH, 45, { fill: "#0f172a", stroke: "#0284c7", lineWidth: 1.5 });
-  commands.push(`q 70 0 0 32 ${MARGIN + 10} ${PAGE_HEIGHT - 58} cm /ImLogo Do Q`);
+  const logoWidth = 80;
+  const logoHeight = logoWidth * logoPng.height / logoPng.width;
+  commands.push(`q ${logoWidth} 0 0 ${logoHeight} ${MARGIN + 5} ${PAGE_HEIGHT - 42.5 - logoHeight / 2} cm /ImLogo Do Q`);
 
-  text(commands, MARGIN + 90, PAGE_HEIGHT - 38, "REPORTE OFICIAL DE SINIESTRO E INCIDENCIAS", { fontSize: 13, isBold: true, textColor: "#ffffff" });
-  text(commands, MARGIN + 90, PAGE_HEIGHT - 52, "SISTEMA DE CONTROL Y GERENCIAMIENTO DE VIAJES - ALERTA URGENTE", { fontSize: 8.5, textColor: "#38bdf8" });
+  text(commands, MARGIN + 90, PAGE_HEIGHT - 38, "REPORTE DE SINIESTRO E INCIDENTES", { fontSize: 11, isBold: true, textColor: "#ffffff" });
+  text(commands, MARGIN + 90, PAGE_HEIGHT - 52, "CONTROL Y GERENCIAMIENTO DE VIAJES", { fontSize: 8, textColor: "#38bdf8" });
 
   text(commands, MARGIN + CONTENT_WIDTH - 10, PAGE_HEIGHT - 38, `FOLIO: ${siniestro.folio || "SIN-0000"}`, { fontSize: 10, isBold: true, textColor: "#f87171", align: "right" });
   const fechaStr = siniestro.creado_en ? new Date(siniestro.creado_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }) : new Date().toLocaleString("es-MX");

@@ -3,6 +3,8 @@ import { crearGerenciamientoViaje } from "../services/api.js";
 import InspeccionVehicular from "./InspeccionVehicular.jsx";
 import DestinationAutocomplete from "./DestinationAutocomplete.jsx";
 import VehicleDropdown from "./VehicleDropdown.jsx";
+import OdometerCorrection from "./OdometerCorrection.jsx";
+import { odometerCorrectionPayload } from "../utils/odometer-correction.js";
 import { formatOperationalDate } from "../utils/operational-date.js";
 import {
   IconMapPin,
@@ -179,6 +181,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
   );
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [odometerReport, setOdometerReport] = useState(null);
   const totalSteps = 5;
 
   const stepMeta = [
@@ -495,6 +498,8 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
         setErrorMessage("Por favor ingresa el Kilometraje Inicial del vehículo.");
         return false;
       }
+      try { odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometraje, currentVehicleObj?.kilometraje_actual); }
+      catch (error) { setErrorMessage(error.message); return false; }
     }
     return true;
   }
@@ -598,6 +603,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
 
       const payload = {
         ...form,
+        odometerCorrection: odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometraje, currentVehicleObj?.kilometraje_actual),
         idConductor: selectedDriver.id_conductores || driverId,
         tipoAsignacion: usesTemporaryVehicle ? "TEMPORAL" : "PERMANENTE",
         ...(usesTemporaryVehicle ? { usoTemporal: {
@@ -827,9 +833,9 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
                   <option value="PERIODO">Elegir otro periodo</option>
                 </select>
                 {form.usoTemporalModo === "PERIODO" && (
-                  <div className="gw-grid-2">
-                    <label>Inicio<input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleInputChange} className="gw-input" required /></label>
-                    <label>Fin<input type="date" name="usoTemporalFin" value={form.usoTemporalFin} min={form.usoTemporalInicio || undefined} onChange={handleInputChange} className="gw-input" required /></label>
+                  <div className="temporary-period-grid">
+                    <label className="temporary-period-field"><span>Fecha de inicio</span><input type="date" name="usoTemporalInicio" value={form.usoTemporalInicio} onChange={handleInputChange} className="gw-input" required /></label>
+                    <label className="temporary-period-field"><span>Fecha de fin</span><input type="date" name="usoTemporalFin" value={form.usoTemporalFin} min={form.usoTemporalInicio || undefined} onChange={handleInputChange} className="gw-input" required /></label>
                   </div>
                 )}
                 <p className="gw-field-hint">No modifica la unidad permanente configurada en el panel.</p>
@@ -850,6 +856,8 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
                 placeholder="Ej: 207"
               />
               <p className="gw-field-hint">Verificar con el odómetro del tablero del vehículo asignado.</p>
+              <OdometerCorrection vehicleId={form.idVehiculo} reading={form.kilometraje} previousReading={currentVehicleObj?.kilometraje_actual}
+                report={odometerReport} onChange={setOdometerReport} />
             </div>
           </section>
         )}

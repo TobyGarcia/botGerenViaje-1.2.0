@@ -1,22 +1,12 @@
 import safeStorage from "../utils/safeStorage.js";
 import { Capacitor } from "@capacitor/core";
 import { diagnostics } from "./client-diagnostics.js";
+import { resolveApiOrigin } from "./api-origin.js";
+import { apiFetch, readApiJson } from "./http-transport.js";
 
 export const getApiBaseUrl = () => {
-  const envUrl = String(import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-  if (envUrl) {
-    return envUrl;
-  }
-  if (
-    (typeof Capacitor !== "undefined" && Capacitor?.isNativePlatform?.()) ||
-    (typeof window !== "undefined" &&
-      (window.location?.protocol === "capacitor:" ||
-        window.location?.protocol === "file:" ||
-        (window.location?.hostname === "localhost" && !window.location?.port)))
-  ) {
-    return "https://gv.aspromex.mx";
-  }
-  return "";
+  return resolveApiOrigin({ configuredUrl: import.meta.env?.VITE_API_BASE_URL,
+    native: Capacitor.isNativePlatform(), location: typeof window !== "undefined" ? window.location : undefined });
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -42,7 +32,7 @@ async function request(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${path}`,
       {
         ...options,
@@ -62,11 +52,7 @@ async function request(path, options = {}) {
       }
     );
 
-    const contentType =
-      response.headers.get("content-type") || "";
-    const data = contentType.includes("application/json")
-      ? await response.json()
-      : null;
+    const data = await readApiJson(response);
 
     if (!response.ok) {
       const error = new Error(
@@ -198,16 +184,25 @@ export function cancelarViaje(idViaje) {
   });
 }
 
-export function getViajeActivo(){
-  return request(
-    "/api/viajes/activo"
-  );
+async function applyNativeClose(response) {
+  if (response?.data && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("NativeGps")) {
+    const { NativeGps } = await import("./native-gps.js");
+    const trip = response.data;
+    const closed = await NativeGps.storage({ operation: "closed", trip: String(trip.idViaje ?? trip.id_viajes) });
+    if (closed.value && closed.value !== "confirmed") {
+      const pending = JSON.parse(closed.value);
+      return { ...response, data: { ...trip, estado: pending.action === "cancelado" ? "CANCELADO" : "FINALIZADO",
+        kilometrajeFinal: pending.kilometrajeFinal, horaLlegada: pending.recordedAt, cierrePendiente: true } };
+    }
+  }
+  return response;
+}
+export async function getViajeActivo(){
+  return applyNativeClose(await request("/api/viajes/activo"));
 }
 
-export function getViajePorId(idViaje){
-  return request(
-    `/api/viajes/${idViaje}`
-  );
+export async function getViajePorId(idViaje){
+  return applyNativeClose(await request(`/api/viajes/${idViaje}`));
 }
 
 export function autenticarTelegram(

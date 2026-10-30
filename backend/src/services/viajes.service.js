@@ -2,6 +2,7 @@ import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
+import { normalizeOdometerCorrection, saveOdometerCorrection, applyOdometerCorrection, correctionHash } from "./odometer-correction.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { ensureVehicleAssignment } from "./vehicle-assignments.service.js";
 
@@ -139,7 +140,8 @@ async function createTripImpl({
   kilometrajeInicial,
   motivo,
   esGerenciamiento = false,
-  usoTemporal = null
+  usoTemporal = null,
+  odometerCorrection = null
 }, { client: externalClient = null } = {}) {
   if (!esGerenciamiento && isOutsideOperatingHours()) {
     throw new Error("El horario operativo para viajes locales/urbanos es de 6:00 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
@@ -206,6 +208,12 @@ async function createTripImpl({
     if (vehicle.en_mantenimiento) {
       throw new Error("El vehículo está en mantenimiento.");
     }
+    const correction = normalizeOdometerCorrection(odometerCorrection, Number(kilometrajeInicial));
+    if (!correction && !esGerenciamiento && Number(kilometrajeInicial) < Number(vehicle.kilometraje_actual)) {
+      throw new Error("La lectura es menor al registro. Reporta la diferencia con motivo y foto del odómetro.");
+    }
+    const effectiveMileage = correction ? Number(kilometrajeInicial) : esGerenciamiento
+      ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial;
 
     const placesResult = await client.query(
       `
@@ -277,13 +285,15 @@ async function createTripImpl({
     if (openTrip) {
       const samePendingRequest = isSamePendingTripRequest(openTrip, {
         idVehiculo, idOrigen, idDestino,
-        kilometrajeInicial: esGerenciamiento
-          ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0))
-          : kilometrajeInicial,
+        kilometrajeInicial: effectiveMileage,
         motivo, acompanantes
       });
 
       if (samePendingRequest) {
+        if (correction) {
+          const existing = (await client.query("SELECT request_hash FROM ajustes_odometro_viaje WHERE id_viajes=$1", [openTrip.id_viajes])).rows[0];
+          if (existing?.request_hash !== correctionHash(correction, effectiveMileage)) throw new Error("El viaje pendiente tiene otro reporte de odómetro. Continúa el viaje original o cancélalo antes de cambiarlo.");
+        }
         if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
         return {
           ...openTrip,
@@ -390,13 +400,14 @@ async function createTripImpl({
         pendingState.id_estado_viaje,
         JSON.stringify(acompanantes),
         conductor.licencia_vigente,
-        esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
+        effectiveMileage,
         motivo,
         dateIso
       ]
     );
 
     const trip = tripResult.rows[0];
+    await saveOdometerCorrection(client, { ...trip, idVehiculo, idConductor }, correction, effectiveMileage, vehicle.kilometraje_actual);
 
     await client.query(
       `
@@ -419,11 +430,11 @@ async function createTripImpl({
       ]
     );
 
-    await registerMileageReading({
+    if (!correction) await registerMileageReading({
       client,
       idVehiculo,
       idViaje: trip.id_viajes,
-      kilometraje: esGerenciamiento ? Math.max(Number(kilometrajeInicial || 0), Number(vehicle.kilometraje_actual || 0)) : kilometrajeInicial,
+      kilometraje: effectiveMileage,
       tipoRegistro: "INICIAL_VIAJE",
       origen: "MINI_APP",
       observaciones: `Kilometraje inicial del viaje ${trip.folio}.`,
@@ -434,6 +445,7 @@ async function createTripImpl({
 
     return {
       ...trip,
+      kilometrajeInicial: effectiveMileage,
       conductor: conductor.nombre,
       vehiculo: vehicle.nombre,
       numeroEconomico: vehicle.numero_economico,
@@ -638,6 +650,8 @@ async function startTripImpl({
       );
     }
 
+    await applyOdometerCorrection(client, trip, recordedAt);
+
     const updateResult = await client.query(
       `
         UPDATE viajes
@@ -750,7 +764,10 @@ async function finishTripImpl({
           vh.numero_economico,
           vh.kilometraje_actual,
 
-          c.nombre AS conductor
+          c.nombre AS conductor,
+          origen.nombre AS origen,
+          destino.nombre AS destino,
+          v.motivo
         FROM viajes v
 
         INNER JOIN estados_viaje ev
@@ -763,6 +780,12 @@ async function finishTripImpl({
 
         INNER JOIN conductores c
           ON c.id_conductores = v.id_conductores
+
+        INNER JOIN lugares origen
+          ON origen.id_lugares = v.id_origen
+
+        INNER JOIN lugares destino
+          ON destino.id_lugares = v.id_destino
 
         WHERE v.id_viajes = $1
 
@@ -897,6 +920,17 @@ async function finishTripImpl({
       ]
     );
 
+    const technicalStopsResult = await client.query(
+      `
+        SELECT nombre_punto, fecha_gps
+        FROM ubicaciones_viaje
+        WHERE id_viajes = $1
+          AND es_punto_intermedio = TRUE
+        ORDER BY fecha_gps ASC, id_ubicaciones_viaje ASC
+      `,
+      [idViaje]
+    );
+
     if (ownsTransaction) { await client.query("COMMIT"); recordOperation({ step: "viajes.transaction", result: "COMMIT" }); }
 
     return {
@@ -930,8 +964,20 @@ async function finishTripImpl({
       conductor:
         trip.conductor,
 
+      origen:
+        trip.origen,
+
+      destino:
+        trip.destino,
+
+      motivo:
+        trip.motivo,
+
       numeroEconomico:
-        trip.numero_economico
+        trip.numero_economico,
+
+      paradasTecnicas:
+        technicalStopsResult.rows
     };
   } catch (error) {
     if (ownsTransaction) { await client.query("ROLLBACK"); recordOperation({ step: "viajes.transaction", result: "ROLLBACK", level: "WARN" }); }
@@ -1087,6 +1133,14 @@ export async function getActiveTrip({ idConductor }) {
         vh.placas,
         vh.kilometraje_actual,
 
+        COALESCE(inspeccion.lleva_remolque, FALSE) AS lleva_remolque,
+        inspeccion.id_remolque,
+        remolque.nombre AS remolque_nombre,
+        remolque.marca AS remolque_marca,
+        remolque.modelo AS remolque_modelo,
+        remolque.numero_economico AS remolque_numero_economico,
+        remolque.placas AS remolque_placas,
+
         origen.id_lugares AS id_origen,
         origen.nombre AS origen,
 
@@ -1114,6 +1168,18 @@ export async function getActiveTrip({ idConductor }) {
       INNER JOIN vehiculos vh
         ON vh.id_vehiculos =
            v.id_vehiculos
+
+      LEFT JOIN inspecciones_vehiculares inspeccion
+        ON inspeccion.id_inspeccion = (
+          SELECT i.id_inspeccion
+          FROM inspecciones_vehiculares i
+          WHERE i.id_viajes = v.id_viajes
+          ORDER BY i.id_inspeccion DESC
+          LIMIT 1
+        )
+
+      LEFT JOIN vehiculos remolque
+        ON remolque.id_vehiculos = inspeccion.id_remolque
 
       INNER JOIN lugares origen
         ON origen.id_lugares =
@@ -1197,6 +1263,14 @@ export async function getTripById({
         vh.placas,
         vh.kilometraje_actual,
 
+        COALESCE(inspeccion.lleva_remolque, FALSE) AS lleva_remolque,
+        inspeccion.id_remolque,
+        remolque.nombre AS remolque_nombre,
+        remolque.marca AS remolque_marca,
+        remolque.modelo AS remolque_modelo,
+        remolque.numero_economico AS remolque_numero_economico,
+        remolque.placas AS remolque_placas,
+
         origen.id_lugares AS id_origen,
         origen.nombre AS origen,
 
@@ -1215,6 +1289,18 @@ export async function getTripById({
       INNER JOIN vehiculos vh
         ON vh.id_vehiculos =
            v.id_vehiculos
+
+      LEFT JOIN inspecciones_vehiculares inspeccion
+        ON inspeccion.id_inspeccion = (
+          SELECT i.id_inspeccion
+          FROM inspecciones_vehiculares i
+          WHERE i.id_viajes = v.id_viajes
+          ORDER BY i.id_inspeccion DESC
+          LIMIT 1
+        )
+
+      LEFT JOIN vehiculos remolque
+        ON remolque.id_vehiculos = inspeccion.id_remolque
 
       INNER JOIN lugares origen
         ON origen.id_lugares =

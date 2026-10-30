@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { nativeCompletionController } from "../controllers/native-completion.controller.js";
 import {
   cancelTripController,
   createTripController,
@@ -14,6 +15,7 @@ import { offlinePermitsController, offlineSyncController } from "../controllers/
 const router = Router();
 
 router.use(requireActiveDriver);
+router.post("/:idViaje/cierre-nativo", nativeCompletionController);
 router.get("/offline/permisos", offlinePermitsController);
 router.post("/offline/sincronizar", offlineSyncController);
 

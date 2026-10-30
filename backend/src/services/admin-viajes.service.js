@@ -1,8 +1,16 @@
+import { getVehiculos } from "./catalogos.service.js";
 import {
   databasePool
 } from "../database/pool.js";
 
 export async function getAdminDashboardSummary() {
+  const normalizeType = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const availableVehicles = (await getVehiculos()).filter(vehicle => {
+    const type = normalizeType(vehicle.tipo_vehiculo);
+    if (/\b(remolque|semirremolque|semiremolque|trailer|dolly|lowboy)\b/.test(type)) return false;
+    if (type && !["n/a", "sin registro", "sin tipo"].includes(type)) return true;
+    return !/\b(remolque|semirremolque|semiremolque|trailer|dolly|lowboy|plana|cama baja)\b/.test(normalizeType(`${vehicle.nombre} ${vehicle.marca} ${vehicle.modelo}`));
+  });
   const [summaryResult, activityResult] = await Promise.all([
     databasePool.query(
       `
@@ -182,6 +190,7 @@ export async function getAdminDashboardSummary() {
   }
 
   return {
+    unidades_disponibles: availableVehicles.map(({ id_vehiculos, nombre, marca, modelo, numero_economico, placas }) => ({ id_vehiculos, nombre, marca, modelo, numero_economico, placas })),
     ...summaryResult.rows[0],
     actividad: activityResult.rows,
     ranking_unidades,

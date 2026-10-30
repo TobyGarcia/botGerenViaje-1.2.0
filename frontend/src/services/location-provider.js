@@ -1,3 +1,6 @@
+import { Geolocation } from "@capacitor/geolocation";
+import { Capacitor } from "@capacitor/core";
+
 export function normalizeLocation(location) {
   const latitud = Number(location.latitude);
   const longitud = Number(location.longitude);
@@ -96,6 +99,12 @@ async function getTelegramLocation() {
 }
 
 export async function getCurrentLocation() {
+  if (Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("NativeGps")) {
+    await Geolocation.requestPermissions();
+    const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    if (Date.now() - position.timestamp > 30000) throw new Error("La ubicación GPS es antigua. Espera una nueva captura.");
+    return { ...normalizeLocation({ ...position.coords, timestamp: position.timestamp }), origenCaptura: "ANDROID_NATIVE" };
+  }
   const isTelegramMiniApp = Boolean(window.Telegram?.WebApp?.initData);
   if (!isTelegramMiniApp) return { ...await getBrowserLocation(), origenCaptura: "PWA" };
   try { return { ...await getTelegramLocation(), origenCaptura: "TELEGRAM_MINI_APP" }; }

@@ -42,3 +42,5 @@
 \ir ../migrations/037_recordatorios_viajes.sql
 \ir ../migrations/038_auditoria_eventos.sql
 \ir ../migrations/039_limitar_auditoria_info.sql
+\ir ../migrations/040_android_native_gps.sql
+\ir ../migrations/041_ajustes_odometro.sql

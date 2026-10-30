@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
+import { IconTrash } from "./Icons.jsx";
+import { isTrailer } from "../utils/vehicle-kind.js";
 
 export default function VehicleDropdown({
-  vehiculos = [],
+  vehiculos: catalogoVehiculos = [],
   value = "",
   onChange,
   assignedVehicle = null,
   required = false,
   disabled = false,
-  placeholder = "Seleccione una unidad vehicular",
+  placeholder = "Buscar unidad por nombre o no. económico…",
   id = "unit-selector",
   name = "idVehiculo"
 }) {
+  const vehiculos = catalogoVehiculos.filter(vehicle => !isTrailer(vehicle));
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -66,6 +70,13 @@ export default function VehicleDropdown({
     return matchNombre || matchEco || matchPlacas;
   });
 
+  const activeVehicleId = isOpen ? filteredVehiculos[activeIndex]?.id_vehiculos : null;
+  useEffect(() => {
+    if (activeVehicleId != null) {
+      document.getElementById(`${id}-option-${activeVehicleId}`)?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeVehicleId, id]);
+
   function handleSelect(vehiculo) {
     if (disabled) return;
     setIsOpen(false);
@@ -107,9 +118,8 @@ export default function VehicleDropdown({
       {/* Input oculto para soporte nativo de formulario */}
       <input
         type="text"
-        id={id}
         name={name}
-        value={value || ""}
+        value={selectedVehicle ? value : ""}
         onChange={() => {}}
         required={required}
         tabIndex={-1}
@@ -125,19 +135,9 @@ export default function VehicleDropdown({
         }}
       />
 
-      {/* Boton disparador principal */}
+      {/* Un solo campo para buscar y mostrar la unidad seleccionada */}
       <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (!disabled) setIsOpen(!isOpen);
-          }
-        }}
+        onClick={() => { if (!disabled) searchInputRef.current?.focus(); }}
         className={`vehicle-select-trigger ${isOpen ? "is-open" : ""} ${disabled ? "is-disabled" : ""}`}
       >
         <div className="vehicle-trigger-left">
@@ -158,24 +158,49 @@ export default function VehicleDropdown({
           </div>
 
           <div className="vehicle-trigger-content">
-            {selectedVehicle ? (
-              <div className="vehicle-trigger-selected-row">
-                <span className="vehicle-trigger-name">{selectedVehicle.nombre}</span>
-                <span className="vehicle-trigger-eco-badge">
-                  {selectedVehicle.numero_economico}
-                </span>
-                {isSelectedAssigned && (
-                  <span className="vehicle-trigger-assigned-tag">Asignada</span>
-                )}
-              </div>
-            ) : (
-              <span className="vehicle-trigger-placeholder">{placeholder}</span>
-            )}
+            <input
+              ref={searchInputRef}
+              id={id}
+              type="text"
+              role="combobox"
+              aria-label="Buscar unidad vehicular"
+              aria-autocomplete="list"
+              aria-expanded={isOpen && !disabled}
+              aria-controls={`${id}-options`}
+              aria-activedescendant={isOpen && filteredVehiculos[activeIndex] ? `${id}-option-${filteredVehiculos[activeIndex].id_vehiculos}` : undefined}
+              autoComplete="off"
+              disabled={disabled}
+              value={isOpen ? search : selectedVehicle ? [selectedVehicle.nombre, selectedVehicle.numero_economico].filter(Boolean).join(" · ") : ""}
+              onFocus={() => { setIsOpen(true); setActiveIndex(-1); }}
+              onClick={() => setIsOpen(true)}
+              onChange={event => { setSearch(event.target.value); setActiveIndex(-1); setIsOpen(true); }}
+              onKeyDown={event => {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setIsOpen(true);
+                  setActiveIndex(index => filteredVehiculos.length ? (event.key === "ArrowDown" ? Math.min(index + 1, filteredVehiculos.length - 1) : Math.max(index - 1, 0)) : -1);
+                } else if (event.key === "Enter" && isOpen) {
+                  event.preventDefault();
+                  if (filteredVehiculos[activeIndex]) handleSelect(filteredVehiculos[activeIndex]);
+                } else if (event.key === "Tab") {
+                  setIsOpen(false);
+                }
+              }}
+              placeholder={placeholder}
+              className="vehicle-search-input"
+            />
+            {!isOpen && isSelectedAssigned && <span className="vehicle-trigger-assigned-tag">Asignada</span>}
           </div>
         </div>
 
         <div className="vehicle-trigger-right">
-          {selectedVehicle && !disabled && (
+          {isOpen && search && (
+            <button type="button" className="vehicle-search-clear" aria-label="Limpiar búsqueda"
+              onClick={event => { event.stopPropagation(); setSearch(""); setActiveIndex(-1); searchInputRef.current?.focus(); }}>
+              <IconTrash size={15} color="currentColor" />
+            </button>
+          )}
+          {!isOpen && selectedVehicle && !disabled && (
             <button
               type="button"
               onClick={handleClear}
@@ -190,44 +215,19 @@ export default function VehicleDropdown({
             </button>
           )}
 
-          <span className={`vehicle-trigger-chevron ${isOpen ? "chevron-up" : ""}`}>
+          <button type="button" disabled={disabled} className={`vehicle-trigger-chevron ${isOpen ? "chevron-up" : ""}`}
+            aria-label={isOpen ? "Cerrar lista de unidades" : "Abrir lista de unidades"}
+            onClick={event => { event.stopPropagation(); if (isOpen) setIsOpen(false); else { setIsOpen(true); searchInputRef.current?.focus(); } }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </span>
+          </button>
         </div>
       </div>
 
       {/* Menu desplegable estético */}
       {isOpen && !disabled && (
-        <div className="vehicle-dropdown-menu" role="listbox">
-          {/* Barra de busqueda rapida */}
-          <div className="vehicle-search-bar">
-            <svg className="vehicle-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="7" strokeWidth="2" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o no. económico..."
-              className="vehicle-search-input"
-              onClick={(e) => e.stopPropagation()}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="vehicle-search-clear"
-                aria-label="Limpiar búsqueda"
-              >
-                ×
-              </button>
-            )}
-          </div>
-
+        <div className="vehicle-dropdown-menu" role="listbox" id={`${id}-options`} aria-label="Unidades disponibles">
           {/* Listado de unidades */}
           <div className="vehicle-items-list">
             {filteredVehiculos.length === 0 ? (
@@ -244,10 +244,11 @@ export default function VehicleDropdown({
                 return (
                   <div
                     key={v.id_vehiculos}
+                    id={`${id}-option-${v.id_vehiculos}`}
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => handleSelect(v)}
-                    className={`vehicle-item-row ${isSelected ? "is-selected" : ""} ${isAssigned ? "is-assigned" : ""}`}
+                    className={`vehicle-item-row ${filteredVehiculos[activeIndex] === v ? "is-active" : ""} ${isSelected ? "is-selected" : ""} ${isAssigned ? "is-assigned" : ""}`}
                   >
                     <div className="vehicle-item-icon-box">
                       <svg

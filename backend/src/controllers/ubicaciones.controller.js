@@ -4,6 +4,8 @@ import {
 } from "../services/ubicaciones.service.js";
 import { findTelegramUserById } from "../services/telegram-user.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
+import { sendTechnicalStopAlert } from "../bot/bot.js";
+import { getTripById } from "../services/viajes.service.js";
 
 const MAX_BATCH_SIZE = 200;
 const UUID_PATTERN =
@@ -255,6 +257,9 @@ export async function registerIntermediatePointController(request, response) {
       nombrePunto
     });
 
+    const trip = await getTripById({ idViaje });
+    void sendTechnicalStopAlert({ trip, stop: location });
+
     return response.status(201).json({
       success: true,
       message: "Punto intermedio registrado exitosamente.",
@@ -293,7 +298,7 @@ function normalizeBatchLocation(location) {
   const clientLocationId = String(location?.clientLocationId || "");
   const esPuntoIntermedio = Boolean(location?.esPuntoIntermedio || location?.es_punto_intermedio);
   const nombrePunto = location?.nombrePunto || location?.nombre_punto || null;
-  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP"].includes(location?.origenCaptura) ? location.origenCaptura : "MINI_APP";
+  const origenCaptura = ["PWA", "TELEGRAM_MINI_APP", "ANDROID_NATIVE"].includes(location?.origenCaptura) ? location.origenCaptura : "MINI_APP";
   const isBackground = Boolean(location?.isBackground);
   const fechaGuardadoLocal = new Date(location?.fechaGuardadoLocal || location?.fechaGps || location?.fecha_gps);
 
@@ -395,6 +400,14 @@ export async function registerTripLocationBatchController(request, response) {
       idConductor: driverId,
       locations: validLocations
     });
+
+    const technicalStops = result.insertedLocations.filter((location) => location.es_punto_intermedio);
+    if (technicalStops.length > 0) {
+      const trip = await getTripById({ idViaje });
+      for (const stop of technicalStops) {
+        void sendTechnicalStopAlert({ trip, stop });
+      }
+    }
 
     return response.status(200).json({
       success: true,

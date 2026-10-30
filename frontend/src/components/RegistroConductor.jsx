@@ -813,7 +813,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered, _onCance
                   onClick={() => setActiveCameraSide("frente")}
                 >
                   <IconCamera size={14} />
-                  <span>Visor Cámara</span>
+                  <span>Tomar foto</span>
                 </button>
                 <label className="registro-upload-file-label">
                   <IconFolder size={14} />
@@ -866,7 +866,7 @@ export default function RegistroConductor({ telegramAuth, onRegistered, _onCance
                   onClick={() => setActiveCameraSide("reverso")}
                 >
                   <IconCamera size={14} />
-                  <span>Visor Cámara</span>
+                  <span>Tomar foto</span>
                 </button>
                 <label className="registro-upload-file-label">
                   <IconFolder size={14} />

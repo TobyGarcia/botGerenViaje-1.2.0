@@ -1,14 +1,21 @@
 apply plugin: 'com.android.application'
 
 android {
+    buildFeatures { buildConfig = true }
     namespace = "com.aspromex.gerenciamientoviajes"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.aspromex.gerenciamientoviajes"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode Integer.parseInt(System.getenv('ANDROID_VERSION_CODE') ?: '1')
+        versionName System.getenv('ANDROID_VERSION_NAME') ?: '1.0'
+        def gpsOrigin = new URI(System.getenv('ANDROID_WEB_URL') ?: 'https://gvmobility.aspromex.mx/conductor/')
+        if (gpsOrigin.scheme != 'https' || !(gpsOrigin.host in ['gv.aspromex.mx', 'gvmobility.aspromex.mx']) || gpsOrigin.userInfo != null || !(gpsOrigin.port in [-1, 443])) {
+            throw new GradleException('ANDROID_WEB_URL debe pertenecer al ambiente HTTPS autorizado')
+        }
+        buildConfigField 'String', 'GPS_ORIGIN', '"https://' + gpsOrigin.host + '"'
+        resValue 'string', 'android_update_channel', System.getenv('ANDROID_UPDATE_CHANNEL') ?: 'testing'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,12 +23,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (System.getenv('ANDROID_KEYSTORE_PATH')) {
+                storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    testOptions { unitTests.includeAndroidResources = true }
 }
 
 repositories {
@@ -33,10 +52,12 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    testImplementation 'org.robolectric:robolectric:4.16.1'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

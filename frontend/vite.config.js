@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { randomUUID } from 'node:crypto'
 
-const buildVersion = randomUUID();
+const buildVersion = process.env.APP_VERSION || randomUUID();
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -15,7 +15,8 @@ export default defineConfig({
     } },
     react(),
     VitePWA({
-      registerType: 'prompt',
+      disable: process.env.ANDROID_BUNDLED === 'true',
+      registerType: 'autoUpdate',
       injectRegister: 'auto',
       devOptions: {
         enabled: true
@@ -54,7 +55,7 @@ export default defineConfig({
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        skipWaiting: false,
+        skipWaiting: true,
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
