@@ -49,27 +49,27 @@ function DashboardInfoModal({ modal, onClose }) {
       <section className="modal-card dashboard-info-modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-info-modal-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="dashboard-info-modal-header">
           <div>
-            <span className="dashboard-info-modal-eyebrow">Resumen del inicio</span>
+            <span className="dashboard-info-modal-eyebrow">{modal.vehicleId ? "Ficha del vehículo" : "Resumen del inicio"}</span>
             <h2 id="dashboard-info-modal-title">{modal.title}</h2>
             {modal.description && <p>{modal.description}</p>}
           </div>
           <button type="button" className="dashboard-info-modal-close" onClick={onClose} aria-label="Cerrar modal">×</button>
         </header>
         <div className="dashboard-info-modal-body">
-          <div className="dashboard-info-metrics">
+          {modal.metrics?.length > 0 && <div className="dashboard-info-metrics">
             {(modal.metrics || []).map((metric) => (
               <div className={`dashboard-info-metric ${metric.tone ? `is-${metric.tone}` : ""}`} key={metric.label}>
                 <span>{metric.label}</span><strong>{metric.value}</strong>
               </div>
             ))}
-          </div>
+          </div>}
           {modal.items?.length > 0 && (
             <div className="dashboard-info-list-wrap">
               <h3>{modal.listTitle || "Detalle"}</h3>
               <ul className="dashboard-info-list">
                 {modal.items.map((item, index) => (
                   <li key={item.key || index}>
-                    {item.onClick ? <button type="button" className="dashboard-unit-detail-button" onClick={item.onClick}><span>{item.label}</span><small>{item.value}</small></button> : <>
+                    {item.onClick ? <button type="button" className="dashboard-unit-detail-button dashboard-modal-unit" onClick={item.onClick}><div><b>{item.label}</b><small>Placas: {item.value}</small></div><span className="dashboard-modal-unit-arrow" aria-hidden="true">›</span></button> : <>
                     <span>{item.label}</span>
                     {item.value && <strong className={item.tone ? `is-${item.tone}` : ""}>{item.value}</strong>}
                     </>}
@@ -79,14 +79,13 @@ function DashboardInfoModal({ modal, onClose }) {
             </div>
           )}
         </div>
-        <footer className="dashboard-info-modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>Cerrar</button>
+        {modal.actionLabel && modal.onAction && <footer className="dashboard-info-modal-actions">
           {modal.actionLabel && modal.onAction && (
             <button type="button" className="primary-button" onClick={() => { onClose(); modal.onAction(); }}>
               {modal.actionLabel}
             </button>
           )}
-        </footer>
+        </footer>}
       </section>
     </div>
   );
