@@ -10993,6 +10993,13 @@ min-width: 0;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
+.dashboard-trips-grid > .kpi-card { min-width: 0; align-items: stretch; }
+.dashboard-trips-grid .active-trips-mini-list { width: 100%; min-width: 0; box-sizing: border-box; grid-template-columns: minmax(0, 1fr); justify-items: stretch; padding-right: 0; }
+.dashboard-trips-grid .active-trips-mini-item { width: 100%; min-width: 0; box-sizing: border-box; }
+@media (max-width: 640px) {
+  .dashboard-trips-grid .active-trips-mini-details { flex-wrap: wrap; }
+  .dashboard-trips-grid .active-trips-mini-unit { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+}
 
 @media (max-width: 900px) {
   .dashboard-trips-grid {
