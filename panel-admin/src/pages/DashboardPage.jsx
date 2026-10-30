@@ -132,11 +132,13 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
         {data.vencidos_count} vencidos / {data.proximos_count} próximos (30 días)
       </small>
       {data.items && data.items.length > 0 && (
-        <AutoScrollList className="dashboard-expiring-list">
+        <AutoScrollList className="dashboard-available-list dashboard-expiring-list">
           {data.items.map((item) => (
             <li key={item.id_conductores}>
-              <span className="dashboard-expiring-name">{item.nombre}</span>
-              <span className={`dashboard-expiring-status ${item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "is-expired" : "is-upcoming"}`}>{String(item.estado_vigencia || "Sin registro").replaceAll("_", " ")}</span>
+              <div>
+                <b>{item.nombre}</b>
+                <small className={`dashboard-expiring-status ${item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "is-expired" : "is-upcoming"}`}>{String(item.estado_vigencia || "Sin registro").replaceAll("_", " ")}</small>
+              </div>
             </li>
           ))}
         </AutoScrollList>
