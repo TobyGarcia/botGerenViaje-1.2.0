@@ -279,12 +279,12 @@ function DashboardOverview({ pendingInspections, pendingGerenciamientos, notific
 
   return (
     <section className="dashboard-overview">
-      <section className="kpi-grid">
+      <section className="kpi-grid dashboard-summary-grid">
         <ExpiringManejoComentadoWidget onOpenManejoComentado={onOpenManejoComentado} onOpenDetails={setInfoModal} />
         <button type="button" className="kpi-card dashboard-kpi-clickable" onClick={() => setInfoModal({ title: "Conductores", description: "Resumen de las personas registradas para operar unidades.", metrics: [{ label: "Registrados", value: summary.conductores_total, tone: "blue" }, { label: "Activos", value: summary.conductores_activos, tone: "green" }, { label: "Inactivos", value: Math.max(0, summary.conductores_total - summary.conductores_activos), tone: "gray" }], actionLabel: "Abrir Conductores", onAction: () => window.location.hash = "conductores" })}><span>Conductores</span><strong>{summary.conductores_total}</strong><small>{summary.conductores_activos} activos</small></button>
         <article className="kpi-card dashboard-available-units">
-          <div className="dashboard-available-heading"><span>Unidades disponibles</span><small>{(summary.unidades_disponibles || []).length} disponibles · {summary.unidades_total} registradas</small></div>
-          <small>Activas, sin mantenimiento y sin viaje en curso</small>
+          <div className="dashboard-available-heading"><span>Unidades disponibles</span><small>{(summary.unidades_disponibles || []).length} disponibles</small></div>
+          <small>Sin remolques · Activas, sin mantenimiento y sin viaje en curso</small>
           {(summary.unidades_disponibles || []).length ? <ul className="dashboard-available-list">
             {summary.unidades_disponibles.map(unit => <li key={unit.id_vehiculos}>
               <div><b>{unit.numero_economico || "Sin número económico"}</b><span>{unit.nombre || [unit.marca, unit.modelo].filter(Boolean).join(" ")}</span></div>
