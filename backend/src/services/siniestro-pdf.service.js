@@ -3,8 +3,8 @@ import { inflateSync, deflateSync } from "node:zlib";
 
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
-const MARGIN = 24;
-const CONTENT_WIDTH = 564;
+const MARGIN = 36;
+const CONTENT_WIDTH = 540;
 
 const logoGvUrl = new URL("../assets/gv-logo-hd.png", import.meta.url);
 
@@ -22,6 +22,7 @@ function truncate(value, length) {
 }
 
 function color(hex) {
+  hex = ({ '#0f172a': '#1b516f', '#0284c7': '#2e81ab', '#dc2626': '#1b516f', '#334155': '#1b516f', '#fca5a5': '#b5d8e8', '#cbd5e1': '#b5d8e8', '#94a3b8': '#b5d8e8', '#fff8f8': '#f3fbfe', '#f8fafc': '#ffffff', '#991b1b': '#1b516f', '#b91c1c': '#1b516f' })[hex] || hex;
   const normalized = hex.replace("#", "");
   return [0, 2, 4]
     .map((i) => (parseInt(normalized.slice(i, i + 2), 16) / 255).toFixed(3))
@@ -162,7 +163,7 @@ function text(commands, x, y, str, options = {}) {
 
 export function generateSiniestroPdf(siniestro) {
   const logoBuffer = readFileSync(logoGvUrl);
-  const logoPng = readPng(logoBuffer, [15, 23, 42]);
+  const logoPng = readPng(logoBuffer, [27, 81, 111]);
 
   const objects = [];
   const addObject = (content) => {
@@ -178,6 +179,7 @@ export function generateSiniestroPdf(siniestro) {
   );
 
   const photoObjIds = [];
+  const photoSizes = [];
   const photosList = Array.isArray(siniestro.fotos) ? siniestro.fotos : [];
 
   for (const item of photosList) {
@@ -199,6 +201,7 @@ export function generateSiniestroPdf(siniestro) {
           )
         );
         photoObjIds.push(objId);
+        photoSizes.push({ width: pngBuf.width, height: pngBuf.height });
       } catch (err) {
         console.warn("Fallo al procesar PNG para PDF de siniestro:", err.message);
       }
@@ -213,6 +216,7 @@ export function generateSiniestroPdf(siniestro) {
           )
         );
         photoObjIds.push(objId);
+        photoSizes.push({ width: jpgBuf.width, height: jpgBuf.height });
       } catch (err) {
         console.warn("Fallo al procesar JPEG para PDF de siniestro:", err.message);
       }
@@ -222,17 +226,22 @@ export function generateSiniestroPdf(siniestro) {
   const commands = [];
 
   // Encabezado
-  rect(commands, MARGIN, PAGE_HEIGHT - 65, CONTENT_WIDTH, 45, { fill: "#0f172a", stroke: "#0284c7", lineWidth: 1.5 });
-  const logoWidth = 80;
+  rect(commands, MARGIN, 748, 120, 32, { fill: "#1b516f", stroke: "#b5d8e8" });
+  rect(commands, MARGIN + 120, 748, 276, 32, { fill: "#ffffff", stroke: "#b5d8e8" });
+  rect(commands, 432, 748, 144, 32, { fill: "#e8f7fc", stroke: "#b5d8e8" });
+  const logoWidth = Math.min(108, 28 * logoPng.width / logoPng.height);
   const logoHeight = logoWidth * logoPng.height / logoPng.width;
-  commands.push(`q ${logoWidth} 0 0 ${logoHeight} ${MARGIN + 5} ${PAGE_HEIGHT - 42.5 - logoHeight / 2} cm /ImLogo Do Q`);
+  commands.push(`q ${logoWidth} 0 0 ${logoHeight} ${MARGIN + (120 - logoWidth) / 2} ${764 - logoHeight / 2} cm /ImLogo Do Q`);
 
-  text(commands, MARGIN + 90, PAGE_HEIGHT - 38, "REPORTE DE SINIESTRO E INCIDENTES", { fontSize: 11, isBold: true, textColor: "#ffffff" });
-  text(commands, MARGIN + 90, PAGE_HEIGHT - 52, "CONTROL Y GERENCIAMIENTO DE VIAJES", { fontSize: 8, textColor: "#38bdf8" });
+  text(commands, 294, 767, "AQUARIO", { fontSize: 13, isBold: true, textColor: "#1b516f", align: "center" });
+  text(commands, 294, 754, "Servicios Industriales", { fontSize: 9.5, isBold: true, textColor: "#2e81ab", align: "center" });
+  rect(commands, MARGIN, 730, CONTENT_WIDTH, 14, { fill: "#1b516f", stroke: "#b5d8e8" });
+  text(commands, PAGE_WIDTH / 2, 734, "REPORTE DE SINIESTRO E INCIDENTES", { fontSize: 9, isBold: true, textColor: "#ffffff", align: "center" });
 
-  text(commands, MARGIN + CONTENT_WIDTH - 10, PAGE_HEIGHT - 38, `FOLIO: ${siniestro.folio || "SIN-0000"}`, { fontSize: 10, isBold: true, textColor: "#f87171", align: "right" });
+  text(commands, 438, 769, truncate(siniestro.folio || "SIN-0000", 27), { fontSize: 6.5, isBold: true, textColor: "#1b516f" });
   const fechaStr = siniestro.creado_en ? new Date(siniestro.creado_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }) : new Date().toLocaleString("es-MX");
-  text(commands, MARGIN + CONTENT_WIDTH - 10, PAGE_HEIGHT - 52, `Fecha/Hora: ${fechaStr}`, { fontSize: 8, textColor: "#e2e8f0", align: "right" });
+  text(commands, 438, 759, fechaStr, { fontSize: 5.8, textColor: "#1b516f" });
+  text(commands, 438, 751, "Logística / QHSE · Página 1 de 1", { fontSize: 5, textColor: "#1b516f" });
 
   let y = PAGE_HEIGHT - 80;
 
@@ -293,9 +302,10 @@ export function generateSiniestroPdf(siniestro) {
   y -= 18;
   text(commands, MARGIN + 10, y, `Descripción:`, { fontSize: 8.5, isBold: true, textColor: "#334155" });
   const descText = truncate(siniestro.descripcion || "Sin descripción proporcionada por el conductor.", 140);
-  text(commands, MARGIN + 75, y, descText, { fontSize: 8.5, textColor: "#1e293b" });
+  const descLines = descText.match(/.{1,90}(?:\s|$)|\S{1,90}/g) || [descText];
+  descLines.slice(0, 2).forEach((value, index) => text(commands, MARGIN + 75, y - index * 11, value.trim(), { fontSize: 8, textColor: "#1e293b" }));
 
-  y -= 18;
+  y -= 27;
   if (siniestro.latitud && siniestro.longitud) {
     const mapsUrl = `https://www.google.com/maps?q=${siniestro.latitud},${siniestro.longitud}`;
     text(commands, MARGIN + 10, y, `Google Maps: ${mapsUrl}`, { fontSize: 8, textColor: "#2563eb" });
@@ -310,23 +320,27 @@ export function generateSiniestroPdf(siniestro) {
   y -= 30;
 
   if (photoObjIds.length > 0) {
-    const boxW = 175;
-    const boxH = 135;
-    const gapX = 15;
-    const gapY = 15;
+    const columns = photoObjIds.length === 1 ? 1 : photoObjIds.length === 2 ? 2 : 3;
+    const gapX = 10;
+    const boxW = (CONTENT_WIDTH - (columns - 1) * gapX) / columns;
+    const boxH = columns === 1 ? 190 : 125;
+    const gapY = 10;
 
     for (let i = 0; i < photoObjIds.length && i < 6; i += 1) {
-      const colIdx = i % 3;
-      const rowIdx = Math.floor(i / 3);
+      const colIdx = i % columns;
+      const rowIdx = Math.floor(i / columns);
       const px = MARGIN + colIdx * (boxW + gapX);
       const py = y - (rowIdx + 1) * boxH - rowIdx * gapY;
 
       rect(commands, px, py, boxW, boxH, { fill: "#f1f5f9", stroke: "#94a3b8", lineWidth: 0.8 });
       const imgRef = `ImPhoto${i + 1}`;
-      commands.push(`q ${boxW - 6} 0 0 ${boxH - 6} ${px + 3} ${py + 3} cm /${imgRef} Do Q`);
+      const size = photoSizes[i];
+      const scale = Math.min((boxW - 8) / size.width, (boxH - 8) / size.height);
+      const w = size.width * scale, h = size.height * scale;
+      commands.push(`q ${w} 0 0 ${h} ${px + (boxW - w) / 2} ${py + (boxH - h) / 2} cm /${imgRef} Do Q`);
     }
 
-    y -= (Math.ceil(photoObjIds.length / 3) * (boxH + gapY));
+    y -= (Math.ceil(Math.min(photoObjIds.length, 6) / columns) * (boxH + gapY));
   } else {
     rect(commands, MARGIN, y - 40, CONTENT_WIDTH, 40, { fill: "#f8fafc", stroke: "#cbd5e1" });
     text(commands, MARGIN + 15, y - 24, "No se adjuntaron fotografías al momento de generar este reporte.", { fontSize: 8.5, textColor: "#64748b" });
@@ -334,7 +348,7 @@ export function generateSiniestroPdf(siniestro) {
   }
 
   // Pie de Página y Firma de Conformidad
-  const footerY = 55;
+  const footerY = Math.max(55, y - 75);
   rect(commands, MARGIN, footerY, CONTENT_WIDTH, 50, { fill: "#ffffff", stroke: "#cbd5e1" });
   text(commands, MARGIN + 20, footerY + 32, "______________________________________", { textColor: "#64748b" });
   text(commands, MARGIN + 40, footerY + 18, "Firma / Declaración del Conductor", { fontSize: 8, isBold: true, textColor: "#334155" });
@@ -344,8 +358,8 @@ export function generateSiniestroPdf(siniestro) {
 
   text(commands, MARGIN + CONTENT_WIDTH / 2, 18, "Documento generado automáticamente por el Sistema de Gerenciamiento de Viajes", { fontSize: 7.5, textColor: "#94a3b8", align: "center" });
 
-  const fontHelveticaObjId = addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`);
-  const fontHelveticaBoldObjId = addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>`);
+  const fontHelveticaObjId = addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
+  const fontHelveticaBoldObjId = addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
 
   const xObjectDicts = [`/ImLogo ${logoImgObjId} 0 R`];
   photoObjIds.forEach((id, idx) => {
@@ -358,7 +372,7 @@ export function generateSiniestroPdf(siniestro) {
   );
 
   const pageObjId = addObject(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Contents ${contentsObjId} 0 R /Resources << /Font << /F1 ${fontHelveticaObjId} 0 R /F2 ${fontHelveticaBoldObjId} 0 R >> /XObject << ${xObjectDicts.join(" ")} >> >> >>`
+    `<< /Type /Page /Parent ${objects.length + 2} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Contents ${contentsObjId} 0 R /Resources << /Font << /F1 ${fontHelveticaObjId} 0 R /F2 ${fontHelveticaBoldObjId} 0 R >> /XObject << ${xObjectDicts.join(" ")} >> >> >>`
   );
 
   const pagesObjId = addObject(
@@ -369,7 +383,7 @@ export function generateSiniestroPdf(siniestro) {
     `<< /Type /Catalog /Pages ${pagesObjId} 0 R >>`
   );
 
-  let offset = 15;
+  let offset = 0;
   const pdfHeader = "%PDF-1.4\n%\xFF\xFF\xFF\xFF\n";
   const bodyBuffers = [Buffer.from(pdfHeader, "latin1")];
   const xrefOffsets = [0];
