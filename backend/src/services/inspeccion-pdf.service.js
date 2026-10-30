@@ -305,6 +305,7 @@ export function buildInspectionPdf(data) {
   ];
   const tableTop = 430;
   const rowHeight = 7;
+  const checklistRows = Math.max(...checklistColumns.map(column => column.sections.reduce((total, section) => total + 1 + section.items.length, 0)));
   checklistColumns.forEach((column, columnIndex) => {
     const x = MARGIN + columnIndex * 180;
     rect(commands, x, tableTop, 180, 9, { fill: darkNavy, stroke: border });
@@ -323,6 +324,19 @@ export function buildInspectionPdf(data) {
       });
     });
   });
+
+  // Cerrar todas las columnas al mismo nivel sin inventar evaluaciones.
+  const checklistBottom = tableTop - checklistRows * rowHeight;
+  checklistColumns.forEach((column, columnIndex) => {
+    const usedRows = column.sections.reduce((total, section) => total + 1 + section.items.length, 0);
+    const x = MARGIN + columnIndex * 180;
+    for (let row = usedRows; row < checklistRows; row++) {
+      const y = tableTop - (row + 1) * rowHeight;
+      rect(commands, x, y, 180, rowHeight, { stroke: border });
+      line(commands, x + 16, y, x + 16, y + rowHeight, 0.4, border);
+    }
+  });
+  line(commands, MARGIN, checklistBottom, PAGE_WIDTH - MARGIN, checklistBottom, 0.5, border);
 
   // SECCIÓN COMENTARIOS Y FIRMAS (Y: 36 a 268)
   const commentsTop = 268;
