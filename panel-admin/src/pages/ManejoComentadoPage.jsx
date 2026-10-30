@@ -750,7 +750,7 @@ export default function ManejoComentadoPage({ user }) {
             ) : (
               <>
                 <section className="manejo-filter-panel" aria-label="Filtros de conductores">
-                  <div className="manejo-filter-heading"><div><strong>Filtrar conductores</strong><small>{totalFilteredCond} de {conductores.length} resultados</small></div>
+                  <div className="manejo-filter-heading" style={{ justifyContent: "flex-end" }}>
                     <button type="button" className="secondary-button" disabled={!Object.values(columnFilters).some(Boolean)} onClick={() => { setColumnFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ""]))); setCurrentCondPage(1); }}>Limpiar filtros</button>
                   </div>
                   <div className="manejo-filter-primary">
