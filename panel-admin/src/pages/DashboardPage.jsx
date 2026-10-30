@@ -135,7 +135,8 @@ function ExpiringManejoComentadoWidget({ onOpenManejoComentado, onOpenDetails })
         <AutoScrollList className="dashboard-expiring-list">
           {data.items.map((item) => (
             <li key={item.id_conductores}>
-              {item.nombre.split(" ")[0]} - <span style={{ color: item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "#dc2626" : "#d97706", fontWeight: "bold" }}>{item.estado_vigencia}</span>
+              <span className="dashboard-expiring-name">{item.nombre}</span>
+              <span className={`dashboard-expiring-status ${item.estado_vigencia === "VENCIDO" || item.estado_vigencia === "SIN_REGISTRO" ? "is-expired" : "is-upcoming"}`}>{String(item.estado_vigencia || "Sin registro").replaceAll("_", " ")}</span>
             </li>
           ))}
         </AutoScrollList>
