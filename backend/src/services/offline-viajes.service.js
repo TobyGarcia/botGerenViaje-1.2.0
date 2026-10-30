@@ -179,7 +179,7 @@ async function syncOfflineTripImpl(body, driverId) {
     }
     const result = (await client.query(`SELECT v.id_viajes AS "idViaje",v.folio,e.nombre AS estado,
       v.hora_salida AS "horaSalida",v.hora_llegada AS "horaLlegada",v.kilometraje_inicial AS "kilometrajeInicial",
-      v.kilometraje_final AS "kilometrajeFinal",v.acompanantes,v.motivo,
+      v.kilometraje_final AS "kilometrajeFinal",v.kilometros_recorridos AS "kilometrosRecorridos",v.acompanantes,v.motivo,
       v.licencia_vigente AS "licenciaVigente",c.nombre AS conductor,
       vh.nombre AS vehiculo,vh.numero_economico AS "numeroEconomico",
       origen.nombre AS origen,destino.nombre AS destino
