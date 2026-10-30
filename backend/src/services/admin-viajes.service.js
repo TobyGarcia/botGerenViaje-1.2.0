@@ -4,7 +4,13 @@ import {
 } from "../database/pool.js";
 
 export async function getAdminDashboardSummary() {
-  const availableVehicles = await getVehiculos();
+  const normalizeType = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const availableVehicles = (await getVehiculos()).filter(vehicle => {
+    const type = normalizeType(vehicle.tipo_vehiculo);
+    if (/\b(remolque|semirremolque|semiremolque|trailer|dolly|lowboy)\b/.test(type)) return false;
+    if (type && !["n/a", "sin registro", "sin tipo"].includes(type)) return true;
+    return !/\b(remolque|semirremolque|semiremolque|trailer|dolly|lowboy|plana|cama baja)\b/.test(normalizeType(`${vehicle.nombre} ${vehicle.marca} ${vehicle.modelo}`));
+  });
   const [summaryResult, activityResult] = await Promise.all([
     databasePool.query(
       `
