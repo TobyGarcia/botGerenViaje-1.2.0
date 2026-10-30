@@ -750,12 +750,10 @@ export default function ManejoComentadoPage({ user }) {
             ) : (
               <>
                 <section className="manejo-filter-panel" aria-label="Filtros de conductores">
-                  <div className="manejo-filter-heading" style={{ justifyContent: "flex-end" }}>
-                    <button type="button" className="secondary-button" disabled={!Object.values(columnFilters).some(Boolean)} onClick={() => { setColumnFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ""]))); setCurrentCondPage(1); }}>Limpiar filtros</button>
-                  </div>
                   <div className="manejo-filter-primary">
                     <label>Conductor o empresa<input type="search" value={columnFilters.conductor} onChange={e => updateColumnFilter("conductor", e.target.value)} placeholder="Buscar por nombre o empresa…" /></label>
                     <label>Estado<select value={columnFilters.estatus} onChange={e => updateColumnFilter("estatus", e.target.value)}><option value="">Todos los estados</option><option value="VIGENTE">Vigente</option><option value="PROXIMO_A_VENCER">Próximo a vencer</option><option value="VENCIDO">Vencido</option><option value="SIN_REGISTRO">Sin registro</option></select></label>
+                    <button type="button" className="secondary-button" disabled={!Object.values(columnFilters).some(Boolean)} onClick={() => { setColumnFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ""]))); setCurrentCondPage(1); }}>Limpiar filtros</button>
                   </div>
                   <details className="manejo-filter-advanced"><summary>Más filtros{Object.entries(columnFilters).filter(([key,value]) => !["conductor","estatus"].includes(key) && value).length ? ` (${Object.entries(columnFilters).filter(([key,value]) => !["conductor","estatus"].includes(key) && value).length})` : ""}</summary>
                     <div className="manejo-filter-fields">{[
