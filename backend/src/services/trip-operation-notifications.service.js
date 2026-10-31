@@ -17,7 +17,7 @@ export async function deliverTripOperationNotifications() {
       try {
         const p = event.payload;
         await getTelegramBot().telegram.sendMessage(process.env.TELEGRAM_GROUP_ID,
-          `${labels[event.event_type]}${p.closure ? ' (cierre del viaje)' : ''}\nViaje: ${p.folio}\n${p.name}\nHora: ${new Date(event.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}\n${p.latitude != null && p.longitude != null ? `${p.closure ? 'Último GPS del viaje' : 'Ubicación'}: https://maps.google.com/?q=${p.latitude},${p.longitude}` : 'Ubicación no disponible'}`);
+          `${labels[event.event_type]}${p.closure ? ' (cierre del viaje)' : ''}\nViaje: ${p.folio}\n${p.name}\nHora: ${new Date(event.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`);
         await client.query('UPDATE trip_operation_events SET sent_at=CURRENT_TIMESTAMP,attempts=attempts+1,last_error=NULL WHERE id=$1', [event.id]);
       } catch {
         await client.query(`UPDATE trip_operation_events SET attempts=attempts+1,last_error='Entrega Telegram fallida',
