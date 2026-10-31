@@ -21,6 +21,7 @@ for (const envFile of envFilesToLoad) {
 }
 
 import app from "./app.js";
+import { deliverTripOperationNotifications } from './services/trip-operation-notifications.service.js';
 import { databasePool } from "./database/pool.js";
 import {
   startTelegramBot,
@@ -382,6 +383,10 @@ process.once("SIGINT", () => {
 
 startTelegramAudit();
 startServer();
+const tripOperationsTimer = setInterval(() => {
+  void deliverTripOperationNotifications().catch(e => console.warn('Avisos operativos pendientes:', e.message));
+}, 15000);
+tripOperationsTimer.unref();
 
 const auditCleanupTimer = setInterval(() => {
   void purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {

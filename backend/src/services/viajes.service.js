@@ -1,5 +1,6 @@
 import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
+import { closeTripItems } from './trip-operations.service.js';
 import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
 import { normalizeOdometerCorrection, saveOdometerCorrection, applyOdometerCorrection, correctionHash } from "./odometer-correction.service.js";
@@ -920,6 +921,7 @@ async function finishTripImpl({
       ]
     );
 
+    await closeTripItems(client, idViaje);
     const technicalStopsResult = await client.query(
       `
         SELECT nombre_punto, fecha_gps

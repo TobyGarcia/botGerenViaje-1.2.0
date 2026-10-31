@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { tripItemsController, tripOperationController, trailerInspectionController } from '../controllers/trip-operations.controller.js';
 import { nativeCompletionController } from "../controllers/native-completion.controller.js";
 import {
   cancelTripController,
@@ -15,6 +16,9 @@ import { offlinePermitsController, offlineSyncController } from "../controllers/
 const router = Router();
 
 router.use(requireActiveDriver);
+router.get('/:idViaje/elementos', tripItemsController);
+router.post('/:idViaje/elementos/eventos', tripOperationController);
+router.get('/:idViaje/remolques/:trailerId/inspeccion', trailerInspectionController);
 router.post("/:idViaje/cierre-nativo", nativeCompletionController);
 router.get("/offline/permisos", offlinePermitsController);
 router.post("/offline/sincronizar", offlineSyncController);

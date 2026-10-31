@@ -10,6 +10,9 @@ export const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+export const getTripItems = id => request(`/api/viajes/${id}/elementos`);
+export const recordTripOperation = (id, payload) => request(`/api/viajes/${id}/elementos/eventos`, { method: 'POST', body: JSON.stringify(payload) });
+export const getTrailerInspection = (id, trailer) => request(`/api/viajes/${id}/remolques/${trailer}/inspeccion`);
 
 
 async function request(path, options = {}) {

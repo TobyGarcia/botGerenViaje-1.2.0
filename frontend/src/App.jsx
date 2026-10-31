@@ -5,6 +5,7 @@ import {
   useCallback
 } from "react";
 import "./App.css";
+import TripOperations from './components/TripOperations.jsx';
 import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
 import { NativeGps, hasNativeGps, queueNativeCompletion } from "./services/native-gps.js";
 
@@ -2443,6 +2444,7 @@ function isOutsideOperatingHours() {
       </span>
     </div>
 
+    {startedTrip && !finishedTrip && !cancelledTrip && <TripOperations tripId={startedTrip.idViaje || startedTrip.id_viajes || createdTrip.idViaje || createdTrip.id_viajes} />}
     {/* Tabla / Lista de Datos Clave */}
     <dl className="gv-trip-dl">
       <div className="gv-trip-dl-row">

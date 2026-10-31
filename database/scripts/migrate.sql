@@ -44,3 +44,4 @@
 \ir ../migrations/039_limitar_auditoria_info.sql
 \ir ../migrations/040_android_native_gps.sql
 \ir ../migrations/041_ajustes_odometro.sql
+\ir ../migrations/042_trip_operations.sql
