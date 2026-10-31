@@ -1,0 +1,3 @@
+services:
+  backend:
+    image: gv-staging-trip-operations-backend:4f559fd
