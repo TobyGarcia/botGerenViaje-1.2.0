@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
+    buildFeatures { buildConfig = true }
     namespace = "com.aspromex.gerenciamientoviajes"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
@@ -9,6 +10,11 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode Integer.parseInt(System.getenv('ANDROID_VERSION_CODE') ?: '1')
         versionName System.getenv('ANDROID_VERSION_NAME') ?: '1.0'
+        def gpsOrigin = new URI(System.getenv('ANDROID_WEB_URL') ?: 'https://gvmobility.aspromex.mx/conductor/')
+        if (gpsOrigin.scheme != 'https' || !(gpsOrigin.host in ['gv.aspromex.mx', 'gvmobility.aspromex.mx']) || gpsOrigin.userInfo != null || !(gpsOrigin.port in [-1, 443])) {
+            throw new GradleException('ANDROID_WEB_URL debe pertenecer al ambiente HTTPS autorizado')
+        }
+        buildConfigField 'String', 'GPS_ORIGIN', '"https://' + gpsOrigin.host + '"'
         resValue 'string', 'android_update_channel', System.getenv('ANDROID_UPDATE_CHANNEL') ?: 'testing'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

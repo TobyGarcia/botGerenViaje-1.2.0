@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Gerenciamiento de Viajes</string>
-    <string name="title_activity_main">Gerenciamiento de Viajes</string>
+    <string name="app_name">GVMobility</string>
+    <string name="title_activity_main">GVMobility</string>
     <string name="package_name">com.aspromex.gerenciamientoviajes</string>
     <string name="custom_url_scheme">com.aspromex.gerenciamientoviajes</string>
     <string name="capacitor_background_geolocation_notification_channel_name">Rastreo GPS en Segundo Plano</string>

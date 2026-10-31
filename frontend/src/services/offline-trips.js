@@ -69,6 +69,16 @@ export function discardOfflineDraft(driverId, localId) {
   saveOfflineTrip({ ...record, synced: true });
 }
 
+export function cancelOfflineTrip(driverId, localId) {
+  const record = getOfflineTrip(driverId, localId);
+  if (!record || record.localId !== localId) throw new Error("No se encontró el viaje local.");
+  if (!record.startedAt) { discardOfflineDraft(driverId, localId); return { ...offlineTripView(record), estado: "CANCELADO" }; }
+  if (record.finishedAt && !record.cancelledAt) throw new Error("El viaje ya fue finalizado.");
+  const cancelledAt = record.cancelledAt || new Date().toISOString();
+  saveOfflineTrip({ ...record, cancelledAt, finishedAt: cancelledAt });
+  return offlineTripView({ ...record, cancelledAt, finishedAt: cancelledAt });
+}
+
 const syncing = new Map();
 export async function syncOfflineTrip(driverId) {
   if (syncing.has(driverId)) return syncing.get(driverId);
@@ -83,7 +93,7 @@ export async function syncOfflineTrip(driverId) {
       if (!initialLocation) throw new Error("El viaje local no tiene una ubicación GPS inicial guardada y requiere revisión.");
       const response = await uploadOfflineTrip({ clientId: candidate.clientId, permit: candidate.permit, trip: candidate.trip,
         startedAt: candidate.startedAt, initialLocation,
-        finishedAt: candidate.finishedAt, kilometrajeFinal: candidate.kilometrajeFinal });
+        finishedAt: candidate.cancelledAt ? undefined : candidate.finishedAt, cancelledAt: candidate.cancelledAt, kilometrajeFinal: candidate.kilometrajeFinal });
       // El conductor puede terminar este viaje mientras la petición está en curso.
       const latest = getOfflineTrip(driverId, candidate.localId);
       if (!latest || latest.clientId !== candidate.clientId) throw new Error("El viaje local cambió durante la sincronización.");
@@ -97,7 +107,7 @@ export async function syncOfflineTrip(driverId) {
       if (!gpsSync.completed || await countPendingForTrip(record.localId) !== 0) {
         throw new Error("Quedan ubicaciones pendientes de confirmar. Vuelve a sincronizar con conexión.");
       }
-      if (serverClosed && (finishAcknowledged || !latest.finishedAt)) {
+      if (serverClosed && (!latest.cancelledAt || response.data.estado === "CANCELADO") && (finishAcknowledged || !latest.finishedAt)) {
         record = { ...getOfflineTrip(driverId, candidate.localId), synced: true };
         saveOfflineTrip(record);
       }

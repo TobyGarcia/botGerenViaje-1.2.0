@@ -204,8 +204,6 @@ export default function ManejoComentadoPage({ user }) {
   });
   const [conductores, setConductores] = useState([]);
   const [cursos, setCursos] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("TODOS");
   const [columnFilters, setColumnFilters] = useState({
     conductor: "", telefono: "", licencia: "", vencimientoLicencia: "",
     tipoLicencia: "", fechaRealizacion: "", proximaEvaluacion: "", score: "", estatus: ""
@@ -262,7 +260,7 @@ export default function ManejoComentadoPage({ user }) {
     setLoading(true);
     try {
       const [resCond, resCur] = await Promise.all([
-        getManejoComentadoConductores({ search, status: filterStatus }),
+        getManejoComentadoConductores({}),
         getCursosManejoComentado()
       ]);
       setConductores(resCond.data || []);
@@ -273,7 +271,7 @@ export default function ManejoComentadoPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [search, filterStatus]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -599,11 +597,14 @@ export default function ManejoComentadoPage({ user }) {
     );
     const includesFilter = (value, filterKey) => {
       const filter = normalizedFilters[filterKey];
+      if (filterKey === "score") return !filter || Number(value) === Number(filter);
+      if (["vencimientoLicencia", "fechaRealizacion", "proximaEvaluacion"].includes(filterKey)) {
+        return !filter || String(value) === formatDate(`${filter}T12:00:00`);
+      }
       return !filter || String(value ?? "").toLocaleLowerCase("es-MX").includes(filter);
     };
     return conductores.filter((conductor) => {
       const conductorText = `${conductor.nombre || ""} ${conductor.empresa || ""}`;
-      const statusText = `${conductor.estado_vigencia || ""} ${getBadgeLabel(conductor.estado_vigencia, conductor.dias_para_vencer)}`;
       return includesFilter(conductorText, "conductor")
         && includesFilter(conductor.telefono || "Sin registro", "telefono")
         && includesFilter(conductor.licencia_numero || "N/A", "licencia")
@@ -612,7 +613,7 @@ export default function ManejoComentadoPage({ user }) {
         && includesFilter(formatDate(conductor.fecha_manejo_comentado), "fechaRealizacion")
         && includesFilter(formatDate(conductor.fecha_vencimiento), "proximaEvaluacion")
         && includesFilter(conductor.score ?? "-", "score")
-        && includesFilter(statusText, "estatus");
+        && (!columnFilters.estatus || conductor.estado_vigencia === columnFilters.estatus);
     });
   }, [conductores, columnFilters]);
 
@@ -741,38 +742,6 @@ export default function ManejoComentadoPage({ user }) {
 
       {activeTab === "conductores" && (
         <>
-          <section className="module-toolbar" style={{ marginBottom: "20px" }}>
-            <label className="search-field">
-              <span>Buscar</span>
-              <input
-                type="search"
-                placeholder="Nombre, licencia o teléfono"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentCondPage(1);
-                }}
-              />
-            </label>
-
-            <label className="status-filter">
-              <span>Estado</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value);
-                  setCurrentCondPage(1);
-                }}
-              >
-                <option value="TODOS">Todos los estatus</option>
-                <option value="VIGENTE">Vigentes (&gt; 30 días)</option>
-                <option value="PROXIMO_A_VENCER">Próximos a vencer (&lt;= 30 días)</option>
-                <option value="VENCIDO">Vencidos</option>
-                <option value="SIN_REGISTRO">Sin registro</option>
-              </select>
-            </label>
-          </section>
-
           <section className="table-panel">
             {loading ? (
               <p className="table-status">Cargando estado de manejo comentado...</p>
@@ -780,6 +749,19 @@ export default function ManejoComentadoPage({ user }) {
               <p className="table-status">No se encontraron conductores con el filtro seleccionado.</p>
             ) : (
               <>
+                <section className="manejo-filter-panel" aria-label="Filtros de conductores">
+                  <div className="manejo-filter-primary">
+                    <label>Conductor o empresa<input type="search" value={columnFilters.conductor} onChange={e => updateColumnFilter("conductor", e.target.value)} placeholder="Buscar por nombre o empresa…" /></label>
+                    <label>Estado<select value={columnFilters.estatus} onChange={e => updateColumnFilter("estatus", e.target.value)}><option value="">Todos los estados</option><option value="VIGENTE">Vigente</option><option value="PROXIMO_A_VENCER">Próximo a vencer</option><option value="VENCIDO">Vencido</option><option value="SIN_REGISTRO">Sin registro</option></select></label>
+                    <button type="button" className="secondary-button" disabled={!Object.values(columnFilters).some(Boolean)} onClick={() => { setColumnFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ""]))); setCurrentCondPage(1); }}>Limpiar filtros</button>
+                  </div>
+                  <details className="manejo-filter-advanced"><summary>Más filtros{Object.entries(columnFilters).filter(([key,value]) => !["conductor","estatus"].includes(key) && value).length ? ` (${Object.entries(columnFilters).filter(([key,value]) => !["conductor","estatus"].includes(key) && value).length})` : ""}</summary>
+                    <div className="manejo-filter-fields">{[
+                      ["telefono", "Teléfono", "search"], ["licencia", "Número de licencia", "search"], ["tipoLicencia", "Tipo de licencia", "search"],
+                      ["vencimientoLicencia", "Vencimiento de licencia", "date"], ["fechaRealizacion", "Fecha de realización", "date"], ["proximaEvaluacion", "Próxima evaluación", "date"], ["score", "Score exacto (0–100)", "number"]
+                    ].map(([key,label,type]) => <label key={key}>{label}<input type={type} min={type === "number" ? 0 : undefined} max={type === "number" ? 100 : undefined} value={columnFilters[key]} onChange={e => updateColumnFilter(key,e.target.value)} /></label>)}</div>
+                  </details>
+                </section>
                 <div className="table-wrapper admin-table-desktop">
                   <table className="admin-table conductores-table" style={{ width: "100%", tableLayout: "auto" }}>
                     <thead>
@@ -794,18 +776,6 @@ export default function ManejoComentadoPage({ user }) {
                         <th style={{ textAlign: "center" }}>Score</th>
                         <th>Estatus</th>
                         <th style={{ textAlign: "center", width: "95px" }}>Acciones</th>
-                      </tr>
-                      <tr className="manejo-column-filters">
-                        <th><input type="search" value={columnFilters.conductor} onChange={(e) => updateColumnFilter("conductor", e.target.value)} placeholder="Filtrar conductor" aria-label="Filtrar por conductor o empresa" /></th>
-                        <th><input type="search" inputMode="numeric" value={columnFilters.telefono} onChange={(e) => updateColumnFilter("telefono", e.target.value)} placeholder="Filtrar teléfono" aria-label="Filtrar por teléfono" /></th>
-                        <th><input type="search" value={columnFilters.licencia} onChange={(e) => updateColumnFilter("licencia", e.target.value)} placeholder="Filtrar licencia" aria-label="Filtrar por número de licencia" /></th>
-                        <th><input type="search" value={columnFilters.vencimientoLicencia} onChange={(e) => updateColumnFilter("vencimientoLicencia", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por vencimiento de licencia" /></th>
-                        <th><input type="search" value={columnFilters.tipoLicencia} onChange={(e) => updateColumnFilter("tipoLicencia", e.target.value)} placeholder="Filtrar tipo" aria-label="Filtrar por tipo de licencia" /></th>
-                        <th><input type="search" value={columnFilters.fechaRealizacion} onChange={(e) => updateColumnFilter("fechaRealizacion", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por fecha de realización" /></th>
-                        <th><input type="search" value={columnFilters.proximaEvaluacion} onChange={(e) => updateColumnFilter("proximaEvaluacion", e.target.value)} placeholder="dd/mm/aaaa" aria-label="Filtrar por próxima evaluación" /></th>
-                        <th><input type="search" inputMode="numeric" value={columnFilters.score} onChange={(e) => updateColumnFilter("score", e.target.value)} placeholder="Score" aria-label="Filtrar por score" /></th>
-                        <th><select value={columnFilters.estatus} onChange={(e) => updateColumnFilter("estatus", e.target.value)} aria-label="Filtrar por estatus"><option value="">Todos</option><option value="VIGENTE">Vigente</option><option value="PROXIMO_A_VENCER">Próximo a vencer</option><option value="VENCIDO">Vencido</option><option value="SIN_REGISTRO">Sin registro</option></select></th>
-                        <th aria-label="Sin filtro para acciones" />
                       </tr>
                     </thead>
                     <tbody>

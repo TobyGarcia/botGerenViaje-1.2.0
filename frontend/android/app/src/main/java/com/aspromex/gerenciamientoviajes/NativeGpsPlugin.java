@@ -58,7 +58,7 @@ public class NativeGpsPlugin extends Plugin {
     }
     private void configureSession(PluginCall call) throws Exception {
         String origin=call.getString("origin",""),token=call.getString("token","");long driver=BridgeNumbers.integer(call.getData().opt("driver"),0L);
-        if(!"https://gvmobility.aspromex.mx".equals(origin) || driver<=0 || token.isEmpty()) throw new SecurityException("Configura sesión de conductor y servidor de pruebas antes de rastrear");
+        if(!BuildConfig.GPS_ORIGIN.equals(origin) || driver<=0 || token.isEmpty()) throw new SecurityException("Configura sesión de conductor y el servidor de esta aplicación antes de rastrear");
         GpsDatabase db=GpsDatabase.get(getContext());String encrypted=GpsSecrets.encrypt(token);
         String trip=call.getString("trip","");
         for(int i=0;i<db.sessions().length();i++) {

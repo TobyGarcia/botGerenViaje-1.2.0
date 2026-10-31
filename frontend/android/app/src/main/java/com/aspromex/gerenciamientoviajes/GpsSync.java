@@ -24,7 +24,7 @@ final class GpsSync {
     }
     static JSONObject post(String origin, String path, String token, JSONObject body) throws Exception {
         URI uri=URI.create(origin);
-        if (!"https".equals(uri.getScheme()) || !uri.getHost().equals("gvmobility.aspromex.mx")) throw new SecurityException("Servidor GPS fuera del ambiente de pruebas");
+        if (!BuildConfig.GPS_ORIGIN.equals(origin)) throw new SecurityException("Servidor GPS distinto al configurado para esta aplicación");
         HttpURLConnection connection=(HttpURLConnection)URI.create(origin+path).toURL().openConnection();
         try {
             connection.setInstanceFollowRedirects(false); connection.setRequestMethod("POST"); connection.setConnectTimeout(15000); connection.setReadTimeout(20000);
