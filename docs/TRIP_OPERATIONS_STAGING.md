@@ -20,10 +20,26 @@ Las operaciones requieren la sesión del conductor propietario. Cada envío llev
 6. Actualizar exclusivamente backend y frontend con `--no-deps`, manteniendo PostgreSQL y panel existentes.
 7. Comprobar health, autenticación, migración e interfaz publicada.
 
-El script de migración requiere que `database/migrations/042_trip_operations.sql` esté disponible dentro de `/app/database/migrations` al ejecutar el contenedor de migración.
+El script de migración requiere que `database/migrations/042_trip_operations.sql` esté disponible dentro de `/database/migrations` al ejecutar el contenedor de migración (`-v "$TRIP_OPERATIONS_SOURCE/database:/database:ro"`).
 
 ## Validación
 
 `node --test src/tests/trip-operation-input.test.js src/tests/trip-operations.integration.test.js` en backend cubre validaciones, baja inicial, reintento, propiedad, inspección nueva con observaciones, desenganche, reutilización y cierre. Ejecutar también `npm run test:isolated`, las pruebas frontend y `npm run build`.
 
 La entrega de Telegram tiene semántica de al menos una vez: un corte después de aceptar Telegram el mensaje y antes de confirmar la transacción puede provocar duplicación. Las acciones nuevas requieren conexión; el seguimiento offline existente mantiene su comportamiento.
+
+## Despliegue verificado: 31 de octubre de 2026
+
+- Código publicado en `gv-fix`: `f88592d`.
+- Release AWS: `/home/mblanquet/gv-staging-plan/trip-operations-f88592d`.
+- Imágenes: `gv-staging-trip-operations-backend:f88592d` y `gv-staging-trip-operations-frontend:f88592d`.
+- Migración 042 aplicada exclusivamente en `gerenciamiento_viajes_stg`.
+- Backend y frontend reportaron `healthy`; PostgreSQL y panel existentes se conservaron.
+- `https://gvmobility.aspromex.mx/conductor/version.json` devolvió `f88592d`.
+- La ruta de elementos sin sesión devolvió HTTP 401.
+- Flujo completo ejecutado contra PostgreSQL de staging dentro de una transacción revertida: baja inicial, reintento idempotente, alta de acompañante, inspección nueva con observaciones, enganche, desenganche, reutilización y cierre; se comprobaron siete eventos operativos.
+- Telegram confirmó un mensaje de validación al grupo exclusivo de pruebas. Se verificó que bot y grupo difieren de producción.
+- Validación local: 77 pruebas backend aprobadas (71 generales y 6 de auditoría), pruebas frontend aprobadas y build frontend correcto.
+- No se realizó una prueba manual visual del flujo desde un teléfono.
+
+Para operaciones posteriores, conservar los overrides activos de OSRM, actualizaciones Android y dashboard y añadir este override al final. La configuración base antigua por sí sola no selecciona las imágenes de este release.
