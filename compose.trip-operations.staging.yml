@@ -1,0 +1,13 @@
+services:
+  backend:
+    image: gv-staging-trip-operations-backend:${TRIP_OPERATIONS_VERSION:?Version requerida}
+    build:
+      context: ${TRIP_OPERATIONS_SOURCE:?Ruta del release requerida}/backend
+    command: ["npm", "start"]
+  frontend:
+    image: gv-staging-trip-operations-frontend:${TRIP_OPERATIONS_VERSION:?Version requerida}
+    build:
+      context: ${TRIP_OPERATIONS_SOURCE:?Ruta del release requerida}/frontend
+      args:
+        VITE_API_BASE_URL: ""
+        APP_VERSION: ${TRIP_OPERATIONS_VERSION}

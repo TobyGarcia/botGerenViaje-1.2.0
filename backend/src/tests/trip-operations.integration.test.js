@@ -18,7 +18,7 @@ await db.exec(await readFile(new URL('../../../database/migrations/042_trip_oper
 const query = async (sql, params) => { const r = await db.query(sql, params); return { ...r, rowCount: r.rows.length }; };
 databasePool.query = query;
 databasePool.connect = async () => ({ query, release() {} });
-after(async () => { await db.close(); await databasePool.end(); });
+after(async () => { await db.close(); if (!databasePool.ending) await databasePool.end(); });
 const operation = (type, extra) => ({ type, latitude: 19.4, longitude: -99.1, eventKey: crypto.randomUUID(), ...extra });
 
 test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque', async () => {

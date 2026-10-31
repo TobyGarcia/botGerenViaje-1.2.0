@@ -67,7 +67,10 @@ export default function TripOperations({ tripId }) {
       {vehicles.filter(isTrailer).map(v => <option key={v.id_vehiculos} value={v.id_vehiculos}>{v.numero_economico} · {v.nombre}</option>)}
     </select></label>
     {trailer && <div>
-      {existing && <p>Inspección disponible: {existing.estado || 'Registrada'}.</p>}
+      {existing && <p>Inspección disponible: {existing.estado || 'Registrada'}{existing.fecha_operativa ? ` · ${String(existing.fecha_operativa).slice(0,10)}` : ''}.</p>}
+      {mode === 'none' && <p role="status">Sin inspección registrada. Puedes continuar confirmando esta advertencia.</p>}
+      {mode === 'existing' && existing?.estado !== 'APROBADA' && <p role="status">La inspección no está aprobada. Puedes continuar confirmando la advertencia.</p>}
+      {mode === 'new' && inspection && Object.values(inspection.checklist || {}).some(v => ['M','R'].includes(v)) && <p role="status">La inspección tiene observaciones. Puedes continuar después de revisarlas.</p>}
       <label>Inspección<select value={mode} disabled={disabled} onChange={e => { setMode(e.target.value); setWarningConfirmed(false); }}>
         {existing && <option value="existing">Usar inspección existente</option>}
         <option value="new">Realizar inspección ahora</option>
