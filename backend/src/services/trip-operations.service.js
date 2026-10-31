@@ -4,6 +4,7 @@ import { parseTripOperationInput } from './trip-operation-input.js';
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 
 async function ownedTrip(client, tripId, driverId) {
+  if (!Number.isSafeInteger(tripId) || tripId <= 0 || tripId > 2147483647) fail('Sincroniza el viaje local antes de gestionar sus elementos.');
   const { rows } = await client.query(`SELECT v.*, e.nombre AS estado FROM viajes v
     JOIN estados_viaje e USING(id_estado_viaje)
     WHERE v.id_viajes=$1 AND v.id_conductores=$2 FOR UPDATE OF v`, [tripId, driverId]);

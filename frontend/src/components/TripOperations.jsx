@@ -4,8 +4,11 @@ import { getTripItems, recordTripOperation, getTrailerInspection, getVehiculos }
 import { isTrailer } from '../utils/vehicle-kind.js';
 import InspeccionRemolqueModal from './InspeccionRemolqueModal.jsx';
 import './TripOperations.css';
+import { resolveOfflineTripId } from '../services/offline-trip-storage.js';
+import { resolveOperationTripId } from '../utils/trip-operation-id.js';
 
 export default function TripOperations({ tripId }) {
+  const serverId = () => resolveOperationTripId(tripId, resolveOfflineTripId);
   const [items, setItems] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [name, setName] = useState('');
@@ -19,7 +22,11 @@ export default function TripOperations({ tripId }) {
   const [loaded, setLoaded] = useState(false);
   const [warningConfirmed, setWarningConfirmed] = useState(false);
   const [pending, setPending] = useState(null);
-  const refresh = async () => { const r = await getTripItems(tripId); setItems(r.data || []); setLoaded(true); };
+  const refresh = async () => {
+    const id = serverId();
+    if (!id) { setLoaded(false); setError('El viaje está guardado en el teléfono. Sincronízalo para gestionar acompañantes y remolques.'); return; }
+    const r = await getTripItems(id); setItems(r.data || []); setLoaded(true); setError('');
+  };
   useEffect(() => {
     setLoaded(false);
     refresh().catch(e => setError(e.message));
@@ -29,7 +36,7 @@ export default function TripOperations({ tripId }) {
     setTrailer(id); setExisting(null); setInspection(null); setMode('none'); setWarningConfirmed(false); setError('');
     if (!id) return;
     setBusy(true);
-    try { const r = await getTrailerInspection(tripId, id); setExisting(r.data); setMode(r.data ? 'existing' : 'none'); }
+    try { const resolved = serverId(); if (!resolved) throw new Error('Sincroniza el viaje antes de agregar un remolque.'); const r = await getTrailerInspection(resolved, id); setExisting(r.data); setMode(r.data ? 'existing' : 'none'); }
     catch (e) { setError(e.message); } finally { setBusy(false); }
   }
   async function submit(payload) {
@@ -41,7 +48,9 @@ export default function TripOperations({ tripId }) {
         operation = { ...payload, eventKey: crypto.randomUUID(), latitude: location.coords.latitude, longitude: location.coords.longitude };
         setPending(operation);
       }
-      await recordTripOperation(tripId, operation);
+      const resolved = serverId();
+      if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
+      await recordTripOperation(resolved, operation);
       setPending(null); setName(''); setTrailer(''); setInspection(null); setExisting(null); setWarningConfirmed(false);
       await refresh();
     } catch (e) { setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.'); }
