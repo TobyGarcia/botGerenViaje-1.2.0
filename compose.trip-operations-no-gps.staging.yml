@@ -1,3 +1,5 @@
 services:
   backend:
     image: gv-staging-trip-operations-backend:4f559fd
+  frontend:
+    image: gv-staging-trip-operations-frontend:trip-ui-20261031
