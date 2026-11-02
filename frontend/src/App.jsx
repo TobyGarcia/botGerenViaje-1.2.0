@@ -2442,36 +2442,35 @@ function isOutsideOperatingHours() {
           : cancelledTrip
             ? "CANCELADO"
             : startedTrip
-              ? "EN_CURSO"
+              ? "EN CURSO"
               : "PENDIENTE"}
       </span>
     </div>
 
-    {startedTrip && !finishedTrip && !cancelledTrip && <TripOperations tripId={startedTrip.idViaje || startedTrip.id_viajes || createdTrip.idViaje || createdTrip.id_viajes} />}
     {/* Tabla / Lista de Datos Clave */}
     <dl className="gv-trip-dl">
       <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Folio:</dt>
+        <dt className="gv-trip-dt">Folio</dt>
         <dd className="gv-badge-mono">{createdTrip.folio}</dd>
       </div>
 
       <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Conductor:</dt>
-        <dd className="gv-trip-dd">{startedTrip?.conductor ?? createdTrip.conductor}</dd>
-      </div>
-
-      <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Unidad:</dt>
-        <dd className="gv-trip-dd">{startedTrip?.vehiculo ?? createdTrip.vehiculo}</dd>
-      </div>
-
-      <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Número económico:</dt>
+        <dt className="gv-trip-dt">Número económico</dt>
         <dd className="gv-badge-mono">{startedTrip?.numeroEconomico ?? createdTrip.numeroEconomico}</dd>
       </div>
 
       <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Kilometraje inicial:</dt>
+        <dt className="gv-trip-dt">Conductor</dt>
+        <dd className="gv-trip-dd">{startedTrip?.conductor ?? createdTrip.conductor}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Unidad</dt>
+        <dd className="gv-trip-dd">{startedTrip?.vehiculo ?? createdTrip.vehiculo}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Kilometraje inicial</dt>
         <dd className="gv-badge-km">
           {Number(
             startedTrip?.kilometrajeInicial ??
@@ -2486,7 +2485,7 @@ function isOutsideOperatingHours() {
 
       {startedTrip?.horaSalida && (
         <div className="gv-trip-dl-row">
-          <dt className="gv-trip-dt">Hora de salida:</dt>
+          <dt className="gv-trip-dt">Hora de salida</dt>
           <dd className="gv-trip-dd">
             {new Date(startedTrip.horaSalida).toLocaleString("es-MX", {
               dateStyle: "medium",
@@ -2498,7 +2497,7 @@ function isOutsideOperatingHours() {
 
       {finishedTrip?.horaLlegada && (
         <div className="gv-trip-dl-row">
-          <dt className="gv-trip-dt">Hora de llegada:</dt>
+          <dt className="gv-trip-dt">Hora de llegada</dt>
           <dd className="gv-trip-dd">
             {new Date(finishedTrip.horaLlegada).toLocaleString("es-MX", {
               dateStyle: "medium",
@@ -2510,13 +2509,24 @@ function isOutsideOperatingHours() {
 
       {finishedTrip?.kilometrosRecorridos !== undefined && (
         <div className="gv-trip-dl-row">
-          <dt className="gv-trip-dt">Kilómetros recorridos:</dt>
+          <dt className="gv-trip-dt">Kilómetros recorridos</dt>
           <dd className="gv-badge-km">
             {Number(finishedTrip.kilometrosRecorridos).toLocaleString("es-MX")} km
           </dd>
         </div>
       )}
     </dl>
+
+    {startedTrip && !finishedTrip && !cancelledTrip && (
+      <TripOperations
+        tripId={
+          startedTrip.idViaje ||
+          startedTrip.id_viajes ||
+          createdTrip.idViaje ||
+          createdTrip.id_viajes
+        }
+      />
+    )}
 
     {/* Mensaje Informativo Previo a Iniciar */}
     {!startedTrip && !finishedTrip && !cancelledTrip && (
@@ -2610,105 +2620,128 @@ function isOutsideOperatingHours() {
     )}
 
     {/* Acciones en viaje activo (Punto Intermedio + Sincronizar + Odómetro + Finalizar) */}
-    {startedTrip && !finishedTrip && !cancelledTrip && (
-      <>
-        <div className="gv-trip-mid-actions">
-          <button
-            type="button"
-            className="gv-btn-midpoint"
-            onClick={handleAddIntermediatePoint}
-            disabled={savingIntermediatePoint}
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-            <span className="truncate">{savingIntermediatePoint ? "Guardando..." : "Punto Intermedio"}</span>
-          </button>
-          <button
-            type="button"
-            className="gv-btn-sync"
-            onClick={() => (startedTrip.idViaje ?? startedTrip.id_viajes) < 0
-              ? syncOfflineState() : syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
-          >
-            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M23 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="truncate">Sincronizar</span>
-          </button>
-        </div>
+    {startedTrip && !finishedTrip && !cancelledTrip && (() => {
+      const initialKm = Number(
+        startedTrip.kilometrajeInicial ??
+        startedTrip.kilometraje_inicial ??
+        createdTrip?.kilometrajeInicial ??
+        createdTrip?.kilometraje_inicial ??
+        0
+      );
+      const minFinalKm = initialKm + 1;
+      const parsedFinalKm = Number(kilometrajeFinal);
+      const kmDelta = kilometrajeFinal !== "" && Number.isFinite(parsedFinalKm) ? parsedFinalKm - initialKm : 0;
 
-        <div className="gv-trip-emergency-action-row">
-          <button
-            type="button"
-            onClick={() => setShowSiniestroModal(true)}
-            className="gv-btn-emergency-action"
-          >
-            <IconAlert size={16} color="#ffffff" />
-            <span>Reportar Siniestro / Incidente</span>
-          </button>
-        </div>
-
-        <div className="gv-trip-finish-section">
-          <form onSubmit={handleFinishTrip}>
-            <div>
-              <label className="gv-finish-label" htmlFor="odometer-final">
-                Lectura final de Odómetro (KM) <span className="gv-required-star">*</span>
-              </label>
-              <div className="gv-odometer-wrapper">
-                <input
-                  id="odometer-final"
-                  name="odometer-final"
-                  type="number"
-                  placeholder="0"
-                  className="gv-odometer-input"
-                  value={kilometrajeFinal}
-                  onChange={(event) => {
-                    setKilometrajeFinal(event.target.value);
-                    setMessage("");
-                  }}
-                  min={
-                    Number(
-                      startedTrip.kilometrajeInicial ??
-                      startedTrip.kilometraje_inicial ??
-                      0
-                    ) + 1
-                  }
-                  step="1"
-                  required
-                />
-                <div className="gv-odometer-suffix">
-                  <span>KM</span>
-                </div>
-              </div>
-              <p className="gv-odometer-hint">
-                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      return (
+        <>
+          <div className="gv-trip-actions-block">
+            <div className="gv-trip-mid-actions">
+              <button
+                type="button"
+                className="gv-btn-midpoint"
+                onClick={handleAddIntermediatePoint}
+                disabled={savingIntermediatePoint}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="16" />
-                  <line x1="12" y1="12.01" x2="12" y2="8" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
                 </svg>
-                <span>Captura el kilometraje actual del odómetro.</span>
-              </p>
-            </div>
-            <div className="gv-finish-btn-wrapper">
+                <span className="truncate">{savingIntermediatePoint ? "Guardando..." : "Punto Intermedio"}</span>
+              </button>
               <button
-                type="submit"
-                className="gv-btn-finish"
-                disabled={finishingTrip}
+                type="button"
+                className="gv-btn-sync"
+                onClick={() => (startedTrip.idViaje ?? startedTrip.id_viajes) < 0
+                  ? syncOfflineState() : syncPendingLocations(startedTrip.idViaje ?? startedTrip.id_viajes)}
               >
-                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path d="M23 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span>{finishingTrip ? "Finalizando viaje..." : "FINALIZAR VIAJE"}</span>
+                <span className="truncate">Sincronizar</span>
               </button>
             </div>
-          </form>
-        </div>
-      </>
-    )}
+
+            <div className="gv-trip-emergency-action-row">
+              <button
+                type="button"
+                onClick={() => setShowSiniestroModal(true)}
+                className="gv-btn-emergency-action"
+              >
+                <IconAlert size={16} color="currentColor" />
+                <span>Reportar Siniestro / Incidente</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="gv-trip-finish-section">
+            <form className="gv-finish-form" onSubmit={handleFinishTrip}>
+              <div className="gv-finish-field">
+                <div className="gv-finish-label-row">
+                  <label className="gv-finish-label" htmlFor="odometer-final">
+                    Lectura final de Odómetro (KM) <span className="gv-required-star">*</span>
+                  </label>
+                  {kmDelta > 0 ? (
+                    <span className="gv-odometer-delta valid">
+                      +{kmDelta.toLocaleString("es-MX")} km recorridos
+                    </span>
+                  ) : (
+                    <span className="gv-odometer-delta min-req">
+                      Mín. {minFinalKm.toLocaleString("es-MX")} km
+                    </span>
+                  )}
+                </div>
+                <div className="gv-odometer-wrapper">
+                  <input
+                    id="odometer-final"
+                    name="odometer-final"
+                    type="number"
+                    inputMode="numeric"
+                    placeholder={String(minFinalKm)}
+                    className="gv-odometer-input"
+                    value={kilometrajeFinal}
+                    onChange={(event) => {
+                      setKilometrajeFinal(event.target.value);
+                      setMessage("");
+                    }}
+                    min={minFinalKm}
+                    step="1"
+                    required
+                  />
+                  <div className="gv-odometer-suffix">
+                    <span>KM</span>
+                  </div>
+                </div>
+                <p className="gv-odometer-hint">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="12" y1="12.01" x2="12" y2="8" />
+                  </svg>
+                  <span>
+                    Captura el kilometraje actual del tablero (debe ser igual o mayor a {minFinalKm.toLocaleString("es-MX")} km).
+                  </span>
+                </p>
+              </div>
+              <div className="gv-finish-btn-wrapper">
+                <button
+                  type="submit"
+                  className="gv-btn-finish"
+                  disabled={finishingTrip}
+                >
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="4" y="4" width="16" height="16" rx="3" />
+                  </svg>
+                  <span>{finishingTrip ? "Finalizando viaje..." : "FINALIZAR VIAJE"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      );
+    })()}
 
     {/* Cancelar viaje siempre en la base de la tarjeta si el viaje no ha finalizado ni cancelado */}
     {!finishedTrip && !cancelledTrip && (

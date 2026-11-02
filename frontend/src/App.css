@@ -2804,13 +2804,21 @@ form#urban-trip-form {
 /* Trip Details Card */
 .gv-trip-card {
   background: #ffffff !important;
-  border-radius: 18px !important;
-  padding: 16px !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.06), 0 2px 8px -2px rgba(15, 23, 42, 0.04) !important;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   color: #0f172a;
+}
+
+@media (max-width: 480px) {
+  .gv-trip-card {
+    padding: 16px !important;
+    gap: 12px;
+  }
 }
 
 .gv-trip-header {
@@ -2818,19 +2826,23 @@ form#urban-trip-form {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 12px;
+  padding-bottom: 14px;
 }
 
 .gv-trip-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .gv-status-dot-wrapper {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ecfdf5;
 }
 
 .gv-radar-pulse {
@@ -2893,20 +2905,21 @@ form#urban-trip-form {
 }
 
 .gv-trip-title {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 800;
   color: #0f172a;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
 .gv-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
+  padding: 4px 12px;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -2934,59 +2947,86 @@ form#urban-trip-form {
   border: 1px solid #fecaca;
 }
 
-/* DL List */
+/* DL List - Ficha de Resumen en Grid */
 .gv-trip-dl {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
-  padding: 12px 0;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
   font-size: 0.78rem;
 }
 
 .gv-trip-dl-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 10px;
+  min-width: 0;
 }
 
-.gv-trip-dl-row:last-child {
-  border-bottom: none;
+@media (max-width: 420px) {
+  .gv-trip-dl {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  .gv-trip-dl-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
 }
 
 .gv-trip-dt {
   color: #64748b;
-  font-weight: 500;
-  font-size: 0.78rem;
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .gv-trip-dd {
   margin: 0;
   font-weight: 700;
   color: #0f172a;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .gv-badge-mono {
-  font-family: monospace;
-  font-weight: 600;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
   color: #1e293b;
   background: #f1f5f9;
-  padding: 2px 8px;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
   border-radius: 6px;
-  font-size: 0.75rem;
-  letter-spacing: -0.01em;
+  font-size: 0.76rem;
+  letter-spacing: 0.01em;
 }
 
 .gv-badge-km {
-  font-weight: 700;
+  margin: 0;
+  font-weight: 800;
   color: #0369a1;
   background: #f0f9ff;
-  border: 1px solid #e0f2fe;
-  padding: 2px 8px;
+  border: 1px solid #bae6fd;
+  padding: 3px 9px;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Info Callout */
@@ -2999,7 +3039,6 @@ form#urban-trip-form {
   align-items: flex-start;
   gap: 10px;
   color: #475569;
-  margin-top: 8px;
 }
 
 .gv-trip-info-text {
@@ -3009,49 +3048,55 @@ form#urban-trip-form {
   margin: 0;
 }
 
-/* Mid Actions (Punto Intermedio & Sincronizar) */
-.gv-trip-emergency-action-row {
-  grid-column: 1 / -1;
-  width: 100%;
-  margin-bottom: 8px;
+/* Mid Actions (Punto Intermedio, Sincronizar & Siniestro) */
+.gv-trip-actions-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+.gv-trip-emergency-action-row {
+  width: 100%;
+  margin: 0;
+}
+
 .gv-trip-emergency-action-row .gv-btn-emergency-action {
   width: 100%;
-  height: 40px;
+  height: 42px;
 }
+
 .gv-trip-mid-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  padding-top: 8px;
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 .gv-btn-midpoint {
   width: 100%;
-  height: 40px;
-  padding: 0 8px;
-  background: #0284c7;
+  height: 42px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 11px;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25);
+  gap: 7px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.22);
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: all 0.15s ease;
 }
 
 .gv-btn-midpoint:hover:not(:disabled) {
-  background: #0369a1;
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-1px);
 }
 
 .gv-btn-midpoint:active:not(:disabled) {
-  background: #075985;
   transform: scale(0.99);
 }
 
@@ -3062,18 +3107,19 @@ form#urban-trip-form {
 
 .gv-btn-sync {
   width: 100%;
-  height: 40px;
-  padding: 0 8px;
+  height: 42px;
+  padding: 0 12px;
   background: #ffffff;
-  color: #334155;
-  border: 1px solid #cbd5e1;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border-radius: 12px;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -3081,6 +3127,7 @@ form#urban-trip-form {
 .gv-btn-sync:hover {
   background: #f8fafc;
   border-color: #94a3b8;
+  color: #0f172a;
 }
 
 .gv-btn-sync:active {
@@ -3090,43 +3137,105 @@ form#urban-trip-form {
 
 /* Finalizar Viaje Section */
 .gv-trip-finish-section {
-  padding-top: 12px;
-  margin-top: 4px;
-  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 2px;
+}
+
+.gv-trip-finish-section form,
+.gv-finish-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.gv-finish-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.gv-finish-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .gv-finish-label {
-  display: block;
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 6px;
+  color: #0f172a;
+  margin: 0;
 }
 
 .gv-required-star {
-  color: #be123c;
+  color: #e11d48;
+}
+
+.gv-odometer-delta {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gv-odometer-delta.valid {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.gv-odometer-delta.min-req {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
 
 .gv-odometer-wrapper {
   position: relative;
   width: 100%;
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .gv-odometer-input {
   width: 100%;
   box-sizing: border-box;
-  height: 44px;
+  height: 48px;
   border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  padding: 10px 44px 10px 14px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  font-family: monospace;
+  border: 1.5px solid #cbd5e1;
+  padding: 10px 58px 10px 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
   color: #0f172a;
   background: #ffffff;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.gv-odometer-input::-webkit-outer-spin-button,
+.gv-odometer-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .gv-odometer-input:focus {
@@ -3137,41 +3246,52 @@ form#urban-trip-form {
 
 .gv-odometer-suffix {
   position: absolute;
-  right: 14px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  letter-spacing: 0.04em;
 }
 
 .gv-odometer-hint {
   font-size: 0.72rem;
   color: #64748b;
-  margin: 6px 0 0 0;
+  margin: 7px 0 0 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  line-height: 1.35;
+}
+
+.gv-odometer-hint svg {
+  flex-shrink: 0;
+  color: #0284c7;
 }
 
 .gv-finish-btn-wrapper {
-  margin-top: 12px;
+  margin-top: 0;
   width: 100%;
 }
 
 .gv-btn-finish {
   width: 100%;
-  height: 40px;
-  background: #8b2626;
+  height: 44px;
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
   color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  border-radius: 12px;
+  border-radius: 11px;
   border: none;
-  box-shadow: 0 4px 14px rgba(139, 38, 38, 0.25);
+  box-shadow: 0 4px 12px rgba(190, 18, 60, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3181,11 +3301,12 @@ form#urban-trip-form {
 }
 
 .gv-btn-finish:hover:not(:disabled) {
-  background: #731e1e;
+  background: linear-gradient(135deg, #9f1239 0%, #881337 100%);
+  transform: translateY(-1px);
 }
 
 .gv-btn-finish:active:not(:disabled) {
-  background: #5c1818;
+  background: #881337;
   transform: scale(0.99);
 }
 
@@ -3197,30 +3318,31 @@ form#urban-trip-form {
 /* Cancel Button */
 .gv-cancel-wrapper {
   padding-top: 10px;
-  margin-top: 10px;
+  margin-top: 2px;
   border-top: 1px solid #f1f5f9;
 }
 
 .gv-btn-cancel-light {
   width: 100%;
-  height: 42px;
-  background: rgba(255, 241, 242, 0.7);
+  height: 40px;
+  background: #fff1f2;
   color: #be123c;
   border: 1px solid #fecdd3;
   font-size: 0.78rem;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  box-shadow: none;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .gv-btn-cancel-light:hover:not(:disabled) {
-  background: #fee2e2;
-  border-color: #fca5a5;
+  background: #ffe4e6;
+  border-color: #fda4af;
 }
 
 .gv-btn-cancel-light:active:not(:disabled) {
@@ -3238,7 +3360,7 @@ form#urban-trip-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .gv-btn-primary {
@@ -3301,7 +3423,7 @@ form#urban-trip-form {
   transform: scale(0.99) !important;
 }
 
-/* Emergency Incident Card */
+/* Emergency Incident Card & Action Button */
 .gv-emergency-alert-card {
   background: rgba(255, 241, 242, 0.55);
   border: 1px solid #fecdd3;
@@ -3351,14 +3473,14 @@ form#urban-trip-form {
 
 .gv-btn-emergency-action {
   width: 100%;
-  height: 44px;
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-  color: #ffffff;
-  font-size: 0.78rem;
+  height: 42px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.8rem;
   font-weight: 700;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 6px 20px -3px rgba(217, 119, 6, 0.3);
+  border-radius: 11px;
+  border: 1.5px solid #fcd34d;
+  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3368,7 +3490,9 @@ form#urban-trip-form {
 }
 
 .gv-btn-emergency-action:hover {
-  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
 }
 
 .gv-btn-emergency-action:active {
