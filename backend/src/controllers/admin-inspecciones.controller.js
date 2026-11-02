@@ -1,5 +1,5 @@
 import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
-import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
+import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
 import { cancelTrip } from "../services/viajes.service.js";
 import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 import { sendDriverInspectionNotification } from "../bot/bot.js";
@@ -32,7 +32,7 @@ export async function decideAdminInspectionController(request, response) {
     let sharepointResult = null;
     if (data && approved) {
       const detail = await getAdminInspection(idInspeccion);
-      const pdf = buildInspectionPdf(detail);
+      const pdf = await buildInspectionPdf(detail);
       await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
       
       try {
@@ -78,10 +78,10 @@ export async function decideAdminInspectionController(request, response) {
 export async function downloadAdminInspectionPdfController(request, response) {
   const idInspeccion = Number(request.params.idInspeccion);
   let stored = await getStoredInspectionPdf(idInspeccion);
-  if (!stored?.pdf_documento) {
+  {
     const detail = await getAdminInspection(idInspeccion);
     if (!detail) return response.status(404).json({ success: false, message: "Inspección no encontrada." });
-    const pdf = buildInspectionPdf(detail);
+    const pdf = await buildInspectionPdf(detail);
     await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
     stored = { pdf_nombre: pdf.nombre, pdf_documento: pdf.buffer };
   }
@@ -98,7 +98,7 @@ export async function previewAdminInspectionPdfController(request, response) {
       return response.status(404).json({ success: false, message: "Inspección no encontrada." });
     }
 
-    const pdf = buildInspectionPdf({
+    const pdf = await buildInspectionPdf({
       ...detail,
       estado: detail.estado === "PENDIENTE_APROBACION" ? "PENDIENTE_APROBACION" : detail.estado,
       aprobador: detail.aprobador || "Pendiente de aprobación",

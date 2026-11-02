@@ -1,5 +1,5 @@
 import { approveInspection, getAdminInspection, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
-import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
+import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
 import { cancelTrip } from "../services/viajes.service.js";
 import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 import { sendDriverInspectionNotification } from "../bot/bot.js";
@@ -47,7 +47,7 @@ export async function decideSupervisorInspectionController(request, response) {
     let sharepointResult = null;
     if (approved) {
       const detail = await getAdminInspection(idInspeccion);
-      const pdf = buildInspectionPdf(detail);
+      const pdf = await buildInspectionPdf(detail);
       await storeInspectionPdf({ idInspeccion, nombre: pdf.nombre, document: pdf.buffer });
       
       // Intentar subir a SharePoint

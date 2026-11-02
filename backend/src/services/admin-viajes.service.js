@@ -471,6 +471,8 @@ export async function getAdminTripById(
 
   return {
     trip,
+    trailerInspections: (await databasePool.query(`SELECT id, name, trailer_id, inspection, added_at, removed_at
+      FROM trip_operation_items WHERE trip_id=$1 AND kind='trailer' ORDER BY added_at,id`, [idViaje])).rows,
     locations:
       locationsResult.rows
   };

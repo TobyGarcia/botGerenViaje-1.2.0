@@ -1,5 +1,7 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:a663635
+    image: gv-staging-trip-operations-backend:trip-annexes-20261102
   frontend:
     image: gv-staging-trip-operations-frontend:a663635
+  panel-admin:
+    image: gv-staging-trip-operations-panel:trip-annexes-20261102

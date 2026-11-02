@@ -837,6 +837,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                       <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
                     </div>
                     {renderChecklistByCategories(detail.checklist)}
+                    {detail.trailer_inspections?.map(item => <details key={item.id}><summary>Remolque: {item.name} · Enganche #{item.id}</summary><p>{new Date(item.added_at).toLocaleString('es-MX')} · {item.inspection?.data?.observaciones || 'Sin observaciones'}</p>{renderChecklistByCategories(item.inspection?.data?.checklist || {})}</details>)}
                   </div>
 
                   {/* Observaciones del Conductor */}

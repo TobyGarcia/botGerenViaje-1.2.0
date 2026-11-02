@@ -15,9 +15,9 @@ import {
   updateGerenciamientoSharePointDetails,
   getStoredGerenciamientoPdf
 } from "../services/gerenciamiento-viajes.service.js";
-import { buildGerenciamientoPdf } from "../services/gerenciamiento-pdf.service.js";
+import { buildGerenciamientoWithAnnexes as buildGerenciamientoPdf } from "../services/trip-inspection-annexes.service.js";
 import { uploadGerenciamientoPdfToSharePoint, uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
-import { buildInspectionPdf } from "../services/inspeccion-pdf.service.js";
+import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
 import { getInspectionByViaje, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 
 import { databasePool } from "../database/pool.js";
@@ -179,7 +179,7 @@ export async function aprovarGerenciamientoController(request, response) {
       try {
         // 1. Generar y subir PDF del Gerenciamiento de Viaje -> Carpeta "Gerenciamientos"
         const fullDetail = await getGerenciamientoById(idGerenciamiento);
-        const pdf = buildGerenciamientoPdf(fullDetail || updated);
+        const pdf = await buildGerenciamientoPdf(fullDetail || updated);
         await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
 
         sharepointResult = await uploadGerenciamientoPdfToSharePoint({
@@ -202,7 +202,7 @@ export async function aprovarGerenciamientoController(request, response) {
           try {
             const linkedInsp = await getInspectionByViaje(updated.id_viaje);
             if (linkedInsp && linkedInsp.id_inspeccion) {
-              const inspPdf = buildInspectionPdf(linkedInsp);
+              const inspPdf = await buildInspectionPdf(linkedInsp);
               await storeInspectionPdf({ idInspeccion: linkedInsp.id_inspeccion, nombre: inspPdf.nombre, document: inspPdf.buffer });
 
               const inspSpRes = await uploadInspectionPdfToSharePoint({
@@ -244,12 +244,12 @@ export async function downloadGerenciamientoPdfController(request, response) {
     const idGerenciamiento = Number(request.params.id);
     let stored = await getStoredGerenciamientoPdf(idGerenciamiento);
 
-    if (!stored?.pdf_documento) {
+    {
       const detail = await getGerenciamientoById(idGerenciamiento);
       if (!detail) {
         return response.status(404).json({ success: false, message: "Gerenciamiento no encontrado." });
       }
-      const pdf = buildGerenciamientoPdf(detail);
+      const pdf = await buildGerenciamientoPdf(detail);
       await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
       stored = { pdf_nombre: pdf.nombre, pdf_documento: pdf.buffer };
     }
@@ -267,12 +267,12 @@ export async function previewGerenciamientoPdfController(request, response) {
     const idGerenciamiento = Number(request.params.id);
     let stored = await getStoredGerenciamientoPdf(idGerenciamiento);
 
-    if (!stored?.pdf_documento) {
+    {
       const detail = await getGerenciamientoById(idGerenciamiento);
       if (!detail) {
         return response.status(404).json({ success: false, message: "Gerenciamiento no encontrado." });
       }
-      const pdf = buildGerenciamientoPdf(detail);
+      const pdf = await buildGerenciamientoPdf(detail);
       stored = { pdf_nombre: pdf.nombre, pdf_documento: pdf.buffer };
     }
 

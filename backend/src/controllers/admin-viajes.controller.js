@@ -258,9 +258,7 @@ export async function getAdminTripController(
         success: true,
         data: {
           trip:
-            serializeTrip(
-              result.trip
-            ),
+            { ...serializeTrip(result.trip), trailerInspections: result.trailerInspections },
 
           locations:
             result.locations

@@ -1,5 +1,6 @@
 import { traceOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
+import { getTripInspectionAnnexes } from './trip-inspection-annexes.service.js';
 
 const mexicoNowSql = "(timezone('America/Mexico_City', CURRENT_TIMESTAMP))";
 const operationalDateSql = `(${mexicoNowSql} + INTERVAL '2 hours')`;
@@ -156,7 +157,8 @@ export async function getAdminInspection(idInspeccion) {
     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin=i.id_usuario_admin_aprobador
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
-  return result.rows[0] ?? null;
+  const detail = result.rows[0];
+  return detail ? { ...detail, trailer_inspections: await getTripInspectionAnnexes(detail.id_viajes) } : null;
 }
 
 export async function getInspectionByViaje(idViaje) {

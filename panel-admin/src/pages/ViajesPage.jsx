@@ -1016,6 +1016,7 @@ function ViajesPage({ user }) {
                     </div>
                   </section>
 
+                  {selectedTrip.trailerInspections?.length > 0 && <section className="trip-text-detail"><h3>Inspecciones de remolques</h3>{selectedTrip.trailerInspections.map(item => <details key={item.id}><summary>{item.name} · Enganche {formatDateTime(item.added_at)}</summary><p>{item.removed_at ? `Desenganche: ${formatDateTime(item.removed_at)}` : 'Enganchado'}</p><p>{item.inspection?.data?.observaciones || 'Sin observaciones'}</p><dl>{Object.entries(item.inspection?.data?.checklist || {}).map(([name,value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl></details>)}</section>}
                   {selectedLocations.filter(l => l.es_punto_intermedio).length > 0 && (
                     <div className="intermediate-points-container" style={{ marginTop: "8px", padding: "14px", background: "#fff5f5", borderRadius: "8px", border: "1px solid #fecaca" }}>
                       <h4 style={{ margin: "0 0 10px 0", color: "#991b1b", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>

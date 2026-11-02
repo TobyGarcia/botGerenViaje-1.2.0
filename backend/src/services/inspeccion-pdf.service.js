@@ -392,7 +392,7 @@ export function buildInspectionPdf(data) {
     // Metadatos Remolque (Y: 690 a 744)
     const fieldsP2 = [
       ["Fecha", formatShortDate(data.aprobado_en || data.creado_en || Date.now())],
-      ["Hora", new Date(data.aprobado_en || Date.now()).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })],
+      ["Hora", new Date(data.aprobado_en || data.creado_en || Date.now()).toLocaleTimeString("es-MX", { timeZone: 'America/Mexico_City', hour: "2-digit", minute: "2-digit" })],
       ["Folio", data.folio],
       ["No. remolque / ID", data.remolque_numero_economico || ("ID " + data.id_remolque)],
       ["Responsable", data.conductor],
