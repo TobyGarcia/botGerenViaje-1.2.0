@@ -67,14 +67,11 @@ export default function TripOperations({ tripId }) {
   const attachedTrailersCount = items.filter(item => item.kind === 'trailer' && !item.removed_at).length;
   const projectedCount=onboardCount-actions.filter(a=>a.type==='COMPANION_DROPPED_OFF').length+actions.filter(a=>a.type==='COMPANION_ADDED').length;
   const availableSeats = Math.max(0, 4 - projectedCount);
-  const actionLabels={COMPANION_ADDED:'Subirá',COMPANION_DROPPED_OFF:'Bajará',TRAILER_ATTACHED:'Se enganchará',TRAILER_DETACHED:'Se dejará'};
+  const confirmationActions = [...actions, ...names.map(name => ({ type: 'COMPANION_ADDED', name }))];
+  const finalCount = projectedCount + names.length;
   function toggleRemoval(item) {
     const type=item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED';
     setActions(current=>current.some(a=>a.type===type && a.itemId===Number(item.id))?current.filter(a=>!(a.type===type && a.itemId===Number(item.id))):[...current,{type,itemId:Number(item.id),name:item.name}]);
-  }
-  function stageCompanions() {
-    if(!names.length || names.length>availableSeats)return;
-    setActions(current=>[...current,...names.map(name=>({type:'COMPANION_ADDED',name}))]);setCompanionDraft(['']);
   }
   function stageTrailer() {
     const vehicle=vehicles.find(v=>Number(v.id_vehiculos)===Number(trailer));
@@ -90,7 +87,7 @@ export default function TripOperations({ tripId }) {
     <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Gestionar viaje</h3></div></header>
     <div className="trip-operation-shortcuts">{[['companions','companion','Acompañantes'],['trailers','trailer','Remolques']].map(([id,kind,title]) => <button type="button" className="trip-operation-shortcut" key={id} onClick={() => setModal(id)}><span className="trip-operation-shortcut-icon">{kind === 'companion' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}</span><strong>{title}</strong><small>{items.filter(i => i.kind === kind && !i.removed_at).length} {kind === 'companion' ? 'a bordo' : 'enganchados'}</small><span className="trip-operation-manage">Gestionar →</span></button>)}</div>
     {!modal && alerts}
-    {!modal && actions.length>0 && <button type="button" onClick={()=>setModal('companions')}>Revisar {actions.length} acciones pendientes de confirmar</button>}
+    {!modal && confirmationActions.length>0 && <button type="button" onClick={()=>setModal('companions')}>Continuar cambios pendientes</button>}
     {!modal && !loaded && !busy && <button type="button" onClick={() => refresh().catch(e => setError(e.message))}>Actualizar viaje</button>}
     {modal && !showInspection && (
       <TripOperationModal
@@ -99,7 +96,7 @@ export default function TripOperations({ tripId }) {
         icon={modal === 'companions' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}
         busy={busy}
         onClose={() => setModal(null)}
-        footer={actions.length>0 ? <><button type="button" className="trip-operation-done-btn" disabled={disabled} onClick={()=>{setActions([]);setCompanionDraft(['']);setTrailer('');setInspection(null);setWarningConfirmed(false);setModal(null);}}>Cancelar selección</button><button type="button" className="trip-ops-primary" disabled={disabled || projectedCount>4 || projectedCount<0} onClick={()=>submit({type:'CONFIRMED_ACTIONS',actions})}>Confirmar {actions.length} {actions.length===1?'acción':'acciones'}</button></> : undefined}
+        footer={<><button type="button" className="trip-operation-done-btn" disabled={disabled} onClick={()=>{setActions([]);setCompanionDraft(['']);setTrailer('');setInspection(null);setWarningConfirmed(false);setModal(null);}}>Cancelar</button><button type="button" className="trip-ops-primary" disabled={disabled || !confirmationActions.length || finalCount>4 || finalCount<0} onClick={()=>submit({type:'CONFIRMED_ACTIONS',actions:confirmationActions})}>{busy ? 'Guardando…' : 'Confirmar cambios'}</button></>}
       >
         {error && <p role="alert">{error}</p>}
         {pending && <button type="button" className="trip-ops-retry-btn" disabled={busy} onClick={() => submit(pending)}>Reintentar registro pendiente</button>}
@@ -107,10 +104,7 @@ export default function TripOperations({ tripId }) {
 
         <div className="trip-ops-active-section">
           <div className="trip-ops-section-header">
-            <h3>{activeKind === 'companion' ? 'A bordo' : 'Enganchados'}</h3>
-            <span className="trip-ops-section-count">
-              {activeKind === 'companion' ? `${onboardCount} de 4 lugares` : `${activeItems.length} ${activeItems.length === 1 ? 'activo' : 'activos'}`}
-            </span>
+            <h3>{activeKind === 'companion' ? '¿Quién baja?' : '¿Qué remolque se deja?'}</h3>
           </div>
           {loaded && activeItems.length === 0 && (
             <p className="trip-ops-empty">
@@ -126,20 +120,17 @@ export default function TripOperations({ tripId }) {
                   </span>
                   <div className="trip-ops-item-name">
                     <strong>{item.name}</strong>
-                    <span className="trip-ops-status-tag">
-                      <i className="trip-ops-status-dot" aria-hidden="true" />
-                      {actions.some(a=>a.itemId===Number(item.id) && a.type===(item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED')) ? (item.kind==='companion'?'Bajada seleccionada':'Desenganche seleccionado') : item.kind === 'companion' ? 'A bordo' : 'Enganchado'}
-                    </span>
                   </div>
-                  <button
-                    type="button"
-                    className="trip-ops-action-leave"
+                  <label className="trip-ops-leave-choice">
+                  <input
+                    type="checkbox"
                     disabled={disabled}
-                    aria-pressed={actions.some(a=>a.itemId===Number(item.id) && a.type===(item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED'))}
-                    onClick={() => toggleRemoval(item)}
-                  >
-                    {actions.some(a=>a.itemId===Number(item.id) && a.type===(item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED')) ? 'Deshacer' : item.kind === 'companion' ? 'Seleccionar bajada' : 'Seleccionar desenganche'}
-                  </button>
+                    checked={actions.some(a=>a.itemId===Number(item.id) && a.type===(item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED'))}
+                    onChange={() => toggleRemoval(item)}
+                    aria-label={`${item.kind === 'companion' ? 'Bajar a' : 'Dejar'} ${item.name}`}
+                  />
+                  {item.kind === 'companion' ? 'Baja' : 'Se deja'}
+                  </label>
                 </div>
               ))}
             </div>
@@ -150,31 +141,28 @@ export default function TripOperations({ tripId }) {
           <section className="trip-companions-editor">
             <div className="trip-ops-section-header">
               <div>
-                <h3>Agregar acompañantes</h3>
+                <h3>¿Quién sube?</h3>
                 <p className="trip-ops-section-sub">
                   {availableSeats === 0
                     ? 'Capacidad máxima alcanzada en la unidad.'
-                    : `${availableSeats} ${availableSeats === 1 ? 'lugar disponible' : 'lugares disponibles'} al confirmar la selección.`}
+                    : 'Escribe los nombres y confirma al terminar.'}
                 </p>
               </div>
               {availableSeats > 0 && (
                 <div className="trip-companion-header-actions">
-                  <span className="trip-companion-counter" aria-live="polite">
-                    {projectedCount + names.length} / 4 máx.
-                  </span>
                   <button
                     className="trip-companion-add"
                     type="button"
                     disabled={disabled || companionDraft.length >= availableSeats}
                     onClick={() => setCompanionDraft(values => [...values, ''])}
                   >
-                    + Agregar
+                    + Otro
                   </button>
                 </div>
               )}
             </div>
 
-            {availableSeats === 0 ? (
+            {availableSeats === 0 && names.length === 0 ? (
               <p className="trip-ops-empty">Los 4 lugares están ocupados. Selecciona una bajada para liberar un lugar en esta confirmación.</p>
             ) : (
               <form
@@ -182,7 +170,6 @@ export default function TripOperations({ tripId }) {
                 className="trip-companion-fields"
                 onSubmit={e => {
                   e.preventDefault();
-                  stageCompanions();
                 }}
               >
                 <div className="trip-companion-inputs-stack">
@@ -195,7 +182,6 @@ export default function TripOperations({ tripId }) {
                         value={value}
                         maxLength={200}
                         disabled={disabled}
-                        required
                         onChange={e => setCompanionDraft(values => values.map((name, i) => (i === index ? e.target.value : name)))}
                       />
                       {companionDraft.length > 1 && (
@@ -212,12 +198,6 @@ export default function TripOperations({ tripId }) {
                     </div>
                   ))}
                 </div>
-                <button
-                  className="trip-ops-primary"
-                  disabled={disabled || names.length !== companionDraft.length || names.length > availableSeats}
-                >
-                  Añadir {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'} a la selección
-                </button>
               </form>
             )}
           </section>
@@ -281,7 +261,8 @@ export default function TripOperations({ tripId }) {
           </section>
         )}
 
-        {actions.length>0 && <section className="trip-actions-confirmation"><h3>Resumen de acciones</h3><p>Aún no se han guardado. Al confirmar se registrarán juntas como una parada y un mensaje de Telegram.</p>{projectedCount>4 && <p role="alert">La selección supera los cuatro lugares. Quita una subida o selecciona una bajada.</p>}<ul>{actions.map((action,index)=><li key={index}><span><strong>{actionLabels[action.type]}</strong> · {action.name}</span><button type="button" disabled={disabled} aria-label={`Quitar acción ${index+1}`} onClick={()=>setActions(current=>current.filter((_,i)=>i!==index))}>Quitar</button></li>)}</ul></section>}
+        {finalCount>4 && <p role="alert">Solo pueden viajar cuatro acompañantes. Quita un nombre o selecciona quién baja.</p>}
+        {modal === 'trailers' && actions.some(action=>action.type==='TRAILER_ATTACHED') && <section className="trip-ops-list">{actions.map((action,index)=>action.type==='TRAILER_ATTACHED' && <div className="trip-ops-item" key={index}><span className="trip-ops-item-name"><strong>{action.name}</strong><small>Listo para enganchar</small></span><button type="button" disabled={disabled} onClick={()=>setActions(current=>current.filter((_,i)=>i!==index))}>Quitar</button></div>)}</section>}
         {historyItems.length > 0 && (
           <details className="trip-ops-history">
             <summary>
