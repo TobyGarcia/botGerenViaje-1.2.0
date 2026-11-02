@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-panel:trailer-cards-20261102
+COPY panel-admin/dist/ /usr/share/nginx/html/

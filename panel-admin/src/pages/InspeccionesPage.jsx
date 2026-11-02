@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { trailerChecklistGroups } from '../utils/trailer-checklist-groups.js';
+import TrailerInspectionContent from '../components/TrailerInspectionContent.jsx';
 import './TrailerInspectionCards.css';
 import {
   decidirAdminInspeccion,
@@ -819,13 +819,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                         const remData = typeof detail.inspeccion_remolque === "string" ? JSON.parse(detail.inspeccion_remolque) : (detail.inspeccion_remolque || {});
                         return (
                           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {remData.checklist && renderChecklistByCategories(remData.checklist)}
-                            {remData.observaciones && (
-                              <div className="observations-callout" style={{ marginTop: "6px" }}>
-                                <strong>Observaciones de remolque:</strong>
-                                <p>{remData.observaciones}</p>
-                              </div>
-                            )}
+                            <TrailerInspectionContent data={remData} renderChecklist={renderChecklistByCategories} />
                           </div>
                         );
                       })()}
@@ -839,7 +833,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                       <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
                     </div>
                     {renderChecklistByCategories(detail.checklist)}
-                    {detail.trailer_inspections?.length > 0 && <section className="trailer-inspections-section"><h3>Inspecciones de remolques</h3><p>Una inspección independiente por cada enganche.</p>{detail.trailer_inspections.map(item => <details className="trailer-inspection-card" key={item.id}><summary><strong>{item.name}</strong><span>Enganche #{item.id} · {item.removed_at ? 'Desenganchado' : 'Enganchado'}</span></summary><div className="trailer-inspection-body"><dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{new Date(item.added_at).toLocaleString('es-MX')}</dd></div><div><dt>Desenganche</dt><dd>{item.removed_at ? new Date(item.removed_at).toLocaleString('es-MX') : 'Continúa enganchado'}</dd></div></dl><h4>Observaciones de esta inspección</h4><p>{item.inspection?.data?.observaciones || 'Sin observaciones'}</p>{renderChecklistByCategories(item.inspection?.data?.checklist || {}, trailerChecklistGroups)}</div></details>)}</section>}
+                    {detail.trailer_inspections?.length > 0 && <section className="trailer-inspections-section"><h3>Inspecciones de remolques</h3><p>Una inspección independiente por cada enganche.</p>{detail.trailer_inspections.map(item => <details className="trailer-inspection-card" key={item.id}><summary><strong>{item.name}</strong><span>Enganche #{item.id} · {item.removed_at ? 'Desenganchado' : 'Enganchado'}</span></summary><div className="trailer-inspection-body"><dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{new Date(item.added_at).toLocaleString('es-MX')}</dd></div><div><dt>Desenganche</dt><dd>{item.removed_at ? new Date(item.removed_at).toLocaleString('es-MX') : 'Continúa enganchado'}</dd></div></dl><TrailerInspectionContent data={item.inspection} renderChecklist={renderChecklistByCategories} /></div></details>)}</section>}
                   </div>
 
                   {/* Observaciones del Conductor */}

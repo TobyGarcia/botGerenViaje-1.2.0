@@ -16,3 +16,20 @@
 .trailer-inspection-body .checklist-cards-grid { grid-template-columns:1fr; }
 .trailer-inspection-body .checklist-summary-bar { flex-wrap:wrap; gap:8px; }
 @media(max-width:480px) { .trailer-inspection-body { padding:10px; } .trailer-inspection-meta { grid-template-columns:1fr; } }
+.trailer-review-nav { display:flex; gap:4px; padding:4px; margin-bottom:16px; background:#edf3f7; border-radius:9px; }
+.trailer-review-nav button { flex:1; min-width:0; padding:10px 5px; border:0; border-radius:7px; color:#607b8e; background:transparent; cursor:pointer; font:600 11px/1.4 inherit; font-family:inherit; font-size:11px; box-shadow:none; }
+.trailer-review-nav button[aria-pressed=true] { background:#fff; color:#1b516f; box-shadow:0 1px 4px #163d5012; }
+.trailer-view-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:14px; }
+.trailer-view-options button { min-width:0; padding:7px 4px; background:white; border:1px solid #dbe7ef; border-radius:8px; color:#496d83; cursor:pointer; }
+.trailer-view-options button[aria-pressed=true] { border-color:#2984ad; background:#f0f9fe; box-shadow:0 0 0 1px #2984ad; }
+.trailer-view-options img { display:block; width:100%; height:38px; object-fit:contain; margin-bottom:6px; }
+.trailer-view-options span { display:block; font-size:10px; }
+.trailer-view-title { display:flex; flex-wrap:wrap; justify-content:space-between; gap:5px; margin-bottom:8px; color:#1b516f; font-size:12px; }
+.trailer-view-title span { color:#748896; font-size:11px; }
+.trailer-diagram { position:relative; width:100%; background:#fff; border:1px solid #e2ebf1; border-radius:8px; overflow:hidden; line-height:0; }
+.trailer-diagram>img { display:block; width:100%; height:auto; }
+.trailer-damage-point { position:absolute; transform:translate(-50%,-50%); width:22px; height:22px; border:2px solid #d82c39; border-radius:50%; display:grid; place-items:center; color:#b1222f; background:#ffffffa6; font-size:10px; font-weight:700; line-height:1; }
+.trailer-review .trailer-review-hint { margin-top:10px; font-size:11px; line-height:1.6; }
+.trailer-review-notes { padding:14px; background:#f6f9fb; border-radius:8px; }
+.trailer-review button:focus-visible { outline:2px solid #2984ad; outline-offset:3px; }
+@media(max-width:400px) { .trailer-view-options { grid-template-columns:repeat(2,minmax(0,1fr)); } }
