@@ -10,7 +10,6 @@ import {
   getAdminViajes
 } from "../services/api.js";
 import TripMap from "../components/TripMap.jsx";
-import TripTrailerMovements from '../components/TripTrailerMovements.jsx';
 
 function formatDate(value) {
   if (!value) {
@@ -1017,7 +1016,6 @@ function ViajesPage({ user }) {
                     </div>
                   </section>
 
-                  <TripTrailerMovements items={selectedTrip.trailerInspections} />
                   {selectedLocations.filter(l => l.es_punto_intermedio).length > 0 && (
                     <div className="intermediate-points-container" style={{ marginTop: "8px", padding: "14px", background: "#fff5f5", borderRadius: "8px", border: "1px solid #fecaca" }}>
                       <h4 style={{ margin: "0 0 10px 0", color: "#991b1b", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
