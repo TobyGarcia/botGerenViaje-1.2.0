@@ -81,6 +81,7 @@ export default function TripOperations({ tripId }) {
   const activeKind = modal === 'companions' ? 'companion' : 'trailer';
   const activeItems = items.filter(i => i.kind === activeKind && !i.removed_at);
   const historyItems = items.filter(i => i.kind === activeKind && i.removed_at).sort((a, b) => new Date(b.removed_at) - new Date(a.removed_at));
+  const selectedDropsCount = actions.filter(a => a.type === (activeKind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED')).length;
   const alerts = <>{error && <p role="alert">{error}</p>}{pending && <button type="button" disabled={busy} onClick={() => submit(pending)}>Reintentar movimiento pendiente</button>}</>;
 
   return <section className="gv-trip-operations trip-operation-launcher">
@@ -96,7 +97,36 @@ export default function TripOperations({ tripId }) {
         icon={modal === 'companions' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}
         busy={busy}
         onClose={() => setModal(null)}
-        footer={<><button type="button" className="trip-operation-done-btn" disabled={disabled} onClick={()=>{setActions([]);setCompanionDraft(['']);setTrailer('');setInspection(null);setWarningConfirmed(false);setModal(null);}}>Cancelar</button><button type="button" className="trip-ops-primary" disabled={disabled || !confirmationActions.length || finalCount>4 || finalCount<0} onClick={()=>submit({type:'CONFIRMED_ACTIONS',actions:confirmationActions})}>{busy ? 'Guardando…' : 'Confirmar cambios'}</button></>}
+        footer={
+          <>
+            <button
+              type="button"
+              className="trip-operation-done-btn"
+              disabled={disabled}
+              onClick={() => {
+                setActions([]);
+                setCompanionDraft(['']);
+                setTrailer('');
+                setInspection(null);
+                setWarningConfirmed(false);
+                setModal(null);
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="trip-ops-primary"
+              disabled={disabled || !confirmationActions.length || finalCount > 4 || finalCount < 0}
+              onClick={() => submit({ type: 'CONFIRMED_ACTIONS', actions: confirmationActions })}
+            >
+              <span>{busy ? 'Guardando…' : 'Confirmar cambios'}</span>
+              {!busy && confirmationActions.length > 0 && (
+                <span className="trip-ops-confirm-count">{confirmationActions.length}</span>
+              )}
+            </button>
+          </>
+        }
       >
         {error && <p role="alert">{error}</p>}
         {pending && <button type="button" className="trip-ops-retry-btn" disabled={busy} onClick={() => submit(pending)}>Reintentar registro pendiente</button>}
@@ -105,6 +135,13 @@ export default function TripOperations({ tripId }) {
         <div className="trip-ops-active-section">
           <div className="trip-ops-section-header">
             <h3>{activeKind === 'companion' ? '¿Quién baja?' : '¿Qué remolque se deja?'}</h3>
+            {activeItems.length > 0 && (
+              <span className={`trip-ops-section-count ${selectedDropsCount > 0 ? 'has-drops' : ''}`}>
+                {selectedDropsCount > 0
+                  ? `${selectedDropsCount} ${selectedDropsCount === 1 ? 'baja seleccionada' : 'bajas seleccionadas'}`
+                  : 'Selecciona si alguien baja'}
+              </span>
+            )}
           </div>
           {loaded && activeItems.length === 0 && (
             <p className="trip-ops-empty">
@@ -113,26 +150,47 @@ export default function TripOperations({ tripId }) {
           )}
           {activeItems.length > 0 && (
             <div className="trip-ops-list">
-              {activeItems.map(item => (
-                <div key={item.id} className="trip-ops-item">
-                  <span className="trip-ops-avatar" aria-hidden="true">
-                    {item.kind === 'companion' ? <IconUsers size={18}/> : <TripTrailerIcon size={19}/>}
-                  </span>
-                  <div className="trip-ops-item-name">
-                    <strong>{item.name}</strong>
+              {activeItems.map(item => {
+                const isLeaving = actions.some(
+                  a => a.itemId === Number(item.id) && a.type === (item.kind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED')
+                );
+                return (
+                  <div
+                    key={item.id}
+                    className={`trip-ops-item ${isLeaving ? 'is-leaving' : ''}`}
+                    onClick={e => {
+                      if (!disabled && !e.target.closest('label')) toggleRemoval(item);
+                    }}
+                  >
+                    <span className="trip-ops-avatar" aria-hidden="true">
+                      {item.kind === 'companion' ? <IconUsers size={17}/> : <TripTrailerIcon size={18}/>}
+                    </span>
+                    <div className="trip-ops-item-name">
+                      <strong>{item.name}</strong>
+                      <span className={`trip-ops-status-tag ${isLeaving ? 'leaving' : ''}`}>
+                        <i className="trip-ops-status-dot" aria-hidden="true" />
+                        {isLeaving
+                          ? item.kind === 'companion'
+                            ? 'Bajará en esta parada'
+                            : 'Se desenganchará'
+                          : item.kind === 'companion'
+                            ? 'A bordo'
+                            : 'Enganchado'}
+                      </span>
+                    </div>
+                    <label className="trip-ops-leave-choice">
+                      <input
+                        type="checkbox"
+                        disabled={disabled}
+                        checked={isLeaving}
+                        onChange={() => toggleRemoval(item)}
+                        aria-label={`${item.kind === 'companion' ? 'Bajar a' : 'Dejar'} ${item.name}`}
+                      />
+                      <span>{item.kind === 'companion' ? 'Baja' : 'Se deja'}</span>
+                    </label>
                   </div>
-                  <label className="trip-ops-leave-choice">
-                  <input
-                    type="checkbox"
-                    disabled={disabled}
-                    checked={actions.some(a=>a.itemId===Number(item.id) && a.type===(item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED'))}
-                    onChange={() => toggleRemoval(item)}
-                    aria-label={`${item.kind === 'companion' ? 'Bajar a' : 'Dejar'} ${item.name}`}
-                  />
-                  {item.kind === 'companion' ? 'Baja' : 'Se deja'}
-                  </label>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -142,28 +200,36 @@ export default function TripOperations({ tripId }) {
             <div className="trip-ops-section-header">
               <div>
                 <h3>¿Quién sube?</h3>
-                <p className="trip-ops-section-sub">
-                  {availableSeats === 0
-                    ? 'Capacidad máxima alcanzada en la unidad.'
-                    : 'Escribe los nombres y confirma al terminar.'}
-                </p>
+                {(availableSeats > 0 || names.length > 0) && (
+                  <p className="trip-ops-section-sub">
+                    {availableSeats === 0
+                      ? 'Lugares completos con la selección actual.'
+                      : `${availableSeats} ${availableSeats === 1 ? 'lugar disponible' : 'lugares disponibles'} para abordar.`}
+                  </p>
+                )}
               </div>
-              {availableSeats > 0 && (
-                <div className="trip-companion-header-actions">
-                  <button
-                    className="trip-companion-add"
-                    type="button"
-                    disabled={disabled || companionDraft.length >= availableSeats}
-                    onClick={() => setCompanionDraft(values => [...values, ''])}
-                  >
-                    + Otro
-                  </button>
-                </div>
+              {availableSeats === 0 && names.length === 0 ? (
+                <span className="trip-ops-section-count full">Cupo lleno (4/4)</span>
+              ) : (
+                availableSeats > 0 && (
+                  <div className="trip-companion-header-actions">
+                    <button
+                      className="trip-companion-add"
+                      type="button"
+                      disabled={disabled || companionDraft.length >= availableSeats}
+                      onClick={() => setCompanionDraft(values => [...values, ''])}
+                    >
+                      + Otro
+                    </button>
+                  </div>
+                )
               )}
             </div>
 
             {availableSeats === 0 && names.length === 0 ? (
-              <p className="trip-ops-empty">Los 4 lugares están ocupados. Selecciona una bajada para liberar un lugar en esta confirmación.</p>
+              <div className="trip-ops-empty trip-ops-full-callout">
+                <p>Los 4 lugares están ocupados. Selecciona una bajada arriba para liberar un lugar en esta confirmación.</p>
+              </div>
             ) : (
               <form
                 id="trip-companion-fields"
@@ -266,8 +332,13 @@ export default function TripOperations({ tripId }) {
         {historyItems.length > 0 && (
           <details className="trip-ops-history">
             <summary>
-              <span>Historial de movimientos</span>
-              <em className="trip-ops-history-badge">{historyItems.length}</em>
+              <span className="trip-ops-history-title">Historial de movimientos</span>
+              <span className="trip-ops-history-meta">
+                <em className="trip-ops-history-badge">{historyItems.length}</em>
+                <svg className="trip-ops-history-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </span>
             </summary>
             <div className="trip-ops-history-list">
               {historyItems.map(i => (
