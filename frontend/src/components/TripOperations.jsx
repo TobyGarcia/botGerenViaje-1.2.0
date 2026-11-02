@@ -135,11 +135,9 @@ export default function TripOperations({ tripId }) {
         <div className="trip-ops-active-section">
           <div className="trip-ops-section-header">
             <h3>{activeKind === 'companion' ? '¿Quién baja?' : '¿Qué remolque se deja?'}</h3>
-            {activeItems.length > 0 && (
-              <span className={`trip-ops-section-count ${selectedDropsCount > 0 ? 'has-drops' : ''}`}>
-                {selectedDropsCount > 0
-                  ? `${selectedDropsCount} ${selectedDropsCount === 1 ? 'baja seleccionada' : 'bajas seleccionadas'}`
-                  : 'Selecciona si alguien baja'}
+            {selectedDropsCount > 0 && (
+              <span className="trip-ops-section-count has-drops">
+                {selectedDropsCount} {selectedDropsCount === 1 ? 'seleccionado' : 'seleccionados'}
               </span>
             )}
           </div>
@@ -169,16 +167,10 @@ export default function TripOperations({ tripId }) {
                       <strong>{item.name}</strong>
                       <span className={`trip-ops-status-tag ${isLeaving ? 'leaving' : ''}`}>
                         <i className="trip-ops-status-dot" aria-hidden="true" />
-                        {isLeaving
-                          ? item.kind === 'companion'
-                            ? 'Bajará en esta parada'
-                            : 'Se desenganchará'
-                          : item.kind === 'companion'
-                            ? 'A bordo'
-                            : 'Enganchado'}
+                        {item.kind === 'companion' ? 'A bordo' : 'Enganchado'}
                       </span>
                     </div>
-                    <label className="trip-ops-leave-choice">
+                    <label className="trip-ops-leave-choice" onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         disabled={disabled}
@@ -186,7 +178,6 @@ export default function TripOperations({ tripId }) {
                         onChange={() => toggleRemoval(item)}
                         aria-label={`${item.kind === 'companion' ? 'Bajar a' : 'Dejar'} ${item.name}`}
                       />
-                      <span>{item.kind === 'companion' ? 'Baja' : 'Se deja'}</span>
                     </label>
                   </div>
                 );
@@ -228,7 +219,7 @@ export default function TripOperations({ tripId }) {
 
             {availableSeats === 0 && names.length === 0 ? (
               <div className="trip-ops-empty trip-ops-full-callout">
-                <p>Los 4 lugares están ocupados. Selecciona una bajada arriba para liberar un lugar en esta confirmación.</p>
+                <p>Selecciona a un acompañante arriba para liberar un asiento.</p>
               </div>
             ) : (
               <form

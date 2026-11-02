@@ -12,8 +12,8 @@
 .gv-trip-operations .trip-ops-item-name strong { font-size:13.5px; font-weight:700; color:#0f172a; overflow-wrap:anywhere; line-height:1.2; }
 .gv-trip-operations .trip-ops-status-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#047857; font-weight:700; }
 .gv-trip-operations .trip-ops-status-dot { width:6px; height:6px; border-radius:50%; background:#10b981; display:inline-block; flex-shrink:0; }
-.gv-trip-operations .trip-ops-status-tag.leaving { color:#be123c; }
-.gv-trip-operations .trip-ops-status-tag.leaving .trip-ops-status-dot { background:#e11d48; }
+.gv-trip-operations .trip-ops-status-tag.leaving { color:#0369a1; }
+.gv-trip-operations .trip-ops-status-tag.leaving .trip-ops-status-dot { background:#0284c7; }
 .gv-trip-operations button { width:auto; min-height:36px; margin:0; padding:7px 13px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; background-image:none; color:#1e293b; font:600 12px/1.3 inherit; font-family:inherit; font-size:12px; box-shadow:none; cursor:pointer; transform:none; transition:all .15s ease; }
 .gv-trip-operations button:hover:not(:disabled) { background:#f1f5f9; border-color:#94a3b8; transform:none; box-shadow:none; }
 .gv-trip-operations button:disabled { opacity:.5; cursor:not-allowed; }
@@ -59,7 +59,7 @@
 .trip-ops-active-section { display:flex; flex-direction:column; gap:8px; }
 .trip-ops-section-header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:2px; }
 .trip-ops-section-count { padding:3px 9px; border-radius:999px; background:#f1f5f9; border:1px solid #e2e8f0; color:#64748b; font-size:11px; font-weight:700; white-space:nowrap; }
-.trip-ops-section-count.has-drops { background:#fff1f2; border-color:#fecdd3; color:#be123c; }
+.trip-ops-section-count.has-drops { background:#e0f2fe; border-color:#bae6fd; color:#0369a1; }
 .trip-ops-section-count.full { background:#fffbeb; border-color:#fde68a; color:#b45309; }
 .trip-ops-section-sub { margin:2px 0 0; color:#64748b; font-size:11.5px; font-weight:500; }
 .trip-ops-full-callout { padding:12px 14px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; }
@@ -105,12 +105,10 @@
 .gv-trip-operations button.trip-operation-close-btn { display:grid; place-items:center; width:34px; height:34px; min-height:34px; padding:0; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; color:#475569; flex-shrink:0; }
 .gv-trip-operations button.trip-operation-close-btn:hover:not(:disabled) { background:#f1f5f9; border-color:#cbd5e1; color:#0f172a; }
 .trip-operation-dialog-body { padding:16px 18px; overflow-y:auto; min-height:0; overscroll-behavior:contain; }
-.gv-trip-operations label.trip-ops-leave-choice { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; cursor:pointer; font-size:12px; font-weight:700; color:#475569; margin:0; padding:6px 11px; border-radius:999px; background:#ffffff; border:1px solid #cbd5e1; transition:all .15s ease; }
-.gv-trip-operations label.trip-ops-leave-choice:hover { border-color:#94a3b8; color:#0f172a; }
-.gv-trip-operations .trip-ops-leave-choice input { width:15px; height:15px; margin:0; accent-color:#e11d48; cursor:pointer; }
-.gv-trip-operations .trip-ops-item.is-leaving,.gv-trip-operations .trip-ops-item:has(.trip-ops-leave-choice input:checked) { background:#fff1f2; border-color:#fda4af; }
-.gv-trip-operations .trip-ops-item.is-leaving .trip-ops-avatar,.gv-trip-operations .trip-ops-item:has(.trip-ops-leave-choice input:checked) .trip-ops-avatar { background:#ffe4e6; border-color:#fecdd3; color:#be123c; }
-.gv-trip-operations .trip-ops-item.is-leaving label.trip-ops-leave-choice,.gv-trip-operations .trip-ops-item:has(.trip-ops-leave-choice input:checked) label.trip-ops-leave-choice { background:#ffe4e6; border-color:#fda4af; color:#be123c; }
+.gv-trip-operations label.trip-ops-leave-choice { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; margin:0; padding:4px; border:0; background:transparent; }
+.gv-trip-operations .trip-ops-leave-choice input { width:20px; height:20px; margin:0; accent-color:#0284c7; cursor:pointer; border-radius:6px; }
+.gv-trip-operations .trip-ops-item.is-leaving,.gv-trip-operations .trip-ops-item:has(.trip-ops-leave-choice input:checked) { background:#f0f9ff; border-color:#38bdf8; box-shadow:0 0 0 1px rgba(56,189,248,0.25); }
+.gv-trip-operations .trip-ops-item.is-leaving .trip-ops-avatar,.gv-trip-operations .trip-ops-item:has(.trip-ops-leave-choice input:checked) .trip-ops-avatar { background:#0284c7; border-color:#0284c7; color:#ffffff; }
 .trip-operation-dialog-footer > .trip-ops-primary { flex:1; width:auto; min-width:0; }
 .trip-actions-confirmation { margin-top:20px; padding:16px; border:1px solid #a9d1e3; border-radius:12px; background:#f0f8fc; }
 .trip-actions-confirmation>p { color:#668291; font-size:12px; line-height:1.6; }
