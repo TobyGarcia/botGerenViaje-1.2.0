@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import TrailerInspectionContent from '../components/TrailerInspectionContent.jsx';
+import TrailerInspectionCards from '../components/TrailerInspectionCards.jsx';
 import './TrailerInspectionCards.css';
 import {
   decidirAdminInspeccion,
@@ -833,7 +834,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                       <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
                     </div>
                     {renderChecklistByCategories(detail.checklist)}
-                    {detail.trailer_inspections?.length > 0 && <section className="trailer-inspections-section"><h3>Inspecciones de remolques</h3><p>Una inspección independiente por cada enganche.</p>{detail.trailer_inspections.map(item => <details className="trailer-inspection-card" key={item.id}><summary><strong>{item.name}</strong><span>Enganche #{item.id} · {item.removed_at ? 'Desenganchado' : 'Enganchado'}</span></summary><div className="trailer-inspection-body"><dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{new Date(item.added_at).toLocaleString('es-MX')}</dd></div><div><dt>Desenganche</dt><dd>{item.removed_at ? new Date(item.removed_at).toLocaleString('es-MX') : 'Continúa enganchado'}</dd></div></dl><TrailerInspectionContent data={item.inspection} renderChecklist={renderChecklistByCategories} /></div></details>)}</section>}
+                    <TrailerInspectionCards items={detail.trailer_inspections} />
                   </div>
 
                   {/* Observaciones del Conductor */}
