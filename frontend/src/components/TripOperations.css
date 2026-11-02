@@ -36,3 +36,5 @@
 .gv-trip-operations .trip-ops-history-row span,.gv-trip-operations time { color:#7a8f9b; font-size:11px; line-height:1.6; }
 .gv-trip-operations time { text-align:right; white-space:nowrap; }
 @media(max-width:420px) { .gv-trip-operations { padding:13px; } .gv-trip-operations h3 { font-size:14px; } .gv-trip-operations .trip-ops-count { font-size:10px; } }
+.gv-trip-operations textarea { box-sizing:border-box; width:100%; min-height:130px; resize:vertical; padding:10px 12px; border:1px solid #d8e4eb; border-radius:8px; background:#fff; color:#203e4a; font:inherit; font-size:13px; line-height:1.8; }
+.gv-trip-operations form>small { color:#708590; font-size:11px; line-height:1.6; }

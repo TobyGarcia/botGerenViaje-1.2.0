@@ -1,7 +1,7 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:companion-history-20261102
+    image: gv-staging-trip-operations-backend:companion-batch-20261102
   frontend:
-    image: gv-staging-trip-operations-frontend:trailer-cards-20261102
+    image: gv-staging-trip-operations-frontend:companion-batch-20261102
   panel-admin:
     image: gv-staging-trip-operations-panel:companion-history-20261102

@@ -52,6 +52,7 @@ export default function TripOperations({ tripId }) {
     finally { setBusy(false); }
   }
   const disabled = busy || !loaded || Boolean(pending);
+  const names = name.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
   return <section className="gv-trip-operations">
     <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Acompañantes y remolques</h3></div><span className="trip-ops-count">{items.filter(i => !i.removed_at).length} activos</span></header>
     {error && <p role="alert">{error}</p>}
@@ -65,10 +66,12 @@ export default function TripOperations({ tripId }) {
         {item.kind === 'companion' ? 'Dejar' : 'Desenganchar'}
       </button>
     </div>)}
-    <details className="trip-ops-add"><summary><span><b>＋</b> Agregar acompañante</span><span aria-hidden="true">⌄</span></summary>
-    <form onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANION_ADDED', name }); }}>
-      <label>Nombre del acompañante<input placeholder="Escribe su nombre" value={name} onChange={e => setName(e.target.value)} maxLength={200} disabled={disabled} required /></label>
-      <button className="trip-ops-primary" disabled={disabled || !name.trim()}>Agregar acompañante</button>
+    <details className="trip-ops-add"><summary><span><b>＋</b> Agregar acompañantes</span><span aria-hidden="true">⌄</span></summary>
+    <form onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANIONS_ADDED', names }); }}>
+      <label>Nombres de los acompañantes<textarea rows={5} placeholder={'Juan Pérez\nAna López\nLuis García\nMaría Torres'} value={name} onChange={e => setName(e.target.value)} maxLength={10000} disabled={disabled} required /></label>
+      <small>Escribe o pega un nombre por línea. Puedes agregar hasta 50 de una vez.</small>
+      {names.some(value => value.length > 200) && <p role="alert">Cada nombre debe tener como máximo 200 caracteres.</p>}
+      <button className="trip-ops-primary" disabled={disabled || !names.length || names.length > 50 || names.some(value => value.length > 200)}>Agregar {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'}</button>
     </form>
     </details>
     <details className="trip-ops-add"><summary><span><b>＋</b> Enganchar remolque</span><span aria-hidden="true">⌄</span></summary>

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { databasePool } from '../database/pool.js';
-import { listTripItems, recordTripOperation, closeTripItems } from '../services/trip-operations.service.js';
+import { listTripItems, recordTripOperation, recordCompanionBatch, closeTripItems } from '../services/trip-operations.service.js';
 
 const db = new PGlite();
 await db.exec(`CREATE TABLE estados_viaje(id_estado_viaje INT PRIMARY KEY,nombre TEXT);
@@ -60,4 +60,16 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   const events = await query('SELECT * FROM trip_operation_events');
   assert.equal(events.rows.some(e => e.event_type.includes('INSPECTION')), false);
   assert.ok(events.rows.every(e => e.payload.folio === 'TEST-1'));
+});
+
+test('agrega más de tres acompañantes juntos sin duplicar y revierte todo si falla una parada', async () => {
+ const body = { names: ['Grupo Ana','Grupo Luis','Grupo Pedro','Grupo María'], latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID() };
+ const events = await recordCompanionBatch(1,10,body);
+ assert.equal(events.length,4);
+ assert.deepEqual((await recordCompanionBatch(1,10,body)).map(e=>e.id),events.map(e=>e.id));
+ assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name LIKE 'Grupo %'")).rows[0].n,4);
+ await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Lote revertido','RECHAZAR']}));
+ assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='Lote revertido'")).rows[0].n,0);
+ await assert.rejects(recordCompanionBatch(1,20,{...body,eventKey:crypto.randomUUID()}),/conductor/);
+ await assert.rejects(recordCompanionBatch(1,10,{...body,names:[]}),/entre 1 y 50/);
 });

@@ -74,16 +74,16 @@ export async function trailerInspection(trailerId, driverId, queryClient = datab
   return saved.rows[0]?.inspection || null;
 }
 
-export async function recordTripOperation(tripId, driverId, body) {
+export async function recordTripOperation(tripId, driverId, body, { client: externalClient = null } = {}) {
   const input = parseTripOperationInput(body);
-  const client = await databasePool.connect();
+  const client = externalClient || await databasePool.connect();
   try {
-    await client.query('BEGIN');
+    if (!externalClient) await client.query('BEGIN');
     const trip = await ownedTrip(client, tripId, driverId);
     const previous = await client.query('SELECT * FROM trip_operation_events WHERE event_key=$1', [input.eventKey]);
     if (previous.rows[0]) {
       if (previous.rows[0].trip_id !== tripId) fail('Identificador usado en otro viaje.', 409);
-      await client.query('COMMIT'); return previous.rows[0];
+      if (!externalClient) await client.query('COMMIT'); return previous.rows[0];
     }
     if (!['PENDIENTE','EN_CURSO'].includes(trip.estado)) fail('El viaje ya está cerrado.', 409);
     await seedInitial(client, trip);
@@ -135,6 +135,19 @@ export async function recordTripOperation(tripId, driverId, body) {
         accuracy: null, speed: null, heading: null, gpsTimestamp: event.rows[0].created_at,
         esPuntoIntermedio: true, nombrePunto: `Parada técnica: ${descriptions[input.type]} ${item.name}` }, { client });
     }
-    await client.query('COMMIT'); return event.rows[0];
+    if (!externalClient) await client.query('COMMIT'); return event.rows[0];
+  } catch (e) { if (!externalClient) await client.query('ROLLBACK'); throw e; } finally { if (!externalClient) client.release(); }
+}
+
+export async function recordCompanionBatch(tripId, driverId, body) {
+  if (!Array.isArray(body.names) || !body.names.length || body.names.length > 50) fail('Agrega entre 1 y 50 nombres, uno por línea.');
+  const operations = body.names.map((name,index) => parseTripOperationInput({ ...body, type: 'COMPANION_ADDED', name,
+    eventKey: `${body.eventKey}_${index}` }));
+  const client = await databasePool.connect();
+  try {
+    await client.query('BEGIN');
+    const events = [];
+    for (const operation of operations) events.push(await recordTripOperation(tripId,driverId,operation,{client}));
+    await client.query('COMMIT'); return events;
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
 }
