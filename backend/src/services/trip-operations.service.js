@@ -1,6 +1,7 @@
 import { databasePool } from '../database/pool.js';
 import { saveTripLocation } from './ubicaciones.service.js';
 import { parseTripOperationInput } from './trip-operation-input.js';
+import { formatStopSummary } from './trip-operation-message.js';
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 
@@ -74,7 +75,7 @@ export async function trailerInspection(trailerId, driverId, queryClient = datab
   return saved.rows[0]?.inspection || null;
 }
 
-export async function recordTripOperation(tripId, driverId, body, { client: externalClient = null } = {}) {
+export async function recordTripOperation(tripId, driverId, body, { client: externalClient = null, collectOnly = false } = {}) {
   const input = parseTripOperationInput(body);
   const client = externalClient || await databasePool.connect();
   try {
@@ -125,6 +126,10 @@ export async function recordTripOperation(tripId, driverId, body, { client: exte
         WHERE id=$3 AND trip_id=$4 AND kind=$5 AND removed_at IS NULL RETURNING *`, [input.latitude,input.longitude,input.itemId,tripId,kind]);
       item = result.rows[0];
       if (!item) fail('El elemento ya fue retirado o no pertenece al viaje.', 409);
+    }
+    if (collectOnly) {
+      if (!externalClient) throw new Error('Se requiere una transacción para confirmar acciones.');
+      return { type: input.type, itemId: item.id, name: item.name };
     }
     const payload = { folio: trip.folio, name: item.name, latitude: input.latitude, longitude: input.longitude };
     const event = await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
@@ -183,4 +188,29 @@ export async function recordCompanionBatch(tripId, driverId, body) {
       nombrePunto:`Parada técnica: ${names.length>1?'Se subieron acompañantes':'Se subió acompañante'} ${names.join(', ')}`},{client});
     await client.query('COMMIT'); return event.rows[0];
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+}
+
+export async function recordConfirmedActions(tripId,driverId,body) {
+  if (!Array.isArray(body.actions) || !body.actions.length || body.actions.length>20) fail('Selecciona las acciones que deseas confirmar.');
+  const actions=body.actions.map((action,index)=>({ ...action, ...parseTripOperationInput({ ...action,latitude:body.latitude,longitude:body.longitude,eventKey:`${body.eventKey}_${index}` }) }));
+  const client=await databasePool.connect();
+  try {
+    await client.query('BEGIN');
+    const trip=await ownedTrip(client,tripId,driverId);
+    const prior=await client.query('SELECT * FROM trip_operation_events WHERE event_key=$1',[body.eventKey]);
+    if(prior.rows[0]) { if(prior.rows[0].trip_id!==tripId)fail('Identificador usado en otro viaje.',409); await client.query('COMMIT');return prior.rows[0]; }
+    if(trip.estado!=='EN_CURSO')fail('Solo se pueden confirmar acciones en un viaje en curso.',409);
+    const removals=new Set(['COMPANION_DROPPED_OFF','TRAILER_DETACHED']);
+    actions.sort((a,b)=>Number(removals.has(b.type))-Number(removals.has(a.type)));
+    const results=[];
+    for(const action of actions)results.push(await recordTripOperation(tripId,driverId,action,{client,collectOnly:true}));
+    const payload={folio:trip.folio,name:results.map(r=>r.name).join(', '),actions:results,confirmed:true,latitude:body.latitude,longitude:body.longitude};
+    const event=await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
+      VALUES($1,$2,$3,$4,$5) RETURNING *`,[body.eventKey,tripId,results[0].itemId,results[0].type,JSON.stringify(payload)]);
+    if(formatStopSummary([event.rows[0]]).length>3500)fail('Confirma menos acciones para mantener el resumen legible.');
+    const description=results.map(r=>`${{'COMPANION_ADDED':'Subió','COMPANION_DROPPED_OFF':'Bajó','TRAILER_ATTACHED':'Enganchó','TRAILER_DETACHED':'Dejó remolque'}[r.type]} ${r.name}`).join('; ');
+    await saveTripLocation({idViaje:tripId,latitude:body.latitude,longitude:body.longitude,accuracy:null,speed:null,heading:null,
+      gpsTimestamp:event.rows[0].created_at,esPuntoIntermedio:true,nombrePunto:`Parada técnica: ${description}`},{client});
+    await client.query('COMMIT');return event.rows[0];
+  } catch(e) {await client.query('ROLLBACK');throw e;} finally {client.release();}
 }

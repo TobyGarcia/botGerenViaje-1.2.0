@@ -95,6 +95,14 @@
 .gv-trip-operations button.trip-operation-close-btn { display:grid; place-items:center; width:34px; height:34px; min-height:34px; padding:0; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; color:#475569; flex-shrink:0; }
 .gv-trip-operations button.trip-operation-close-btn:hover:not(:disabled) { background:#f1f5f9; border-color:#cbd5e1; color:#0f172a; }
 .trip-operation-dialog-body { padding:18px 20px; overflow-y:auto; min-height:0; overscroll-behavior:contain; }
+.trip-actions-confirmation { margin-top:20px; padding:16px; border:1px solid #a9d1e3; border-radius:12px; background:#f0f8fc; }
+.trip-actions-confirmation>p { color:#668291; font-size:12px; line-height:1.6; }
+.trip-actions-confirmation ul { list-style:none; margin:12px 0; padding:0; }
+.trip-actions-confirmation li { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid #dcebf2; font-size:13px; }
+.trip-actions-confirmation li>span { min-width:0; overflow-wrap:anywhere; }
+.trip-actions-confirmation>button { width:100%; }
+.trip-operation-dialog-footer { gap:8px; flex-wrap:wrap; }
+.gv-trip-operations .trip-ops-action-leave[aria-pressed=true] { color:#256b87; background:#e5f4fb; border-color:#91c8dd; }
 .trip-operation-dialog-footer { padding:12px 20px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; flex-shrink:0; background:#f8fafc; }
 .gv-trip-operations button.trip-operation-done-btn { min-width:96px; min-height:38px; padding:8px 18px; border-radius:10px; border:1px solid #cbd5e1; background:#ffffff; color:#0f172a; font-weight:700; box-shadow:0 1px 2px rgba(15,23,42,0.04); }
 .gv-trip-operations button.trip-operation-done-btn:hover:not(:disabled) { background:#f1f5f9; border-color:#94a3b8; }

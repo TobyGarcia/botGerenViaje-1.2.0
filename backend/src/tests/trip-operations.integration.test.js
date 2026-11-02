@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { databasePool } from '../database/pool.js';
-import { listTripItems, recordTripOperation, recordCompanionBatch, closeTripItems } from '../services/trip-operations.service.js';
+import { listTripItems, recordTripOperation, recordCompanionBatch, recordConfirmedActions, closeTripItems } from '../services/trip-operations.service.js';
 import { createTrip } from '../services/viajes.service.js';
 
 // Esta prueba usa un esquema mínimo propio, sin las tablas de auditoría.
@@ -106,4 +106,26 @@ test('dos pasajeros juntos comparten un punto y evento, y pueden bajar por separ
  await recordTripOperation(2,20,operation('COMPANION_DROPPED_OFF',{itemId:Number(event.payload.companionIds[0])}));
  const onboard=(await listTripItems(2,20)).filter(item=>!item.removed_at);
  assert.deepEqual(onboard.map(item=>item.name),['Dos Luis']);
+});
+
+test('confirma subidas, bajadas y remolques juntos: una parada, un evento y ninguna acción parcial',async()=>{
+ const current=(await listTripItems(2,20)).find(i=>!i.removed_at && i.kind==='companion');
+ const before=(await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n;
+ const beforeEvents=(await query('SELECT count(*)::int AS n FROM trip_operation_events WHERE trip_id=2')).rows[0].n;
+ const body={latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID(),actions:[
+  {type:'COMPANION_ADDED',name:'Confirmado Ana'},
+  {type:'COMPANION_DROPPED_OFF',itemId:Number(current.id)},
+  {type:'COMPANION_ADDED',name:'Confirmado Luis'},
+  {type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection:{idRemolque:2,captureId:crypto.randomUUID(),checklist:{luces:'B'}}}
+ ]};
+ const saved=await recordConfirmedActions(2,20,body);
+ assert.equal(saved.payload.actions.length,4);
+ assert.equal((await recordConfirmedActions(2,20,body)).id,saved.id);
+ assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n,before+1);
+ assert.equal((await query('SELECT count(*)::int AS n FROM trip_operation_events WHERE trip_id=2')).rows[0].n,beforeEvents+1);
+ const active=(await listTripItems(2,20)).filter(i=>!i.removed_at);
+ const passenger=active.find(i=>i.name==='Confirmado Ana');
+ await assert.rejects(recordConfirmedActions(2,20,{...body,eventKey:crypto.randomUUID(),actions:[{type:'COMPANION_DROPPED_OFF',itemId:Number(passenger.id)},{type:'TRAILER_ATTACHED',itemId:2}]}),/inspección nueva/);
+ assert.ok((await listTripItems(2,20)).find(i=>i.id===passenger.id && !i.removed_at));
+ assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n,before+1);
 });

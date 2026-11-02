@@ -1,0 +1,7 @@
+FROM gv-staging-trip-operations-backend:stop-summary-20261102 AS backend
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+COPY backend/src/services/trip-operation-notifications.service.js /app/src/services/trip-operation-notifications.service.js
+COPY backend/src/controllers/trip-operations.controller.js /app/src/controllers/trip-operations.controller.js
+FROM gv-staging-trip-operations-frontend:trip-management-121a0b3 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/

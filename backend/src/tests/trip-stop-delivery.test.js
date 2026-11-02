@@ -6,10 +6,10 @@ import {deliverTripOperationNotifications} from '../services/trip-operation-noti
 const originalConnect=databasePool.connect;
 after(async()=>{databasePool.connect=originalConnect;if(!databasePool.ending)await databasePool.end();});
 
-for(const mode of ['success','failure','waiting']) test(`entrega agrupada: ${mode}`,async()=>{
+for(const mode of ['success','failure','recent']) test(`entrega confirmada sin espera: ${mode}`,async()=>{
  process.env.TELEGRAM_BOT_TOKEN='123456:isolated-test'; process.env.TELEGRAM_GROUP_ID='isolated-group';
  const bot=getTelegramBot(); const originalSend=bot.telegram.sendMessage;
- const events=[1,2].map(id=>({id,trip_id:1,event_type:'COMPANION_ADDED',created_at:new Date(Date.now()-(mode==='waiting'?5000:45000)+id*1000),payload:{folio:'PRUEBA',name:`Persona ${id}`,latitude:19.4,longitude:-99.1}}));
+ const events=[{id:1,trip_id:1,event_type:'COMPANION_ADDED',created_at:new Date(Date.now()-(mode==='recent'?0:45000)),payload:{folio:'PRUEBA',confirmed:true,actions:[{type:'COMPANION_ADDED',name:'Persona 1'},{type:'COMPANION_ADDED',name:'Persona 2'}]}}];
  let eligible=true; const sent=[]; const updated=[];
  bot.telegram.sendMessage=async(chat,text)=>{sent.push({chat,text});if(mode==='failure')throw new Error('simulated');};
  databasePool.connect=async()=>({release(){},query:async(sql,params)=>{
@@ -19,7 +19,6 @@ for(const mode of ['success','failure','waiting']) test(`entrega agrupada: ${mod
  }});
  try{
   await deliverTripOperationNotifications();
-  if(mode==='waiting'){assert.equal(sent.length,0);assert.equal(updated.length,0);}
-  else {assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1,2]);assert.match(sent[0].text,/Persona 1\n• Persona 2/);assert.equal(updated[0].sql.includes('last_error=NULL'),mode==='success');}
+  assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1]);assert.match(sent[0].text,/Persona 1\n• Persona 2/);assert.equal(updated[0].sql.includes('last_error=NULL'),mode!=='failure');
  }finally{bot.telegram.sendMessage=originalSend;databasePool.connect=originalConnect;delete process.env.TELEGRAM_BOT_TOKEN;delete process.env.TELEGRAM_GROUP_ID;}
 });
