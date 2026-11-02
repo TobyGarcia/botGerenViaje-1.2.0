@@ -1,5 +1,5 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:2696d4e
+    image: gv-staging-trip-operations-backend:a663635
   frontend:
-    image: gv-staging-trip-operations-frontend:2696d4e
+    image: gv-staging-trip-operations-frontend:a663635
