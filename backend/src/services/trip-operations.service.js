@@ -90,7 +90,7 @@ export async function recordTripOperation(tripId, driverId, body) {
     if (input.type === 'COMPANION_ADDED' || input.type === 'TRAILER_ATTACHED') {
       let name = input.name, inspection = null;
       if (input.type === 'TRAILER_ATTACHED') {
-        const vehicle = await client.query('SELECT * FROM vehiculos WHERE id_vehiculos=$1', [input.itemId]);
+        const vehicle = await client.query('SELECT * FROM vehiculos WHERE id_vehiculos=$1 FOR UPDATE', [input.itemId]);
         const v = vehicle.rows[0];
         const kind = String(v?.tipo_vehiculo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const description = String(`${v?.nombre || ''} ${v?.marca || ''} ${v?.modelo || ''}`).toLowerCase();
@@ -101,6 +101,9 @@ export async function recordTripOperation(tripId, driverId, body) {
         if (body.inspectionMode === 'new') {
           const data = body.inspection;
           if (!data || Number(data.idRemolque) !== input.itemId || !data.checklist || !Object.keys(data.checklist).length) fail('Completa la inspección del remolque.');
+          if (typeof data.captureId !== 'string' || !/^[0-9a-f-]{36}$/i.test(data.captureId)) fail('Realiza una inspección nueva para este enganche.');
+          const used = await client.query(`SELECT id FROM trip_operation_items WHERE inspection->'data'->>'captureId'=$1 LIMIT 1`, [data.captureId]);
+          if (used.rows.length) fail('Esta inspección ya se utilizó. Realiza una nueva después del desenganche.');
           inspection = { source: 'new', estado: 'PENDIENTE_APROBACION', data, captured_at: new Date().toISOString() };
         }
         if (body.warningConfirmed !== true) fail('Confirma el estado de inspección para continuar.');

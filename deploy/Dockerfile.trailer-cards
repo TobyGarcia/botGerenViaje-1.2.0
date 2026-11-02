@@ -1,0 +1,6 @@
+FROM gv-staging-trip-operations-backend:trip-annexes-20261102 AS backend
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+FROM gv-staging-trip-operations-frontend:a663635 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/
+FROM gv-staging-trip-operations-panel:trip-annexes-20261102 AS panel
+COPY panel-admin/dist/ /usr/share/nginx/html/

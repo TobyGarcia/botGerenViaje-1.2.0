@@ -33,7 +33,7 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   await assert.rejects(listTripItems(1,20), /conductor/);
   await assert.rejects(recordTripOperation(1,10,operation('TRAILER_ATTACHED', { itemId: 1, inspectionMode: 'none', warningConfirmed: true })), /remolque válido/);
   const hook = operation('TRAILER_ATTACHED', { itemId: 2, inspectionMode: 'new', warningConfirmed: true,
-    inspection: { idRemolque: 2, checklist: { luces: 'M' }, danos: {} } });
+    inspection: { captureId: crypto.randomUUID(), idRemolque: 2, checklist: { luces: 'M' }, danos: {} } });
   const attached = await recordTripOperation(1,10,hook);
   const trailer = (await listTripItems(1,10)).find(i => i.kind === 'trailer');
   assert.equal(trailer.inspection.data.checklist.luces, 'M');
@@ -42,7 +42,8 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   for (const inspectionMode of ['existing', 'none', undefined]) {
     await assert.rejects(recordTripOperation(1,10,operation('TRAILER_ATTACHED', { itemId: 2, inspectionMode, warningConfirmed: true })), /inspección nueva/);
   }
-  await recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID() });
+  await assert.rejects(recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID() }), /ya se utilizó/);
+  await recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID(), inspection: { ...hook.inspection, captureId: crypto.randomUUID() } });
   await db.query('BEGIN'); await closeTripItems({ query }, 1); await db.query('COMMIT');
   assert.equal((await listTripItems(1,10)).filter(i => !i.removed_at).length, 0);
   const events = await query('SELECT * FROM trip_operation_events');

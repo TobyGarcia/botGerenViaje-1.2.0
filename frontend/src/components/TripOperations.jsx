@@ -87,7 +87,7 @@ export default function TripOperations({ tripId }) {
     </div>}
     </div></details>
     {showInspection && <InspeccionRemolqueModal vehiculos={vehicles.filter(v => Number(v.id_vehiculos) === Number(trailer))} initialData={inspection || { idRemolque: Number(trailer) }}
-      onClose={() => setShowInspection(false)} onSave={data => { setInspection(data); setWarningConfirmed(false); setShowInspection(false); }} />}
+      onClose={() => setShowInspection(false)} onSave={data => { setInspection({ ...data, captureId: crypto.randomUUID() }); setWarningConfirmed(false); setShowInspection(false); }} />}
     {items.some(i => i.removed_at) && <details className="trip-ops-history"><summary>Historial de movimientos <span>{items.filter(i => i.removed_at).length}</span></summary>{items.filter(i => i.removed_at).sort((a,b) => new Date(b.removed_at)-new Date(a.removed_at)).map(i => <div className="trip-ops-history-row" key={i.id}><div><strong>{i.name}</strong><span>{i.kind === 'companion' ? 'Acompañante · Bajó' : 'Remolque · Desenganchado'}</span></div><time dateTime={i.removed_at}>{new Date(i.removed_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}<br />{new Date(i.removed_at).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })}</time></div>)}</details>}
   </section>;
 }

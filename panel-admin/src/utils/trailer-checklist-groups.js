@@ -1,0 +1,10 @@
+export const trailerChecklistGroups = {
+ 'Documentación y control': ['Identificación o número económico visible','Placa del remolque (si aplica)','Tarjeta de circulación vigente (si aplica)','Movimiento solicitado previamente','Supervisora vehicular notificada','Destino y responsable registrados'],
+ 'Enganche y seguridad': ['Acoplador / enganche sin deformaciones','Seguro o pasador del acoplador','Cadenas de seguridad','Ganchos de cadenas','Cable de seguridad / breakaway (si aplica)','Conector eléctrico','Punto de enganche libre de fisuras','Tornillería y fijaciones del enganche'],
+ 'Soportes y elevación': ['Gato / soporte de elevación recto y funcional','Manivela del gato','Base / zapata del soporte','Soportes estabilizadores (si aplica)','Pasadores y seguros','Soldaduras sin fisuras o deformaciones'],
+ 'Llantas, rines y ejes': ['Llanta delantera derecha','Llanta delantera izquierda','Llanta trasera derecha (si aplica)','Llanta trasera izquierda (si aplica)','Presión visual / inflado adecuado','Desgaste o cortes en neumáticos','Rines sin golpes o deformaciones','Birlos completos y firmes','Ejes / suspensión sin daño visible','Llanta de refacción (si aplica)'],
+ 'Luces y sistema eléctrico': ['Calavera trasera derecha','Calavera trasera izquierda','Luces direccionales','Luces de freno','Luces de posición / cuartos','Luces de placa (si aplica)','Reflectores','Cableado sin exposición o daño','Conector y terminales en buen estado'],
+ 'Estructura y carrocería': ['Chasis sin golpes o deformaciones','Piso / plataforma','Laterales / barandales (si aplica)','Salpicaderas','Defensa / parte posterior','Soldaduras visibles','Rampas / compuertas (si aplica)','Bisagras y seguros','Ausencia de piezas flojas'],
+ 'Carga y operación': ['Carga correctamente distribuida','Carga asegurada con cinchos/cadenas (si aplica)','Capacidad de carga respetada','Sin objetos sueltos','Rampas aseguradas antes del traslado','Freno de remolque funcional (si aplica)'],
+ 'Limpieza y condición general': ['Interior / plataforma limpia','Exterior limpio','Sin residuos, lodo o materiales sueltos','Condición general apta para traslado']
+};

@@ -1,0 +1,18 @@
+.trailer-inspections-section { margin-top:24px; padding-top:20px; border-top:1px solid #dce8ef; }
+.trailer-inspections-section>h3 { margin:0 0 6px; color:#1b516f; font-size:16px; }
+.trailer-inspections-section>p { margin:0 0 14px; color:#64748b; font-size:12px; }
+.trailer-inspection-card { margin:12px 0; border:1px solid #dce8ef; border-radius:12px; overflow:hidden; background:#fff; }
+.trailer-inspection-card>summary { display:flex; flex-direction:column; gap:5px; padding:15px 18px; background:#f4f8fb; color:#1b516f; cursor:pointer; list-style:none; }
+.trailer-inspection-card>summary::after { content:'Ver inspección +'; font-size:11px; color:#56819a; }
+.trailer-inspection-card[open]>summary::after { content:'Cerrar inspección −'; }
+.trailer-inspection-card>summary strong { font-size:13px; overflow-wrap:anywhere; }
+.trailer-inspection-card>summary span { font-size:11px; color:#64748b; }
+.trailer-inspection-body { padding:16px; }
+.trailer-inspection-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px; border-radius:8px; background:#f8fafc; margin:0 0 16px; }
+.trailer-inspection-meta dt { color:#64748b; font-size:11px; margin-bottom:5px; }
+.trailer-inspection-meta dd { margin:0; font-size:12px; color:#1b516f; }
+.trailer-inspection-body h4 { margin:12px 0 5px; font-size:12px; }
+.trailer-inspection-body p { margin:0 0 16px; font-size:12px; color:#64748b; overflow-wrap:anywhere; }
+.trailer-inspection-body .checklist-cards-grid { grid-template-columns:1fr; }
+.trailer-inspection-body .checklist-summary-bar { flex-wrap:wrap; gap:8px; }
+@media(max-width:480px) { .trailer-inspection-body { padding:10px; } .trailer-inspection-meta { grid-template-columns:1fr; } }

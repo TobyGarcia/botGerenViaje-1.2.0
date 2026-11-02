@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { trailerChecklistGroups } from '../utils/trailer-checklist-groups.js';
+import './TrailerInspectionCards.css';
 import {
   decidirAdminInspeccion,
   descargarAdminInspeccionPdf,
@@ -136,7 +138,7 @@ function FuelGauge({ value = "" }) {
   );
 }
 
-function renderChecklistByCategories(checklist = {}) {
+function renderChecklistByCategories(checklist = {}, groups = checklistGroups) {
   const entries = Object.entries(checklist);
   const goodCount = entries.filter(([, s]) => s === "B").length;
   const regularCount = entries.filter(([, s]) => s === "R").length;
@@ -145,7 +147,7 @@ function renderChecklistByCategories(checklist = {}) {
   const totalCount = entries.length;
 
   const renderedItems = new Set();
-  const categories = Object.entries(checklistGroups).map(([groupName, items]) => {
+  const categories = Object.entries(groups).map(([groupName, items]) => {
     const groupItems = items.filter(item => item in checklist).map(item => {
       renderedItems.add(item);
       return [item, checklist[item]];
@@ -837,7 +839,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                       <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
                     </div>
                     {renderChecklistByCategories(detail.checklist)}
-                    {detail.trailer_inspections?.map(item => <details key={item.id}><summary>Remolque: {item.name} · Enganche #{item.id}</summary><p>{new Date(item.added_at).toLocaleString('es-MX')} · {item.inspection?.data?.observaciones || 'Sin observaciones'}</p>{renderChecklistByCategories(item.inspection?.data?.checklist || {})}</details>)}
+                    {detail.trailer_inspections?.length > 0 && <section className="trailer-inspections-section"><h3>Inspecciones de remolques</h3><p>Una inspección independiente por cada enganche.</p>{detail.trailer_inspections.map(item => <details className="trailer-inspection-card" key={item.id}><summary><strong>{item.name}</strong><span>Enganche #{item.id} · {item.removed_at ? 'Desenganchado' : 'Enganchado'}</span></summary><div className="trailer-inspection-body"><dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{new Date(item.added_at).toLocaleString('es-MX')}</dd></div><div><dt>Desenganche</dt><dd>{item.removed_at ? new Date(item.removed_at).toLocaleString('es-MX') : 'Continúa enganchado'}</dd></div></dl><h4>Observaciones de esta inspección</h4><p>{item.inspection?.data?.observaciones || 'Sin observaciones'}</p>{renderChecklistByCategories(item.inspection?.data?.checklist || {}, trailerChecklistGroups)}</div></details>)}</section>}
                   </div>
 
                   {/* Observaciones del Conductor */}
