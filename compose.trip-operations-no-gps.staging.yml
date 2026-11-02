@@ -4,4 +4,4 @@ services:
   frontend:
     image: gv-staging-trip-operations-frontend:trailer-cards-20261102
   panel-admin:
-    image: gv-staging-trip-operations-panel:trailer-times-20261102
+    image: gv-staging-trip-operations-panel:trailer-modal-20261102
