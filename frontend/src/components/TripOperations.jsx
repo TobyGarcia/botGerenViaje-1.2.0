@@ -11,7 +11,8 @@ export default function TripOperations({ tripId }) {
   const serverId = () => resolveOperationTripId(tripId, resolveOfflineTripId);
   const [items, setItems] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [name, setName] = useState('');
+  const [companionDraft, setCompanionDraft] = useState(['']);
+  const [companionsOpen, setCompanionsOpen] = useState(false);
   const [trailer, setTrailer] = useState('');
   const [inspection, setInspection] = useState(null);
   const [showInspection, setShowInspection] = useState(false);
@@ -46,13 +47,13 @@ export default function TripOperations({ tripId }) {
       const resolved = serverId();
       if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
       await recordTripOperation(resolved, operation);
-      setPending(null); setName(''); setTrailer(''); setInspection(null); setWarningConfirmed(false);
+      setPending(null); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false);
       await refresh();
     } catch (e) { setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.'); }
     finally { setBusy(false); }
   }
   const disabled = busy || !loaded || Boolean(pending);
-  const names = name.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  const names = companionDraft.map(value => value.trim()).filter(Boolean);
   return <section className="gv-trip-operations">
     <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Acompañantes y remolques</h3></div><span className="trip-ops-count">{items.filter(i => !i.removed_at).length} activos</span></header>
     {error && <p role="alert">{error}</p>}
@@ -66,14 +67,14 @@ export default function TripOperations({ tripId }) {
         {item.kind === 'companion' ? 'Dejar' : 'Desenganchar'}
       </button>
     </div>)}
-    <details className="trip-ops-add"><summary><span><b>＋</b> Agregar acompañantes</span><span aria-hidden="true">⌄</span></summary>
-    <form onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANIONS_ADDED', names }); }}>
-      <label>Nombres de los acompañantes<textarea rows={5} placeholder={'Juan Pérez\nAna López\nLuis García\nMaría Torres'} value={name} onChange={e => setName(e.target.value)} maxLength={10000} disabled={disabled} required /></label>
-      <small>Escribe o pega un nombre por línea. Puedes agregar hasta 50 de una vez.</small>
-      {names.some(value => value.length > 200) && <p role="alert">Cada nombre debe tener como máximo 200 caracteres.</p>}
-      <button className="trip-ops-primary" disabled={disabled || !names.length || names.length > 50 || names.some(value => value.length > 200)}>Agregar {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'}</button>
-    </form>
-    </details>
+    <section className="trip-companions-editor">
+      <div className="trip-companions-editor-heading"><div><strong>Acompañantes</strong><small>¿Suben personas adicionales a la unidad?</small></div><button className="trip-companion-toggle" type="button" role="switch" aria-checked={companionsOpen} aria-label="Agregar acompañantes" aria-controls="trip-companion-fields" disabled={disabled} onClick={() => setCompanionsOpen(value => !value)}><span /></button></div>
+      {companionsOpen && <form id="trip-companion-fields" className="trip-companion-fields" onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANIONS_ADDED', names }); }}>
+        <div className="trip-companion-toolbar"><small>Hasta 4 acompañantes por grupo.</small><span className="trip-companion-counter" aria-live="polite">{companionDraft.length} / 4 máx.</span><button className="trip-companion-add" type="button" disabled={disabled || companionDraft.length >= 4} onClick={() => setCompanionDraft(values => [...values,''])}>+ Agregar</button></div>
+        {companionDraft.map((value,index) => <div className="trip-companion-input-row" key={index}><input aria-label={`Nombre del acompañante ${index+1}`} placeholder={`Nombre del acompañante ${index+1}`} value={value} maxLength={200} disabled={disabled} required onChange={e => setCompanionDraft(values => values.map((name,i) => i === index ? e.target.value : name))} />{companionDraft.length > 1 && <button className="trip-companion-remove" type="button" aria-label={`Quitar acompañante ${index+1}`} disabled={disabled} onClick={() => setCompanionDraft(values => values.filter((_,i) => i !== index))}>×</button>}</div>)}
+        <button className="trip-ops-primary" disabled={disabled || names.length !== companionDraft.length}>Confirmar {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'}</button>
+      </form>}
+    </section>
     <details className="trip-ops-add"><summary><span><b>＋</b> Enganchar remolque</span><span aria-hidden="true">⌄</span></summary>
     <div className="trip-ops-trailer-form">
     <label>Remolque<select value={trailer} disabled={disabled} onChange={e => selectTrailer(e.target.value)}>
