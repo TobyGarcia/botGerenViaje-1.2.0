@@ -1,9 +1,10 @@
-.trip-trailer-movements { display:grid; width:100%; gap:12px; margin-top:0; }
+.trip-trailer-movements { display:grid; width:100%; gap:20px; margin-top:0; }
 .trip-trailer-movements>h3 { margin:0; color:#173f51; font-size:1rem; font-weight:600; }
-.trip-trailer-movement { display:grid; gap:5px; padding:0; border:0; background:transparent; }
+.trip-trailer-movement { display:grid; gap:10px; padding:0; border:0; background:transparent; min-width:0; }
+.trip-trailer-identity { display:grid; gap:5px; padding:14px; border:1px solid #dbe9ef; border-radius:10px; background:#f8fbfc; min-width:0; }
 .trip-trailer-movement .trip-trailer-label { color:#6b828d; font-size:.82rem; }
-.trip-trailer-movement>strong { display:block; color:#173f51; font-size:1rem; font-weight:700; overflow-wrap:anywhere; }
-.trip-trailer-movement dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:10px 0 0; }
+.trip-trailer-identity>strong { display:block; color:#173f51; font-size:1rem; font-weight:700; overflow-wrap:anywhere; }
+.trip-trailer-movement dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0; }
 .trip-trailer-movement dl>div { display:flex; flex-direction:column; justify-content:center; min-height:86px; box-sizing:border-box; padding:14px; border:1px solid #dbe9ef; border-radius:10px; background:#f8fbfc; }
 .trip-trailer-movement dt { margin-bottom:5px; color:#6b828d; font-size:.82rem; }
 .trip-trailer-movement dd { margin:0; color:#173f51; font-size:1rem; font-weight:700; line-height:1.5; }
