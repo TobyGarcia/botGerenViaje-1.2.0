@@ -54,3 +54,27 @@
 .trip-companion-input-row { display:flex; align-items:center; gap:6px; }
 .trip-companion-input-row input { flex:1; min-width:0; }
 .gv-trip-operations button.trip-companion-remove { min-height:32px; padding:3px 8px; font-size:18px; border:0; background:transparent; color:#8396a4; }
+.trip-operation-launcher .trip-operation-shortcuts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.gv-trip-operations button.trip-operation-shortcut { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:18px; min-width:0; width:100%; text-align:left; background:#f8fbfd; border:1px solid #dce8ef; border-radius:13px; }
+.trip-operation-shortcut-icon { display:grid; place-items:center; width:44px; height:44px; margin-bottom:4px; background:#e9f4fa; border-radius:12px; color:#23779b; }
+.trip-operation-shortcut strong { color:#193f50; font-size:14px; }
+.trip-operation-shortcut small { color:#728793; font-size:12px; font-weight:400; }
+.trip-operation-manage { color:#277da1; font-size:11px; margin-top:6px; }
+.trip-operation-dialog { width:min(520px,calc(100vw - 28px)); max-width:none; max-height:90dvh; padding:0; margin:auto; border:0; border-radius:18px; background:#fff; color:#203e4a; box-shadow:0 24px 80px #1234473d; overflow:hidden; }
+.trip-operation-dialog::backdrop { background:#102c3c8c; backdrop-filter:blur(3px); }
+.gv-trip-operations.trip-operation-dialog-content { display:flex; flex-direction:column; width:100%; box-sizing:border-box; max-height:90dvh; margin:0; padding:0; border:0; border-radius:0; }
+.trip-operation-dialog-header { display:flex; align-items:center; gap:12px; flex-shrink:0; padding:20px; border-bottom:1px solid #e7edf2; background:#f9fbfd; }
+.trip-operation-dialog-header>span { color:#277da1; display:grid; place-items:center; width:42px; height:42px; border-radius:11px; background:#e9f4fa; }
+.trip-operation-dialog-header>div { flex:1; }
+.trip-operation-dialog-header small { display:block; margin-bottom:4px; font-size:9px; letter-spacing:1.3px; color:#7a919e; }
+.trip-operation-dialog-header h2 { margin:0; font-size:18px; line-height:1.4; color:#193f50; }
+.trip-operation-dialog-header button { border-radius:50%; padding:8px; min-height:34px; }
+.trip-operation-dialog-body { padding:20px; overflow-y:auto; min-height:0; overscroll-behavior:contain; }
+.trip-operation-dialog-body>h3 { margin-bottom:10px; font-size:13px; }
+.trip-operation-dialog-body .trip-companions-editor,.trip-operation-add-trailer { margin-top:22px; padding-top:18px; border-top:1px solid #e7edf2; }
+.trip-operation-dialog-body .trip-companions-editor>h3,.trip-operation-add-trailer>h3 { margin-bottom:12px; font-size:14px; }
+.trip-operation-dialog-body .trip-ops-trailer-form { padding:0; }
+.trip-operation-dialog-body .trip-companion-fields { margin-top:12px; }
+.trip-operation-dialog-footer { padding:12px 20px; border-top:1px solid #e7edf2; display:flex; justify-content:flex-end; flex-shrink:0; background:#f9fbfd; }
+.trip-operation-dialog-footer button { min-width:84px; }
+@media(max-width:420px) { .gv-trip-operations button.trip-operation-shortcut { padding:14px; } .trip-operation-dialog-body { padding:16px; } .trip-operation-dialog-header { padding:16px; } }
