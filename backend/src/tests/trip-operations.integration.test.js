@@ -39,7 +39,10 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   assert.equal(trailer.inspection.data.checklist.luces, 'M');
   assert.equal(trailer.inspection.estado, 'PENDIENTE_APROBACION');
   await recordTripOperation(1,10,operation('TRAILER_DETACHED', { itemId: Number(attached.item_id) }));
-  await recordTripOperation(1,10,operation('TRAILER_ATTACHED', { itemId: 2, inspectionMode: 'existing', warningConfirmed: true }));
+  for (const inspectionMode of ['existing', 'none', undefined]) {
+    await assert.rejects(recordTripOperation(1,10,operation('TRAILER_ATTACHED', { itemId: 2, inspectionMode, warningConfirmed: true })), /inspección nueva/);
+  }
+  await recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID() });
   await db.query('BEGIN'); await closeTripItems({ query }, 1); await db.query('COMMIT');
   assert.equal((await listTripItems(1,10)).filter(i => !i.removed_at).length, 0);
   const events = await query('SELECT * FROM trip_operation_events');

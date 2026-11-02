@@ -97,14 +97,12 @@ export async function recordTripOperation(tripId, driverId, body) {
         const trailerPattern = /\b(remolque|semirremolque|semiremolque|trailer|dolly|lowboy|plana|cama baja)\b/;
         if (!v || !(trailerPattern.test(kind) || ((!kind || ['n/a','sin registro','sin tipo'].includes(kind)) && trailerPattern.test(description)))) fail('Selecciona un remolque válido.');
         name = v.nombre;
+        if (body.inspectionMode !== 'new') fail('Es obligatorio realizar una inspección nueva en cada enganche.');
         if (body.inspectionMode === 'new') {
           const data = body.inspection;
           if (!data || Number(data.idRemolque) !== input.itemId || !data.checklist || !Object.keys(data.checklist).length) fail('Completa la inspección del remolque.');
           inspection = { source: 'new', estado: 'PENDIENTE_APROBACION', data, captured_at: new Date().toISOString() };
-        } else if (body.inspectionMode === 'existing') {
-          inspection = await trailerInspection(input.itemId, driverId, client);
-          if (!inspection) fail('No hay inspección existente. Realízala ahora o continúa con advertencia.');
-        } else if (body.inspectionMode !== 'none') fail('Selecciona cómo registrar la inspección.');
+        }
         if (body.warningConfirmed !== true) fail('Confirma el estado de inspección para continuar.');
         inspection = { ...inspection, warningConfirmed: true, mode: body.inspectionMode };
       }

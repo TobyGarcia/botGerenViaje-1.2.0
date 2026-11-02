@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { getTripItems, recordTripOperation, getTrailerInspection, getVehiculos } from '../services/api.js';
+import { getTripItems, recordTripOperation, getVehiculos } from '../services/api.js';
 import { isTrailer } from '../utils/vehicle-kind.js';
 import InspeccionRemolqueModal from './InspeccionRemolqueModal.jsx';
 import './TripOperations.css';
@@ -14,8 +14,6 @@ export default function TripOperations({ tripId }) {
   const [name, setName] = useState('');
   const [trailer, setTrailer] = useState('');
   const [inspection, setInspection] = useState(null);
-  const [existing, setExisting] = useState(null);
-  const [mode, setMode] = useState('none');
   const [showInspection, setShowInspection] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -33,11 +31,8 @@ export default function TripOperations({ tripId }) {
     getVehiculos().then(r => setVehicles(r.data || [])).catch(e => setError(e.message));
   }, [tripId]);
   async function selectTrailer(id) {
-    setTrailer(id); setExisting(null); setInspection(null); setMode('none'); setWarningConfirmed(false); setError('');
-    if (!id) return;
-    setBusy(true);
-    try { const resolved = serverId(); if (!resolved) throw new Error('Sincroniza el viaje antes de agregar un remolque.'); const r = await getTrailerInspection(resolved, id); setExisting(r.data); setMode(r.data ? 'existing' : 'none'); }
-    catch (e) { setError(e.message); } finally { setBusy(false); }
+    setTrailer(id); setInspection(null); setWarningConfirmed(false); setError('');
+    if (id) setShowInspection(true);
   }
   async function submit(payload) {
     setBusy(true); setError('');
@@ -51,7 +46,7 @@ export default function TripOperations({ tripId }) {
       const resolved = serverId();
       if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
       await recordTripOperation(resolved, operation);
-      setPending(null); setName(''); setTrailer(''); setInspection(null); setExisting(null); setWarningConfirmed(false);
+      setPending(null); setName(''); setTrailer(''); setInspection(null); setWarningConfirmed(false);
       await refresh();
     } catch (e) { setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.'); }
     finally { setBusy(false); }
@@ -83,23 +78,16 @@ export default function TripOperations({ tripId }) {
       {vehicles.filter(isTrailer).map(v => <option key={v.id_vehiculos} value={v.id_vehiculos}>{v.numero_economico} · {v.nombre}</option>)}
     </select></label>
     {trailer && <div>
-      {existing && <p>Inspección disponible: {existing.estado || 'Registrada'}{existing.fecha_operativa ? ` · ${String(existing.fecha_operativa).slice(0,10)}` : ''}.</p>}
-      {mode === 'none' && <p role="status">Sin inspección registrada. Puedes continuar confirmando esta advertencia.</p>}
-      {mode === 'existing' && existing?.estado !== 'APROBADA' && <p role="status">La inspección no está aprobada. Puedes continuar confirmando la advertencia.</p>}
-      {mode === 'new' && inspection && Object.values(inspection.checklist || {}).some(v => ['M','R'].includes(v)) && <p role="status">La inspección tiene observaciones. Puedes continuar después de revisarlas.</p>}
-      <label>Inspección<select value={mode} disabled={disabled} onChange={e => { setMode(e.target.value); setWarningConfirmed(false); }}>
-        {existing && <option value="existing">Usar inspección existente</option>}
-        <option value="new">Realizar inspección ahora</option>
-        <option value="none">Continuar sin inspección</option>
-      </select></label>
-      {mode === 'new' && <button type="button" disabled={disabled} onClick={() => setShowInspection(true)}>{inspection ? 'Editar inspección' : 'Realizar inspección'}</button>}
-      {inspection && mode === 'new' && <p>Inspección capturada. Se guardará al enganchar.</p>}
+      <p>Se requiere una inspección nueva para este enganche.</p>
+      {inspection && Object.values(inspection.checklist || {}).some(v => ['M','R'].includes(v)) && <p role="status">La inspección tiene observaciones. Puedes continuar después de revisarlas.</p>}
+      <button type="button" disabled={disabled} onClick={() => setShowInspection(true)}>{inspection ? 'Editar inspección' : 'Realizar inspección'}</button>
+      {inspection && <p>Inspección capturada. Se guardará al enganchar.</p>}
       <label><input type="checkbox" checked={warningConfirmed} disabled={disabled} onChange={e => setWarningConfirmed(e.target.checked)} />Confirmo el estado de la inspección y continuar con el remolque.</label>
-      <button className="trip-ops-primary" type="button" disabled={disabled || !warningConfirmed || (mode === 'new' && !inspection)} onClick={() => submit({ type: 'TRAILER_ATTACHED', itemId: Number(trailer), inspectionMode: mode, inspection, warningConfirmed })}>Enganchar remolque</button>
+      <button className="trip-ops-primary" type="button" disabled={disabled || !warningConfirmed || !inspection} onClick={() => submit({ type: 'TRAILER_ATTACHED', itemId: Number(trailer), inspectionMode: 'new', inspection, warningConfirmed })}>Enganchar remolque</button>
     </div>}
     </div></details>
     {showInspection && <InspeccionRemolqueModal vehiculos={vehicles.filter(v => Number(v.id_vehiculos) === Number(trailer))} initialData={inspection || { idRemolque: Number(trailer) }}
-      onClose={() => setShowInspection(false)} onSave={data => { setInspection(data); setMode('new'); setShowInspection(false); }} />}
+      onClose={() => setShowInspection(false)} onSave={data => { setInspection(data); setWarningConfirmed(false); setShowInspection(false); }} />}
     {items.some(i => i.removed_at) && <details className="trip-ops-history"><summary>Historial de movimientos <span>{items.filter(i => i.removed_at).length}</span></summary>{items.filter(i => i.removed_at).sort((a,b) => new Date(b.removed_at)-new Date(a.removed_at)).map(i => <div className="trip-ops-history-row" key={i.id}><div><strong>{i.name}</strong><span>{i.kind === 'companion' ? 'Acompañante · Bajó' : 'Remolque · Desenganchado'}</span></div><time dateTime={i.removed_at}>{new Date(i.removed_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}<br />{new Date(i.removed_at).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })}</time></div>)}</details>}
   </section>;
 }
