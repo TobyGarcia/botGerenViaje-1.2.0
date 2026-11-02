@@ -25,6 +25,7 @@ export async function refreshOfflinePermits(driverId) {
 }
 
 export function createOfflineDraft(trip, display) {
+  if ((trip.acompanantes || []).length > 4) throw new Error('El vehículo admite máximo 4 acompañantes.');
   const existing = getOfflineTrips(trip.idConductor).find(record => !record.synced && !record.finishedAt);
   if (existing) throw new Error("Primero finaliza el viaje activo guardado en este teléfono.");
   const permit = matchingPermit(getOfflinePermits(trip.idConductor), trip.idConductor, trip.idVehiculo);

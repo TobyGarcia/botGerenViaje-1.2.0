@@ -1,0 +1,6 @@
+FROM gv-staging-trip-operations-backend:companion-batch-20261102 AS backend
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/viajes.service.js /app/src/services/viajes.service.js
+COPY backend/src/services/offline-viajes.service.js /app/src/services/offline-viajes.service.js
+FROM gv-staging-trip-operations-frontend:trip-management-modals-20261102 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/

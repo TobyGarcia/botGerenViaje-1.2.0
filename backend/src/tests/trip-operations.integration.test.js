@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { databasePool } from '../database/pool.js';
 import { listTripItems, recordTripOperation, recordCompanionBatch, closeTripItems } from '../services/trip-operations.service.js';
+import { createTrip } from '../services/viajes.service.js';
 
 const db = new PGlite();
 await db.exec(`CREATE TABLE estados_viaje(id_estado_viaje INT PRIMARY KEY,nombre TEXT);
@@ -68,8 +69,21 @@ test('agrega más de tres acompañantes juntos sin duplicar y revierte todo si f
  assert.equal(events.length,4);
  assert.deepEqual((await recordCompanionBatch(1,10,body)).map(e=>e.id),events.map(e=>e.id));
  assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name LIKE 'Grupo %'")).rows[0].n,4);
+ await assert.rejects(recordTripOperation(1,10,operation('COMPANION_ADDED',{name:'Quinto'})), /máximo 4/);
+ await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Quinto','Sexto']}), /máximo 4/);
+ for (const event of events.slice(0,2)) await recordTripOperation(1,10,operation('COMPANION_DROPPED_OFF',{itemId:Number(event.item_id)}));
  await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Lote revertido','RECHAZAR']}));
  assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='Lote revertido'")).rows[0].n,0);
+ await recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Nuevo uno','Nuevo dos']});
+ assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE kind='companion' AND removed_at IS NULL")).rows[0].n,4);
+ const present = (await query("SELECT id FROM trip_operation_items WHERE kind='companion' AND removed_at IS NULL ORDER BY id")).rows;
+ await recordTripOperation(1,10,operation('COMPANION_DROPPED_OFF',{itemId:Number(present[0].id)}));
+ await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Exceso uno','Exceso dos']}),/máximo 4/);
+ assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name LIKE 'Exceso %'")).rows[0].n,0);
  await assert.rejects(recordCompanionBatch(1,20,{...body,eventKey:crypto.randomUUID()}),/conductor/);
- await assert.rejects(recordCompanionBatch(1,10,{...body,names:[]}),/entre 1 y 50/);
+ await assert.rejects(recordCompanionBatch(1,10,{...body,names:[]}),/entre 1 y 4/);
+});
+
+test('no permite crear un viaje con cinco acompañantes iniciales', async () => {
+ await assert.rejects(createTrip({acompanantes:Array.from({length:5},(_,i)=>({nombre:`Persona ${i}`}))}),/máximo 4/);
 });

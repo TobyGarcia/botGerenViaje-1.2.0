@@ -52,11 +52,16 @@ export default function TripOperations({ tripId }) {
       await recordTripOperation(resolved, operation);
       setPending(null); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false);
       await refresh();
-    } catch (e) { setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.'); }
+    } catch (e) {
+      if (e.status === 409) { setPending(null); await refresh().catch(() => {}); }
+      setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.');
+    }
     finally { setBusy(false); }
   }
   const disabled = busy || !loaded || Boolean(pending);
   const names = companionDraft.map(value => value.trim()).filter(Boolean);
+  const onboardCount = items.filter(item => item.kind === 'companion' && !item.removed_at).length;
+  const availableSeats = Math.max(0, 4 - onboardCount);
   const activeKind = modal === 'companions' ? 'companion' : 'trailer';
   const alerts = <>{error && <p role="alert">{error}</p>}{pending && <button type="button" disabled={busy} onClick={() => submit(pending)}>Reintentar movimiento pendiente</button>}</>;
   return <section className="gv-trip-operations trip-operation-launcher">
@@ -78,12 +83,12 @@ export default function TripOperations({ tripId }) {
       </button>
     </div>)}
     {modal === 'companions' && <section className="trip-companions-editor">
-      <h3>Agregar acompañantes</h3>
-      <form id="trip-companion-fields" className="trip-companion-fields" onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANIONS_ADDED', names }); }}>
-        <div className="trip-companion-toolbar"><small>Hasta 4 acompañantes por grupo.</small><span className="trip-companion-counter" aria-live="polite">{companionDraft.length} / 4 máx.</span><button className="trip-companion-add" type="button" disabled={disabled || companionDraft.length >= 4} onClick={() => setCompanionDraft(values => [...values,''])}>+ Agregar</button></div>
+      <h3>Agregar acompañantes · {onboardCount} / 4 a bordo</h3>
+      {availableSeats === 0 ? <p className="trip-ops-empty">Los 4 lugares están ocupados. Primero registra la bajada de un acompañante.</p> : <form id="trip-companion-fields" className="trip-companion-fields" onSubmit={e => { e.preventDefault(); submit({ type: 'COMPANIONS_ADDED', names }); }}>
+        <div className="trip-companion-toolbar"><small>{availableSeats} {availableSeats === 1 ? 'lugar disponible' : 'lugares disponibles'} en el vehículo.</small><span className="trip-companion-counter" aria-live="polite">{onboardCount + names.length} / 4 máx.</span><button className="trip-companion-add" type="button" disabled={disabled || companionDraft.length >= availableSeats} onClick={() => setCompanionDraft(values => [...values,''])}>+ Agregar</button></div>
         {companionDraft.map((value,index) => <div className="trip-companion-input-row" key={index}><input aria-label={`Nombre del acompañante ${index+1}`} placeholder={`Nombre del acompañante ${index+1}`} value={value} maxLength={200} disabled={disabled} required onChange={e => setCompanionDraft(values => values.map((name,i) => i === index ? e.target.value : name))} />{companionDraft.length > 1 && <button className="trip-companion-remove" type="button" aria-label={`Quitar acompañante ${index+1}`} disabled={disabled} onClick={() => setCompanionDraft(values => values.filter((_,i) => i !== index))}>×</button>}</div>)}
-        <button className="trip-ops-primary" disabled={disabled || names.length !== companionDraft.length}>Confirmar {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'}</button>
-      </form>
+        <button className="trip-ops-primary" disabled={disabled || names.length !== companionDraft.length || names.length > availableSeats}>Confirmar {names.length || ''} {names.length === 1 ? 'acompañante' : 'acompañantes'}</button>
+      </form>}
     </section>}
     {modal === 'trailers' && <section className="trip-operation-add-trailer"><h3>Enganchar remolque</h3>
     <div className="trip-ops-trailer-form">

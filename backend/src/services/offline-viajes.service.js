@@ -80,7 +80,7 @@ export function validateOfflineRequest(body, driverId, now = new Date()) {
   if (p.idConductor !== Number(driverId) || p.idVehiculo !== claims.vehicleId || p.idOrigen === p.idDestino ||
       !Number.isSafeInteger(p.kilometrajeInicial) || p.kilometrajeInicial < 0 ||
       typeof p.motivo !== "string" || p.motivo.length > 2000 ||
-      !Array.isArray(p.acompanantes) || p.acompanantes.length > 30 ||
+      !Array.isArray(p.acompanantes) || p.acompanantes.length > 4 ||
       p.acompanantes.some(a => typeof a?.nombre !== "string" || a.nombre.length > 150)) {
     throw new Error("El viaje no coincide con el permiso o contiene datos inválidos.");
   }

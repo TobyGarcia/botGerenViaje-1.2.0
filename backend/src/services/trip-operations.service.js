@@ -90,6 +90,11 @@ export async function recordTripOperation(tripId, driverId, body, { client: exte
     let item;
     if (input.type === 'COMPANION_ADDED' || input.type === 'TRAILER_ATTACHED') {
       let name = input.name, inspection = null;
+      if (input.type === 'COMPANION_ADDED') {
+        const onboard = await client.query(`SELECT count(*)::int AS total FROM trip_operation_items
+          WHERE trip_id=$1 AND kind='companion' AND removed_at IS NULL`, [tripId]);
+        if (onboard.rows[0].total >= 4) fail('El vehículo admite máximo 4 acompañantes a bordo. Debe bajar uno antes de agregar otro.', 409);
+      }
       if (input.type === 'TRAILER_ATTACHED') {
         const vehicle = await client.query('SELECT * FROM vehiculos WHERE id_vehiculos=$1 FOR UPDATE', [input.itemId]);
         const v = vehicle.rows[0];
@@ -140,7 +145,7 @@ export async function recordTripOperation(tripId, driverId, body, { client: exte
 }
 
 export async function recordCompanionBatch(tripId, driverId, body) {
-  if (!Array.isArray(body.names) || !body.names.length || body.names.length > 50) fail('Agrega entre 1 y 50 nombres, uno por línea.');
+  if (!Array.isArray(body.names) || !body.names.length || body.names.length > 4) fail('Agrega entre 1 y 4 acompañantes, según los lugares disponibles.');
   const operations = body.names.map((name,index) => parseTripOperationInput({ ...body, type: 'COMPANION_ADDED', name,
     eventKey: `${body.eventKey}_${index}` }));
   const client = await databasePool.connect();

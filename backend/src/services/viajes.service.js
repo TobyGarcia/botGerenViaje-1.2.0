@@ -144,6 +144,7 @@ async function createTripImpl({
   usoTemporal = null,
   odometerCorrection = null
 }, { client: externalClient = null } = {}) {
+  if (Array.isArray(acompanantes) && acompanantes.length > 4) throw new Error('El vehículo admite máximo 4 acompañantes.');
   if (!esGerenciamiento && isOutsideOperatingHours()) {
     throw new Error("El horario operativo para viajes locales/urbanos es de 6:00 AM a 6:00 PM. Fuera de este horario se debe realizar un Gerenciamiento de Viaje.");
   }
