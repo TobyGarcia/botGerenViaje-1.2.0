@@ -1,0 +1,4 @@
+FROM gv-staging-trip-operations-backend:companion-capacity-20261102
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+COPY backend/src/services/trip-operation-notifications.service.js /app/src/services/trip-operation-notifications.service.js

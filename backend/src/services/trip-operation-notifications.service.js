@@ -1,7 +1,7 @@
 import { databasePool } from '../database/pool.js';
 import { getTelegramBot } from '../bot/bot.js';
+import { formatTripOperationMessage } from './trip-operation-message.js';
 
-const labels = { COMPANION_ADDED: 'Acompañante agregado', COMPANION_DROPPED_OFF: 'Acompañante dejado', TRAILER_ATTACHED: 'Remolque enganchado', TRAILER_DETACHED: 'Remolque desenganchado' };
 let running = false;
 export async function deliverTripOperationNotifications() {
   if (running || !process.env.TELEGRAM_GROUP_ID || !process.env.TELEGRAM_BOT_TOKEN) return;
@@ -15,9 +15,8 @@ export async function deliverTripOperationNotifications() {
       const event = rows[0];
       if (!event) { await client.query('COMMIT'); break; }
       try {
-        const p = event.payload;
         await getTelegramBot().telegram.sendMessage(process.env.TELEGRAM_GROUP_ID,
-          `${labels[event.event_type]}${p.closure ? ' (cierre del viaje)' : ''}\nViaje: ${p.folio}\n${p.name}\nHora: ${new Date(event.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`);
+          formatTripOperationMessage(event));
         await client.query('UPDATE trip_operation_events SET sent_at=CURRENT_TIMESTAMP,attempts=attempts+1,last_error=NULL WHERE id=$1', [event.id]);
       } catch {
         await client.query(`UPDATE trip_operation_events SET attempts=attempts+1,last_error='Entrega Telegram fallida',

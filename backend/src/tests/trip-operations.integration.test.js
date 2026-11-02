@@ -65,13 +65,18 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
 
 test('agrega más de tres acompañantes juntos sin duplicar y revierte todo si falla una parada', async () => {
  const body = { names: ['Grupo Ana','Grupo Luis','Grupo Pedro','Grupo María'], latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID() };
- const events = await recordCompanionBatch(1,10,body);
- assert.equal(events.length,4);
- assert.deepEqual((await recordCompanionBatch(1,10,body)).map(e=>e.id),events.map(e=>e.id));
+ const beforeEvents=(await query('SELECT count(*)::int AS n FROM trip_operation_events')).rows[0].n;
+ const beforeStops=(await query('SELECT count(*)::int AS n FROM ubicaciones_viaje')).rows[0].n;
+ const event = await recordCompanionBatch(1,10,body);
+ assert.deepEqual(event.payload.names,body.names);
+ assert.equal(event.payload.companionIds.length,4);
+ assert.equal((await recordCompanionBatch(1,10,body)).id,event.id);
+ assert.equal((await query('SELECT count(*)::int AS n FROM trip_operation_events')).rows[0].n,beforeEvents+1);
+ assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje')).rows[0].n,beforeStops+1);
  assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name LIKE 'Grupo %'")).rows[0].n,4);
  await assert.rejects(recordTripOperation(1,10,operation('COMPANION_ADDED',{name:'Quinto'})), /máximo 4/);
  await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Quinto','Sexto']}), /máximo 4/);
- for (const event of events.slice(0,2)) await recordTripOperation(1,10,operation('COMPANION_DROPPED_OFF',{itemId:Number(event.item_id)}));
+ for (const id of event.payload.companionIds.slice(0,2)) await recordTripOperation(1,10,operation('COMPANION_DROPPED_OFF',{itemId:Number(id)}));
  await assert.rejects(recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Lote revertido','RECHAZAR']}));
  assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='Lote revertido'")).rows[0].n,0);
  await recordCompanionBatch(1,10,{...body,eventKey:crypto.randomUUID(),names:['Nuevo uno','Nuevo dos']});
@@ -86,4 +91,15 @@ test('agrega más de tres acompañantes juntos sin duplicar y revierte todo si f
 
 test('no permite crear un viaje con cinco acompañantes iniciales', async () => {
  await assert.rejects(createTrip({acompanantes:Array.from({length:5},(_,i)=>({nombre:`Persona ${i}`}))}),/máximo 4/);
+});
+
+test('dos pasajeros juntos comparten un punto y evento, y pueden bajar por separado',async()=>{
+ const body={names:['Dos Ana','Dos Luis'],latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID()};
+ const event=await recordCompanionBatch(2,20,body);
+ assert.equal((await query('SELECT count(*)::int AS n FROM trip_operation_events WHERE trip_id=2')).rows[0].n,1);
+ const stops=(await query('SELECT * FROM ubicaciones_viaje WHERE id_viajes=2')).rows;
+ assert.equal(stops.length,1); assert.match(stops[0].nombre_punto,/Dos Ana, Dos Luis/);
+ await recordTripOperation(2,20,operation('COMPANION_DROPPED_OFF',{itemId:Number(event.payload.companionIds[0])}));
+ const onboard=(await listTripItems(2,20)).filter(item=>!item.removed_at);
+ assert.deepEqual(onboard.map(item=>item.name),['Dos Luis']);
 });

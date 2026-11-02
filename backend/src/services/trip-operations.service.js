@@ -146,13 +146,41 @@ export async function recordTripOperation(tripId, driverId, body, { client: exte
 
 export async function recordCompanionBatch(tripId, driverId, body) {
   if (!Array.isArray(body.names) || !body.names.length || body.names.length > 4) fail('Agrega entre 1 y 4 acompañantes, según los lugares disponibles.');
-  const operations = body.names.map((name,index) => parseTripOperationInput({ ...body, type: 'COMPANION_ADDED', name,
-    eventKey: `${body.eventKey}_${index}` }));
+  const operations = body.names.map(name => parseTripOperationInput({ ...body, type: 'COMPANION_ADDED', name }));
   const client = await databasePool.connect();
   try {
     await client.query('BEGIN');
-    const events = [];
-    for (const operation of operations) events.push(await recordTripOperation(tripId,driverId,operation,{client}));
-    await client.query('COMMIT'); return events;
+    const trip = await ownedTrip(client,tripId,driverId);
+    const previous = await client.query('SELECT * FROM trip_operation_events WHERE event_key=$1',[body.eventKey]);
+    if (previous.rows[0]) {
+      if (previous.rows[0].trip_id !== tripId) fail('Identificador usado en otro viaje.',409);
+      await client.query('COMMIT'); return previous.rows[0];
+    }
+    // Reconocer reintentos de grupos enviados antes de esta actualización.
+    const legacy = await client.query('SELECT * FROM trip_operation_events WHERE event_key=ANY($1::text[]) ORDER BY id',
+      [operations.map((_,index)=>`${body.eventKey}_${index}`)]);
+    if (legacy.rows.length) {
+      if (legacy.rows.length !== operations.length || legacy.rows.some(e=>e.trip_id !== tripId)) fail('El grupo ya tiene registros. Actualiza el viaje antes de continuar.',409);
+      await client.query('COMMIT'); return legacy.rows[0];
+    }
+    if (!['PENDIENTE','EN_CURSO'].includes(trip.estado)) fail('El viaje ya está cerrado.',409);
+    await seedInitial(client,trip);
+    const onboard = await client.query("SELECT count(*)::int AS total FROM trip_operation_items WHERE trip_id=$1 AND kind='companion' AND removed_at IS NULL",[tripId]);
+    if (onboard.rows[0].total + operations.length > 4) fail('El vehículo admite máximo 4 acompañantes a bordo. No hay lugares suficientes para este grupo.',409);
+    const companions=[];
+    for (const operation of operations) {
+      const item = await client.query(`INSERT INTO trip_operation_items(trip_id,kind,name,added_latitude,added_longitude)
+        VALUES($1,'companion',$2,$3,$4) RETURNING *`,[tripId,operation.name,operation.latitude,operation.longitude]);
+      companions.push(item.rows[0]);
+    }
+    const names=companions.map(item=>item.name);
+    const first=operations[0];
+    const payload={folio:trip.folio,name:names.join(', '),names,companionIds:companions.map(item=>item.id),latitude:first.latitude,longitude:first.longitude};
+    const event = await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
+      VALUES($1,$2,$3,'COMPANION_ADDED',$4) RETURNING *`,[body.eventKey,tripId,companions[0].id,JSON.stringify(payload)]);
+    if (trip.estado === 'EN_CURSO') await saveTripLocation({idViaje:tripId,latitude:first.latitude,longitude:first.longitude,
+      accuracy:null,speed:null,heading:null,gpsTimestamp:event.rows[0].created_at,esPuntoIntermedio:true,
+      nombrePunto:`Parada técnica: ${names.length>1?'Se subieron acompañantes':'Se subió acompañante'} ${names.join(', ')}`},{client});
+    await client.query('COMMIT'); return event.rows[0];
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
 }
