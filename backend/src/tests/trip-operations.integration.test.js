@@ -6,6 +6,10 @@ import { databasePool } from '../database/pool.js';
 import { listTripItems, recordTripOperation, recordCompanionBatch, closeTripItems } from '../services/trip-operations.service.js';
 import { createTrip } from '../services/viajes.service.js';
 
+// Esta prueba usa un esquema mínimo propio, sin las tablas de auditoría.
+process.env.AUDIT_PERSISTENCE = 'false';
+process.env.AUDIT_STDOUT = 'false';
+
 const db = new PGlite();
 await db.exec(`CREATE TABLE estados_viaje(id_estado_viaje INT PRIMARY KEY,nombre TEXT);
  CREATE TABLE vehiculos(id_vehiculos INT PRIMARY KEY,nombre TEXT,tipo_vehiculo TEXT,marca TEXT,modelo TEXT);
