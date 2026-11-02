@@ -183,6 +183,26 @@ function ViajesPage({ user }) {
   const [loadingDetail, setLoadingDetail] =
     useState(false);
 
+  useEffect(() => {
+    if (!showDetail || selectedTrip?.estado?.nombre !== 'EN_CURSO') return;
+    let disposed = false;
+    let refreshing = false;
+    const id = selectedTrip.idViaje;
+    const timer = setInterval(async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const response = await getAdminViajeDetalle(id);
+        if (!disposed && response.data?.trip) {
+          setSelectedTrip(response.data.trip);
+          setSelectedLocations(response.data.locations || []);
+        }
+      } catch { /* Conservar el detalle visible durante cortes de conexión. */ }
+      finally { refreshing = false; }
+    }, 15000);
+    return () => { disposed = true; clearInterval(timer); };
+  }, [showDetail, selectedTrip?.idViaje, selectedTrip?.estado?.nombre]);
+
   const [tripToDelete, setTripToDelete] =
     useState(null);
 
@@ -1000,9 +1020,11 @@ function ViajesPage({ user }) {
                     </div>
 
                     <div>
-                      <span>Acompañantes</span>
+                      <span>{['FINALIZADO','CANCELADO'].includes(selectedTrip.estado?.nombre) ? 'Historial de acompañantes' : 'Acompañantes a bordo'}</span>
                       <p>
-                        {selectedTrip.acompanantes?.length
+                        {['FINALIZADO','CANCELADO'].includes(selectedTrip.estado?.nombre) && selectedTrip.companionHistory?.length
+                          ? selectedTrip.companionHistory.map(item => `${item.name}\nSubió: ${formatDateTime(item.added_at)}${item.removed_at ? ` · Bajó: ${formatDateTime(item.removed_at)}` : ''}`).join('\n\n')
+                          : selectedTrip.acompanantes?.length
                           ? selectedTrip.acompanantes
                               .map((acompanante) =>
                                 typeof acompanante === "string"

@@ -5,6 +5,8 @@ import {
   listAdminTrips
 } from "../services/admin-viajes.service.js";
 
+import { tripCompanionHistory } from '../services/trip-companion-view.js';
+
 export async function getAdminDashboardSummaryController(request, response) {
   try {
     const summary = await getAdminDashboardSummary();
@@ -258,7 +260,10 @@ export async function getAdminTripController(
         success: true,
         data: {
           trip:
-            { ...serializeTrip(result.trip), trailerInspections: result.trailerInspections },
+            { ...serializeTrip(result.trip), trailerInspections: result.trailerInspections,
+              companionHistory: tripCompanionHistory(result.trip, result.companionItems),
+              acompanantes: tripCompanionHistory(result.trip, result.companionItems)
+                .filter(item => ['FINALIZADO','CANCELADO'].includes(result.trip.estado) || !item.removed_at).map(item => item.name) },
 
           locations:
             result.locations

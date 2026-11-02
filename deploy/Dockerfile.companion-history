@@ -1,0 +1,6 @@
+FROM gv-staging-trip-operations-backend:operation-stops-20261102 AS backend
+COPY backend/src/services/admin-viajes.service.js /app/src/services/admin-viajes.service.js
+COPY backend/src/services/trip-companion-view.js /app/src/services/trip-companion-view.js
+COPY backend/src/controllers/admin-viajes.controller.js /app/src/controllers/admin-viajes.controller.js
+FROM gv-staging-trip-operations-panel:technical-stops-only-20261102 AS panel
+COPY panel-admin/dist/ /usr/share/nginx/html/
