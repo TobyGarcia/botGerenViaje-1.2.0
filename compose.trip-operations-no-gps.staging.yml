@@ -2,6 +2,6 @@ services:
   backend:
     image: gv-staging-trip-operations-backend:companion-capacity-20261102
   frontend:
-    image: gv-staging-trip-operations-frontend:active-trip-067b618
+    image: gv-staging-trip-operations-frontend:trip-management-121a0b3
   panel-admin:
     image: gv-staging-trip-operations-panel:companion-history-20261102
