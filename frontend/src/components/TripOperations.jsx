@@ -53,7 +53,8 @@ export default function TripOperations({ tripId }) {
       if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
       await recordTripOperation(resolved, operation);
       setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false);
-      await refresh();
+      try { await refresh(); }
+      catch { setLoaded(false); setError('Las acciones se guardaron. Actualiza el viaje para ver el estado confirmado.'); }
     } catch (e) {
       if (e.status >= 400 && e.status < 500 && e.status !== 429) { setPending(null); await refresh().catch(() => {}); }
       setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.');
