@@ -4,7 +4,7 @@ Rama de integración: `gv-fix`. Ambiente: `gvmobility.aspromex.mx`.
 
 Durante un viaje activo, la sección Acompañantes y remolques permite agregar un acompañante por nombre, dejar cualquiera de los presentes, enganchar un remolque y desengancharlo. Los acompañantes iniciales y el remolque declarado en la inspección inicial también aparecen y pueden retirarse.
 
-Al enganchar, el conductor puede usar la inspección existente, completar el formulario `InspeccionRemolqueModal` existente o continuar con una advertencia. La nueva inspección se conserva como evidencia inmutable del enganche en `trip_operation_items.inspection`; no reemplaza una inspección vehicular aprobada. Las observaciones no bloquean la operación.
+Al enganchar, el conductor debe completar una inspección nueva con el formulario `InspeccionRemolqueModal` existente. No se permite reutilizar una inspección ni continuar sin completarla, incluso al volver a enganchar el mismo remolque. La inspección se conserva como evidencia inmutable del enganche en `trip_operation_items.inspection`; no reemplaza una inspección vehicular aprobada. Las observaciones no bloquean la operación una vez completada y confirmada.
 
 Cada operación manual obtiene GPS actual y hora del servidor. Los elementos iniciales conservan la hora original disponible y no inventan coordenadas. Al cerrar el viaje, los elementos restantes se cierran en la misma transacción y el aviso distingue el último GPS disponible de una captura manual.
 
