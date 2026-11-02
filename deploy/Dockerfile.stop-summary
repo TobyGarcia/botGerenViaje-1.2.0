@@ -1,0 +1,3 @@
+FROM gv-staging-trip-operations-backend:companion-group-stop-20261102
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+COPY backend/src/services/trip-operation-notifications.service.js /app/src/services/trip-operation-notifications.service.js

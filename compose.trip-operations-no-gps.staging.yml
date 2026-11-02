@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:companion-group-stop-20261102
+    image: gv-staging-trip-operations-backend:stop-summary-20261102
   frontend:
     image: gv-staging-trip-operations-frontend:trip-management-121a0b3
   panel-admin:
