@@ -11,11 +11,11 @@ async function saveTripLocationImpl({
   gpsTimestamp,
   esPuntoIntermedio = false,
   nombrePunto = null
-}) {
-  const client = await databasePool.connect();
+}, { client: externalClient = null } = {}) {
+  const client = externalClient || await databasePool.connect();
 
   try {
-    await client.query("BEGIN");
+    if (!externalClient) await client.query("BEGIN");
 
     const tripResult = await client.query(
       `
@@ -99,19 +99,19 @@ async function saveTripLocationImpl({
       ]
     );
 
-    await client.query("COMMIT");
-    recordOperation({ step: "ubicaciones.transaction", result: "COMMIT" });
+    if (!externalClient) await client.query("COMMIT");
+    if (!externalClient) recordOperation({ step: "ubicaciones.transaction", result: "COMMIT" });
 
     return {
       ...locationResult.rows[0],
       folio: trip.folio
     };
   } catch (error) {
-    await client.query("ROLLBACK");
-    recordOperation({ step: "ubicaciones.transaction", result: "ROLLBACK", level: "WARN" });
+    if (!externalClient) await client.query("ROLLBACK");
+    if (!externalClient) recordOperation({ step: "ubicaciones.transaction", result: "ROLLBACK", level: "WARN" });
     throw error;
   } finally {
-    client.release();
+    if (!externalClient) client.release();
   }
 }
 

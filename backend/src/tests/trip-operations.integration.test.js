@@ -10,7 +10,8 @@ await db.exec(`CREATE TABLE estados_viaje(id_estado_viaje INT PRIMARY KEY,nombre
  CREATE TABLE vehiculos(id_vehiculos INT PRIMARY KEY,nombre TEXT,tipo_vehiculo TEXT,marca TEXT,modelo TEXT);
  CREATE TABLE viajes(id_viajes INT PRIMARY KEY,id_conductores INT,id_estado_viaje INT,folio TEXT,acompanantes JSONB,hora_salida TIMESTAMPTZ,creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE inspecciones_vehiculares(id_inspeccion INT PRIMARY KEY,id_viajes INT,id_conductores INT,id_remolque INT,lleva_remolque BOOLEAN,inspeccion_remolque JSONB,estado TEXT,fecha_operativa DATE);
- CREATE TABLE ubicaciones_viaje(id_ubicaciones_viaje INT,id_viajes INT,latitud FLOAT,longitud FLOAT,fecha_gps TIMESTAMPTZ);
+ CREATE TABLE ubicaciones_viaje(id_ubicaciones_viaje SERIAL PRIMARY KEY,id_viajes INT,latitud FLOAT,longitud FLOAT,fecha_gps TIMESTAMPTZ,
+ precision_metros FLOAT,velocidad FLOAT,direccion FLOAT,es_punto_intermedio BOOLEAN,nombre_punto TEXT,creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);
  INSERT INTO estados_viaje VALUES(1,'EN_CURSO');
  INSERT INTO vehiculos VALUES(1,'L200','Camioneta',NULL,NULL),(2,'R-1','Remolque',NULL,NULL);
  INSERT INTO viajes(id_viajes,id_conductores,id_estado_viaje,folio,acompanantes) VALUES(1,10,1,'TEST-1','["Ana"]'),(2,20,1,'TEST-2','[]');`);
@@ -44,6 +45,16 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   }
   await assert.rejects(recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID() }), /ya se utilizó/);
   await recordTripOperation(1,10,{ ...hook, eventKey: crypto.randomUUID(), inspection: { ...hook.inspection, captureId: crypto.randomUUID() } });
+  const stops = await query('SELECT * FROM ubicaciones_viaje ORDER BY id_ubicaciones_viaje');
+  assert.equal(stops.rows.length, 5, 'un punto por movimiento, sin duplicar reintentos');
+  assert.ok(stops.rows.every(p => p.es_punto_intermedio && p.latitud === 19.4 && p.longitud === -99.1));
+  assert.match(stops.rows[0].nombre_punto, /Se dejó acompañante Ana/);
+  assert.match(stops.rows[1].nombre_punto, /Se subió acompañante Luis/);
+  assert.match(stops.rows[2].nombre_punto, /Se enganchó remolque R-1/);
+  assert.match(stops.rows[3].nombre_punto, /Se dejó remolque R-1/);
+  await db.exec("ALTER TABLE ubicaciones_viaje ADD CONSTRAINT test_stop_failure CHECK (nombre_punto NOT LIKE '%RECHAZAR%')");
+  await assert.rejects(recordTripOperation(1,10,operation('COMPANION_ADDED', { name: 'RECHAZAR' })));
+  assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='RECHAZAR'")).rows[0].n, 0, 'el movimiento se revierte si falla su parada');
   await db.query('BEGIN'); await closeTripItems({ query }, 1); await db.query('COMMIT');
   assert.equal((await listTripItems(1,10)).filter(i => !i.removed_at).length, 0);
   const events = await query('SELECT * FROM trip_operation_events');

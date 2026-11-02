@@ -1,0 +1,3 @@
+FROM gv-staging-trip-operations-backend:trailer-cards-20261102
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/ubicaciones.service.js /app/src/services/ubicaciones.service.js

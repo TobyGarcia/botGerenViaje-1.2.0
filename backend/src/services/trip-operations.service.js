@@ -1,4 +1,5 @@
 import { databasePool } from '../database/pool.js';
+import { saveTripLocation } from './ubicaciones.service.js';
 import { parseTripOperationInput } from './trip-operation-input.js';
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
@@ -123,6 +124,17 @@ export async function recordTripOperation(tripId, driverId, body) {
     const payload = { folio: trip.folio, name: item.name, latitude: input.latitude, longitude: input.longitude };
     const event = await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
       VALUES($1,$2,$3,$4,$5) RETURNING *`, [input.eventKey,tripId,item.id,input.type,JSON.stringify(payload)]);
+    if (trip.estado === 'EN_CURSO') {
+      const descriptions = {
+        COMPANION_ADDED: 'Se subió acompañante',
+        COMPANION_DROPPED_OFF: 'Se dejó acompañante',
+        TRAILER_ATTACHED: 'Se enganchó remolque',
+        TRAILER_DETACHED: 'Se dejó remolque'
+      };
+      await saveTripLocation({ idViaje: tripId, latitude: input.latitude, longitude: input.longitude,
+        accuracy: null, speed: null, heading: null, gpsTimestamp: event.rows[0].created_at,
+        esPuntoIntermedio: true, nombrePunto: `Parada técnica: ${descriptions[input.type]} ${item.name}` }, { client });
+    }
     await client.query('COMMIT'); return event.rows[0];
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
 }

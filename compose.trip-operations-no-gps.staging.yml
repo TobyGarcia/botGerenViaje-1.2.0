@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:trailer-cards-20261102
+    image: gv-staging-trip-operations-backend:operation-stops-20261102
   frontend:
     image: gv-staging-trip-operations-frontend:trailer-cards-20261102
   panel-admin:
