@@ -36,7 +36,7 @@ async function seedInitial(client, trip) {
 
 export async function closeTripItems(client, tripId) {
   const tripResult = await client.query('SELECT * FROM viajes WHERE id_viajes=$1', [tripId]);
-  if (!tripResult.rows[0]) return;
+  if (!tripResult.rows[0]) return [];
   await seedInitial(client, tripResult.rows[0]);
   const location = await client.query(`SELECT latitud, longitud FROM ubicaciones_viaje WHERE id_viajes=$1
     ORDER BY fecha_gps DESC, id_ubicaciones_viaje DESC LIMIT 1`, [tripId]);
@@ -44,13 +44,8 @@ export async function closeTripItems(client, tripId) {
   const items = await client.query(`UPDATE trip_operation_items SET removed_at=CURRENT_TIMESTAMP,
     removed_latitude=$2, removed_longitude=$3 WHERE trip_id=$1 AND removed_at IS NULL RETURNING *`,
     [tripId, point?.latitud ?? null, point?.longitud ?? null]);
-  for (const item of items.rows) {
-    const type = item.kind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED';
-    await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
-      VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [`finish-${tripId}-${item.id}`,tripId,item.id,type,
-      JSON.stringify({ folio: tripResult.rows[0].folio, name: item.name, latitude: point?.latitud ?? null,
-        longitude: point?.longitud ?? null, closure: true, locationSource: 'last_trip_gps' })]);
-  }
+  // El cierre se informa en el mensaje final; no es una parada ni una baja adicional.
+  return items.rows;
 }
 
 export async function listTripItems(tripId, driverId) {

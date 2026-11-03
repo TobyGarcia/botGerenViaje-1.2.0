@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:confirmed-actions-20261102
+    image: gv-staging-trip-operations-backend:finish-summary-20261103
   frontend:
     image: gv-staging-trip-operations-frontend:simple-actions-20261102
   panel-admin:

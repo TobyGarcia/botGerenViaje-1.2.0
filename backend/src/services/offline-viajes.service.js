@@ -101,6 +101,7 @@ async function syncOfflineTripImpl(body, driverId) {
   const client = await databasePool.connect();
   let startedNow = false;
   let finishedNow = false;
+  let finishedTrip = null;
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL TIME ZONE 'America/Mexico_City'");
@@ -172,7 +173,7 @@ async function syncOfflineTripImpl(body, driverId) {
         throw new Error("El viaje ya se sincronizó con otro cierre.");
       }
       if (!row.fin_dispositivo) {
-        await finishTrip({ idViaje: row.id_viajes, kilometrajeFinal: body.kilometrajeFinal }, { client, recordedAt: body.finishedAt });
+        finishedTrip = await finishTrip({ idViaje: row.id_viajes, kilometrajeFinal: body.kilometrajeFinal }, { client, recordedAt: body.finishedAt });
         await client.query("UPDATE viajes_offline SET fin_dispositivo=$2,kilometraje_final=$3 WHERE client_id=$1", [body.clientId, body.finishedAt, body.kilometrajeFinal]);
         finishedNow = true;
       }
@@ -190,6 +191,11 @@ async function syncOfflineTripImpl(body, driverId) {
       JOIN lugares origen ON origen.id_lugares=v.id_origen
       JOIN lugares destino ON destino.id_lugares=v.id_destino
       WHERE id_viajes=$1`, [row.id_viajes])).rows[0];
+    if (finishedTrip) Object.assign(result, {
+      elementosViaje: finishedTrip.elementosViaje,
+      elementosAlFinalizar: finishedTrip.elementosAlFinalizar,
+      paradasTecnicas: finishedTrip.paradasTecnicas
+    });
     await client.query("COMMIT");
     recordOperation({ step: "offline-viajes.transaction", result: "COMMIT" });
     Object.defineProperty(result, "offlineAlertActions", {

@@ -1,5 +1,6 @@
 import { recordOperation } from "../services/operation-log.service.js";
 import { Telegraf } from "telegraf";
+import { formatFinishedTripLines } from '../services/trip-finish-message.js';
 
 import {
   registerBotHandlers
@@ -196,19 +197,7 @@ export async function sendTripGroupAlert({
       `Motivo: ${trip.motivo ?? "No registrado"}`,
       `Hora de salida: ${formatTime(trip.horaSalida)}`
     ],
-    finalizado: [
-      "🚐 Viaje FINALIZADO",
-      ...baseDetails,
-      `Ruta: ${trip.origen ?? "No registrado"} → ${trip.destino ?? "No registrado"}`,
-      `Kilometraje: ${trip.kilometrajeInicial ?? "No registrado"} → ${trip.kilometrajeFinal ?? "No registrado"} km`,
-      `Kilómetros recorridos: ${trip.kilometrosRecorridos ?? "No registrado"} km`,
-      `Paradas técnicas: ${Array.isArray(trip.paradasTecnicas) && trip.paradasTecnicas.length
-        ? trip.paradasTecnicas.map((stop) => `${stop.nombre_punto || "Punto intermedio"} (${formatTime(stop.fecha_gps)})`).join(", ")
-        : "Ninguna"}`,
-      trip.motivo ? `Motivo: ${trip.motivo}` : null,
-      `Hora de salida: ${formatTime(trip.horaSalida)}`,
-      `Hora de finalización: ${formatTime(trip.horaLlegada)}`
-    ],
+    finalizado: formatFinishedTripLines(trip),
     cancelado: [
       "🚐 Viaje CANCELADO",
       ...baseDetails
@@ -219,7 +208,7 @@ export async function sendTripGroupAlert({
     `🚐 Viaje ${action.toUpperCase()}`,
     ...baseDetails
   ])
-    .filter(Boolean)
+    .filter(line => line !== null && line !== undefined)
     .join("\n");
 
   try {

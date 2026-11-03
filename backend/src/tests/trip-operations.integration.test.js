@@ -60,7 +60,11 @@ test('flujo completo: inicial baja, nuevo sube, inspección y cambio de remolque
   await db.exec("ALTER TABLE ubicaciones_viaje ADD CONSTRAINT test_stop_failure CHECK (nombre_punto NOT LIKE '%RECHAZAR%')");
   await assert.rejects(recordTripOperation(1,10,operation('COMPANION_ADDED', { name: 'RECHAZAR' })));
   assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='RECHAZAR'")).rows[0].n, 0, 'el movimiento se revierte si falla su parada');
-  await db.query('BEGIN'); await closeTripItems({ query }, 1); await db.query('COMMIT');
+  const eventsBeforeClose = (await query('SELECT count(*)::int AS n FROM trip_operation_events')).rows[0].n;
+  await db.query('BEGIN'); const arrived = await closeTripItems({ query }, 1); await db.query('COMMIT');
+  assert.ok(arrived.some(item => item.kind === 'companion'));
+  assert.ok(arrived.some(item => item.kind === 'trailer'));
+  assert.equal((await query('SELECT count(*)::int AS n FROM trip_operation_events')).rows[0].n, eventsBeforeClose, 'el cierre no genera avisos individuales adicionales');
   assert.equal((await listTripItems(1,10)).filter(i => !i.removed_at).length, 0);
   const events = await query('SELECT * FROM trip_operation_events');
   assert.equal(events.rows.some(e => e.event_type.includes('INSPECTION')), false);

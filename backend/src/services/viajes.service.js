@@ -922,7 +922,11 @@ async function finishTripImpl({
       ]
     );
 
-    await closeTripItems(client, idViaje);
+    const elementosAlFinalizar = await closeTripItems(client, idViaje);
+    const elementosResult = await client.query(
+      'SELECT kind, name FROM trip_operation_items WHERE trip_id=$1 ORDER BY added_at, id',
+      [idViaje]
+    );
     const technicalStopsResult = await client.query(
       `
         SELECT nombre_punto, fecha_gps
@@ -979,6 +983,8 @@ async function finishTripImpl({
       numeroEconomico:
         trip.numero_economico,
 
+      elementosViaje: elementosResult.rows,
+      elementosAlFinalizar,
       paradasTecnicas:
         technicalStopsResult.rows
     };

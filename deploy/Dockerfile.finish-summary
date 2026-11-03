@@ -1,0 +1,6 @@
+FROM gv-staging-trip-operations-backend:confirmed-actions-20261102
+COPY backend/src/bot/bot.js /app/src/bot/bot.js
+COPY backend/src/services/trip-finish-message.js /app/src/services/trip-finish-message.js
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/viajes.service.js /app/src/services/viajes.service.js
+COPY backend/src/services/offline-viajes.service.js /app/src/services/offline-viajes.service.js
