@@ -160,3 +160,45 @@ test('rechaza destinos inválidos sin movimientos parciales y conserva nombres c
  assert.equal(retry.id,saved.id);
  assert.equal(retry.payload.place.name,'ASPX - LA PAZ');
 });
+
+test('reproduce paradas offline con referencias locales, horas originales e inspección nueva, sin duplicar',async()=>{
+ await query("INSERT INTO viajes(id_viajes,id_conductores,id_estado_viaje,folio,acompanantes) VALUES(3,10,1,'OFFLINE-3','[\"Inicial\"]')");
+ await query("INSERT INTO lugares VALUES(3,'Patio offline',TRUE)");
+ const captured=new Date(Date.now()-120000).toISOString();
+ const inspection={idRemolque:2,captureId:crypto.randomUUID(),checklist:{luces:'B'},danos:{frente:[{x:1,y:2}]}};
+ const first={eventKey:crypto.randomUUID(),recordedAt:captured,latitude:19.4,longitude:-99.1,placeId:3,placeName:'Patio offline',actions:[
+  {type:'COMPANION_DROPPED_OFF',itemRef:'companion-0'},
+  {type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection},
+  {type:'COMPANION_ADDED',name:'Persona local'}
+ ]};
+ const event=await recordConfirmedActions(3,10,first);
+ assert.equal(+new Date(event.created_at),+new Date(captured));
+ const added=(await query("SELECT * FROM trip_operation_items WHERE trip_id=3 AND kind='trailer'")).rows[0];
+ assert.equal(added.initial_key,`movement-${first.eventKey}_1`);
+ assert.deepEqual(added.inspection.data,inspection);
+ assert.equal(+new Date(added.added_at),+new Date(captured));
+ assert.equal(added.inspection.captured_at,captured);
+ const initial=(await query("SELECT removed_at FROM trip_operation_items WHERE trip_id=3 AND initial_key='companion-0'")).rows[0];
+ assert.equal(+new Date(initial.removed_at),+new Date(captured));
+ const second={...first,eventKey:crypto.randomUUID(),recordedAt:new Date(Date.now()-60000).toISOString(),actions:[
+  {type:'COMPANION_DROPPED_OFF',itemRef:`movement-${first.eventKey}_2`},
+  {type:'TRAILER_DETACHED',itemRef:`movement-${first.eventKey}_1`}
+ ]};
+ await recordConfirmedActions(3,10,second);
+ await assert.rejects(recordConfirmedActions(3,10,{...first,eventKey:crypto.randomUUID(),actions:[first.actions[1]]}),/ya se utilizó/);
+ await assert.rejects(recordConfirmedActions(3,10,{...first,eventKey:crypto.randomUUID(),recordedAt:new Date(Date.now()+3600000).toISOString()}),/hora/);
+ await query("UPDATE lugares SET activo=FALSE,nombre='Renombrado' WHERE id_lugares=3");
+ await recordConfirmedActions(3,10,{...first,eventKey:crypto.randomUUID(),recordedAt:new Date(Date.now()-30000).toISOString(),actions:[{type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection:{...inspection,captureId:crypto.randomUUID()}}]});
+ const stops=(await query('SELECT fecha_gps,nombre_punto FROM ubicaciones_viaje WHERE id_viajes=3 ORDER BY id_ubicaciones_viaje')).rows;
+ assert.equal(stops.length,3);assert.equal(+new Date(stops[0].fecha_gps),+new Date(captured));
+ assert.ok(stops.every(stop=>stop.nombre_punto.startsWith('Parada técnica en Patio offline:')));
+ const finishTime=new Date(Date.now()-10000).toISOString();
+ const closed=await closeTripItems({query},3,finishTime);
+ assert.equal(closed.length,1);assert.equal(+new Date(closed[0].removed_at),+new Date(finishTime));
+ await query("INSERT INTO estados_viaje VALUES(2,'FINALIZADO')");
+ await query('UPDATE viajes SET id_estado_viaje=2 WHERE id_viajes=3');
+ assert.equal((await recordConfirmedActions(3,10,first)).id,event.id);
+ assert.equal((await query('SELECT count(*)::int AS n FROM trip_operation_events WHERE trip_id=3')).rows[0].n,3);
+ assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=3')).rows[0].n,3);
+ await assert.rejects(recordConfirmedActions(3,20,first),/conductor/);
+});

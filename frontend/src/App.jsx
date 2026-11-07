@@ -6,6 +6,7 @@ import {
 } from "react";
 import "./App.css";
 import TripOperations from './components/TripOperations.jsx';
+import { pendingMovementCount, pendingMovementTotal, queueMovementCompletion, syncAllTripMovements, waitForMovementCapture } from './services/trip-operation-queue.js';
 import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
 import { NativeGps, hasNativeGps, queueNativeCompletion } from "./services/native-gps.js";
 
@@ -369,9 +370,24 @@ const [cancelledTrip, setCancelledTrip] =
   const syncOfflineState = useCallback(async () => {
     const driverId = telegramAuth?.conductor?.id_conductores;
     if (!driverId) return;
+    try { pendingMovementTotal(driverId); } catch(error) { setOfflineNotice(error.message); return; }
     setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      const count=pendingMovementTotal(driverId);
+      if(count) setOfflineNotice(`${count} movimientos o cierres guardados en el teléfono, pendientes de conexión.`);
+      return;
+    }
     try {
+      const movementSync=await syncAllTripMovements(driverId,{beforeCompletion:async(id)=>{
+        const result=await syncPendingLocations(id);
+        if(result.error || !result.completed) throw result.error || new Error('Quedan ubicaciones GPS por sincronizar.');
+      }});
+      for(const completed of movementSync.completed) {
+        const merge=current=>Number(current?.idViaje ?? current?.id_viajes)===Number(completed.idViaje)?{...current,...completed,cierrePendiente:false}:current;
+        setCreatedTrip(merge);setStartedTrip(merge);setFinishedTrip(merge);setCancelledTrip(merge);
+        const cached=safeStorage.getJSON('cached_active_trip');
+        if(Number(cached?.idViaje ?? cached?.id_viajes)===Number(completed.idViaje)) safeStorage.setJSON('cached_active_trip',merge(cached));
+      }
       const record = await syncOfflineTrip(driverId);
       if (record?.startedAt) {
         const view = offlineTripView(record);
@@ -383,6 +399,8 @@ const [cancelledTrip, setCancelledTrip] =
         if (cached?.idViaje === record.localId) safeStorage.setJSON("cached_active_trip", view);
       }
       setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId)));
+      const count=pendingMovementTotal(driverId);
+      if(count || movementSync.error) setOfflineNotice(`${count} movimientos o cierres pendientes. ${movementSync.error}`);
       await refreshOfflinePermits(driverId);
     } catch (error) {
       setOfflineNotice(offlineTripNotice(getPendingOfflineTrips(driverId), error.message));
@@ -807,6 +825,8 @@ const [cancelledTrip, setCancelledTrip] =
           const cachedActive = getCachedJson("cached_active_trip", null);
           if (cachedActive) {
             setCreatedTrip(cachedActive);
+            if (cachedActive.estado === 'FINALIZADO') { setFinishedTrip(cachedActive); setStartedTrip(null); stopTracking(); }
+            if (cachedActive.estado === 'CANCELADO') { setCancelledTrip(cachedActive); setStartedTrip(null); stopTracking(); }
             if (cachedActive.estado === "EN_CURSO") {
               setStartedTrip(cachedActive);
               setKilometrajeFinal(String(cachedActive.kilometrajeInicial ?? cachedActive.kilometraje_inicial ?? ""));
@@ -847,6 +867,9 @@ const [cancelledTrip, setCancelledTrip] =
           numeroEconomico: activeTrip.vehiculo?.numeroEconomico,
           estado: activeTrip.estado,
           kilometrajeInicial: activeTrip.kilometrajeInicial,
+          kilometrajeFinal: activeTrip.kilometrajeFinal,
+          horaLlegada: activeTrip.horaLlegada,
+          cierrePendiente: activeTrip.cierrePendiente,
           horaSalida: activeTrip.horaSalida,
           origen: activeTrip.origen?.nombre,
           destino: activeTrip.destino?.nombre
@@ -878,6 +901,9 @@ const [cancelledTrip, setCancelledTrip] =
           });
         } else {
           stopTracking();
+          setStartedTrip(null);
+          if(activeTrip.estado==='FINALIZADO') setFinishedTrip(normalizedTrip);
+          if(activeTrip.estado==='CANCELADO') setCancelledTrip(normalizedTrip);
         }
 
         setMessage(
@@ -1060,8 +1086,10 @@ async function handleAddIntermediatePoint() {
 
     setFinishingTrip(true);
     setMessage("");
+    let serverCloseAttempted = false;
 
     try {
+      await waitForMovementCapture(telegramAuth.conductor.id_conductores,idViaje);
       if (idViaje < 0) {
         const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
@@ -1075,9 +1103,21 @@ async function handleAddIntermediatePoint() {
         void syncOfflineState();
         return;
       }
+      if (pendingMovementCount(telegramAuth.conductor.id_conductores,idViaje)>0 || !navigator.onLine) {
+        const finalLocation=await captureAndQueueLocation(idViaje,{esUbicacionFinal:true});
+        if(!finalLocation) throw new Error('Se requiere una ubicación GPS final para cerrar el viaje.');
+        const completion=await queueMovementCompletion(telegramAuth.conductor.id_conductores,idViaje,{action:'finalizado',kilometrajeFinal:finalMileage});
+        stopTracking();stopTrackingAwake();
+        const data={...createdTrip,estado:'FINALIZADO',kilometrajeFinal:finalMileage,horaLlegada:completion.recordedAt,cierrePendiente:true};
+        safeStorage.setJSON('cached_active_trip',data);
+        setFinishedTrip(data);setStartedTrip(data);setCreatedTrip(data);
+        setMessage('Cierre y movimientos guardados en el teléfono; se sincronizarán juntos.');setMessageType('success');
+        void syncOfflineState();return;
+      }
       if (hasNativeGps()) {
         const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
+        serverCloseAttempted = true;
         const completion = await queueNativeCompletion(idViaje, { action: "finalizado", kilometrajeFinal: finalMileage });
         stopTracking();
         const data = { ...createdTrip, estado: "FINALIZADO", kilometrajeFinal: finalMileage, horaLlegada: completion.recordedAt, cierrePendiente: true };
@@ -1093,6 +1133,7 @@ async function handleAddIntermediatePoint() {
       if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
       await syncPendingLocations(idViaje);
 
+    serverCloseAttempted = true;
     const response = await finalizarViaje (
       idViaje,
       finalMileage
@@ -1135,7 +1176,7 @@ async function handleAddIntermediatePoint() {
       stopTracking();
       await syncPendingLocations(idViaje);
     } catch (error) {
-      const recovered = idViaje > 0
+      const recovered = serverCloseAttempted && idViaje > 0
         ? await recoverFinishedTrip(idViaje, getViajePorId)
         : { status: 'EN_CURSO' };
       if (recovered.status === 'FINALIZADO') {
@@ -1194,6 +1235,16 @@ async function handleAddIntermediatePoint() {
     setMessage("");
 
     try {
+      await waitForMovementCapture(telegramAuth.conductor.id_conductores,idViaje);
+      if(idViaje>0 && startedTrip && (pendingMovementCount(telegramAuth.conductor.id_conductores,idViaje)>0 || !navigator.onLine)) {
+        await queueMovementCompletion(telegramAuth.conductor.id_conductores,idViaje,{action:'cancelado'});
+        stopTracking();stopTrackingAwake();
+        const data={...createdTrip,estado:'CANCELADO',cierrePendiente:true};
+        safeStorage.setJSON('cached_active_trip',data);
+        setCancelledTrip(data);setStartedTrip(null);setCreatedTrip(data);
+        setMessage('Cancelación y movimientos guardados en el teléfono; pendientes de sincronizar.');setMessageType('success');
+        void syncOfflineState();return;
+      }
       if (hasNativeGps() && idViaje > 0 && startedTrip) {
         await queueNativeCompletion(idViaje, { action: "cancelado" });
         stopTracking();
@@ -2472,6 +2523,8 @@ function isOutsideOperatingHours() {
 
     {startedTrip && !finishedTrip && !cancelledTrip && (
       <TripOperations
+        driverId={telegramAuth?.conductor?.id_conductores}
+        closing={finishingTrip || cancellingTrip}
         tripId={
           startedTrip.idViaje ||
           startedTrip.id_viajes ||

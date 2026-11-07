@@ -5,6 +5,7 @@ import { syncPendingLocations, countPendingForTrip } from "./tracking-service.js
 import { getPendingLocations } from "./tracking-storage.js";
 import { durableWrite } from "./offline-trip-storage.js";
 import { odometerCorrectionPayload } from '../utils/odometer-correction.js';
+import { syncTripMovements } from './trip-operation-queue.js';
 
 function updateLocalMileage(record, mileage) {
   if (getOfflineTrips(record.trip.idConductor).some(other => other.trip.idVehiculo === record.trip.idVehiculo && +new Date(other.startedAt) > +new Date(record.startedAt))) return;
@@ -94,7 +95,7 @@ export function cancelOfflineTrip(driverId, localId) {
 }
 
 const syncing = new Map();
-export async function syncOfflineTrip(driverId) {
+export async function syncOfflineTrip(driverId, {upload=uploadOfflineTrip,syncGps=syncPendingLocations,countGps=countPendingForTrip,syncMovements=syncTripMovements,pendingGps=getPendingLocations}={}) {
   if (syncing.has(driverId)) return syncing.get(driverId);
   const operation = (async () => {
     if (!navigator.onLine) throw new Error("Sin conexión. Los datos siguen guardados en este teléfono.");
@@ -102,12 +103,12 @@ export async function syncOfflineTrip(driverId) {
     const candidates = getSyncableOfflineTrips(driverId);
     for (const candidate of candidates) {
       try {
-      const pendingLocations = candidate.initialLocation ? [] : await getPendingLocations(candidate.localId);
+      const pendingLocations = candidate.initialLocation ? [] : await pendingGps(candidate.localId);
       const initialLocation = candidate.initialLocation || pendingLocations[0];
       if (!initialLocation) throw new Error("El viaje local no tiene una ubicación GPS inicial guardada y requiere revisión.");
-      const response = await uploadOfflineTrip({ clientId: candidate.clientId, permit: candidate.permit, trip: candidate.trip,
-        startedAt: candidate.startedAt, initialLocation,
-        finishedAt: candidate.cancelledAt ? undefined : candidate.finishedAt, cancelledAt: candidate.cancelledAt, kilometrajeFinal: candidate.kilometrajeFinal });
+      // Primero abrir/mapear, después movimientos y GPS, por último cerrar.
+      const startPayload={clientId:candidate.clientId,permit:candidate.permit,trip:candidate.trip,startedAt:candidate.startedAt,initialLocation};
+      let response = await upload(startPayload);
       // El conductor puede terminar este viaje mientras la petición está en curso.
       const latest = getOfflineTrip(driverId, candidate.localId);
       if (!latest || latest.clientId !== candidate.clientId) throw new Error("El viaje local cambió durante la sincronización.");
@@ -115,12 +116,18 @@ export async function syncOfflineTrip(driverId) {
       let record = { ...latest, serverTrip: response.data };
       storeServerMapping(record.localId, response.data.idViaje, driverId);
       saveOfflineTrip(record);
-      const gpsSync = await syncPendingLocations(record.localId);
-      const serverClosed = ["FINALIZADO", "CANCELADO"].includes(response.data.estado);
+      await syncMovements(driverId,record.localId);
+      const gpsSync = await syncGps(record.localId);
       if (gpsSync.error) throw gpsSync.error;
-      if (!gpsSync.completed || await countPendingForTrip(record.localId) !== 0) {
+      if (!gpsSync.completed || await countGps(record.localId) !== 0) {
         throw new Error("Quedan ubicaciones pendientes de confirmar. Vuelve a sincronizar con conexión.");
       }
+      if(candidate.finishedAt) {
+        response=await upload({...startPayload,finishedAt:candidate.cancelledAt?undefined:candidate.finishedAt,
+          cancelledAt:candidate.cancelledAt,kilometrajeFinal:candidate.kilometrajeFinal});
+        record={...getOfflineTrip(driverId,candidate.localId),serverTrip:response.data};saveOfflineTrip(record);
+      }
+      const serverClosed = ["FINALIZADO", "CANCELADO"].includes(response.data.estado);
       if (serverClosed && (!latest.cancelledAt || response.data.estado === "CANCELADO") && (finishAcknowledged || !latest.finishedAt)) {
         record = { ...getOfflineTrip(driverId, candidate.localId), synced: true };
         saveOfflineTrip(record);

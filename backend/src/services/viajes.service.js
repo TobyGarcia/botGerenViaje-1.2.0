@@ -925,7 +925,7 @@ async function finishTripImpl({
       ]
     );
 
-    const elementosAlFinalizar = await closeTripItems(client, idViaje);
+    const elementosAlFinalizar = await closeTripItems(client, idViaje, recordedAt);
     const elementosResult = await client.query(
       'SELECT kind, name FROM trip_operation_items WHERE trip_id=$1 ORDER BY added_at, id',
       [idViaje]

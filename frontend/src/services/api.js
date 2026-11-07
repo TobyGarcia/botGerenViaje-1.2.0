@@ -12,6 +12,7 @@ export const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 export const getTripItems = id => request(`/api/viajes/${id}/elementos`);
 export const recordTripOperation = (id, payload) => request(`/api/viajes/${id}/elementos/eventos`, { method: 'POST', body: JSON.stringify(payload) });
+export const completeQueuedTrip = (id, payload) => request(`/api/viajes/${id}/cierre-nativo`, { method: 'POST', body: JSON.stringify(payload) });
 export const getTrailerInspection = (id, trailer) => request(`/api/viajes/${id}/remolques/${trailer}/inspeccion`);
 
 
@@ -188,6 +189,16 @@ export function cancelarViaje(idViaje) {
 }
 
 async function applyNativeClose(response) {
+  if (response?.data) {
+    const driver = safeStorage.getJSON('cached_driver', {});
+    const { getMovementState } = await import('./trip-operation-queue.js');
+    const state = getMovementState(driver.id_conductores, response.data.idViaje ?? response.data.id_viajes);
+    if (state?.completion && !state.completionResult) {
+      const pending = state.completion;
+      return { ...response, data: { ...response.data, estado: pending.action === 'cancelado' ? 'CANCELADO' : 'FINALIZADO',
+        kilometrajeFinal: pending.kilometrajeFinal, horaLlegada: pending.recordedAt, cierrePendiente: true } };
+    }
+  }
   if (response?.data && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("NativeGps")) {
     const { NativeGps } = await import("./native-gps.js");
     const trip = response.data;

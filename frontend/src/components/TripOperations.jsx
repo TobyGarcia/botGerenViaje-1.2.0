@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { getTripItems, recordTripOperation, getVehiculos, getLugares } from '../services/api.js';
+import { getTripItems, getVehiculos, getLugares } from '../services/api.js';
 import DestinationAutocomplete from './DestinationAutocomplete.jsx';
 import { isTrailer } from '../utils/vehicle-kind.js';
 import InspeccionRemolqueModal from './InspeccionRemolqueModal.jsx';
@@ -8,19 +8,23 @@ import './TripOperations.css';
 import TripOperationModal from './TripOperationModal.jsx';
 import TripTrailerIcon from './TripTrailerIcon.jsx';
 import { IconUsers } from './Icons.jsx';
-import { resolveOfflineTripId } from '../services/offline-trip-storage.js';
+import safeStorage from '../utils/safeStorage.js';
+import { cacheMovementState, enqueueMovement, getMovementState, operationItemRef, pendingMovementCount, projectMovements, syncTripMovements, withMovementCapture } from '../services/trip-operation-queue.js';
+import { getOfflineTrip, resolveOfflineTripId } from '../services/offline-trip-storage.js';
 import { resolveOperationTripId } from '../utils/trip-operation-id.js';
 
-export default function TripOperations({ tripId }) {
+export default function TripOperations({ tripId, driverId, closing = false }) {
   const serverId = () => resolveOperationTripId(tripId, resolveOfflineTripId);
   const [items, setItems] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [places, setPlaces] = useState([]);
+  const [vehicles, setVehicles] = useState(() => safeStorage.getJSON('cached_vehiculos', []));
+  const [places, setPlaces] = useState(() => safeStorage.getJSON('cached_lugares', []));
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [syncNotice, setSyncNotice] = useState('');
   const [placeId, setPlaceId] = useState('');
   const [placeError, setPlaceError] = useState('');
   async function loadPlaces() {
     setPlaceError('');
-    try { const result = await getLugares(); setPlaces(result.data || []); }
+    try { if (!navigator.onLine) return; const result = await getLugares(); setPlaces(result.data || []); await cacheMovementState(driverId, tripId, {places:result.data || []}); }
     catch { setPlaceError('No se pudieron cargar los destinos.'); }
   }
   const [companionDraft, setCompanionDraft] = useState(['']);
@@ -35,9 +39,34 @@ export default function TripOperations({ tripId }) {
   const [pending, setPending] = useState(null);
   const [actions,setActions] = useState([]);
   const refresh = async () => {
-    const id = serverId();
-    if (!id) { setLoaded(false); setError('El viaje está guardado en el teléfono. Sincronízalo para gestionar acompañantes y remolques.'); return; }
-    const r = await getTripItems(id); setItems(r.data || []); setLoaded(true); setError('');
+    setSyncNotice('');
+    let state = getMovementState(driverId, tripId);
+    if (!state) await cacheMovementState(driverId,tripId,{places:safeStorage.getJSON('cached_lugares',[]),vehicles:safeStorage.getJSON('cached_vehiculos',[])});
+    if (!state?.prepared && Number(tripId)<0) {
+      const local = getOfflineTrip(driverId, tripId);
+      if (!local?.startedAt) throw new Error('Inicia el viaje local antes de registrar movimientos.');
+      const initial = (local.trip.acompanantes || []).map((person,index)=>({
+        id: `companion-${index}`, initial_key: `companion-${index}`, kind:'companion',
+        name:typeof person==='string'?person:person.nombre, added_at:local.startedAt, removed_at:null
+      }));
+      await cacheMovementState(driverId,tripId,{items:initial,places:safeStorage.getJSON('cached_lugares',[]),vehicles:safeStorage.getJSON('cached_vehiculos',[])});
+    }
+    const id=serverId();
+    if (id && navigator.onLine) {
+      try {
+        await syncTripMovements(driverId,tripId);
+        if (!pendingMovementCount(driverId,tripId)) {
+          const response=await getTripItems(id);
+          await cacheMovementState(driverId,tripId,{items:response.data || []});
+        }
+      } catch(error) { setSyncNotice(error.message); }
+    }
+    state=getMovementState(driverId,tripId);
+    const projected=projectMovements(state);
+    setItems(projected); setLoaded(true); setError('');
+    if(state.places?.length) setPlaces(state.places);
+    if(state.vehicles?.length) setVehicles(state.vehicles);
+    setQueuedCount(state.pending.length);
   };
   useEffect(() => {
     setPlaceId('');
@@ -45,8 +74,15 @@ export default function TripOperations({ tripId }) {
     setActions([]);setPending(null);setModal(null);setTrailer('');setInspection(null);setCompanionDraft(['']);setWarningConfirmed(false);
     setLoaded(false);
     refresh().catch(e => setError(e.message));
-    getVehiculos().then(r => setVehicles(r.data || [])).catch(e => setError(e.message));
-  }, [tripId]);
+    if (navigator.onLine) getVehiculos().then(async r => {
+      setVehicles(r.data || []); await cacheMovementState(driverId,tripId,{vehicles:r.data || []});
+    }).catch(e => setSyncNotice(e.message));
+    const update=()=>void refresh().catch(e=>setError(e.message));
+    window.addEventListener('online',update);
+    window.addEventListener('trip-movements-synced',update);
+    const timer=window.setInterval(update,30000);
+    return ()=>{window.clearInterval(timer);window.removeEventListener('online',update);window.removeEventListener('trip-movements-synced',update);};
+  }, [tripId,driverId]);
   async function selectTrailer(id) {
     setTrailer(id); setInspection(null); setWarningConfirmed(false); setError('');
     if (id) setShowInspection(true);
@@ -55,24 +91,24 @@ export default function TripOperations({ tripId }) {
     setBusy(true); setError('');
     let operation = pending;
     try {
+      await withMovementCapture(driverId,tripId,async()=>{
       if (!operation) {
         const location = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-        operation = { ...payload, eventKey: crypto.randomUUID(), latitude: location.coords.latitude, longitude: location.coords.longitude };
+        operation = { ...payload, eventKey: crypto.randomUUID(), recordedAt: new Date().toISOString(), latitude: location.coords.latitude, longitude: location.coords.longitude };
         setPending(operation);
       }
-      const resolved = serverId();
-      if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
-      await recordTripOperation(resolved, operation);
+      await enqueueMovement(driverId, tripId, operation);
+      });
       setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false); setPlaceId('');
       try { await refresh(); }
       catch { setLoaded(false); setError('Las acciones se guardaron. Actualiza el viaje para ver el estado confirmado.'); }
     } catch (e) {
-      if (e.status >= 400 && e.status < 500 && e.status !== 429) { setPending(null); await refresh().catch(() => {}); }
+      if (!e.message?.includes('guardar en el teléfono')) setPending(null);
       setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.');
     }
     finally { setBusy(false); }
   }
-  const disabled = busy || !loaded || Boolean(pending);
+  const disabled = busy || closing || !loaded || Boolean(pending);
   const names = companionDraft.map(value => value.trim()).filter(Boolean);
   const onboardCount = items.filter(item => item.kind === 'companion' && !item.removed_at).length;
   const attachedTrailersCount = items.filter(item => item.kind === 'trailer' && !item.removed_at).length;
@@ -82,7 +118,7 @@ export default function TripOperations({ tripId }) {
   const finalCount = projectedCount + names.length;
   function toggleRemoval(item) {
     const type=item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED';
-    setActions(current=>current.some(a=>a.type===type && a.itemId===Number(item.id))?current.filter(a=>!(a.type===type && a.itemId===Number(item.id))):[...current,{type,itemId:Number(item.id),name:item.name}]);
+    setActions(current=>current.some(a=>a.type===type && a.itemRef===operationItemRef(item))?current.filter(a=>!(a.type===type && a.itemRef===operationItemRef(item))):[...current,{type,itemRef:operationItemRef(item),name:item.name}]);
   }
   function stageTrailer() {
     const vehicle=vehicles.find(v=>Number(v.id_vehiculos)===Number(trailer));
@@ -98,6 +134,8 @@ export default function TripOperations({ tripId }) {
   return <section className="gv-trip-operations trip-operation-launcher">
     <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Gestionar viaje</h3></div></header>
     <div className="trip-operation-shortcuts">{[['companions','companion','Acompañantes'],['trailers','trailer','Remolques']].map(([id,kind,title]) => <button type="button" className="trip-operation-shortcut" key={id} onClick={() => setModal(id)}><span className="trip-operation-shortcut-icon">{kind === 'companion' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}</span><strong>{title}</strong><small>{items.filter(i => i.kind === kind && !i.removed_at).length} {kind === 'companion' ? 'a bordo' : 'enganchados'}</small><span className="trip-operation-manage">Gestionar →</span></button>)}</div>
+    {queuedCount>0 && <p role="status">{queuedCount} {queuedCount===1?'parada guardada':'paradas guardadas'} en el teléfono, pendientes de sincronizar.</p>}
+    {syncNotice && <p role="status">Los datos locales se conservan. {syncNotice}</p>}
     {!modal && alerts}
     {!modal && confirmationActions.length>0 && <button type="button" onClick={()=>setModal('companions')}>Continuar cambios pendientes</button>}
     {!modal && !loaded && !busy && <button type="button" onClick={() => refresh().catch(e => setError(e.message))}>Actualizar viaje</button>}
@@ -106,7 +144,7 @@ export default function TripOperations({ tripId }) {
         title={modal === 'companions' ? 'Acompañantes' : 'Remolques'}
         badge={modal === 'companions' ? `${onboardCount} / 4 a bordo` : `${attachedTrailersCount} ${attachedTrailersCount === 1 ? 'enganchado' : 'enganchados'}`}
         icon={modal === 'companions' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}
-        busy={busy}
+        busy={busy || closing}
         onClose={() => setModal(null)}
         footer={
           <>
@@ -140,6 +178,8 @@ export default function TripOperations({ tripId }) {
           </>
         }
       >
+        {queuedCount>0 && <p role="status">{queuedCount} paradas pendientes de sincronizar.</p>}
+        {syncNotice && <p role="status">{syncNotice}</p>}
         {error && <p role="alert">{error}</p>}
         {pending && <button type="button" className="trip-ops-retry-btn" disabled={busy} onClick={() => submit(pending)}>Reintentar registro pendiente</button>}
         {!loaded && !busy && <button type="button" className="trip-ops-retry-btn" onClick={() => refresh().catch(e => setError(e.message))}>Cargar elementos</button>}
@@ -168,7 +208,7 @@ export default function TripOperations({ tripId }) {
             <div className="trip-ops-list">
               {activeItems.map(item => {
                 const isLeaving = actions.some(
-                  a => a.itemId === Number(item.id) && a.type === (item.kind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED')
+                  a => a.itemRef === operationItemRef(item) && a.type === (item.kind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED')
                 );
                 return (
                   <div
@@ -296,7 +336,7 @@ export default function TripOperations({ tripId }) {
                   {vehicles
                     .filter(isTrailer)
                     .filter(v => !actions.some(a=>a.type==='TRAILER_ATTACHED' && a.itemId===Number(v.id_vehiculos)))
-                    .filter(v => !items.some(i => i.kind === 'trailer' && !i.removed_at && Number(i.trailer_id) === Number(v.id_vehiculos) && !actions.some(a=>a.type==='TRAILER_DETACHED' && a.itemId===Number(i.id))))
+                    .filter(v => !items.some(i => i.kind === 'trailer' && !i.removed_at && Number(i.trailer_id) === Number(v.id_vehiculos) && !actions.some(a=>a.type==='TRAILER_DETACHED' && a.itemRef===operationItemRef(i))))
                     .map(v => (
                       <option key={v.id_vehiculos} value={v.id_vehiculos}>
                         {v.numero_economico} · {v.nombre}

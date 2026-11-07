@@ -34,16 +34,16 @@ async function seedInitial(client, trip) {
   }
 }
 
-export async function closeTripItems(client, tripId) {
+export async function closeTripItems(client, tripId, recordedAt = null) {
   const tripResult = await client.query('SELECT * FROM viajes WHERE id_viajes=$1', [tripId]);
   if (!tripResult.rows[0]) return [];
   await seedInitial(client, tripResult.rows[0]);
   const location = await client.query(`SELECT latitud, longitud FROM ubicaciones_viaje WHERE id_viajes=$1
     ORDER BY fecha_gps DESC, id_ubicaciones_viaje DESC LIMIT 1`, [tripId]);
   const point = location.rows[0];
-  const items = await client.query(`UPDATE trip_operation_items SET removed_at=CURRENT_TIMESTAMP,
+  const items = await client.query(`UPDATE trip_operation_items SET removed_at=COALESCE($4::timestamptz,CURRENT_TIMESTAMP),
     removed_latitude=$2, removed_longitude=$3 WHERE trip_id=$1 AND removed_at IS NULL RETURNING *`,
-    [tripId, point?.latitud ?? null, point?.longitud ?? null]);
+    [tripId, point?.latitud ?? null, point?.longitud ?? null, recordedAt]);
   // El cierre se informa en el mensaje final; no es una parada ni una baja adicional.
   return items.rows;
 }
@@ -106,19 +106,20 @@ export async function recordTripOperation(tripId, driverId, body, { client: exte
           if (typeof data.captureId !== 'string' || !/^[0-9a-f-]{36}$/i.test(data.captureId)) fail('Realiza una inspección nueva para este enganche.');
           const used = await client.query(`SELECT id FROM trip_operation_items WHERE inspection->'data'->>'captureId'=$1 LIMIT 1`, [data.captureId]);
           if (used.rows.length) fail('Esta inspección ya se utilizó. Realiza una nueva después del desenganche.');
-          inspection = { source: 'new', estado: 'PENDIENTE_APROBACION', data, captured_at: new Date().toISOString() };
+          inspection = { source: 'new', estado: 'PENDIENTE_APROBACION', data, captured_at: externalClient && collectOnly && body.operationRecordedAt ? body.operationRecordedAt : new Date().toISOString() };
         }
         if (body.warningConfirmed !== true) fail('Confirma el estado de inspección para continuar.');
         inspection = { ...inspection, warningConfirmed: true, mode: body.inspectionMode };
       }
-      const result = await client.query(`INSERT INTO trip_operation_items(trip_id,kind,name,trailer_id,inspection,added_latitude,added_longitude)
-        VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [tripId, input.type === 'COMPANION_ADDED' ? 'companion' : 'trailer',
-        name, input.type === 'TRAILER_ATTACHED' ? input.itemId : null, inspection ? JSON.stringify(inspection) : null, input.latitude, input.longitude]);
+    const result = await client.query(`INSERT INTO trip_operation_items(trip_id,kind,name,trailer_id,inspection,added_latitude,added_longitude,initial_key,added_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamptz,CURRENT_TIMESTAMP)) RETURNING *`, [tripId, input.type === 'COMPANION_ADDED' ? 'companion' : 'trailer',
+        name, input.type === 'TRAILER_ATTACHED' ? input.itemId : null, inspection ? JSON.stringify(inspection) : null, input.latitude, input.longitude,
+        externalClient && collectOnly ? body.operationItemKey : null, externalClient && collectOnly ? body.operationRecordedAt : null]);
       item = result.rows[0];
     } else {
       const kind = input.type === 'COMPANION_DROPPED_OFF' ? 'companion' : 'trailer';
-      const result = await client.query(`UPDATE trip_operation_items SET removed_at=CURRENT_TIMESTAMP,removed_latitude=$1,removed_longitude=$2
-        WHERE id=$3 AND trip_id=$4 AND kind=$5 AND removed_at IS NULL RETURNING *`, [input.latitude,input.longitude,input.itemId,tripId,kind]);
+      const result = await client.query(`UPDATE trip_operation_items SET removed_at=COALESCE($6::timestamptz,CURRENT_TIMESTAMP),removed_latitude=$1,removed_longitude=$2
+        WHERE id=$3 AND trip_id=$4 AND kind=$5 AND removed_at IS NULL RETURNING *`, [input.latitude,input.longitude,input.itemId,tripId,kind, externalClient && collectOnly ? body.operationRecordedAt : null]);
       item = result.rows[0];
       if (!item) fail('El elemento ya fue retirado o no pertenece al viaje.', 409);
     }
@@ -187,7 +188,8 @@ export async function recordCompanionBatch(tripId, driverId, body) {
 
 export async function recordConfirmedActions(tripId,driverId,body) {
   if (!Array.isArray(body.actions) || !body.actions.length || body.actions.length>20) fail('Selecciona las acciones que deseas confirmar.');
-  const actions=body.actions.map((action,index)=>({ ...action, ...parseTripOperationInput({ ...action,latitude:body.latitude,longitude:body.longitude,eventKey:`${body.eventKey}_${index}` }) }));
+  // Validar la clave y el GPS antes de adquirir una conexión.
+  parseTripOperationInput({type:'COMPANION_ADDED',name:'validación',latitude:body.latitude,longitude:body.longitude,eventKey:body.eventKey});
   const client=await databasePool.connect();
   try {
     await client.query('BEGIN');
@@ -195,12 +197,34 @@ export async function recordConfirmedActions(tripId,driverId,body) {
     const prior=await client.query('SELECT * FROM trip_operation_events WHERE event_key=$1',[body.eventKey]);
     if(prior.rows[0]) { if(prior.rows[0].trip_id!==tripId)fail('Identificador usado en otro viaje.',409); await client.query('COMMIT');return prior.rows[0]; }
     if(trip.estado!=='EN_CURSO')fail('Solo se pueden confirmar acciones en un viaje en curso.',409);
+    let recordedAt = null;
+    if (body.recordedAt !== undefined) {
+      const timestamp = typeof body.recordedAt === 'string' ? Date.parse(body.recordedAt) : NaN;
+      if (!Number.isFinite(timestamp) || timestamp > Date.now()+600000 || timestamp < Date.now()-30*86400000) fail('La hora del movimiento no es válida. Los datos locales requieren revisión.');
+      recordedAt = new Date(timestamp).toISOString();
+      const valid = await client.query(`SELECT hora_salida IS NULL OR $2::timestamptz >= (hora_salida AT TIME ZONE 'America/Mexico_City') - INTERVAL '5 minutes' AS valid FROM viajes WHERE id_viajes=$1`, [tripId,recordedAt]);
+      if (!valid.rows[0]?.valid) fail('El movimiento es anterior al inicio del viaje.');
+    }
+    await seedInitial(client,trip);
+    const actions=[];
+    for (const [index, original] of body.actions.entries()) {
+      const action = { ...original };
+      if (['COMPANION_DROPPED_OFF','TRAILER_DETACHED'].includes(action.type) && action.itemRef !== undefined) {
+        if (typeof action.itemRef !== 'string' || action.itemRef.length>150) fail('Referencia de elemento inválida.');
+        const item = await client.query('SELECT id FROM trip_operation_items WHERE trip_id=$1 AND (initial_key=$2 OR id::text=$2)',[tripId,action.itemRef]);
+        if (!item.rows[0]) fail('No se encontró el elemento del movimiento. Sincroniza las paradas anteriores.',409);
+        action.itemId=Number(item.rows[0].id);
+      }
+      actions.push({...action,...parseTripOperationInput({...action,latitude:body.latitude,longitude:body.longitude,eventKey:`${body.eventKey}_${index}`}),
+        operationItemKey:`movement-${body.eventKey}_${index}`,operationRecordedAt:recordedAt});
+    }
     let place = null;
     if (body.placeId !== undefined) {
       if (!Number.isSafeInteger(body.placeId) || body.placeId <= 0 || body.placeId > 2147483647) fail('Selecciona un destino válido para la parada.');
-      const result = await client.query('SELECT id_lugares, nombre FROM lugares WHERE id_lugares=$1 AND activo=TRUE FOR SHARE', [body.placeId]);
-      if (!result.rows[0]) fail('El destino de la parada ya no está disponible. Selecciona otro.');
-      place = { id: result.rows[0].id_lugares, name: result.rows[0].nombre };
+      const result = await client.query('SELECT id_lugares, nombre, activo FROM lugares WHERE id_lugares=$1 FOR SHARE', [body.placeId]);
+      if (!result.rows[0] || (!result.rows[0].activo && !recordedAt)) fail('El destino de la parada ya no está disponible. Selecciona otro.');
+      if (body.placeName !== undefined && (typeof body.placeName !== 'string' || !body.placeName.trim() || body.placeName.length>200)) fail('Nombre del lugar inválido.');
+      place = { id: result.rows[0].id_lugares, name: recordedAt && body.placeName ? body.placeName.trim() : result.rows[0].nombre };
     }
     const removals=new Set(['COMPANION_DROPPED_OFF','TRAILER_DETACHED']);
     actions.sort((a,b)=>Number(removals.has(b.type))-Number(removals.has(a.type)));
@@ -209,6 +233,10 @@ export async function recordConfirmedActions(tripId,driverId,body) {
     const payload={folio:trip.folio,name:results.map(r=>r.name).join(', '),actions:results,confirmed:true,latitude:body.latitude,longitude:body.longitude,...(place ? { place } : {})};
     const event=await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
       VALUES($1,$2,$3,$4,$5) RETURNING *`,[body.eventKey,tripId,results[0].itemId,results[0].type,JSON.stringify(payload)]);
+    if (recordedAt) {
+      const updated = await client.query('UPDATE trip_operation_events SET created_at=$2 WHERE id=$1 RETURNING *',[event.rows[0].id,recordedAt]);
+      event.rows[0] = updated.rows[0];
+    }
     if(formatStopSummary([event.rows[0]]).length>3500)fail('Confirma menos acciones para mantener el resumen legible.');
     const description = [
       ['COMPANION_DROPPED_OFF', 'Se dejó personal'], ['COMPANION_ADDED', 'Se subió personal'],
