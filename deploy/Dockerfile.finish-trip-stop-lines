@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:finish-trip-conditional-20261107
+COPY backend/src/services/trip-finish-message.js /app/src/services/trip-finish-message.js

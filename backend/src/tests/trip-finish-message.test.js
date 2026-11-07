@@ -15,13 +15,32 @@ test('el cierre lista las paradas con fecha, lugar y movimientos; solo muestra q
       {kind:'trailer',name:'R1'},{kind:'trailer',name:'R1'}],
     elementosAlFinalizar: [{kind:'companion',name:'Juan'}]
   }).join('\n');
-  assert.match(message, /Paradas técnicas\n1\. .*\nParada técnica en Patio: Se subió personal: Juan\n2\. .*\nParada técnica en Taller: Se dejó remolque: R1/);
+  assert.match(message, /Paradas técnicas\n1\. .* — Parada técnica en Patio: Se subió personal: Juan\n2\. .* — Parada técnica en Taller: Se dejó remolque: R1/);
   assert.doesNotMatch(message, /Resumen del recorrido|Acompañantes del viaje|Remolques utilizados|Remolques: Ninguno|Luis/);
   assert.match(message, /Acompañantes: Juan/);
   assert.doesNotMatch(message, /Al llegar al destino/);
   assert.match(message, /Kilometraje: 0 → 10 km/);
   assert.match(message, /02\/11\/2026/);
   assert.match(message, /03\/11\/2026/);
+});
+
+test('usa una línea por parada y solo hora cuando todo el viaje comparte el día de México',()=>{
+  const stops=[
+    {nombre_punto:'Parada técnica en Taller:\n Se recogió remolque: R1',fecha_gps:'2026-11-08T00:30:00Z'},
+    {nombre_punto:'Parada técnica en Patio: Se dejó personal: Ana',fecha_gps:'2026-11-08T01:00:00Z'}
+  ];
+  const trip={horaSalida:'2026-11-07T23:00:00Z',horaLlegada:'2026-11-08T02:00:00Z',paradasTecnicas:stops};
+  const lines=formatFinishedTripLines(trip);
+  const stopLines=lines.filter(line=>/^\d+\./.test(line));
+  assert.equal(stopLines.length,2);
+  assert.ok(stopLines.every(line=>!line.includes('\n') && !/\d{2}\/\d{2}\/\d{4}/.test(line)));
+  assert.match(stopLines[0],/06:30.* — Parada técnica en Taller: Se recogió remolque: R1/);
+  // El cruce de medianoche local sí conserva la fecha, aunque ambas paradas
+  // pertenezcan al mismo día: la salida fue el día anterior.
+  const overnight=formatFinishedTripLines({...trip,horaSalida:'2026-11-06T23:00:00Z'}).filter(line=>/^\d+\./.test(line));
+  assert.ok(overnight.every(line=>line.includes('07/11/2026')));
+  const invalid=formatFinishedTripLines({paradasTecnicas:[{nombre_punto:'Patio',fecha_gps:'inválida'}]}).join('\n');
+  assert.match(invalid,/1\. No registrada — Patio/);
 });
 
 test('conserva todas las paradas de recorridos largos en mensajes válidos para Telegram', () => {

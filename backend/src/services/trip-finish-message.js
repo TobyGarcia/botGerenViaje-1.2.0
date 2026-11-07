@@ -7,10 +7,11 @@ function names(items) {
   return items.map(item => text(item.name, '')).filter(Boolean).join(', ');
 }
 
-function date(value) {
+function date(value, timeOnly = false) {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'No registrada';
   return new Intl.DateTimeFormat('es-MX', {
-    timeZone: 'America/Mexico_City', day: '2-digit', month: '2-digit', year: 'numeric',
+    timeZone: 'America/Mexico_City',
+    ...(timeOnly ? {} : { day: '2-digit', month: '2-digit', year: 'numeric' }),
     hour: '2-digit', minute: '2-digit'
   }).format(new Date(value));
 }
@@ -18,6 +19,12 @@ function date(value) {
 export function formatFinishedTripLines(trip) {
   const arrived = Array.isArray(trip.elementosAlFinalizar) ? trip.elementosAlFinalizar : [];
   const stops = Array.isArray(trip.paradasTecnicas) ? trip.paradasTecnicas : [];
+  const days = new Set([trip.horaSalida, trip.horaLlegada, ...stops.map(stop => stop.fecha_gps ?? stop.gpsTimestamp)]
+    .filter(value => value && Number.isFinite(new Date(value).getTime()))
+    .map(value => new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date(value))));
+  const sameDay = days.size === 1;
   const companions = items => items.filter(item => item.kind === 'companion');
   const trailers = items => items.filter(item => item.kind === 'trailer');
   const arrival = [
@@ -35,10 +42,9 @@ export function formatFinishedTripLines(trip) {
     `Llegada: ${date(trip.horaLlegada)}`,
     `Kilometraje: ${text(trip.kilometrajeInicial)} → ${text(trip.kilometrajeFinal)} km`,
     `Distancia recorrida: ${text(trip.kilometrosRecorridos)} km`,
-    ...(stops.length ? ['', '📍 Paradas técnicas', ...stops.flatMap((stop, index) => [
-      `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp)}`,
-      String(stop.nombre_punto ?? stop.nombrePunto ?? 'Lugar no registrado').replace(/\s+/g, ' ').trim()
-    ])] : []),
+    ...(stops.length ? ['', '📍 Paradas técnicas', ...stops.map((stop, index) =>
+      `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp, sameDay)} — ${String(stop.nombre_punto ?? stop.nombrePunto ?? 'Lugar no registrado').replace(/\s+/g, ' ').trim()}`
+    )] : []),
     ...(arrival.length ? ['', ...arrival] : []),
     ...(trip.motivo ? ['', `Motivo: ${text(trip.motivo)}`] : [])
   ];
