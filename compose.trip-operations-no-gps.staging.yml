@@ -2,6 +2,6 @@ services:
   backend:
     image: gv-staging-trip-operations-backend:movement-labels-20261107
   frontend:
-    image: gv-staging-trip-operations-frontend:movement-labels-20261107
+    image: gv-staging-trip-operations-frontend:pending-additions-20261107
   panel-admin:
     image: gv-staging-trip-operations-panel:companion-history-20261102

@@ -80,6 +80,7 @@
 .trip-companion-input-row { display:flex; align-items:center; gap:8px; }
 .trip-companion-row-index { display:grid; place-items:center; width:26px; height:26px; flex-shrink:0; border-radius:8px; background:#e2e8f0; color:#475569; font-size:11.5px; font-weight:800; }
 .trip-companion-input-row input { flex:1; min-width:0; }
+.trip-companion-draft-name { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; }
 .gv-trip-operations button.trip-companion-remove { display:grid; place-items:center; width:32px; height:32px; min-height:32px; padding:0; font-size:18px; line-height:1; border:1px solid #fecdd3; border-radius:8px; background:#fff1f2; color:#be123c; flex-shrink:0; }
 .gv-trip-operations button.trip-companion-remove:hover:not(:disabled) { background:#ffe4e6; border-color:#fda4af; }
 .trip-ops-trailer-inspection-box { display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid #e2e8f0; border-radius:14px; background:#f8fafc; }

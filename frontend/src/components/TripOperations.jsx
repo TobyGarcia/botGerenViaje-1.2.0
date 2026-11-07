@@ -253,6 +253,7 @@ export default function TripOperations({ tripId }) {
                   {companionDraft.map((value, index) => (
                     <div className="trip-companion-input-row" key={index}>
                       <span className="trip-companion-row-index" aria-hidden="true">{index + 1}</span>
+                      <div className="trip-companion-draft-name">
                       <input
                         aria-label={`Nombre del acompañante ${index + 1}`}
                         placeholder={`Nombre completo del acompañante ${index + 1}`}
@@ -261,6 +262,8 @@ export default function TripOperations({ tripId }) {
                         disabled={disabled}
                         onChange={e => setCompanionDraft(values => values.map((name, i) => (i === index ? e.target.value : name)))}
                       />
+                      {value.trim() && <small className="trip-ops-status-tag">Se recogerá personal</small>}
+                      </div>
                       {companionDraft.length > 1 && (
                         <button
                           className="trip-companion-remove"
@@ -300,6 +303,7 @@ export default function TripOperations({ tripId }) {
                       </option>
                     ))}
                 </select>
+                {trailer && <small className="trip-ops-status-tag">Se enganchará</small>}
               </label>
               {trailer && (
                 <div className="trip-ops-trailer-inspection-box">
@@ -339,7 +343,7 @@ export default function TripOperations({ tripId }) {
         )}
 
         {finalCount>4 && <p role="alert">Solo pueden viajar cuatro acompañantes. Quita un nombre o selecciona quién baja.</p>}
-        {modal === 'trailers' && actions.some(action=>action.type==='TRAILER_ATTACHED') && <section className="trip-ops-list">{actions.map((action,index)=>action.type==='TRAILER_ATTACHED' && <div className="trip-ops-item" key={index}><span className="trip-ops-item-name"><strong>{action.name}</strong><small>Listo para enganchar</small></span><button type="button" disabled={disabled} onClick={()=>setActions(current=>current.filter((_,i)=>i!==index))}>Quitar</button></div>)}</section>}
+        {modal === 'trailers' && actions.some(action=>action.type==='TRAILER_ATTACHED') && <section className="trip-ops-list">{actions.map((action,index)=>action.type==='TRAILER_ATTACHED' && <div className="trip-ops-item" key={index}><span className="trip-ops-item-name"><strong>{action.name}</strong><small className="trip-ops-status-tag">Se enganchará</small></span><button type="button" disabled={disabled} onClick={()=>setActions(current=>current.filter((_,i)=>i!==index))}>Quitar</button></div>)}</section>}
         {historyItems.length > 0 && (
           <details className="trip-ops-history">
             <summary>
