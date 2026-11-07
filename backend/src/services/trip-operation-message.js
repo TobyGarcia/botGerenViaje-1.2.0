@@ -1,10 +1,10 @@
 const labels = { COMPANION_ADDED:'Acompañante agregado',COMPANION_DROPPED_OFF:'Acompañante dejado',TRAILER_ATTACHED:'Remolque enganchado',TRAILER_DETACHED:'Remolque desenganchado' };
-const personalLine = names => names.map(name => String(name ?? '').replace(/\s+/g,' ').trim()).filter(Boolean).join(', ');
+const namesLine = names => names.map(name => String(name ?? '').replace(/\s+/g,' ').trim()).filter(Boolean).join(', ');
 export function formatTripOperationMessage(event) {
   const p=event.payload;
   const names=Array.isArray(p.names) && p.names.length ? p.names : [p.name];
   const title=event.event_type==='COMPANION_ADDED' && names.length>1 ? 'Acompañantes agregados' : labels[event.event_type];
-  const list=event.event_type.startsWith('COMPANION_')?personalLine(names):names.map(name=>`• ${name}`).join('\n');
+  const list=namesLine(names);
   return `${title}${p.closure?' (cierre del viaje)':''}\nViaje: ${p.folio}\n${list}\nHora: ${new Date(event.created_at).toLocaleString('es-MX',{timeZone:'America/Mexico_City'})}`;
 }
 
@@ -16,8 +16,7 @@ export function formatStopSummary(events) {
   const lines=sections.flatMap(([type,label])=>{
     const matching=events.filter(e=>e.event_type===type);
     if (!matching.length) return [];
-    if (type.startsWith('COMPANION_')) return ['',`${label} ${personalLine(matching.flatMap(e=>e.payload.names || [e.payload.name]))}`];
-    return ['',label,...matching.flatMap(e=>(e.payload.names || [e.payload.name]).map(name=>`• ${name}`))];
+    return ['',`${label} ${namesLine(matching.flatMap(e=>e.payload.names || [e.payload.name]))}`];
   });
   const time=value=>new Date(value).toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit'});
   const end=events[events.length-1];

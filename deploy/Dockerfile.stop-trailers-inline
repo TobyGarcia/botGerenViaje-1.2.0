@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:stop-personnel-inline-20261107
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
