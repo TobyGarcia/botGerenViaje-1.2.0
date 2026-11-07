@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:offline-movements-20261107
+    image: gv-staging-trip-operations-backend:inspection-annex-usage-20261107
   frontend:
     image: gv-staging-trip-operations-frontend:background-movements-20261107
   panel-admin:

@@ -202,3 +202,19 @@ test('reproduce paradas offline con referencias locales, horas originales e insp
  assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=3')).rows[0].n,3);
  await assert.rejects(recordConfirmedActions(3,20,first),/conductor/);
 });
+
+test('cada enganche exige una captura nueva incluso al cambiar de viaje con el mismo conductor',async()=>{
+  await query("INSERT INTO lugares VALUES(31,'Parada de enganches',TRUE)");
+  await query("INSERT INTO viajes(id_viajes,id_conductores,id_estado_viaje,folio,acompanantes) VALUES(31,10,1,'TEST-31','[]'),(32,10,1,'TEST-32','[]')");
+  const inspection={idRemolque:2,captureId:crypto.randomUUID(),checklist:{luces:'B'}};
+  const body=()=>({placeId:31,eventKey:crypto.randomUUID(),latitude:19.4,longitude:-99.1,
+    actions:[{type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection}]});
+  await recordConfirmedActions(31,10,body());
+  const original=(await listTripItems(31,10)).find(item=>item.kind==='trailer');
+  await recordTripOperation(31,10,operation('TRAILER_DETACHED',{itemId:Number(original.id)}));
+  await assert.rejects(recordConfirmedActions(32,10,body()),/ya se utilizó/);
+  const fresh=body();fresh.actions[0].inspection={...inspection,captureId:crypto.randomUUID(),checklist:{luces:'M'}};
+  await recordConfirmedActions(32,10,fresh);
+  assert.equal((await listTripItems(31,10))[0].inspection.data.checklist.luces,'B');
+  assert.equal((await listTripItems(32,10))[0].inspection.data.checklist.luces,'M');
+});

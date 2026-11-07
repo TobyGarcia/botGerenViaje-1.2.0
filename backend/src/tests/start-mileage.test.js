@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { databasePool } from '../database/pool.js';
 import { createTrip, startTrip, finishTrip } from '../services/viajes.service.js';
+import { saveInspection } from '../services/inspecciones.service.js';
 
 async function fixture() {
   const driver=(await databasePool.query("INSERT INTO conductores(nombre,licencia_vigente,licencia_vencimiento,fecha_manejo_comentado) VALUES('Inicio Prueba',TRUE,CURRENT_DATE+30,CURRENT_DATE) RETURNING id_conductores")).rows[0].id_conductores;
@@ -11,9 +12,18 @@ async function fixture() {
   for(let i=0;i<2;i++) places.push((await databasePool.query('INSERT INTO lugares(nombre) VALUES($1) RETURNING id_lugares',[randomUUID()])).rows[0].id_lugares);
   const trip=await createTrip({idConductor:driver,idVehiculo:vehicle,idOrigen:places[0],idDestino:places[1],acompanantes:[],kilometrajeInicial:1000,motivo:'Prueba',esGerenciamiento:true});
   await databasePool.query('INSERT INTO gerenciamiento_viajes(id_viaje,kilometraje) VALUES($1,1000)',[trip.id_viajes]);
-  return {trip,vehicle};
+  return {trip,vehicle,driver};
 }
 const gps=()=>({clientLocationId:randomUUID(),latitud:19.4,longitud:-99.1,fechaGps:new Date().toISOString()});
+
+test('el inicio vincula la inspección diaria exacta y revierte el vínculo si falla el GPS',async()=>{
+  const {trip,driver}=await fixture();
+  const inspection=await saveInspection({idViaje:trip.id_viajes,idConductor:driver,data:{combustible:'3/4',checklist:{},danos:{},firma:'prueba'}});
+  await assert.rejects(startTrip({idViaje:trip.id_viajes,inspectionId:inspection.id_inspeccion,initialLocation:{...gps(),latitud:999}}));
+  assert.equal((await databasePool.query('SELECT * FROM viaje_inspeccion_uso WHERE id_viajes=$1',[trip.id_viajes])).rows.length,0);
+  await startTrip({idViaje:trip.id_viajes,inspectionId:inspection.id_inspeccion,initialLocation:gps()});
+  assert.equal((await databasePool.query('SELECT id_inspeccion FROM viaje_inspeccion_uso WHERE id_viajes=$1',[trip.id_viajes])).rows[0].id_inspeccion,inspection.id_inspeccion);
+});
 
 test('confirma la lectura al iniciar y la usa en vehículo, documento y distancia final',async()=>{
   const {trip,vehicle}=await fixture();

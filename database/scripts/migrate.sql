@@ -47,3 +47,4 @@
 \ir ../migrations/042_trip_operations.sql
 \ir ../migrations/043_trip_stop_description.sql
 \ir ../migrations/044_trip_telegram_start_messages.sql
+\ir ../migrations/045_viaje_inspeccion_uso.sql

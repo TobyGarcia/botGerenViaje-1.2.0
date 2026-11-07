@@ -466,7 +466,8 @@ async function startTripImpl({
   idViaje,
   initialLocation,
   kilometrajeInicial,
-  odometerCorrection
+  odometerCorrection,
+  inspectionId
 }, { client: externalClient = null, recordedAt = null } = {}) {
   const ownsTransaction = !externalClient;
   const client = externalClient || await databasePool.connect();
@@ -681,6 +682,12 @@ async function startTripImpl({
     );
 
     const updatedTrip = updateResult.rows[0];
+
+    if (inspectionId) await client.query(`INSERT INTO viaje_inspeccion_uso(id_viajes,id_inspeccion)
+      SELECT v.id_viajes,i.id_inspeccion FROM viajes v JOIN inspecciones_vehiculares i
+        ON i.id_vehiculos=v.id_vehiculos AND i.id_conductores=v.id_conductores
+      WHERE v.id_viajes=$1 AND i.id_inspeccion=$2
+      ON CONFLICT (id_viajes) DO NOTHING`, [idViaje, inspectionId]);
 
     await insertInitialTripLocation(
       client,

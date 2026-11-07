@@ -158,12 +158,15 @@ export async function getAdminInspection(idInspeccion) {
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
   const detail = result.rows[0];
-  return detail ? { ...detail, trailer_inspections: await getTripInspectionAnnexes(detail.id_viajes) } : null;
+  return detail ? { ...detail, trailer_inspections: await getTripInspectionAnnexes(detail.id_viajes, { inspectionId: detail.id_inspeccion }) } : null;
 }
 
 export async function getInspectionByViaje(idViaje) {
   const result = await databasePool.query(`
-    SELECT id_inspeccion FROM inspecciones_vehiculares WHERE id_viajes = $1 ORDER BY id_inspeccion DESC LIMIT 1
+    SELECT i.id_inspeccion FROM inspecciones_vehiculares i
+    WHERE i.id_viajes=$1 OR EXISTS (SELECT 1 FROM viaje_inspeccion_uso u
+      WHERE u.id_viajes=$1 AND u.id_inspeccion=i.id_inspeccion)
+    ORDER BY i.id_inspeccion DESC LIMIT 1
   `, [idViaje]);
   if (!result.rows[0]?.id_inspeccion) return null;
   return getAdminInspection(result.rows[0].id_inspeccion);

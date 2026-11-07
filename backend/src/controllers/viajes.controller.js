@@ -292,6 +292,7 @@ export async function startTripController(
     const trip = await startTrip({
       idViaje,
       initialLocation,
+      inspectionId: inspection.id_inspeccion,
       kilometrajeInicial: request.body.kilometrajeInicial,
       odometerCorrection: request.body.odometerCorrection
     });

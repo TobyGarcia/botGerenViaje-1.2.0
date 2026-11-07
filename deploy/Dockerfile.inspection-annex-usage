@@ -1,0 +1,3 @@
+FROM gv-staging-trip-operations-backend:offline-movements-20261107
+COPY backend/src/ /app/src/
+COPY database/migrations/045_viaje_inspeccion_uso.sql /database/migrations/045_viaje_inspeccion_uso.sql

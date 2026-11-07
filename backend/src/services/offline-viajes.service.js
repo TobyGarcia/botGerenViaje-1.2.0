@@ -149,7 +149,7 @@ async function syncOfflineTripImpl(body, driverId) {
       [driverId, claims.vehicleId, body.startedAt, body.cancelledAt || body.finishedAt || null]);
       if (conflict.rowCount) throw new Error("Hay otro viaje que entra en conflicto. El viaje local se conserva para revisión.");
       const created = await createTrip(trip, { client, recordedAt: body.startedAt });
-      await startTrip({ idViaje: created.id_viajes, initialLocation }, { client, recordedAt: body.startedAt });
+      await startTrip({ idViaje: created.id_viajes, initialLocation, inspectionId: claims.inspectionId }, { client, recordedAt: body.startedAt });
       startedNow = true;
       row = (await client.query(`INSERT INTO viajes_offline
         (client_id,id_conductores,id_viajes,id_inspeccion,request_hash,inicio_dispositivo)
