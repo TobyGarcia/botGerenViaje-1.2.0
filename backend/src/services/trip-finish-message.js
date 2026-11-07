@@ -35,13 +35,11 @@ export function formatFinishedTripLines(trip) {
     `Llegada: ${date(trip.horaLlegada)}`,
     `Kilometraje: ${text(trip.kilometrajeInicial)} → ${text(trip.kilometrajeFinal)} km`,
     `Distancia recorrida: ${text(trip.kilometrosRecorridos)} km`,
-    '',
-    '📍 Paradas técnicas',
-    ...(stops.length ? stops.flatMap((stop, index) => [
+    ...(stops.length ? ['', '📍 Paradas técnicas', ...stops.flatMap((stop, index) => [
       `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp)}`,
       String(stop.nombre_punto ?? stop.nombrePunto ?? 'Lugar no registrado').replace(/\s+/g, ' ').trim()
-    ]) : ['Sin paradas técnicas.']),
-    ...(arrival.length ? ['', '📍 Al llegar al destino', ...arrival] : []),
+    ])] : []),
+    ...(arrival.length ? ['', ...arrival] : []),
     ...(trip.motivo ? ['', `Motivo: ${text(trip.motivo)}`] : [])
   ];
 }

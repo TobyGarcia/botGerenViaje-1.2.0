@@ -17,7 +17,8 @@ test('el cierre lista las paradas con fecha, lugar y movimientos; solo muestra q
   }).join('\n');
   assert.match(message, /Paradas técnicas\n1\. .*\nParada técnica en Patio: Se subió personal: Juan\n2\. .*\nParada técnica en Taller: Se dejó remolque: R1/);
   assert.doesNotMatch(message, /Resumen del recorrido|Acompañantes del viaje|Remolques utilizados|Remolques: Ninguno|Luis/);
-  assert.match(message, /Al llegar al destino\nAcompañantes: Juan/);
+  assert.match(message, /Acompañantes: Juan/);
+  assert.doesNotMatch(message, /Al llegar al destino/);
   assert.match(message, /Kilometraje: 0 → 10 km/);
   assert.match(message, /02\/11\/2026/);
   assert.match(message, /03\/11\/2026/);
@@ -39,10 +40,10 @@ test('la llegada es dinámica para acompañantes, remolques, ambos o ninguno',()
   const companion={kind:'companion',name:'Ana'},trailer={kind:'trailer',name:'R-1'};
   for(const items of [[],[companion],[trailer],[companion,trailer]]){
     const message=formatFinishedTripLines({elementosAlFinalizar:items,elementosViaje:[companion,trailer]}).join('\n');
-    assert.equal(message.includes('Al llegar al destino'),items.length>0);
+    assert.equal(message.includes('Al llegar al destino'),false);
     assert.equal(message.includes('Acompañantes: Ana'),items.includes(companion));
     assert.equal(message.includes('Remolques: R-1'),items.includes(trailer));
     assert.doesNotMatch(message,/Ninguno|Resumen del recorrido/);
-    assert.match(message,/Sin paradas técnicas/);
+    assert.doesNotMatch(message,/Paradas técnicas|Sin paradas técnicas/);
   }
 });

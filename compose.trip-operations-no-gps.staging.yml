@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:finish-trip-stops-20261107
+    image: gv-staging-trip-operations-backend:finish-trip-conditional-20261107
   frontend:
     image: gv-staging-trip-operations-frontend:start-trip-vehicle-20261107
   panel-admin:
