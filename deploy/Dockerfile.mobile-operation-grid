@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-frontend:start-trip-vehicle-20261107
+COPY frontend/dist/ /usr/share/nginx/html/
