@@ -5,7 +5,7 @@ const event=(id,type,name,seconds=0,latitude=19.4)=>({id,trip_id:1,event_type:ty
 test('agrupa las listas de personal sin repetir datos del viaje ni GPS',()=>{
  const events=[event(1,'COMPANION_DROPPED_OFF','Ana'),event(2,'COMPANION_ADDED','Luis',4),event(3,'COMPANION_ADDED','María',8)];
  const text=formatStopSummary(events);
- assert.match(text,/Se recogió personal:\n• Luis\n• María/); assert.match(text,/Se dejó personal:\n• Ana/);
+ assert.match(text,/Se recogió personal: Luis, María/); assert.match(text,/Se dejó personal: Ana/);
  assert.ok(text.indexOf('Se dejó personal:')<text.indexOf('Se recogió personal:'));
  assert.match(text,/Hora: \d{2}:\d{2}/);
  assert.doesNotMatch(text,/TEST|Conductor:|Unidad:|Número económico:|19\.4|-99\.1|maps/);
@@ -14,7 +14,7 @@ test('el mensaje contiene todas las acciones confirmadas de acompañantes y remo
  const confirmation=event(1,'COMPANION_DROPPED_OFF','');
  confirmation.payload.actions=[{type:'COMPANION_DROPPED_OFF',name:'Ana'},{type:'COMPANION_DROPPED_OFF',name:'Luis'},{type:'TRAILER_DETACHED',name:'R-1'}];
  const text=formatStopSummary([confirmation]);
- assert.match(text,/Se dejó personal:\n• Ana\n• Luis/);assert.match(text,/Se dejó remolque:\n• R-1/);
+ assert.match(text,/Se dejó personal: Ana, Luis/);assert.match(text,/Se dejó remolque:\n• R-1/);
 });
 
 test('muestra el destino de la parada con las listas en un solo mensaje sin coordenadas',()=>{
@@ -23,8 +23,8 @@ test('muestra el destino de la parada con las listas en un solo mensaje sin coor
  confirmation.payload.actions=[{type:'COMPANION_DROPPED_OFF',name:'Ana'},{type:'COMPANION_ADDED',name:'Luis'}];
  const text=formatStopSummary([confirmation]);
  assert.match(text,/^📍 Parada técnica en ASPX - LA PAZ/);
- assert.match(text,/Se recogió personal:\n• Luis/);
- assert.match(text,/Se dejó personal:\n• Ana/);
+ assert.match(text,/Se recogió personal: Luis/);
+ assert.match(text,/Se dejó personal: Ana/);
  assert.doesNotMatch(text,/19\.4|-99\.1|maps/);
 });
 

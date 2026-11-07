@@ -34,7 +34,7 @@ for(const mode of ['success','failure','recent','legacy','trailers']) test(`entr
     assert.match(sent[0].text,/Parada técnica en Patio/);
     assert.match(sent[0].text,/Se dejó remolque:\n• R-1\n\nSe recogió remolque:\n• R-2/);
     assert.doesNotMatch(sent[0].text,/Se recogió personal:/);
-  } else assert.match(sent[0].text,/Se recogió personal:\n• Persona 1\n• Persona 2/);
+  } else assert.match(sent[0].text,/Se recogió personal: Persona 1, Persona 2/);
   assert.doesNotMatch(sent[0].text,/Viaje:|Conductor:|Unidad:|Número económico:|Se dejó personal:/);
   assert.deepEqual(sent[0].options,mode==='legacy'?{}:{reply_parameters:{message_id:123,allow_sending_without_reply:true},message_thread_id:7});
  }finally{bot.telegram.sendMessage=originalSend;databasePool.connect=originalConnect;delete process.env.TELEGRAM_BOT_TOKEN;delete process.env.TELEGRAM_GROUP_ID;}
