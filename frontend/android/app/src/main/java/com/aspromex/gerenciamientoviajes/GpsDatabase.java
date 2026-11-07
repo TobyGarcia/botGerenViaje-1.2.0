@@ -15,17 +15,17 @@ public final class GpsDatabase extends SQLiteOpenHelper {
         if (instance == null) instance = new GpsDatabase(context.getApplicationContext());
         return instance;
     }
-    private GpsDatabase(Context context) { super(context, "gv-native-gps.db", null, 1); }
+    private GpsDatabase(Context context) { super(context, "gv-native-gps.db", null, 2); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE locations(id TEXT PRIMARY KEY, trip TEXT NOT NULL, gps TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')");
         db.execSQL("CREATE INDEX locations_trip ON locations(trip,state)");
         db.execSQL("CREATE TABLE settings(name TEXT PRIMARY KEY,value TEXT NOT NULL)");
         db.execSQL("CREATE TABLE sessions(trip TEXT PRIMARY KEY,server INTEGER,driver INTEGER NOT NULL,origin TEXT NOT NULL,token TEXT NOT NULL)");
         db.execSQL("CREATE TABLE completions(trip TEXT PRIMARY KEY,payload TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE movement_jobs(trip TEXT PRIMARY KEY,driver INTEGER NOT NULL,payload TEXT NOT NULL)");
     }
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Migraciones futuras deben añadirse sin borrar tablas ni capturas.
-        throw new IllegalStateException("Migración SQLite no implementada");
+        if(oldVersion<2)db.execSQL("CREATE TABLE IF NOT EXISTS movement_jobs(trip TEXT PRIMARY KEY,driver INTEGER NOT NULL,payload TEXT NOT NULL)");
     }
     public synchronized void put(String name, String value) {
         ContentValues values = new ContentValues(); values.put("name", name); values.put("value", value);
@@ -92,4 +92,37 @@ public final class GpsDatabase extends SQLiteOpenHelper {
     }
     public synchronized void completed(String trip) { getWritableDatabase().delete("completions","trip=?",new String[]{trip}); }
     public synchronized int completionCount() { try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM completions",null)){c.moveToFirst();return c.getInt(0);} }
+    public synchronized JSONObject movement(String trip) throws Exception {
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT payload FROM movement_jobs WHERE trip=?",new String[]{trip})) {return c.moveToFirst()?new JSONObject(c.getString(0)):null;}
+    }
+    public synchronized int movementCount() {try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM movement_jobs",null)){c.moveToFirst();return c.getInt(0);}}
+    private void saveMovement(JSONObject job) throws Exception {
+        ContentValues value=new ContentValues();value.put("trip",job.getString("tripId"));value.put("driver",job.getLong("driverId"));value.put("payload",job.toString());
+        if(getWritableDatabase().insertWithOnConflict("movement_jobs",null,value,SQLiteDatabase.CONFLICT_REPLACE)==-1)throw new android.database.sqlite.SQLiteException("No se pudo guardar el movimiento");
+    }
+    public synchronized void movements(long driver,JSONArray jobs) throws Exception {
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
+        try {
+            java.util.Set<String> keep=new java.util.HashSet<>();
+            for(int i=0;i<jobs.length();i++){
+                JSONObject job=new JSONObject(jobs.getJSONObject(i).toString());
+                if(job.getLong("driverId")!=driver || !BuildConfig.GPS_ORIGIN.equals(job.getString("origin")))throw new SecurityException("Movimiento de otra sesión");
+                job.remove("token");keep.add(job.getString("tripId"));saveMovement(job);
+            }
+            try(Cursor c=db.rawQuery("SELECT trip FROM movement_jobs WHERE driver=?",new String[]{String.valueOf(driver)})) {
+                while(c.moveToNext())if(!keep.contains(c.getString(0)))db.delete("movement_jobs","trip=?",new String[]{c.getString(0)});
+            }
+            db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
+    }
+    public synchronized void acknowledgeMovement(String trip,String key) throws Exception {
+        JSONObject job=movement(trip);if(job==null)return;
+        JSONArray old=job.getJSONArray("operations"),remaining=new JSONArray();
+        for(int i=0;i<old.length();i++)if(!key.equals(old.getJSONObject(i).getString("eventKey")))remaining.put(old.getJSONObject(i));
+        job.put("operations",remaining);saveMovement(job);
+    }
+    public synchronized void movementServer(String trip,long server) throws Exception {JSONObject job=movement(trip);if(job!=null){job.put("serverId",server);saveMovement(job);}}
+    public synchronized void movementDone(String trip,String revision) throws Exception {
+        JSONObject current=movement(trip);if(current!=null && revision.equals(current.getString("revision")))getWritableDatabase().delete("movement_jobs","trip=?",new String[]{trip});
+    }
 }

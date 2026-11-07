@@ -6,6 +6,7 @@ import {
 } from "react";
 import "./App.css";
 import TripOperations from './components/TripOperations.jsx';
+import { publishBackgroundMovements } from './services/movement-background.js';
 import { pendingMovementCount, pendingMovementTotal, queueMovementCompletion, syncAllTripMovements, waitForMovementCapture } from './services/trip-operation-queue.js';
 import AndroidUpdateNotice from "./components/AndroidUpdateNotice.jsx";
 import { NativeGps, hasNativeGps, queueNativeCompletion } from "./services/native-gps.js";
@@ -1094,6 +1095,7 @@ async function handleAddIntermediatePoint() {
         const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
         const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
+        await publishBackgroundMovements(telegramAuth.conductor.id_conductores).catch(()=>{});
         setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
         stopTracking(); stopTrackingAwake();
         setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
@@ -1257,6 +1259,7 @@ async function handleAddIntermediatePoint() {
         ? { data: cancelOfflineTrip(telegramAuth.conductor.id_conductores, idViaje) }
         : await cancelarViaje(idViaje);
       const cancelledData = response.data ?? {};
+      if(idViaje<0) await publishBackgroundMovements(telegramAuth.conductor.id_conductores).catch(()=>{});
 
       stopTracking();
       stopTrackingAwake();

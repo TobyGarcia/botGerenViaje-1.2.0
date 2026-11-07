@@ -27,7 +27,7 @@ public class GpsQueueTest {
 
     @Before public void reset() {
         context=RuntimeEnvironment.getApplication();db=GpsDatabase.get(context);
-        for(String table:new String[]{"locations","sessions","completions","settings"})db.getWritableDatabase().delete(table,null,null);
+        for(String table:new String[]{"locations","sessions","completions","settings","movement_jobs"})db.getWritableDatabase().delete(table,null,null);
         db.getWritableDatabase().execSQL("DROP TRIGGER IF EXISTS fail_gps_write");
         scheduler=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);scheduler.cancelAll();
     }
@@ -35,6 +35,34 @@ public class GpsQueueTest {
     private JSONObject point(String id) throws Exception {
         return new JSONObject().put("clientLocationId",id).put("idViaje","11")
             .put("latitud",19.83).put("longitud",-90.52).put("fechaGps","2026-10-27T15:00:00Z");
+    }
+
+    private JSONObject movement(String revision,long driver) throws Exception {
+        return new JSONObject().put("tripId","11").put("driverId",driver).put("origin",BuildConfig.GPS_ORIGIN).put("revision",revision)
+            .put("token","must-not-be-stored").put("operations",new JSONArray().put(new JSONObject().put("eventKey","first").put("inspection",new JSONObject().put("captureId","new-inspection"))).put(new JSONObject().put("eventKey","second")));
+    }
+    @Test public void movementsSurviveCloseAndOnlyAcknowledgedOperationsDisappear() throws Exception {
+        db.movements(27,new JSONArray().put(movement("v1",27)));db.close();
+        assertEquals(1,db.movementCount());assertFalse(db.movement("11").has("token"));
+        assertEquals("new-inspection",db.movement("11").getJSONArray("operations").getJSONObject(0).getJSONObject("inspection").getString("captureId"));
+        db.acknowledgeMovement("11","first");db.close();
+        assertEquals("second",db.movement("11").getJSONArray("operations").getJSONObject(0).getString("eventKey"));
+        GpsSync.schedule(context);assertNotNull(scheduler.getPendingJob(7312));
+    }
+    @Test public void backgroundAckCannotDeleteNewerMovementsOrAnotherDriversJobs() throws Exception {
+        db.movements(27,new JSONArray().put(movement("v1",27)));
+        db.movements(27,new JSONArray().put(movement("v2",27)));db.movementDone("11","v1");
+        assertNotNull(db.movement("11"));
+        try{db.movements(28,new JSONArray().put(movement("bad",27)));fail("Other driver accepted");}catch(SecurityException expected){}
+        assertEquals("v2",db.movement("11").getString("revision"));
+        db.movements(28,new JSONArray());assertNotNull(db.movement("11"));
+        db.movementDone("11","v2");assertEquals(0,db.movementCount());
+    }
+    @Test public void sqliteUpgradePreservesGpsAndSessions() throws Exception {
+        db.save(point("before-upgrade"));db.session("11",11,27,BuildConfig.GPS_ORIGIN,"encrypted");
+        db.getWritableDatabase().execSQL("DROP TABLE movement_jobs");db.getWritableDatabase().setVersion(1);db.close();
+        assertEquals(1,db.pending("11",100).length());assertEquals(1,db.sessions().length());assertEquals(0,db.movementCount());
+        assertEquals(2,db.getReadableDatabase().getVersion());
     }
 
     @Test public void offlineCapturesSurviveReopenAndOnlyAcknowledgedIdsDisappear() throws Exception {

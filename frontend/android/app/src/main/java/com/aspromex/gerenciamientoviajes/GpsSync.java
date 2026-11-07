@@ -15,7 +15,7 @@ final class GpsSync {
     private static final AtomicBoolean running = new AtomicBoolean(false);
     static synchronized void schedule(Context context) {
         JobScheduler scheduler=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        if (GpsDatabase.get(context).count(null,false)==0 && GpsDatabase.get(context).completionCount()==0) return;
+        if (GpsDatabase.get(context).count(null,false)==0 && GpsDatabase.get(context).completionCount()==0 && GpsDatabase.get(context).movementCount()==0) return;
         // Replacing the same ID resets its latency/backoff and can interrupt a running job.
         for (JobInfo pending : scheduler.getAllPendingJobs()) if (pending.getId()==7312) return;
         scheduler.schedule(new JobInfo.Builder(7312,new ComponentName(context,GpsSyncJob.class))
@@ -49,8 +49,27 @@ final class GpsSync {
             JSONArray sessions=db.sessions();
             for(int s=0;s<sessions.length();s++) {
                 JSONObject session=sessions.getJSONObject(s); long server=session.getLong("server");
-                if(server<=0) continue;
                 String trip=session.getString("trip"), token=GpsSecrets.decrypt(session.getString("token"));
+                JSONObject movement=db.movement(trip);
+                if(movement!=null) {
+                    if(movement.getLong("driverId")!=session.getLong("driver") || !session.getString("origin").equals(movement.getString("origin")))throw new SecurityException("Movimiento de otra sesión");
+                    JSONObject bootstrap=movement.optJSONObject("bootstrap");
+                    if(bootstrap!=null) {
+                        JSONObject start=new JSONObject(bootstrap.toString());start.remove("finishedAt");start.remove("cancelledAt");start.remove("kilometrajeFinal");
+                        server=post(session.getString("origin"),"/api/viajes/offline/sincronizar",token,start).getJSONObject("data").getLong("idViaje");
+                        db.session(trip,server,session.getLong("driver"),session.getString("origin"),session.getString("token"));db.movementServer(trip,server);
+                    }
+                    if(server<=0)throw new java.io.IOException("Inicio del viaje pendiente");
+                    JSONArray operations=movement.getJSONArray("operations");
+                    for(int i=0;i<operations.length() && i<20;i++){
+                        JSONObject operation=operations.getJSONObject(i);
+                        post(session.getString("origin"),"/api/viajes/"+server+"/elementos/eventos",token,operation);
+                        db.acknowledgeMovement(trip,operation.getString("eventKey"));
+                    }
+                    JSONObject remaining=db.movement(trip);
+                    if(remaining!=null && remaining.getJSONArray("operations").length()>0)throw new java.io.IOException("Movimientos pendientes");
+                }
+                if(server<=0) continue;
                 // Acotar una ejecución. El JobScheduler reintenta el resto con conectividad.
                 for(int batch=0;batch<10;batch++) {
                     JSONArray points=db.pending(trip,100); if(points.length()==0) break;
@@ -65,14 +84,27 @@ final class GpsSync {
                     JSONArray accepted=new JSONArray();for(String id:known)if(!rejectedSet.contains(id))accepted.put(id);
                     db.acknowledge(rejected,true);db.acknowledge(accepted,false);
                 }
+                movement=db.movement(trip);
+                if(movement!=null && movement.getJSONArray("operations").length()==0) {
+                    JSONObject bootstrap=movement.optJSONObject("bootstrap"), queued=movement.optJSONObject("completion");
+                    boolean localClose=bootstrap!=null && (!bootstrap.optString("finishedAt","").isEmpty() || !bootstrap.optString("cancelledAt","").isEmpty());
+                    boolean closing=localClose || queued!=null;
+                    boolean capturing=trip.equals(db.read("trip","")) && "true".equals(db.read("active","false"));
+                    if(!closing || (db.count(trip,true)==0 && !capturing)) {
+                        if(localClose)post(session.getString("origin"),"/api/viajes/offline/sincronizar",token,bootstrap);
+                        else if(queued!=null)post(session.getString("origin"),"/api/viajes/"+server+"/cierre-nativo",token,queued);
+                        if(closing)db.put("closed:"+trip,"confirmed");
+                        db.movementDone(trip,movement.getString("revision"));
+                    }
+                }
                 JSONObject completion=db.completion(trip);
-                if(completion!=null && db.count(trip,true)==0) {
+                if(completion!=null && db.count(trip,true)==0 && db.movement(trip)==null) {
                     post(session.getString("origin"),"/api/viajes/"+server+"/cierre-nativo",token,completion);
                     db.completed(trip); db.put("closed:"+trip,"confirmed");
                 }
             }
-            db.put("syncStatus",db.count(null,true)>0?"Hay capturas pendientes o para revisión":db.completionCount()>0?"Cierre pendiente de sincronizar":"Sincronizado");
-            return db.count(null,false)==0 && db.completionCount()==0;
+            db.put("syncStatus",db.count(null,true)>0?"Hay capturas pendientes o para revisión":db.completionCount()>0?"Cierre pendiente de sincronizar":db.movementCount()>0?"Movimientos pendientes de sincronizar":"Sincronizado");
+            return db.count(null,false)==0 && db.completionCount()==0 && db.movementCount()==0;
         } catch(Exception error) {
             db.put("syncStatus", error.getMessage()==null?"Pendiente de sincronizar":error.getMessage());
             return false;

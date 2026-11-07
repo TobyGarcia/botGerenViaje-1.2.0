@@ -71,9 +71,19 @@ public class NativeGpsPlugin extends Plugin {
     @PluginMethod public void stop(PluginCall call){IO.execute(()->{GpsDatabase db=GpsDatabase.get(getContext());db.put("active","false");getContext().stopService(new Intent(getContext(),GpsTrackingService.class));
         android.app.NotificationManager notifications=(android.app.NotificationManager)getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);notifications.cancel(7310);notifications.cancel(7313);GpsSync.schedule(getContext());call.resolve();});}
     @PluginMethod public void status(PluginCall call){IO.execute(()->{try{GpsDatabase db=GpsDatabase.get(getContext());JSObject value=new JSObject();
-        value.put("active","true".equals(db.read("active","false")));value.put("trip",db.read("trip",""));value.put("pending",db.count(call.getString("trip"),false));
-        value.put("stored",db.count(null,true)+db.completionCount());value.put("gpsStatus", "true".equals(db.read("active","false")) && System.currentTimeMillis()-Long.parseLong(db.read("lastCaptureMillis","0"))>120000 ? "Sin captura GPS reciente" : db.read("gpsStatus","Detenido"));value.put("syncStatus",db.read("syncStatus",""));
+        value.put("movementSyncSupported",true);value.put("active","true".equals(db.read("active","false")));value.put("trip",db.read("trip",""));value.put("pending",db.count(call.getString("trip"),false));
+        value.put("stored",db.count(null,true)+db.completionCount()+db.movementCount());value.put("gpsStatus", "true".equals(db.read("active","false")) && System.currentTimeMillis()-Long.parseLong(db.read("lastCaptureMillis","0"))>120000 ? "Sin captura GPS reciente" : db.read("gpsStatus","Detenido"));value.put("syncStatus",db.read("syncStatus",""));
         value.put("lastLocation",new JSONObject(db.read("lastLocation","{}")));value.put("finishRequested",finishRequested);if(call.getBoolean("consumeAction",false))finishRequested=false;call.resolve(value);
+    }catch(Exception error){call.reject(error.getMessage());}});}
+    @PluginMethod public void movements(PluginCall call){IO.execute(()->{try{
+        configureSession(call);GpsDatabase db=GpsDatabase.get(getContext());
+        long driver=BridgeNumbers.integer(call.getData().opt("driver"),0L);JSONArray jobs=call.getArray("jobs",new JSArray());
+        String origin=call.getString("origin",""),encrypted=GpsSecrets.encrypt(call.getString("token",""));
+        for(int i=0;i<jobs.length();i++){JSONObject job=jobs.getJSONObject(i);
+            if(job.getLong("driverId")!=driver || !BuildConfig.GPS_ORIGIN.equals(job.getString("origin")))throw new SecurityException("Movimiento de otra sesión");
+            db.session(job.getString("tripId"),job.optLong("serverId"),driver,origin,encrypted);
+        }
+        db.movements(driver,jobs);GpsSync.schedule(getContext());call.resolve();
     }catch(Exception error){call.reject(error.getMessage());}});}
     @PluginMethod public void sync(PluginCall call){NETWORK.execute(()->{GpsSync.run(getContext());GpsSync.schedule(getContext());JSObject result=new JSObject();GpsDatabase db=GpsDatabase.get(getContext());result.put("pending",db.count(call.getString("trip"),false));result.put("completions",db.completionCount());call.resolve(result);});}
     @PluginMethod public void storage(PluginCall call){IO.execute(()->{try{

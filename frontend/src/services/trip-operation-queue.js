@@ -1,6 +1,7 @@
 import { getTripItems, recordTripOperation, completeQueuedTrip } from './api.js';
 import { durableWrite, resolveOfflineTripId, uuid, getOfflineTrip } from './offline-trip-storage.js';
 import { isTrailer } from '../utils/vehicle-kind.js';
+import { publishBackgroundMovements } from './movement-background.js';
 
 const key = driverId => `gv_trip_movements_v1:${driverId}`;
 const read = driverId => {
@@ -24,7 +25,9 @@ export async function waitForMovementCapture(driverId,tripId) {
 }
 async function mutate(driverId, update) {
   const write = () => { const state = read(driverId); const result = update(state); durableWrite(key(driverId), state); return result; };
-  return globalThis.navigator?.locks ? navigator.locks.request(`gv-movements-write-${driverId}`, write) : write();
+  const result=await (globalThis.navigator?.locks ? navigator.locks.request(`gv-movements-write-${driverId}`, write) : write());
+  await publishBackgroundMovements(driverId).catch(()=>{});
+  return result;
 }
 export const operationItemRef = item => item.initial_key || String(item.id);
 export const getMovementState = (driverId, tripId) => read(driverId)[tripId] || null;

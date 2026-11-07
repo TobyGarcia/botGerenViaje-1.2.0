@@ -9,6 +9,7 @@ import TripOperationModal from './TripOperationModal.jsx';
 import TripTrailerIcon from './TripTrailerIcon.jsx';
 import { IconUsers } from './Icons.jsx';
 import safeStorage from '../utils/safeStorage.js';
+import { movementBackgroundStatus } from '../services/movement-background.js';
 import { cacheMovementState, enqueueMovement, getMovementState, operationItemRef, pendingMovementCount, projectMovements, syncTripMovements, withMovementCapture } from '../services/trip-operation-queue.js';
 import { getOfflineTrip, resolveOfflineTripId } from '../services/offline-trip-storage.js';
 import { resolveOperationTripId } from '../utils/trip-operation-id.js';
@@ -134,7 +135,7 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
   return <section className="gv-trip-operations trip-operation-launcher">
     <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Gestionar viaje</h3></div></header>
     <div className="trip-operation-shortcuts">{[['companions','companion','Acompañantes'],['trailers','trailer','Remolques']].map(([id,kind,title]) => <button type="button" className="trip-operation-shortcut" key={id} onClick={() => setModal(id)}><span className="trip-operation-shortcut-icon">{kind === 'companion' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}</span><strong>{title}</strong><small>{items.filter(i => i.kind === kind && !i.removed_at).length} {kind === 'companion' ? 'a bordo' : 'enganchados'}</small><span className="trip-operation-manage">Gestionar →</span></button>)}</div>
-    {queuedCount>0 && <p role="status">{queuedCount} {queuedCount===1?'parada guardada':'paradas guardadas'} en el teléfono, pendientes de sincronizar.</p>}
+    {queuedCount>0 && <p role="status">{queuedCount} {queuedCount===1?'parada guardada':'paradas guardadas'} en el teléfono, pendientes de sincronizar. {movementBackgroundStatus()}</p>}
     {syncNotice && <p role="status">Los datos locales se conservan. {syncNotice}</p>}
     {!modal && alerts}
     {!modal && confirmationActions.length>0 && <button type="button" onClick={()=>setModal('companions')}>Continuar cambios pendientes</button>}

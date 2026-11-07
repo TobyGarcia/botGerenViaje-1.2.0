@@ -8,9 +8,11 @@ import EvaluacionApp from './pages/EvaluacionApp.jsx'
 import { IconRefresh, IconTrash, IconClipboard, IconCheck } from './components/Icons.jsx'
 import { installAppUpdateRecovery } from './services/app-update.js'
 import { Capacitor } from '@capacitor/core'
+import { installMovementBackgroundSync } from './services/movement-background.js';
 
 if (typeof window !== 'undefined') {
   installClientDiagnostics(window);
+  installMovementBackgroundSync();
   if (!Capacitor.isNativePlatform()) {
     installAppUpdateRecovery({ serviceWorker: navigator.serviceWorker, windowObject: window, documentObject: document });
   }

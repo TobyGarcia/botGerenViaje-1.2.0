@@ -54,6 +54,7 @@ export default defineConfig({
         orientation: 'portrait'
       },
       workbox: {
+        importScripts: [`movement-sync-core.js?v=${buildVersion}`, `movement-sync-sw.js?v=${buildVersion}`],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,

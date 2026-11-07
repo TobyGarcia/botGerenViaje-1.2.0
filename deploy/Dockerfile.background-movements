@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-frontend:offline-movements-20261107
+COPY frontend/dist/ /usr/share/nginx/html/
