@@ -40,8 +40,7 @@ import OfflineBanner from "./components/OfflineBanner.jsx";
 import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
-import OdometerCorrection from "./components/OdometerCorrection.jsx";
-import { odometerCorrectionPayload } from "./utils/odometer-correction.js";
+import StartTripForm from "./components/StartTripForm.jsx";
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -148,7 +147,7 @@ function App() {
   const [listaAcompanantes, setListaAcompanantes] = useState([""]);
   const [conductores, setConductores] = useState(() => getCachedJson("cached_conductores", []));
   const [vehiculos, setVehiculos] = useState(() => getCachedJson("cached_vehiculos", []));
-  const [odometerReport, setOdometerReport] = useState(null);
+  const [startError, setStartError] = useState("");
   const [lugares, setLugares] = useState(() => getCachedJson("cached_lugares", []));
   const [loading, setLoading] = useState(() => {
     const token = safeStorage.getItem("driver_token");
@@ -1310,8 +1309,7 @@ function isOutsideOperatingHours() {
       return;
     }
 
-    const kilometrajeInicial = Number(form.kilometrajeInicial);
-    const kilometrajeRegistrado = Number(selectedVehicle?.kilometraje_actual);
+    const kilometrajeInicial = Number(selectedVehicle?.kilometraje_actual ?? 0);
 
     if (!selectedDriver?.licencia_vigente) {
       setMessage("Selecciona un conductor con licencia vigente.");
@@ -1333,10 +1331,6 @@ function isOutsideOperatingHours() {
       setMessageType("error");
       return;
     }
-
-    let odometerCorrection;
-    try { odometerCorrection = odometerCorrectionPayload(odometerReport, form.idVehiculo, form.kilometrajeInicial, kilometrajeRegistrado); }
-    catch (error) { setMessage(error.message); setMessageType("error"); return; }
 
     savingRef.current = true;
     setSaving(true);
@@ -1360,7 +1354,6 @@ function isOutsideOperatingHours() {
         idDestino: Number(form.idDestino),
         acompanantes,
         kilometrajeInicial,
-        ...(odometerCorrection ? { odometerCorrection } : {}),
         motivo: form.motivo.trim(),
         ...(usesTemporaryVehicle ? { usoTemporal: {
           mode: form.usoTemporalModo,
@@ -1419,7 +1412,7 @@ function isOutsideOperatingHours() {
 
   }
 
-  async function handleStartTrip() {
+  async function handleStartTrip(startDetails) {
     if (startingTripRef.current || startedTrip) {
       return;
     }
@@ -1434,13 +1427,7 @@ function isOutsideOperatingHours() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "¿Confirmas que deseas iniciar este viaje? La hora de salida se registrará automáticamente."
-    );
-
-    if (!confirmed) {
-      return;
-    }
+    setStartError("");
 
     // Solicitar el bloqueo de pantalla desde la interacción del conductor.
     void startTrackingAwake().catch(() => {});
@@ -1453,8 +1440,8 @@ function isOutsideOperatingHours() {
       setGpsStatus("Obteniendo primera ubicación GPS...");
       const initialLocation = await captureInitialTripLocation(idViaje);
       const response = idViaje < 0
-        ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, initialLocation) }
-        : await iniciarViaje(idViaje, initialLocation);
+        ? { data: startOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, initialLocation, startDetails) }
+        : await iniciarViaje(idViaje, initialLocation, startDetails);
       const startedData = response.data ?? {};
       if (idViaje < 0) setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
       const horaSalida =
@@ -1490,6 +1477,7 @@ function isOutsideOperatingHours() {
       
     } catch (error) {
       stopTrackingAwake();
+      setStartError(error.message);
       setMessage(error.message);
       setMessageType("error");
     } finally {
@@ -2082,42 +2070,7 @@ function isOutsideOperatingHours() {
                     </div>
                   )}
 
-                  <div className="urban-field-group">
-                    <div className="urban-field-label-row">
-                      <label className="urban-field-label" htmlFor="odometer-input">
-                        Kilometraje Inicial <span className="urban-req-star">*</span>
-                      </label>
-                      <span className="urban-field-hint-action">Lectura de odómetro</span>
-                    </div>
-                    <div className="urban-input-wrap">
-                      <span className="urban-input-icon">
-                        <svg className="urban-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"></path>
-                        </svg>
-                      </span>
-                      <input
-                        id="odometer-input"
-                        type="number"
-                        name="kilometrajeInicial"
-                        value={form.kilometrajeInicial}
-                        onChange={handleChange}
-                        min={0}
-                        step="1"
-                        placeholder="0"
-                        required
-                        className="urban-input"
-                      />
-                      <span className="urban-input-suffix">KM</span>
-                    </div>
-                    <p className="urban-field-helper">
-                      <svg className="urban-helper-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                      </svg>
-                      Confirma el kilometraje mostrado en el tablero físico antes de iniciar.
-                    </p>
-                    <OdometerCorrection vehicleId={form.idVehiculo} reading={form.kilometrajeInicial} previousReading={selectedVehicle?.kilometraje_actual}
-                      report={odometerReport} onChange={setOdometerReport} />
-                  </div>
+
                 </section>
               );
             })()}
@@ -2604,17 +2557,8 @@ function isOutsideOperatingHours() {
             <span>{inspection.inspection?.estado === "PENDIENTE_APROBACION" ? "Ver estado de inspección" : "Completar inspección vehicular"}</span>
           </button>
         ) : (
-          <button
-            type="button"
-            className="gv-btn-primary"
-            onClick={handleStartTrip}
-            disabled={startingTrip}
-          >
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            <span>{startingTrip ? "Iniciando viaje..." : "Iniciar viaje"}</span>
-          </button>
+          <StartTripForm key={createdTrip?.idViaje ?? createdTrip?.id_viajes} trip={createdTrip}
+            driverId={telegramAuth?.conductor?.id_conductores} busy={startingTrip} error={startError} onConfirm={handleStartTrip} />
         )}
       </div>
     )}

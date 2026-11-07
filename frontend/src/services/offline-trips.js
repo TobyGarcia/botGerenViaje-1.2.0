@@ -4,6 +4,7 @@ import { getOfflineTrip, getOfflineTrips, getSyncableOfflineTrips, saveOfflineTr
 import { syncPendingLocations, countPendingForTrip } from "./tracking-service.js";
 import { getPendingLocations } from "./tracking-storage.js";
 import { durableWrite } from "./offline-trip-storage.js";
+import { odometerCorrectionPayload } from '../utils/odometer-correction.js';
 
 function updateLocalMileage(record, mileage) {
   if (getOfflineTrips(record.trip.idConductor).some(other => other.trip.idVehiculo === record.trip.idVehiculo && +new Date(other.startedAt) > +new Date(record.startedAt))) return;
@@ -37,13 +38,25 @@ export function createOfflineDraft(trip, display) {
   return offlineTripView(record);
 }
 
-export function startOfflineTrip(driverId, localId, initialLocation) {
+export function startOfflineTrip(driverId, localId, initialLocation, startDetails = null) {
   const record = getOfflineTrip(driverId, localId);
   if (!record || record.localId !== localId || record.finishedAt) throw new Error("No se encontró el viaje local pendiente.");
   if (record.startedAt) { updateLocalMileage(record, record.kilometrajeFinal ?? record.trip.kilometrajeInicial); return offlineTripView(record); }
   if (!matchingPermit([record.grant], driverId, record.trip.idVehiculo)) throw new Error("El permiso del día venció. Conéctate para validar la inspección y el horario.");
   if (!initialLocation?.clientLocationId || Number(initialLocation.idViaje) !== Number(localId)) {
     throw new Error("Se requiere guardar la primera ubicación GPS antes de iniciar el viaje.");
+  }
+  if (startDetails) {
+    const reading = startDetails.kilometrajeInicial;
+    if (!Number.isSafeInteger(reading) || reading < 0 || reading > 2147483647) throw new Error('Captura una lectura de odómetro válida.');
+    const vehicles = JSON.parse(window.localStorage.getItem('cached_vehiculos') || '[]');
+    const vehicle = vehicles.find(item => String(item.id_vehiculos) === String(record.trip.idVehiculo));
+    const previous = vehicle?.kilometraje_actual ?? record.trip.kilometrajeInicial;
+    const correction = odometerCorrectionPayload({ ...startDetails.odometerCorrection, confirmed: Boolean(startDetails.odometerCorrection),
+      vehicleId: record.trip.idVehiculo, reading }, record.trip.idVehiculo, reading, previous);
+    record.trip.kilometrajeInicial = reading;
+    if (correction) record.trip.odometerCorrection = correction;
+    else delete record.trip.odometerCorrection;
   }
   record.startedAt = new Date().toISOString();
   record.initialLocation = initialLocation;

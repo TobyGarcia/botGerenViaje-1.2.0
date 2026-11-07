@@ -118,12 +118,12 @@ export const uploadOfflineTrip = payload => request("/api/viajes/offline/sincron
   method: "POST", body: JSON.stringify(payload)
 });
 
-export function iniciarViaje(idViaje, ubicacionInicial) {
+export function iniciarViaje(idViaje, ubicacionInicial, startDetails = {}) {
   return request(
     `/api/viajes/${idViaje}/iniciar`,
     {
       method: "POST",
-      body: JSON.stringify({ ubicacionInicial })
+      body: JSON.stringify({ ubicacionInicial, ...startDetails })
     }
   );
 }

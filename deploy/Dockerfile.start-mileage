@@ -1,0 +1,6 @@
+FROM gv-staging-trip-operations-backend:compact-trailers-20261107 AS backend
+COPY backend/src/controllers/viajes.controller.js /app/src/controllers/viajes.controller.js
+COPY backend/src/services/viajes.service.js /app/src/services/viajes.service.js
+COPY backend/src/services/odometer-correction.service.js /app/src/services/odometer-correction.service.js
+FROM gv-staging-trip-operations-frontend:no-background-audio-20261107 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/

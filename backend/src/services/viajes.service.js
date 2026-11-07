@@ -3,7 +3,7 @@ import { databasePool } from "../database/pool.js";
 import { closeTripItems } from './trip-operations.service.js';
 import { insertInitialTripLocation } from "./initial-trip-location.service.js";
 import { registerMileageReading } from "./kilometraje.service.js";
-import { normalizeOdometerCorrection, saveOdometerCorrection, applyOdometerCorrection, correctionHash } from "./odometer-correction.service.js";
+import { normalizeOdometerCorrection, saveOdometerCorrection, applyOdometerCorrection, correctionHash, confirmStartMileage } from "./odometer-correction.service.js";
 import { calculateValidityStatus } from "./manejo-comentado.service.js";
 import { ensureVehicleAssignment } from "./vehicle-assignments.service.js";
 
@@ -464,7 +464,9 @@ async function createTripImpl({
 
 async function startTripImpl({
   idViaje,
-  initialLocation
+  initialLocation,
+  kilometrajeInicial,
+  odometerCorrection
 }, { client: externalClient = null, recordedAt = null } = {}) {
   const ownsTransaction = !externalClient;
   const client = externalClient || await databasePool.connect();
@@ -652,6 +654,7 @@ async function startTripImpl({
       );
     }
 
+    if (kilometrajeInicial !== undefined) await confirmStartMileage(client, trip, kilometrajeInicial, odometerCorrection);
     await applyOdometerCorrection(client, trip, recordedAt);
 
     const updateResult = await client.query(

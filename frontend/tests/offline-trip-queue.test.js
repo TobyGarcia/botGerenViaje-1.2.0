@@ -123,8 +123,12 @@ test("no inicia un viaje local sin una primera ubicación GPS guardada", () => {
   const initialLocation = { clientLocationId: "123e4567-e89b-42d3-a456-426614174000", idViaje: -20,
     latitud: 19.4, longitud: -99.1, fechaGps: now.toISOString() };
   try {
-    const started = startOfflineTrip(7, -20, initialLocation);
+    assert.throws(() => startOfflineTrip(7, -20, initialLocation, {kilometrajeInicial:90}), /lectura menor/);
+    assert.equal(getOfflineTrip(7,-20).startedAt,null);
+    const started = startOfflineTrip(7, -20, initialLocation, {kilometrajeInicial:107});
     assert.equal(started.estado, "EN_CURSO");
+    assert.equal(getOfflineTrip(7,-20).trip.kilometrajeInicial,107);
+    assert.equal(startOfflineTrip(7,-20,initialLocation,{kilometrajeInicial:110}).kilometrajeInicial,107);
     assert.deepEqual(getOfflineTrip(7, -20).initialLocation, initialLocation);
   } finally {
     globalThis.Date = NativeDate;

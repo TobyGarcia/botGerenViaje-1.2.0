@@ -291,7 +291,9 @@ export async function startTripController(
 
     const trip = await startTrip({
       idViaje,
-      initialLocation
+      initialLocation,
+      kilometrajeInicial: request.body.kilometrajeInicial,
+      odometerCorrection: request.body.odometerCorrection
     });
 
     const alertTrip = await getTripById({ idViaje });
