@@ -15,7 +15,8 @@ test('el cierre lista las paradas con fecha, lugar y movimientos; solo muestra q
       {kind:'trailer',name:'R1'},{kind:'trailer',name:'R1'}],
     elementosAlFinalizar: [{kind:'companion',name:'Juan'}]
   }).join('\n');
-  assert.match(message, /Paradas técnicas\n1\. .* — Parada técnica en Patio: Se subió personal: Juan\n2\. .* — Parada técnica en Taller: Se dejó remolque: R1/);
+  assert.match(message, /Paradas técnicas\n1\. .* — Patio: Se subió personal: Juan\n2\. .* — Taller: Se dejó remolque: R1/);
+  assert.doesNotMatch(message, /Parada técnica en/);
   assert.doesNotMatch(message, /Resumen del recorrido|Acompañantes del viaje|Remolques utilizados|Remolques: Ninguno|Luis/);
   assert.match(message, /Acompañantes: Juan/);
   assert.doesNotMatch(message, /Al llegar al destino/);
@@ -34,7 +35,7 @@ test('usa una línea por parada y solo hora cuando todo el viaje comparte el dí
   const stopLines=lines.filter(line=>/^\d+\./.test(line));
   assert.equal(stopLines.length,2);
   assert.ok(stopLines.every(line=>!line.includes('\n') && !/\d{2}\/\d{2}\/\d{4}/.test(line)));
-  assert.match(stopLines[0],/06:30.* — Parada técnica en Taller: Se recogió remolque: R1/);
+  assert.match(stopLines[0],/06:30.* — Taller: Se recogió remolque: R1/);
   // El cruce de medianoche local sí conserva la fecha, aunque ambas paradas
   // pertenezcan al mismo día: la salida fue el día anterior.
   const overnight=formatFinishedTripLines({...trip,horaSalida:'2026-11-06T23:00:00Z'}).filter(line=>/^\d+\./.test(line));
@@ -51,7 +52,7 @@ test('conserva todas las paradas de recorridos largos en mensajes válidos para 
   const message=parts.join('\n');
   assert.ok(parts.length>1);
   assert.ok(parts.every(part=>part.length<=4000));
-  for(const stop of stops)assert.ok(message.includes(stop.nombre_punto));
+  for(const stop of stops)assert.ok(message.includes(stop.nombre_punto.replace('Parada técnica en ','')));
   assert.doesNotMatch(message, /undefined|Invalid Date/);
 });
 

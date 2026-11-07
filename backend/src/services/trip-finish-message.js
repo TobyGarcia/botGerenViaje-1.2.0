@@ -7,6 +7,11 @@ function names(items) {
   return items.map(item => text(item.name, '')).filter(Boolean).join(', ');
 }
 
+function stopDescription(stop) {
+  return String(stop.nombre_punto ?? stop.nombrePunto ?? '').replace(/\s+/g, ' ').trim()
+    .replace(/^Parada técnica(?: en)?(?=\s|:|$)\s*:?\s*/iu, '') || 'Lugar no registrado';
+}
+
 function date(value, timeOnly = false) {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'No registrada';
   return new Intl.DateTimeFormat('es-MX', {
@@ -43,7 +48,7 @@ export function formatFinishedTripLines(trip) {
     `Kilometraje: ${text(trip.kilometrajeInicial)} → ${text(trip.kilometrajeFinal)} km`,
     `Distancia recorrida: ${text(trip.kilometrosRecorridos)} km`,
     ...(stops.length ? ['', '📍 Paradas técnicas', ...stops.map((stop, index) =>
-      `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp, sameDay)} — ${String(stop.nombre_punto ?? stop.nombrePunto ?? 'Lugar no registrado').replace(/\s+/g, ' ').trim()}`
+      `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp, sameDay)} — ${stopDescription(stop)}`
     )] : []),
     ...(arrival.length ? ['', ...arrival] : []),
     ...(trip.motivo ? ['', `Motivo: ${text(trip.motivo)}`] : [])
