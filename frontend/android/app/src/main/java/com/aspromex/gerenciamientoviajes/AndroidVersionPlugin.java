@@ -13,6 +13,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @CapacitorPlugin(name = "AndroidVersion")
 public class AndroidVersionPlugin extends Plugin {
+    @Override protected void handleOnResume() {
+        super.handleOnResume();
+        notifyListeners("appResumed", new JSObject());
+    }
     private static final ExecutorService IO=Executors.newSingleThreadExecutor();
     private static final AtomicBoolean BUSY=new AtomicBoolean(false);
     @PluginMethod public void getDownloadStatus(PluginCall call) {

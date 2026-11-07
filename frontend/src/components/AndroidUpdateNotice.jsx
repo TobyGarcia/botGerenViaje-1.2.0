@@ -23,15 +23,22 @@ export default function AndroidUpdateNotice({ trip, authenticated = false }) {
     const watcher = watchAndroidUpdates({
       check: async signal => {
         const info = await AndroidVersion.getInfo();
-        const response = await apiFetch(`${getApiBaseUrl()}/api/android/update?channel=${encodeURIComponent(info.channel)}`, { signal });
+        const response = await apiFetch(`${getApiBaseUrl()}/api/android/update?channel=${encodeURIComponent(info.channel)}&_t=${Date.now()}`, { signal, cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
         if (!response.ok) throw new Error("No se pudo consultar la actualización.");
         const available = await readApiJson(response);
         return available.available && available.versionCode > info.versionCode ? available : null;
       },
-      onResult: available => setUpdate(available)
+      onResult: available => setUpdate(available),
+      subscribeResume: callback => AndroidVersion.addListener('appResumed', callback)
     });
     return () => watcher.stop();
   }, [enabled]);
+
+  useEffect(() => {
+    if (!snoozedUntil) return;
+    const timer = setTimeout(() => setSnoozedUntil(0), Math.max(0, snoozedUntil - Date.now()));
+    return () => clearTimeout(timer);
+  }, [snoozedUntil]);
 
   useEffect(() => {
     if (stage !== "downloading") return;

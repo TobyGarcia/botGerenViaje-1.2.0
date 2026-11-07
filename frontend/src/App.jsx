@@ -138,7 +138,7 @@ function normalizeConductor(conductor) {
   };
 }
 
-function App() {
+function DriverApp({ onUpdateState }) {
   const [form, setForm] = useState(() => {
     const cached = getCachedJson("cached_driver", null);
     return {
@@ -360,6 +360,9 @@ const [cancelledTrip, setCancelledTrip] =
     if (!token) return false;
     return true;
   });
+  useEffect(() => {
+    onUpdateState({ trip: createdTrip, authenticated: Boolean(telegramAuth?.authenticated) });
+  }, [createdTrip, telegramAuth?.authenticated, onUpdateState]);
   const [showPinLogin, setShowPinLogin] = useState(() => {
     const token = safeStorage.getItem("driver_token");
     const cached = getCachedJson("cached_driver", null);
@@ -1713,7 +1716,6 @@ function isOutsideOperatingHours() {
       <div className="pin-view-shell">
         <TopBar conductor={null} onLogout={handleLogout} />
         <main className="pin-view-main">
-          <AndroidUpdateNotice trip={createdTrip} />
           <PinLoginForm
             onSuccess={handlePinLoginSuccess}
             onRegisterClick={() => setShowConductorRegister(true)}
@@ -1886,7 +1888,6 @@ function isOutsideOperatingHours() {
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         <OfflineBanner idViaje={createdTrip?.idViaje} />
-        <AndroidUpdateNotice trip={createdTrip} authenticated />
         {offlineNotice && <div role="status" className="offline-trip-notice">
           <p>{offlineNotice}</p>
           <button type="button" onClick={syncOfflineState}>Sincronizar pendientes</button>
@@ -3009,4 +3010,10 @@ function isOutsideOperatingHours() {
   );
 }
 
-export default App;
+export default function App() {
+  const [updateState, setUpdateState] = useState({ trip: null, authenticated: false });
+  return <>
+    <DriverApp onUpdateState={setUpdateState} />
+    <AndroidUpdateNotice trip={updateState.trip} authenticated={updateState.authenticated} />
+  </>;
+}
