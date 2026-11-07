@@ -1,0 +1,4 @@
+FROM gv-staging-trip-operations-backend:start-mileage-20261107 AS backend
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+FROM gv-staging-trip-operations-frontend:start-mileage-20261107 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/

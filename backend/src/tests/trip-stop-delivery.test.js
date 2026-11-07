@@ -32,7 +32,7 @@ for(const mode of ['success','failure','recent','legacy','trailers']) test(`entr
   assert.match(sent[0].text,/Hora: \d{2}:\d{2}/);
   if(mode==='trailers') {
     assert.match(sent[0].text,/Parada técnica en Patio/);
-    assert.match(sent[0].text,/Remolques dejados:\n• R-1\n\nRemolques enganchados:\n• R-2/);
+    assert.match(sent[0].text,/Se dejó remolque:\n• R-1\n\nSe recogió remolque:\n• R-2/);
     assert.doesNotMatch(sent[0].text,/Se recogió personal:/);
   } else assert.match(sent[0].text,/Se recogió personal:\n• Persona 1\n• Persona 2/);
   assert.doesNotMatch(sent[0].text,/Viaje:|Conductor:|Unidad:|Número económico:|Se dejó personal:/);

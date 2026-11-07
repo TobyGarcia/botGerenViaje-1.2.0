@@ -14,7 +14,7 @@ test('el mensaje contiene todas las acciones confirmadas de acompañantes y remo
  const confirmation=event(1,'COMPANION_DROPPED_OFF','');
  confirmation.payload.actions=[{type:'COMPANION_DROPPED_OFF',name:'Ana'},{type:'COMPANION_DROPPED_OFF',name:'Luis'},{type:'TRAILER_DETACHED',name:'R-1'}];
  const text=formatStopSummary([confirmation]);
- assert.match(text,/Se dejó personal:\n• Ana\n• Luis/);assert.match(text,/Remolques dejados:\n• R-1/);
+ assert.match(text,/Se dejó personal:\n• Ana\n• Luis/);assert.match(text,/Se dejó remolque:\n• R-1/);
 });
 
 test('muestra el destino de la parada con las listas en un solo mensaje sin coordenadas',()=>{
@@ -35,6 +35,6 @@ test('resume remolques con lugar, hora y listas de dejados antes de enganchados'
  confirmation.payload.actions=[{type:'TRAILER_ATTACHED',name:'R-2'},{type:'TRAILER_DETACHED',name:'R-1'},{type:'TRAILER_ATTACHED',name:'R-3'}];
  const text=formatStopSummary([confirmation]);
  assert.match(text,/^📍 Parada técnica en ASPX - LA PAZ\nHora: \d{2}:\d{2}/);
- assert.match(text,/Remolques dejados:\n• R-1\n\nRemolques enganchados:\n• R-2\n• R-3$/);
+ assert.match(text,/Se dejó remolque:\n• R-1\n\nSe recogió remolque:\n• R-2\n• R-3$/);
  assert.doesNotMatch(text,/TEST|Conductor:|Unidad:|Número económico:|Se dejó personal:|Se recogió personal:|19\.4|-99\.1/);
 });

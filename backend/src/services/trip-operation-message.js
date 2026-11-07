@@ -10,7 +10,7 @@ export function formatStopSummary(events) {
   const first=events[0];
   if (first.payload.closure) return formatTripOperationMessage(first);
   events=events.flatMap(event=>Array.isArray(event.payload.actions)?event.payload.actions.map(action=>({...event,event_type:action.type,payload:{...event.payload,names:null,name:action.name}})):event);
-  const sections=[['COMPANION_DROPPED_OFF','Se dejó personal:'],['COMPANION_ADDED','Se recogió personal:'],['TRAILER_DETACHED','Remolques dejados:'],['TRAILER_ATTACHED','Remolques enganchados:']];
+  const sections=[['COMPANION_DROPPED_OFF','Se dejó personal:'],['COMPANION_ADDED','Se recogió personal:'],['TRAILER_DETACHED','Se dejó remolque:'],['TRAILER_ATTACHED','Se recogió remolque:']];
   const lines=sections.flatMap(([type,label])=>{
     const matching=events.filter(e=>e.event_type===type);
     if (!matching.length) return [];

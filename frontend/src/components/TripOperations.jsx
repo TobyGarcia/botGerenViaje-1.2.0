@@ -185,7 +185,9 @@ export default function TripOperations({ tripId }) {
                       <strong>{item.name}</strong>
                       <span className={`trip-ops-status-tag ${isLeaving ? 'leaving' : ''}`}>
                         <i className="trip-ops-status-dot" aria-hidden="true" />
-                        {item.kind === 'companion' ? 'A bordo' : 'Enganchado'}
+                        {item.kind === 'companion'
+                          ? (isLeaving ? 'Se dejará personal' : 'A bordo')
+                          : (isLeaving ? 'Se desenganchará' : 'Enganchado')}
                       </span>
                     </div>
                     <label className="trip-ops-leave-choice" onClick={e => e.stopPropagation()}>
