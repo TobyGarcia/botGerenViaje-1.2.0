@@ -24,7 +24,9 @@ for(const mode of ['success','failure','recent','legacy']) test(`entrega confirm
  try{
   await deliverTripOperationNotifications();
   assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1]);assert.match(sent[0].text,/Persona 1\n• Persona 2/);assert.equal(updated[0].sql.includes('last_error=NULL'),mode!=='failure');
-  assert.match(sent[0].text,/Viaje: PRUEBA\nConductor: Ana Conductora\nUnidad: L200\nNúmero económico: AUTO-006/);
+  assert.match(sent[0].text,/Hora: \d{2}:\d{2}/);
+  assert.match(sent[0].text,/Se recogió personal:\n• Persona 1\n• Persona 2/);
+  assert.doesNotMatch(sent[0].text,/Viaje:|Conductor:|Unidad:|Número económico:|Se dejó personal:/);
   assert.deepEqual(sent[0].options,mode==='legacy'?{}:{reply_parameters:{message_id:123,allow_sending_without_reply:true},message_thread_id:7});
  }finally{bot.telegram.sendMessage=originalSend;databasePool.connect=originalConnect;delete process.env.TELEGRAM_BOT_TOKEN;delete process.env.TELEGRAM_GROUP_ID;}
 });
