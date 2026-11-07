@@ -43,6 +43,13 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
     assert.deepEqual(tripReplyOptions(await getTripTelegramContext({idViaje:1})),{});
     process.env.TELEGRAM_BOT_TOKEN='123456:isolated-test';
     assert.equal(tripReplyOptions(await getTripTelegramContext({idViaje:1})).reply_parameters.message_id,101);
-    assert.equal(sent.length,2);
+    await sendTripGroupAlert({action:'finalizado',trip:{...trip,idViaje:1}});
+    assert.match(sent[2].text,/Viaje FINALIZADO/);
+    assert.deepEqual(sent[2].options,tripReplyOptions(context));
+    await sendTripGroupAlert({action:'finalizado',trip:{idViaje:2,folio:'VJ-2'}});
+    assert.deepEqual(sent[3].options,{});
+    assert.match(sent[3].text,/Folio: VJ-2/);
+    assert.equal((await getTripTelegramContext({idViaje:1})).telegramMessageId,context.telegramMessageId);
+    assert.equal(sent.length,4);
   } finally { bot.telegram.sendMessage=original; delete process.env.TELEGRAM_GROUP_ID; delete process.env.TELEGRAM_BOT_TOKEN; }
 });

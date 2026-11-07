@@ -213,7 +213,9 @@ export async function sendTripGroupAlert({
     .join("\n");
 
   try {
-    const sent = await getTelegramBot().telegram.sendMessage(groupId, message);
+    const options = action === 'finalizado'
+      ? tripReplyOptions(await getTripTelegramContext(trip)) : {};
+    const sent = await getTelegramBot().telegram.sendMessage(groupId, message, options);
     if (action === 'iniciado') await rememberTripStartMessage(trip, sent);
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
