@@ -1,6 +1,7 @@
 import { databasePool } from '../database/pool.js';
 import { getTelegramBot } from '../bot/bot.js';
 import { formatStopSummary } from './trip-operation-message.js';
+import { getTripTelegramContext, tripReplyOptions } from './trip-telegram-context.service.js';
 
 let running = false;
 export async function deliverTripOperationNotifications() {
@@ -16,8 +17,10 @@ export async function deliverTripOperationNotifications() {
       if (!event) { await client.query('COMMIT'); break; }
       const ids=[event.id];
       try {
+        const context = await getTripTelegramContext({ idViaje: event.trip_id }, { client });
+        const enriched = { ...event, payload: { ...event.payload, trip: context } };
         await getTelegramBot().telegram.sendMessage(process.env.TELEGRAM_GROUP_ID,
-          formatStopSummary([event]));
+          formatStopSummary([enriched]), tripReplyOptions(context));
         await client.query('UPDATE trip_operation_events SET sent_at=CURRENT_TIMESTAMP,attempts=attempts+1,last_error=NULL WHERE id=ANY($1::bigint[])', [ids]);
       } catch {
         await client.query(`UPDATE trip_operation_events SET attempts=attempts+1,last_error='Entrega Telegram fallida',

@@ -1,6 +1,7 @@
 import { recordOperation } from "../services/operation-log.service.js";
 import { Telegraf } from "telegraf";
 import { formatFinishedTripLines } from '../services/trip-finish-message.js';
+import { rememberTripStartMessage, getTripTelegramContext, tripReplyOptions } from '../services/trip-telegram-context.service.js';
 
 import {
   registerBotHandlers
@@ -212,7 +213,8 @@ export async function sendTripGroupAlert({
     .join("\n");
 
   try {
-    await getTelegramBot().telegram.sendMessage(groupId, message);
+    const sent = await getTelegramBot().telegram.sendMessage(groupId, message);
+    if (action === 'iniciado') await rememberTripStartMessage(trip, sent);
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta al grupo:", error);
@@ -236,7 +238,7 @@ export async function sendTechnicalStopAlert({ trip, stop }) {
     `Folio: ${trip?.folio ?? "No disponible"}`,
     `Conductor: ${trip?.conductor ?? "No disponible"}`,
     `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
-    trip?.numeroEconomico ? `Número económico: ${trip.numeroEconomico}` : null,
+    (trip?.numeroEconomico ?? trip?.numero_economico) ? `Número económico: ${trip.numeroEconomico ?? trip.numero_economico}` : null,
     trip?.lleva_remolque
       ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
       : null,
@@ -247,7 +249,8 @@ export async function sendTechnicalStopAlert({ trip, stop }) {
   ].filter(Boolean).join("\n");
 
   try {
-    await getTelegramBot().telegram.sendMessage(groupId, message);
+    const context = await getTripTelegramContext(trip);
+    await getTelegramBot().telegram.sendMessage(groupId, message, tripReplyOptions(context));
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta de parada técnica:", error);

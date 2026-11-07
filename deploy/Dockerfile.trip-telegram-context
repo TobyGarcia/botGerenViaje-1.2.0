@@ -1,0 +1,7 @@
+FROM gv-staging-trip-operations-backend:stop-place-20261107
+COPY backend/src/bot/bot.js /app/src/bot/bot.js
+COPY backend/src/services/trip-telegram-context.service.js /app/src/services/trip-telegram-context.service.js
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+COPY backend/src/services/trip-operation-notifications.service.js /app/src/services/trip-operation-notifications.service.js
+COPY backend/src/scripts/migrate-trip-telegram-context-staging.js /app/src/scripts/migrate-trip-telegram-context-staging.js
+COPY database/migrations/044_trip_telegram_start_messages.sql /database/migrations/044_trip_telegram_start_messages.sql

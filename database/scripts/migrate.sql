@@ -45,3 +45,5 @@
 \ir ../migrations/040_android_native_gps.sql
 \ir ../migrations/041_ajustes_odometro.sql
 \ir ../migrations/042_trip_operations.sql
+\ir ../migrations/043_trip_stop_description.sql
+\ir ../migrations/044_trip_telegram_start_messages.sql
