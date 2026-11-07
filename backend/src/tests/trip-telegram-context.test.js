@@ -50,6 +50,13 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
     assert.deepEqual(sent[3].options,{});
     assert.match(sent[3].text,/Folio: VJ-2/);
     assert.equal((await getTripTelegramContext({idViaje:1})).telegramMessageId,context.telegramMessageId);
-    assert.equal(sent.length,4);
+    await sendTripGroupAlert({action:'cancelado',trip:{...trip,idViaje:1}});
+    assert.match(sent[4].text,/Viaje CANCELADO/);
+    assert.deepEqual(sent[4].options,tripReplyOptions(context));
+    await sendTripGroupAlert({action:'cancelado',trip:{idViaje:2,folio:'VJ-2'}});
+    assert.deepEqual(sent[5].options,{});
+    assert.match(sent[5].text,/Folio: VJ-2/);
+    assert.equal((await getTripTelegramContext({idViaje:1})).telegramMessageId,context.telegramMessageId);
+    assert.equal(sent.length,6);
   } finally { bot.telegram.sendMessage=original; delete process.env.TELEGRAM_GROUP_ID; delete process.env.TELEGRAM_BOT_TOKEN; }
 });

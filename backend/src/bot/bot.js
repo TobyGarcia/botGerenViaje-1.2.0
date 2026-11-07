@@ -213,7 +213,7 @@ export async function sendTripGroupAlert({
     .join("\n");
 
   try {
-    const options = action === 'finalizado'
+    const options = ['finalizado', 'cancelado'].includes(action)
       ? tripReplyOptions(await getTripTelegramContext(trip)) : {};
     const sent = await getTelegramBot().telegram.sendMessage(groupId, message, options);
     if (action === 'iniciado') await rememberTripStartMessage(trip, sent);
