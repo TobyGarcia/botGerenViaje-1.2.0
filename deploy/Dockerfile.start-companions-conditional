@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:stop-trailers-inline-20261107
+COPY backend/src/bot/bot.js /app/src/bot/bot.js

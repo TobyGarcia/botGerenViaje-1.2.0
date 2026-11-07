@@ -169,7 +169,7 @@ export async function sendTripGroupAlert({
 
   const companions = Array.isArray(trip.acompanantes)
     ? trip.acompanantes
-      .map((companion) => companion?.nombre)
+      .map((companion) => String(typeof companion === 'string' ? companion : companion?.nombre ?? '').trim())
       .filter(Boolean)
       .join(", ")
     : "";
@@ -194,7 +194,7 @@ export async function sendTripGroupAlert({
       `Kilometraje inicial: ${trip.kilometrajeInicial ?? "No registrado"} km`,
       `Origen: ${trip.origen ?? "No registrado"}`,
       `Destino: ${trip.destino ?? "No registrado"}`,
-      `Acompañantes: ${companions || "Sin acompañantes"}`,
+      companions ? `Acompañantes: ${companions}` : null,
       `Motivo: ${trip.motivo ?? "No registrado"}`,
       `Hora de salida: ${formatTime(trip.horaSalida)}`
     ],

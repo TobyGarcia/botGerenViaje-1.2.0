@@ -29,6 +29,7 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
   try {
     const trip={id_viajes:1,folio:'VJ-1',conductor:'Ana',vehiculo:'L200',numero_economico:'AUTO-006'};
     await sendTripGroupAlert({action:'iniciado',trip});
+    assert.doesNotMatch(sent[0].text,/Acompañantes:|Sin acompañantes/);
     await rememberTripStartMessage({idViaje:1},{message_id:999});
     const context=await getTripTelegramContext({idViaje:1});
     assert.deepEqual(tripReplyOptions(context),{reply_parameters:{message_id:101,allow_sending_without_reply:true},message_thread_id:7});
@@ -64,5 +65,7 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
     assert.ok(parts.length>1);
     for(const part of parts){assert.ok(part.text.length<=4000);assert.deepEqual(part.options,tripReplyOptions(context));}
     assert.match(parts.at(-1).text,/Lugar 99/);
+    await sendTripGroupAlert({action:'iniciado',trip:{idViaje:2,folio:'VJ-2',acompanantes:[{nombre:'Ana'},'Luis',{nombre:' '}]}});
+    assert.match(sent.at(-1).text,/Acompañantes: Ana, Luis\n/);
   } finally { bot.telegram.sendMessage=original; delete process.env.TELEGRAM_GROUP_ID; delete process.env.TELEGRAM_BOT_TOKEN; }
 });
