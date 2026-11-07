@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-frontend:stop-place-20261107
+COPY frontend/dist/ /usr/share/nginx/html/

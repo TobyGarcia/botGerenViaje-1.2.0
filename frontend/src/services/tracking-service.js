@@ -6,7 +6,7 @@ import { countPendingLocations, getPendingLocations, prepareNativeStorage, quara
 import { clearTrackingState, saveTrackingState } from "./tracking-state.js";
 import { resolveOfflineTripId, uuid } from "./offline-trip-storage.js";
 export { countPendingLocations as countPendingForTrip } from "./tracking-storage.js";
-import { startSilentAudioKeepAlive, stopSilentAudioKeepAlive } from "./background-audio.js";
+import { startTrackingAwake, stopTrackingAwake } from "./tracking-awake.js";
 import { NativeGps, hasNativeGps, nativeTripOptions } from "./native-gps.js";
 
 const BackgroundGeolocationPlugin = registerPlugin("BackgroundGeolocation");
@@ -261,12 +261,12 @@ export async function startTracking(idViaje, { captureImmediately = true } = {})
         nativeWatcherId = await startNativeWatcher(normalizedId);
         console.log("[BackgroundGeolocation] Watcher nativo iniciado con éxito ID:", nativeWatcherId);
       } catch (errNative) {
-        console.warn("[BackgroundGeolocation] Fallback a bucle de audio silencioso:", errNative);
+        console.warn("[BackgroundGeolocation] Se usará la captura periódica de ubicación:", errNative);
       }
     }
 
-    // Mantener audio keep-alive como refuerzo y temporizador periódico
-    void startSilentAudioKeepAlive().catch(() => {});
+    // Solicitar el bloqueo de pantalla sin reproducir audio.
+    void startTrackingAwake().catch(() => {});
 
     notify({ status: "Esperando permiso" });
     if (captureImmediately) await captureAndQueueLocation(normalizedId);
@@ -292,7 +292,6 @@ export function stopTracking({ clearState = true } = {}) {
   if (intervalId !== null) { window.clearInterval(intervalId); intervalId = null; }
   if (clearState) clearTrackingState();
   activeTripId = null;
-  // Detener y liberar audio silencioso y estado de multimedia en móvil
-  stopSilentAudioKeepAlive();
+  stopTrackingAwake();
   notify({ status: "Detenido" });
 }

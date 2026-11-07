@@ -67,9 +67,9 @@ import {
   syncPendingLocations
 } from "./services/tracking-service.js";
 import {
-  startSilentAudioKeepAlive,
-  stopSilentAudioKeepAlive
-} from "./services/background-audio.js";
+  startTrackingAwake,
+  stopTrackingAwake
+} from "./services/tracking-awake.js";
 import { initSiniestroAutoSync } from "./services/siniestro-sync.js";
 import safeStorage from "./utils/safeStorage.js";
 import { getOfflineTrip, getOfflinePermits, getPendingOfflineTrips, hasUnfinishedOfflineTrip, matchingPermit, offlineTripView } from "./services/offline-trip-storage.js";
@@ -435,7 +435,7 @@ const [cancelledTrip, setCancelledTrip] =
     }
 
     stopTracking();
-    stopSilentAudioKeepAlive();
+    stopTrackingAwake();
     safeStorage.removeItem("driver_token");
     safeStorage.removeItem("cached_driver");
     safeStorage.removeItem("cached_gerenciamiento_pendiente");
@@ -1068,7 +1068,7 @@ async function handleAddIntermediatePoint() {
         if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
         const data = finishOfflineTrip(telegramAuth.conductor.id_conductores, idViaje, finalMileage);
         setVehiculos(safeStorage.getJSON("cached_vehiculos", []));
-        stopTracking(); stopSilentAudioKeepAlive();
+        stopTracking(); stopTrackingAwake();
         setFinishedTrip(data); setStartedTrip(data); setCreatedTrip(data);
         safeStorage.setJSON("cached_active_trip", data);
         setMessage("Viaje finalizado y guardado en el teléfono. Se sincronizará al recuperar conexión.");
@@ -1089,7 +1089,7 @@ async function handleAddIntermediatePoint() {
         return;
       }
       stopTracking({ clearState: false });
-      stopSilentAudioKeepAlive();
+      stopTrackingAwake();
       const finalLocation = await captureAndQueueLocation(idViaje, { esUbicacionFinal: true });
       if (!finalLocation) throw new Error("Se requiere una ubicación GPS final para cerrar el viaje.");
       await syncPendingLocations(idViaje);
@@ -1148,7 +1148,7 @@ async function handleAddIntermediatePoint() {
         safeStorage.removeItem('cached_gerenciamiento_pendiente');
         safeStorage.removeItem('cached_active_trip');
         stopTracking();
-        stopSilentAudioKeepAlive();
+        stopTrackingAwake();
         setMessage('Viaje finalizado correctamente. Se recuperó la confirmación del servidor.');
         setMessageType('success');
       } else {
@@ -1160,7 +1160,7 @@ async function handleAddIntermediatePoint() {
           await startTracking(idViaje).catch(() => setGpsStatus('No se pudo reactivar el seguimiento GPS.'));
         } else {
           stopTracking({ clearState: recovered.status !== 'UNKNOWN' });
-          stopSilentAudioKeepAlive();
+          stopTrackingAwake();
         }
       }
     } finally {
@@ -1209,7 +1209,7 @@ async function handleAddIntermediatePoint() {
       const cancelledData = response.data ?? {};
 
       stopTracking();
-      stopSilentAudioKeepAlive();
+      stopTrackingAwake();
       setCancelledTrip(cancelledData);
       setStartedTrip(null);
       setGerenciamientoPendiente(null);
@@ -1442,8 +1442,8 @@ function isOutsideOperatingHours() {
       return;
     }
 
-    // Iniciar bucle de audio silencioso en móvil en respuesta directa al clic del conductor
-    void startSilentAudioKeepAlive().catch(() => {});
+    // Solicitar el bloqueo de pantalla desde la interacción del conductor.
+    void startTrackingAwake().catch(() => {});
 
     startingTripRef.current = true;
     setStartingTrip(true);
@@ -1489,7 +1489,7 @@ function isOutsideOperatingHours() {
         .catch(error => setGpsStatus(`Seguimiento GPS pendiente: ${error.message}`));
       
     } catch (error) {
-      stopSilentAudioKeepAlive();
+      stopTrackingAwake();
       setMessage(error.message);
       setMessageType("error");
     } finally {
