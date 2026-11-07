@@ -4,6 +4,7 @@ import { odometerCorrectionPayload } from '../utils/odometer-correction.js';
 import { getViajePorId, getVehiculos } from '../services/api.js';
 import { getOfflineTrip } from '../services/offline-trip-storage.js';
 import safeStorage from '../utils/safeStorage.js';
+import { resolveStartTripVehicle } from '../utils/start-trip-vehicle.js';
 
 export default function StartTripForm({ trip, driverId, busy, error, onConfirm }) {
   const [vehicle, setVehicle] = useState(null);
@@ -26,8 +27,7 @@ export default function StartTripForm({ trip, driverId, busy, error, onConfirm }
           const [result, vehicles] = await Promise.all([getViajePorId(tripId), getVehiculos()]);
           details = result.data; catalog = vehicles.data || [];
         }
-        const id = details?.idVehiculo ?? details?.id_vehiculos;
-        const selected = catalog.find(item => String(item.id_vehiculos) === String(id));
+        const selected = resolveStartTripVehicle(details, catalog);
         if (!selected) throw new Error('No se pudo cargar la unidad del viaje.');
         if (!disposed) { setVehicle(selected); setReading(String(selected.kilometraje_actual ?? '')); setReport(null); }
       } catch (error) { if (!disposed) setLoadError(error.message); }
