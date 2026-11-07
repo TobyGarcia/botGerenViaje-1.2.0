@@ -6,10 +6,15 @@ import {deliverTripOperationNotifications} from '../services/trip-operation-noti
 const originalConnect=databasePool.connect;
 after(async()=>{databasePool.connect=originalConnect;if(!databasePool.ending)await databasePool.end();});
 
-for(const mode of ['success','failure','recent','legacy']) test(`entrega confirmada sin espera: ${mode}`,async()=>{
+for(const mode of ['success','failure','recent','legacy','trailers']) test(`entrega confirmada sin espera: ${mode}`,async()=>{
  process.env.TELEGRAM_BOT_TOKEN='123456:isolated-test'; process.env.TELEGRAM_GROUP_ID='isolated-group';
  const bot=getTelegramBot(); const originalSend=bot.telegram.sendMessage;
  const events=[{id:1,trip_id:1,event_type:'COMPANION_ADDED',created_at:new Date(Date.now()-(mode==='recent'?0:45000)),payload:{folio:'PRUEBA',confirmed:true,actions:[{type:'COMPANION_ADDED',name:'Persona 1'},{type:'COMPANION_ADDED',name:'Persona 2'}]}}];
+ if(mode==='trailers') {
+  events[0].event_type='TRAILER_DETACHED';
+  events[0].payload.place={id:1,name:'Patio'};
+  events[0].payload.actions=[{type:'TRAILER_DETACHED',name:'R-1'},{type:'TRAILER_ATTACHED',name:'R-2'}];
+ }
  let eligible=true; const sent=[]; const updated=[];
  bot.telegram.sendMessage=async(chat,text,options)=>{sent.push({chat,text,options});if(mode==='failure')throw new Error('simulated');};
  databasePool.connect=async()=>({release(){},query:async(sql,params)=>{
@@ -23,9 +28,13 @@ for(const mode of ['success','failure','recent','legacy']) test(`entrega confirm
  }});
  try{
   await deliverTripOperationNotifications();
-  assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1]);assert.match(sent[0].text,/Persona 1\n• Persona 2/);assert.equal(updated[0].sql.includes('last_error=NULL'),mode!=='failure');
+  assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1]);assert.equal(updated[0].sql.includes('last_error=NULL'),mode!=='failure');
   assert.match(sent[0].text,/Hora: \d{2}:\d{2}/);
-  assert.match(sent[0].text,/Se recogió personal:\n• Persona 1\n• Persona 2/);
+  if(mode==='trailers') {
+    assert.match(sent[0].text,/Parada técnica en Patio/);
+    assert.match(sent[0].text,/Remolques dejados:\n• R-1\n\nRemolques enganchados:\n• R-2/);
+    assert.doesNotMatch(sent[0].text,/Se recogió personal:/);
+  } else assert.match(sent[0].text,/Se recogió personal:\n• Persona 1\n• Persona 2/);
   assert.doesNotMatch(sent[0].text,/Viaje:|Conductor:|Unidad:|Número económico:|Se dejó personal:/);
   assert.deepEqual(sent[0].options,mode==='legacy'?{}:{reply_parameters:{message_id:123,allow_sending_without_reply:true},message_thread_id:7});
  }finally{bot.telegram.sendMessage=originalSend;databasePool.connect=originalConnect;delete process.env.TELEGRAM_BOT_TOKEN;delete process.env.TELEGRAM_GROUP_ID;}

@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:compact-personnel-20261107
+    image: gv-staging-trip-operations-backend:compact-trailers-20261107
   frontend:
     image: gv-staging-trip-operations-frontend:stop-place-20261107
   panel-admin:
