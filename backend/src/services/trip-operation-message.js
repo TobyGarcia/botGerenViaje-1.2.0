@@ -19,5 +19,5 @@ export function formatStopSummary(events) {
   const time=value=>new Date(value).toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit'});
   const date=new Date(first.created_at).toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'});
   const end=events[events.length-1];
-  return `📍 Parada del viaje\n${first.payload.folio}\n${date} · ${time(first.created_at)}${time(end.created_at)!==time(first.created_at)?` – ${time(end.created_at)}`:''}${lines.join('\n')}`;
+  return `📍 Parada ${first.payload.place ? `técnica en ${first.payload.place.name}` : 'del viaje'}\n${first.payload.folio}\n${date} · ${time(first.created_at)}${time(end.created_at)!==time(first.created_at)?` – ${time(end.created_at)}`:''}${lines.join('\n')}`;
 }

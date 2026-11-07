@@ -21,6 +21,12 @@ await db.exec(`CREATE TABLE estados_viaje(id_estado_viaje INT PRIMARY KEY,nombre
  INSERT INTO vehiculos VALUES(1,'L200','Camioneta',NULL,NULL),(2,'R-1','Remolque',NULL,NULL);
  INSERT INTO viajes(id_viajes,id_conductores,id_estado_viaje,folio,acompanantes) VALUES(1,10,1,'TEST-1','["Ana"]'),(2,20,1,'TEST-2','[]');`);
 await db.exec(await readFile(new URL('../../../database/migrations/042_trip_operations.sql', import.meta.url), 'utf8'));
+await db.exec(`CREATE TABLE lugares(id_lugares INT PRIMARY KEY, nombre TEXT, activo BOOLEAN);
+ INSERT INTO lugares VALUES(1,'ASPX - LA PAZ',TRUE),(2,'Destino inactivo',FALSE);
+ ALTER TABLE ubicaciones_viaje ALTER COLUMN nombre_punto TYPE VARCHAR(150);`);
+const stopMigration = await readFile(new URL('../../../database/migrations/043_trip_stop_description.sql', import.meta.url), 'utf8');
+await db.exec(stopMigration);
+await db.exec(stopMigration);
 const query = async (sql, params) => { const r = await db.query(sql, params); return { ...r, rowCount: r.rows.length }; };
 databasePool.query = query;
 databasePool.connect = async () => ({ query, release() {} });
@@ -116,13 +122,16 @@ test('confirma subidas, bajadas y remolques juntos: una parada, un evento y ning
  const current=(await listTripItems(2,20)).find(i=>!i.removed_at && i.kind==='companion');
  const before=(await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n;
  const beforeEvents=(await query('SELECT count(*)::int AS n FROM trip_operation_events WHERE trip_id=2')).rows[0].n;
- const body={latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID(),actions:[
+ const body={placeId:1,latitude:19.4,longitude:-99.1,eventKey:crypto.randomUUID(),actions:[
   {type:'COMPANION_ADDED',name:'Confirmado Ana'},
   {type:'COMPANION_DROPPED_OFF',itemId:Number(current.id)},
   {type:'COMPANION_ADDED',name:'Confirmado Luis'},
   {type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection:{idRemolque:2,captureId:crypto.randomUUID(),checklist:{luces:'B'}}}
  ]};
  const saved=await recordConfirmedActions(2,20,body);
+ assert.deepEqual(saved.payload.place,{id:1,name:'ASPX - LA PAZ'});
+ const point=(await query('SELECT nombre_punto FROM ubicaciones_viaje WHERE id_viajes=2 ORDER BY id_ubicaciones_viaje DESC LIMIT 1')).rows[0];
+ assert.match(point.nombre_punto,/^Parada técnica en ASPX - LA PAZ: Se dejó personal: Dos Luis; Se subió personal: Confirmado Ana, Confirmado Luis/);
  assert.equal(saved.payload.actions.length,4);
  assert.equal((await recordConfirmedActions(2,20,body)).id,saved.id);
  assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n,before+1);
@@ -132,4 +141,22 @@ test('confirma subidas, bajadas y remolques juntos: una parada, un evento y ning
  await assert.rejects(recordConfirmedActions(2,20,{...body,eventKey:crypto.randomUUID(),actions:[{type:'COMPANION_DROPPED_OFF',itemId:Number(passenger.id)},{type:'TRAILER_ATTACHED',itemId:2}]}),/inspección nueva/);
  assert.ok((await listTripItems(2,20)).find(i=>i.id===passenger.id && !i.removed_at));
  assert.equal((await query('SELECT count(*)::int AS n FROM ubicaciones_viaje WHERE id_viajes=2')).rows[0].n,before+1);
+});
+
+test('rechaza destinos inválidos sin movimientos parciales y conserva nombres completos y el lugar histórico',async()=>{
+ const base={latitude:19.4,longitude:-99.1,actions:[{type:'COMPANION_ADDED',name:'No guardar'}]};
+ for (const placeId of [null,0,'1',2147483648,999,2]) {
+  await assert.rejects(recordConfirmedActions(2,20,{...base,placeId,eventKey:crypto.randomUUID()}),/destino/);
+ }
+ assert.equal((await query("SELECT count(*)::int AS n FROM trip_operation_items WHERE name='No guardar'")).rows[0].n,0);
+ const names=['A'.repeat(190),'B'.repeat(190)];
+ const body={...base,placeId:1,eventKey:crypto.randomUUID(),actions:names.map(name=>({type:'COMPANION_ADDED',name}))};
+ const saved=await recordConfirmedActions(2,20,body);
+ const point=(await query('SELECT nombre_punto FROM ubicaciones_viaje WHERE id_viajes=2 ORDER BY id_ubicaciones_viaje DESC LIMIT 1')).rows[0];
+ assert.ok(point.nombre_punto.includes(names.join(', ')));
+ assert.ok(point.nombre_punto.length>150);
+ await query("UPDATE lugares SET nombre='Nombre nuevo',activo=FALSE WHERE id_lugares=1");
+ const retry=await recordConfirmedActions(2,20,body);
+ assert.equal(retry.id,saved.id);
+ assert.equal(retry.payload.place.name,'ASPX - LA PAZ');
 });

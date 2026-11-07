@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { getTripItems, recordTripOperation, getVehiculos } from '../services/api.js';
+import { getTripItems, recordTripOperation, getVehiculos, getLugares } from '../services/api.js';
+import DestinationAutocomplete from './DestinationAutocomplete.jsx';
 import { isTrailer } from '../utils/vehicle-kind.js';
 import InspeccionRemolqueModal from './InspeccionRemolqueModal.jsx';
 import './TripOperations.css';
@@ -14,6 +15,14 @@ export default function TripOperations({ tripId }) {
   const serverId = () => resolveOperationTripId(tripId, resolveOfflineTripId);
   const [items, setItems] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [places, setPlaces] = useState([]);
+  const [placeId, setPlaceId] = useState('');
+  const [placeError, setPlaceError] = useState('');
+  async function loadPlaces() {
+    setPlaceError('');
+    try { const result = await getLugares(); setPlaces(result.data || []); }
+    catch { setPlaceError('No se pudieron cargar los destinos.'); }
+  }
   const [companionDraft, setCompanionDraft] = useState(['']);
   const [modal, setModal] = useState(null);
   const [trailer, setTrailer] = useState('');
@@ -31,6 +40,8 @@ export default function TripOperations({ tripId }) {
     const r = await getTripItems(id); setItems(r.data || []); setLoaded(true); setError('');
   };
   useEffect(() => {
+    setPlaceId('');
+    loadPlaces();
     setActions([]);setPending(null);setModal(null);setTrailer('');setInspection(null);setCompanionDraft(['']);setWarningConfirmed(false);
     setLoaded(false);
     refresh().catch(e => setError(e.message));
@@ -52,7 +63,7 @@ export default function TripOperations({ tripId }) {
       const resolved = serverId();
       if (!resolved) throw new Error('Sincroniza el viaje antes de registrar el movimiento.');
       await recordTripOperation(resolved, operation);
-      setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false);
+      setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false); setPlaceId('');
       try { await refresh(); }
       catch { setLoaded(false); setError('Las acciones se guardaron. Actualiza el viaje para ver el estado confirmado.'); }
     } catch (e) {
@@ -105,6 +116,7 @@ export default function TripOperations({ tripId }) {
               disabled={disabled}
               onClick={() => {
                 setActions([]);
+                setPlaceId('');
                 setCompanionDraft(['']);
                 setTrailer('');
                 setInspection(null);
@@ -117,8 +129,8 @@ export default function TripOperations({ tripId }) {
             <button
               type="button"
               className="trip-ops-primary"
-              disabled={disabled || !confirmationActions.length || finalCount > 4 || finalCount < 0}
-              onClick={() => submit({ type: 'CONFIRMED_ACTIONS', actions: confirmationActions })}
+              disabled={disabled || !placeId || !confirmationActions.length || finalCount > 4 || finalCount < 0}
+              onClick={() => submit({ type: 'CONFIRMED_ACTIONS', actions: confirmationActions, placeId: Number(placeId) })}
             >
               <span>{busy ? 'Guardando…' : 'Confirmar cambios'}</span>
               {!busy && confirmationActions.length > 0 && (
@@ -132,6 +144,12 @@ export default function TripOperations({ tripId }) {
         {pending && <button type="button" className="trip-ops-retry-btn" disabled={busy} onClick={() => submit(pending)}>Reintentar registro pendiente</button>}
         {!loaded && !busy && <button type="button" className="trip-ops-retry-btn" onClick={() => refresh().catch(e => setError(e.message))}>Cargar elementos</button>}
 
+        <div className="trip-ops-place">
+          <label htmlFor="trip-operation-place">¿Dónde es la parada?</label>
+          <DestinationAutocomplete id="trip-operation-place" lugares={places} value={placeId}
+            onChange={value => setPlaceId(value)} disabled={disabled} placeholder="Buscar en destinos…" required />
+          {placeError && <p role="alert">{placeError} <button type="button" disabled={busy} onClick={loadPlaces}>Reintentar</button></p>}
+        </div>
         <div className="trip-ops-active-section">
           <div className="trip-ops-section-header">
             <h3>{activeKind === 'companion' ? '¿Quién baja?' : '¿Qué remolque se deja?'}</h3>

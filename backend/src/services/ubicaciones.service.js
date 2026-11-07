@@ -95,7 +95,7 @@ async function saveTripLocationImpl({
         heading,
         gpsTimestamp,
         Boolean(esPuntoIntermedio),
-        nombrePunto ? String(nombrePunto).trim().slice(0, 150) : null
+        nombrePunto ? String(nombrePunto).trim().slice(0, 4000) : null
       ]
     );
 

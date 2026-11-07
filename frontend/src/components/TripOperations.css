@@ -56,6 +56,8 @@
 @media(max-width:420px) { .gv-trip-operations { padding:12px; } .gv-trip-operations h3 { font-size:14px; } .gv-trip-operations .trip-ops-count { font-size:10px; } }
 .gv-trip-operations textarea { box-sizing:border-box; width:100%; min-height:130px; resize:vertical; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#0f172a; font:inherit; font-size:13px; line-height:1.8; }
 .gv-trip-operations form>small { color:#64748b; font-size:11px; line-height:1.6; }
+.trip-ops-place { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.trip-ops-place > label { font-size:14px; font-weight:700; color:#0f172a; }
 .trip-ops-active-section { display:flex; flex-direction:column; gap:8px; }
 .trip-ops-section-header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:2px; }
 .trip-ops-section-count { padding:3px 9px; border-radius:999px; background:#f1f5f9; border:1px solid #e2e8f0; color:#64748b; font-size:11px; font-weight:700; white-space:nowrap; }

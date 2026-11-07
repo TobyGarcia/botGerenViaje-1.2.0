@@ -1,0 +1,8 @@
+FROM gv-staging-trip-operations-backend:finish-summary-20261103 AS backend
+COPY backend/src/services/trip-operations.service.js /app/src/services/trip-operations.service.js
+COPY backend/src/services/trip-operation-message.js /app/src/services/trip-operation-message.js
+COPY backend/src/services/ubicaciones.service.js /app/src/services/ubicaciones.service.js
+COPY backend/src/scripts/migrate-trip-stop-description-staging.js /app/src/scripts/migrate-trip-stop-description-staging.js
+COPY database/migrations/043_trip_stop_description.sql /database/migrations/043_trip_stop_description.sql
+FROM gv-staging-trip-operations-frontend:simple-actions-20261102 AS frontend
+COPY frontend/dist/ /usr/share/nginx/html/

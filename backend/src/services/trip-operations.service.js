@@ -195,17 +195,30 @@ export async function recordConfirmedActions(tripId,driverId,body) {
     const prior=await client.query('SELECT * FROM trip_operation_events WHERE event_key=$1',[body.eventKey]);
     if(prior.rows[0]) { if(prior.rows[0].trip_id!==tripId)fail('Identificador usado en otro viaje.',409); await client.query('COMMIT');return prior.rows[0]; }
     if(trip.estado!=='EN_CURSO')fail('Solo se pueden confirmar acciones en un viaje en curso.',409);
+    let place = null;
+    if (body.placeId !== undefined) {
+      if (!Number.isSafeInteger(body.placeId) || body.placeId <= 0 || body.placeId > 2147483647) fail('Selecciona un destino válido para la parada.');
+      const result = await client.query('SELECT id_lugares, nombre FROM lugares WHERE id_lugares=$1 AND activo=TRUE FOR SHARE', [body.placeId]);
+      if (!result.rows[0]) fail('El destino de la parada ya no está disponible. Selecciona otro.');
+      place = { id: result.rows[0].id_lugares, name: result.rows[0].nombre };
+    }
     const removals=new Set(['COMPANION_DROPPED_OFF','TRAILER_DETACHED']);
     actions.sort((a,b)=>Number(removals.has(b.type))-Number(removals.has(a.type)));
     const results=[];
     for(const action of actions)results.push(await recordTripOperation(tripId,driverId,action,{client,collectOnly:true}));
-    const payload={folio:trip.folio,name:results.map(r=>r.name).join(', '),actions:results,confirmed:true,latitude:body.latitude,longitude:body.longitude};
+    const payload={folio:trip.folio,name:results.map(r=>r.name).join(', '),actions:results,confirmed:true,latitude:body.latitude,longitude:body.longitude,...(place ? { place } : {})};
     const event=await client.query(`INSERT INTO trip_operation_events(event_key,trip_id,item_id,event_type,payload)
       VALUES($1,$2,$3,$4,$5) RETURNING *`,[body.eventKey,tripId,results[0].itemId,results[0].type,JSON.stringify(payload)]);
     if(formatStopSummary([event.rows[0]]).length>3500)fail('Confirma menos acciones para mantener el resumen legible.');
-    const description=results.map(r=>`${{'COMPANION_ADDED':'Subió','COMPANION_DROPPED_OFF':'Bajó','TRAILER_ATTACHED':'Enganchó','TRAILER_DETACHED':'Dejó remolque'}[r.type]} ${r.name}`).join('; ');
+    const description = [
+      ['COMPANION_DROPPED_OFF', 'Se dejó personal'], ['COMPANION_ADDED', 'Se subió personal'],
+      ['TRAILER_DETACHED', 'Se dejó remolque'], ['TRAILER_ATTACHED', 'Se enganchó remolque']
+    ].flatMap(([type, label]) => {
+      const names = results.filter(result => result.type === type).map(result => result.name);
+      return names.length ? [`${label}: ${names.join(', ')}`] : [];
+    }).join('; ');
     await saveTripLocation({idViaje:tripId,latitude:body.latitude,longitude:body.longitude,accuracy:null,speed:null,heading:null,
-      gpsTimestamp:event.rows[0].created_at,esPuntoIntermedio:true,nombrePunto:`Parada técnica: ${description}`},{client});
+      gpsTimestamp:event.rows[0].created_at,esPuntoIntermedio:true,nombrePunto:`Parada técnica${place ? ` en ${place.name}` : ''}: ${description}`},{client});
     await client.query('COMMIT');return event.rows[0];
   } catch(e) {await client.query('ROLLBACK');throw e;} finally {client.release();}
 }

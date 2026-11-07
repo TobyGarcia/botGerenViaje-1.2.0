@@ -14,3 +14,14 @@ test('el mensaje contiene todas las acciones confirmadas de acompañantes y remo
  const text=formatStopSummary([confirmation]);
  assert.match(text,/Bajaron\n• Ana\n• Luis/);assert.match(text,/Remolques dejados\n• R-1/);
 });
+
+test('muestra el destino de la parada con las listas en un solo mensaje sin coordenadas',()=>{
+ const confirmation=event(1,'COMPANION_DROPPED_OFF','');
+ confirmation.payload.place={id:1,name:'ASPX - LA PAZ'};
+ confirmation.payload.actions=[{type:'COMPANION_DROPPED_OFF',name:'Ana'},{type:'COMPANION_ADDED',name:'Luis'}];
+ const text=formatStopSummary([confirmation]);
+ assert.match(text,/^📍 Parada técnica en ASPX - LA PAZ/);
+ assert.match(text,/Subieron\n• Luis/);
+ assert.match(text,/Bajaron\n• Ana/);
+ assert.doesNotMatch(text,/19\.4|-99\.1|maps/);
+});
