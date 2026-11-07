@@ -58,5 +58,11 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
     assert.match(sent[5].text,/Folio: VJ-2/);
     assert.equal((await getTripTelegramContext({idViaje:1})).telegramMessageId,context.telegramMessageId);
     assert.equal(sent.length,6);
+    await sendTripGroupAlert({action:'finalizado',trip:{...trip,idViaje:1,
+      paradasTecnicas:Array.from({length:100},(_,i)=>({nombre_punto:`Parada técnica en Lugar ${i}: Se recogió personal: Ana`,fecha_gps:'2026-11-07T15:00:00Z'}))}});
+    const parts=sent.slice(6);
+    assert.ok(parts.length>1);
+    for(const part of parts){assert.ok(part.text.length<=4000);assert.deepEqual(part.options,tripReplyOptions(context));}
+    assert.match(parts.at(-1).text,/Lugar 99/);
   } finally { bot.telegram.sendMessage=original; delete process.env.TELEGRAM_GROUP_ID; delete process.env.TELEGRAM_BOT_TOKEN; }
 });

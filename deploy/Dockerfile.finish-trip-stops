@@ -1,0 +1,3 @@
+FROM gv-staging-trip-operations-backend:inspection-annex-usage-20261107
+COPY backend/src/services/trip-finish-message.js /app/src/services/trip-finish-message.js
+COPY backend/src/bot/bot.js /app/src/bot/bot.js

@@ -1,6 +1,6 @@
 import { recordOperation } from "../services/operation-log.service.js";
 import { Telegraf } from "telegraf";
-import { formatFinishedTripLines } from '../services/trip-finish-message.js';
+import { formatFinishedTripLines, formatFinishedTripMessages } from '../services/trip-finish-message.js';
 import { rememberTripStartMessage, getTripTelegramContext, tripReplyOptions } from '../services/trip-telegram-context.service.js';
 
 import {
@@ -215,8 +215,11 @@ export async function sendTripGroupAlert({
   try {
     const options = ['finalizado', 'cancelado'].includes(action)
       ? tripReplyOptions(await getTripTelegramContext(trip)) : {};
-    const sent = await getTelegramBot().telegram.sendMessage(groupId, message, options);
-    if (action === 'iniciado') await rememberTripStartMessage(trip, sent);
+    const parts = action === 'finalizado' ? formatFinishedTripMessages(trip) : [message];
+    for (const part of parts) {
+      const sent = await getTelegramBot().telegram.sendMessage(groupId, part, options);
+      if (action === 'iniciado') await rememberTripStartMessage(trip, sent);
+    }
   } catch (error) {
     recordOperation({ step: "telegram.entrega", result: "ERROR", level: "ERROR", error });
     console.error("No fue posible enviar la alerta al grupo:", error);

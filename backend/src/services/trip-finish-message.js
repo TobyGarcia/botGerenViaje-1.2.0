@@ -4,8 +4,7 @@ const text = (value, fallback = 'No registrado', limit = 160) => {
 };
 
 function names(items) {
-  const unique = [...new Set(items.map(item => text(item.name, '', 50)).filter(Boolean))];
-  return unique.length ? `${unique.slice(0, 8).join(', ')}${unique.length > 8 ? ` (+${unique.length - 8} más)` : ''}` : 'Ninguno';
+  return items.map(item => text(item.name, '')).filter(Boolean).join(', ');
 }
 
 function date(value) {
@@ -17,10 +16,14 @@ function date(value) {
 }
 
 export function formatFinishedTripLines(trip) {
-  const history = Array.isArray(trip.elementosViaje) ? trip.elementosViaje : [];
   const arrived = Array.isArray(trip.elementosAlFinalizar) ? trip.elementosAlFinalizar : [];
+  const stops = Array.isArray(trip.paradasTecnicas) ? trip.paradasTecnicas : [];
   const companions = items => items.filter(item => item.kind === 'companion');
   const trailers = items => items.filter(item => item.kind === 'trailer');
+  const arrival = [
+    ...(companions(arrived).length ? [`Acompañantes: ${names(companions(arrived))}`] : []),
+    ...(trailers(arrived).length ? [`Remolques: ${names(trailers(arrived))}`] : [])
+  ];
   return [
     '🏁 Viaje FINALIZADO',
     `Folio: ${text(trip.folio)}`,
@@ -33,14 +36,30 @@ export function formatFinishedTripLines(trip) {
     `Kilometraje: ${text(trip.kilometrajeInicial)} → ${text(trip.kilometrajeFinal)} km`,
     `Distancia recorrida: ${text(trip.kilometrosRecorridos)} km`,
     '',
-    '📋 Resumen del recorrido',
-    `Paradas técnicas: ${Array.isArray(trip.paradasTecnicas) ? trip.paradasTecnicas.length : 0}`,
-    `Acompañantes del viaje: ${names(companions(history))}`,
-    `Remolques utilizados: ${names(trailers(history))}`,
-    '',
-    '📍 Al llegar al destino',
-    `Acompañantes: ${names(companions(arrived))}`,
-    `Remolques: ${names(trailers(arrived))}`,
+    '📍 Paradas técnicas',
+    ...(stops.length ? stops.flatMap((stop, index) => [
+      `${index + 1}. ${date(stop.fecha_gps ?? stop.gpsTimestamp)}`,
+      String(stop.nombre_punto ?? stop.nombrePunto ?? 'Lugar no registrado').replace(/\s+/g, ' ').trim()
+    ]) : ['Sin paradas técnicas.']),
+    ...(arrival.length ? ['', '📍 Al llegar al destino', ...arrival] : []),
     ...(trip.motivo ? ['', `Motivo: ${text(trip.motivo)}`] : [])
   ];
+}
+
+// Conservar todas las paradas: los recorridos largos se envían en partes,
+// cada una respondiendo al mismo mensaje de inicio del viaje.
+export function formatFinishedTripMessages(trip) {
+  const parts = [];
+  let current = '';
+  for (const line of formatFinishedTripLines(trip)) {
+    if (line.length < 4000 && current && current.length + line.length + 1 > 4000) {
+      parts.push(current.trimEnd()); current = '';
+    }
+    for (const character of `${line}\n`) {
+      if (current.length + character.length > 4000) { parts.push(current.trimEnd()); current = ''; }
+      current += character;
+    }
+  }
+  if (current.trim()) parts.push(current.trimEnd());
+  return parts;
 }
