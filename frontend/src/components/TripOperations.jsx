@@ -132,9 +132,8 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
   const selectedDropsCount = actions.filter(a => a.type === (activeKind === 'companion' ? 'COMPANION_DROPPED_OFF' : 'TRAILER_DETACHED')).length;
   const alerts = <>{error && <p role="alert">{error}</p>}{pending && <button type="button" disabled={busy} onClick={() => submit(pending)}>Reintentar movimiento pendiente</button>}</>;
 
-  return <section className="gv-trip-operations trip-operation-launcher">
-    <header className="trip-ops-heading"><div><span className="trip-ops-eyebrow">DURANTE EL VIAJE</span><h3>Gestionar viaje</h3></div></header>
-    <div className="trip-operation-shortcuts">{[['companions','companion','Acompañantes'],['trailers','trailer','Remolques']].map(([id,kind,title]) => <button type="button" className="trip-operation-shortcut" key={id} onClick={() => setModal(id)}><span className="trip-operation-shortcut-icon">{kind === 'companion' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}</span><strong>{title}</strong><small>{items.filter(i => i.kind === kind && !i.removed_at).length} {kind === 'companion' ? 'a bordo' : 'enganchados'}</small><span className="trip-operation-manage">Gestionar →</span></button>)}</div>
+  return <section className="gv-trip-operations trip-operation-launcher trip-operation-launcher-bare" aria-label="Acompañantes y remolques">
+    <div className="trip-operation-shortcuts">{[['companions','companion','Acompañantes'],['trailers','trailer','Remolques']].map(([id,kind,title]) => <button type="button" className="trip-operation-shortcut" key={id} onClick={() => setModal(id)}><span className="trip-operation-shortcut-icon">{kind === 'companion' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}</span><strong>{title}</strong><small>{items.filter(i => i.kind === kind && !i.removed_at).length} {kind === 'companion' ? 'a bordo' : 'enganchados'}</small></button>)}</div>
     {queuedCount>0 && <p role="status">{queuedCount} {queuedCount===1?'parada guardada':'paradas guardadas'} en el teléfono, pendientes de sincronizar. {movementBackgroundStatus()}</p>}
     {syncNotice && <p role="status">Los datos locales se conservan. {syncNotice}</p>}
     {!modal && alerts}
