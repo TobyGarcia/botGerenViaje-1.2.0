@@ -109,19 +109,20 @@ function StatusBadge({ estado }) {
 }
 
 function FuelGauge({ value = "" }) {
-  const v = (value || "").toLowerCase();
-  let percent = 50;
-  let levelClass = "fuel-half";
-  if (v.includes("1/4") || v.includes("reserva") || v.includes("vacio") || v.includes("vacío")) {
+  const v = String(value ?? "").trim().toLowerCase();
+  let percent = null;
+  let levelClass = "fuel-low";
+  if (["e", "vacio", "vacío"].includes(v)) {
+    percent = 0;
+  } else if (v.includes("1/4") || v.includes("reserva")) {
     percent = 25;
-    levelClass = "fuel-low";
   } else if (v.includes("1/2")) {
     percent = 50;
     levelClass = "fuel-half";
   } else if (v.includes("3/4")) {
     percent = 75;
     levelClass = "fuel-good";
-  } else if (v.includes("lleno") || v.includes("full") || v.includes("4/4") || v.includes("1/1")) {
+  } else if (v === "f" || v.includes("lleno") || v.includes("full") || v.includes("4/4") || v.includes("1/1")) {
     percent = 100;
     levelClass = "fuel-full";
   }
@@ -129,11 +130,11 @@ function FuelGauge({ value = "" }) {
   return (
     <div className="fuel-gauge-container">
       <div className="fuel-gauge-bar">
-        <div className={`fuel-gauge-fill ${levelClass}`} style={{ width: `${percent}%` }} />
+        <div className={`fuel-gauge-fill ${levelClass}`} style={{ width: `${percent ?? 0}%` }} />
       </div>
       <div className="fuel-gauge-legend">
         <span className="fuel-gauge-text">{value || "No especificado"}</span>
-        <span className="fuel-gauge-percent">{percent}%</span>
+        <span className="fuel-gauge-percent">{percent === null ? "Sin dato" : `${percent}%`}</span>
       </div>
     </div>
   );

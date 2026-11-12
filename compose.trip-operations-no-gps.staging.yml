@@ -4,4 +4,5 @@ services:
   frontend:
     image: gv-staging-trip-operations-frontend:intermediate-point-modal-20261112
   panel-admin:
-    image: gv-staging-trip-operations-panel:companion-history-20261102
+    image: gv-staging-trip-operations-panel:fuel-gauge-20261112
+
