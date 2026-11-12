@@ -35,7 +35,7 @@ test('resume remolques con lugar, hora y listas de dejados antes de enganchados'
  confirmation.payload.actions=[{type:'TRAILER_ATTACHED',name:'R-2'},{type:'TRAILER_DETACHED',name:'R-1'},{type:'TRAILER_DETACHED',name:'R-4'},{type:'TRAILER_ATTACHED',name:'R-3'}];
  const text=formatStopSummary([confirmation]);
  assert.match(text,/^📍 Parada técnica en ASPX - LA PAZ\nHora: \d{2}:\d{2}/);
- assert.match(text,/Se dejó remolque: R-1, R-4\n\nSe recogió remolque: R-2, R-3$/);
+ assert.match(text,/Se dejó remolque: R-1, R-4\nSe recogió remolque: R-2, R-3$/);
  assert.doesNotMatch(text,/•/);
  assert.doesNotMatch(text,/TEST|Conductor:|Unidad:|Número económico:|Se dejó personal:|Se recogió personal:|19\.4|-99\.1/);
 });

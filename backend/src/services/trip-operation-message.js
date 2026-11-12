@@ -16,11 +16,11 @@ export function formatStopSummary(events) {
   const lines=sections.flatMap(([type,label])=>{
     const matching=events.filter(e=>e.event_type===type);
     if (!matching.length) return [];
-    return ['',`${label} ${namesLine(matching.flatMap(e=>e.payload.names || [e.payload.name]))}`];
+    return [`${label} ${namesLine(matching.flatMap(e=>e.payload.names || [e.payload.name]))}`];
   });
   const time=value=>new Date(value).toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit'});
   const end=events[events.length-1];
   const title = `📍 Parada técnica${first.payload.place ? ` en ${first.payload.place.name}` : ''}`;
   const timestamp = `${time(first.created_at)}${time(end.created_at)!==time(first.created_at)?` – ${time(end.created_at)}`:''}`;
-  return `${title}\nHora: ${timestamp}${lines.join('\n')}`;
+  return [title, `Hora: ${timestamp}`, ...lines].join('\n');
 }

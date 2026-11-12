@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:start-trailers-conditional-20261112
+    image: gv-staging-trip-operations-backend:stop-compact-lines-20261112
   frontend:
     image: gv-staging-trip-operations-frontend:unified-stop-20261112
   panel-admin:

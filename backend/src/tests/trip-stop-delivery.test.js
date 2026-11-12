@@ -31,9 +31,10 @@ for(const mode of ['success','failure','recent','legacy','trailers','mixed']) te
   await deliverTripOperationNotifications();
   assert.equal(sent.length,1);assert.deepEqual(updated[0].ids,[1]);assert.equal(updated[0].sql.includes('last_error=NULL'),mode!=='failure');
   assert.match(sent[0].text,/Hora: \d{2}:\d{2}/);
+  assert.doesNotMatch(sent[0].text,/\n\s*\n/);
   if(mode==='trailers') {
     assert.match(sent[0].text,/Parada técnica en Patio/);
-    assert.match(sent[0].text,/Se dejó remolque: R-1\n\nSe recogió remolque: R-2/);
+    assert.match(sent[0].text,/Se dejó remolque: R-1\nSe recogió remolque: R-2/);
     assert.doesNotMatch(sent[0].text,/Se recogió personal:/);
   } else assert.match(sent[0].text,/Se recogió personal: Persona 1, Persona 2/);
   if(mode==='mixed') assert.match(sent[0].text,/Se recogió remolque: R-1/);
