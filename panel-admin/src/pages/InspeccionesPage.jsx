@@ -807,6 +807,15 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                     <DamageViewer damages={detail.danos} vehicle={detail.vehiculo} />
                   </div>
 
+                  {/* Checklist por Categorías */}
+                  <div className="modal-section-card">
+                    <div className="section-card-title">
+                      <h3>Checklist de Verificación Vehicular</h3>
+                      <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
+                    </div>
+                    {renderChecklistByCategories(detail.checklist)}
+                  </div>
+
                   {/* Sección Remolque (si aplica) */}
                   {detail.lleva_remolque && (
                     <div className="modal-section-card" style={{ borderLeft: "4px solid #2563eb", background: "#f8fafc", padding: "16px", borderRadius: "8px", marginTop: "12px" }}>
@@ -828,15 +837,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                     </div>
                   )}
 
-                  {/* Checklist por Categorías */}
-                  <div className="modal-section-card">
-                    <div className="section-card-title">
-                      <h3>Checklist de Verificación Vehicular</h3>
-                      <p>Inspección integral de sistemas mecánicos, seguridad y documentación obligatoria.</p>
-                    </div>
-                    {renderChecklistByCategories(detail.checklist)}
-                    <TrailerInspectionCards items={detail.trailer_inspections} />
-                  </div>
+                  <TrailerInspectionCards items={detail.trailer_inspections} />
 
                   {/* Observaciones del Conductor */}
                   <div className="modal-section-card">
