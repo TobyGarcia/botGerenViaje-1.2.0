@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import logoGv from "../assets/LOGOGV.png";
-import NavDrawer from "./NavDrawer.jsx";
-import { IconMenu } from "./Icons.jsx";
+import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
 
 export default function TopBar({
   conductor,
@@ -12,7 +11,7 @@ export default function TopBar({
   isRegisterMode = false,
   onLoginClick
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const isTelegram = Boolean(window.Telegram?.WebApp);
 
   const handleCloseMiniApp = () => {
@@ -34,10 +33,10 @@ export default function TopBar({
           </div>
 
         <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {(typeof onTabChange === "function" || typeof onMenuClick === "function") && (
+          {typeof onMenuClick === "function" && (
             <button
               type="button"
-              onClick={onMenuClick ? onMenuClick : () => setDrawerOpen(true)}
+              onClick={onMenuClick}
               title="Abrir menú"
               aria-label="Abrir menú"
               style={{
@@ -173,15 +172,24 @@ export default function TopBar({
       </div>
     </header>
 
-      {/* Drawer Navegador Lateral (solo para modo conductor sin onMenuClick externo) */}
       {!onMenuClick && typeof onTabChange === "function" && (
-        <NavDrawer
-          isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          activeTabMode={activeTabMode}
-          onSelectTab={onTabChange}
-          conductor={conductor}
-        />
+        <nav className="driver-bottom-nav" aria-label="Menú principal">
+          <div className="driver-bottom-nav-inner">
+            {[
+              ['urban', 'Viaje local', IconCar],
+              ['gerenciamiento', 'Gerenciamiento', IconMap],
+              ['siniestro', 'Incidentes', IconAlert],
+              ['perfil', 'Mi perfil', IconUser]
+            ].map(([id, label, Icon]) => (
+              <button key={id} type="button" className="driver-nav-item"
+                aria-current={activeTabMode === id ? 'page' : undefined}
+                onClick={() => onTabChange(id)}>
+                <span className="driver-nav-icon"><Icon size={22} /></span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
       )}
     </>
   );
