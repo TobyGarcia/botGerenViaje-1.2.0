@@ -2331,8 +2331,8 @@ function isOutsideOperatingHours() {
               );
             })()}
 
-            {/* Footer flotante fijo */}
-            <div className="urban-floating-footer">
+            {/* Acciones al final del formulario */}
+            <div className="urban-form-actions">
               <button
                 type="button"
                 className="urban-btn-reset"
