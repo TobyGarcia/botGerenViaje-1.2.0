@@ -39,7 +39,7 @@ import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import UserGuides from "./components/UserGuides.jsx";
-import FinishTripAlert from "./components/FinishTripAlert.jsx";
+import TripActionAlert from "./components/TripActionAlert.jsx";
 import { IconCar } from "./components/Icons.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import { offlineTripNotice } from "./services/offline-trip-notice.js";
@@ -1053,7 +1053,7 @@ async function handleAddIntermediatePoint(note) {
   }
 }
 
-  const [finishTripAlertOpen, setFinishTripAlertOpen] = useState(false);
+  const [finishTripAlertOpen, setTripActionAlertOpen] = useState(false);
 
   async function handleFinishTrip(event, confirmed = false) {
     event?.preventDefault();
@@ -1092,7 +1092,7 @@ async function handleAddIntermediatePoint(note) {
     }
 
     if (!confirmed) {
-      setFinishTripAlertOpen(true);
+      setTripActionAlertOpen(true);
       return;
     }
 
@@ -1221,7 +1221,10 @@ async function handleAddIntermediatePoint(note) {
     }
   }
 
-  async function handleCancelTrip() {
+  const [cancelTripAlertOpen, setCancelTripAlertOpen] = useState(false);
+
+  async function handleCancelTrip(confirmed = false) {
+    if (cancellingTrip) return;
     const idViaje =
       startedTrip?.idViaje ??
       startedTrip?.id_viajes ??
@@ -1234,13 +1237,8 @@ async function handleAddIntermediatePoint(note) {
       return;
     }
 
-    const confirmed = window.confirm(
-      startedTrip
-        ? "¿Confirmas que deseas cancelar este viaje en curso? Se detendrá el GPS."
-        : "¿Confirmas que deseas cancelar este viaje?"
-    );
-
     if (!confirmed) {
+      setCancelTripAlertOpen(true);
       return;
     }
 
@@ -1898,11 +1896,17 @@ function isOutsideOperatingHours() {
         onTabChange={setActiveTabMode}
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
-        {finishTripAlertOpen && <FinishTripAlert busy={finishingTrip}
-          onClose={() => setFinishTripAlertOpen(false)}
+        {cancelTripAlertOpen && <TripActionAlert action="cancel" inProgress={Boolean(startedTrip)} busy={cancellingTrip}
+          onClose={() => setCancelTripAlertOpen(false)}
+          onConfirm={async () => {
+            try { await handleCancelTrip(true); }
+            finally { setCancelTripAlertOpen(false); }
+          }} />}
+        {finishTripAlertOpen && <TripActionAlert busy={finishingTrip}
+          onClose={() => setTripActionAlertOpen(false)}
           onConfirm={async () => {
             try { await handleFinishTrip(null, true); }
-            finally { setFinishTripAlertOpen(false); }
+            finally { setTripActionAlertOpen(false); }
           }} />}
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         {offlineNotice && <div role="status" className="offline-trip-notice">
@@ -2756,7 +2760,7 @@ function isOutsideOperatingHours() {
         <button
           type="button"
           className="gv-btn-cancel-light"
-          onClick={handleCancelTrip}
+          onClick={() => handleCancelTrip()}
           disabled={cancellingTrip || startingTrip}
         >
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
