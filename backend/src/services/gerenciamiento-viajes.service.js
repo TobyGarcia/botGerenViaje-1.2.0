@@ -426,8 +426,13 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
     await client.query("BEGIN");
 
     // Consultar registro para validar nivel de riesgo
-    const checkRes = await client.query("SELECT id_gerenciamiento, nivel_riesgo, id_viaje, id_conductor, id_origen, id_destino, numero_unidad, placa, acompanantes, kilometraje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1", [idGerenciamiento]);
+    const checkRes = await client.query("SELECT id_gerenciamiento, estado, nivel_riesgo, id_viaje, id_conductor, id_origen, id_destino, numero_unidad, placa, acompanantes, kilometraje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1 FOR UPDATE", [idGerenciamiento]);
     const recordCheck = checkRes.rows[0];
+    if (!recordCheck) { await client.query("COMMIT"); return null; }
+    if (recordCheck.estado !== 'PENDIENTE') throw new Error("Este gerenciamiento ya tiene una decisión registrada.");
+    if (!["APROBADO", "RECHAZADO"].includes(estado)) throw new Error("Decisión inválida.");
+    if (!Number.isInteger(Number(idUsuarioAdmin)) || Number(idUsuarioAdmin) <= 0) throw new Error("Se requiere un autorizador autenticado.");
+    if (estado === "APROBADO" && !String(firmaAutorizador || "").startsWith("data:image/png;base64,")) throw new Error("La firma del autorizador es requerida.");
 
     if (estado === 'APROBADO' && recordCheck && idUsuarioAdmin) {
       const userRes = await client.query("SELECT rol FROM usuarios_admin WHERE id_usuarios_admin = $1", [idUsuarioAdmin]);
@@ -463,7 +468,7 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
 
     const record = updateRes.rows[0];
 
-    // Al APROBAR el Gerenciamiento, habilitar el viaje en estado PENDIENTE listo para iniciar y aprobar inspección
+    // Aprobar la inspección sin alterar el estado operativo actual del viaje.
     if (record) {
       if (estado === 'APROBADO') {
         let targetViajeId = record.id_viaje;
@@ -515,13 +520,6 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
 
         if (targetViajeId) {
           await client.query(`
-            UPDATE viajes
-            SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'PENDIENTE' LIMIT 1),
-                actualizado_en = CURRENT_TIMESTAMP
-            WHERE id_viajes = $1
-          `, [targetViajeId]);
-
-          await client.query(`
             UPDATE inspecciones_vehiculares
             SET estado = 'APROBADA',
                 id_usuario_admin_aprobador = $1,
@@ -529,7 +527,13 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
                 comentario_aprobacion = $3,
                 aprobado_en = CURRENT_TIMESTAMP,
                 actualizado_en = CURRENT_TIMESTAMP
-            WHERE id_viajes = $4 OR (id_conductores = $5 AND fecha_operativa = CURRENT_DATE)
+            WHERE estado = 'PENDIENTE_APROBACION' AND id_conductores = $5
+              AND id_vehiculos = (SELECT id_vehiculos FROM viajes WHERE id_viajes=$4)
+              AND (id_viajes=$4 OR fecha_operativa IN (
+                SELECT original.fecha_operativa FROM inspecciones_vehiculares original
+                WHERE original.id_viajes=$4 OR EXISTS (SELECT 1 FROM viaje_inspeccion_uso uso
+                  WHERE uso.id_viajes=$4 AND uso.id_inspeccion=original.id_inspeccion)
+              ))
           `, [idUsuarioAdmin, firmaAutorizador, observaciones, targetViajeId, record.id_conductor]);
         }
       } else if (estado === 'RECHAZADO' && record.id_viaje) {
@@ -537,7 +541,7 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
           UPDATE viajes
           SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'CANCELADO' LIMIT 1),
               actualizado_en = CURRENT_TIMESTAMP
-          WHERE id_viajes = $1
+          WHERE id_viajes = $1 AND id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE' LIMIT 1)
         `, [record.id_viaje]);
 
         await client.query(`

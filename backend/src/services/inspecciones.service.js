@@ -1,3 +1,4 @@
+import { isManagementRole, managementInspectionSql } from "./management-trip-scope.js";
 import { traceOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { getTripInspectionAnnexes } from './trip-inspection-annexes.service.js';
@@ -118,7 +119,7 @@ async function getInspectionRequirementImpl({ idViaje, idConductor }) {
   };
 }
 
-export async function listPendingInspections() {
+export async function listPendingInspections(adminRole = null) {
   const result = await databasePool.query(`
     SELECT i.id_inspeccion, i.estado, i.creado_en, i.requiere_autorizacion_fuera_horario,
       i.fecha_operativa, i.es_dia_siguiente, i.lleva_remolque, i.id_remolque,
@@ -129,6 +130,7 @@ export async function listPendingInspections() {
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
     LEFT JOIN vehiculos rem ON rem.id_vehiculos=i.id_remolque
+    ${isManagementRole(adminRole) ? `WHERE ${managementInspectionSql()}` : ""}
     ORDER BY CASE WHEN i.estado='PENDIENTE_APROBACION' THEN 0 ELSE 1 END, i.creado_en DESC`);
   return result.rows;
 }
@@ -172,8 +174,8 @@ export async function getInspectionByViaje(idViaje) {
   return getAdminInspection(result.rows[0].id_inspeccion);
 }
 
-export async function countPendingInspections() {
-  const result = await databasePool.query("SELECT COUNT(*)::INTEGER AS total FROM inspecciones_vehiculares WHERE estado='PENDIENTE_APROBACION'");
+export async function countPendingInspections(adminRole = null) {
+  const result = await databasePool.query(`SELECT COUNT(*)::INTEGER AS total FROM inspecciones_vehiculares i WHERE estado='PENDIENTE_APROBACION' ${isManagementRole(adminRole) ? `AND ${managementInspectionSql()}` : ""}`);
   return result.rows[0].total;
 }
 

@@ -25,7 +25,7 @@ async function requireSupervisor(request) {
   return access.user;
 }
 export async function listSupervisorInspectionsController(request, response) {
-  try { await requireSupervisor(request); return response.json({ success: true, data: (await listPendingInspections()).filter((item) => item.estado === "PENDIENTE_APROBACION") }); }
+  try { const actor = await requireSupervisor(request); return response.json({ success: true, data: (await listPendingInspections(actor.rol)).filter((item) => item.estado === "PENDIENTE_APROBACION") }); }
   catch (error) { return response.status(error.statusCode || 401).json({ success: false, message: error.message }); }
 }
 export async function getSupervisorInspectionController(request, response) {

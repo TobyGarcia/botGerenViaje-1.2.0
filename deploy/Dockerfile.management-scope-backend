@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:supervisor-app-20261112
+COPY backend/src/ /app/src/

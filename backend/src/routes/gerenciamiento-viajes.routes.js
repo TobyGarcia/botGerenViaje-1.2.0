@@ -1,3 +1,4 @@
+import { requireAdminSession, requireAdminRoles, ROLES_SUPERVISOR_Y_SUPERIOR } from "../middlewares/admin-auth.middleware.js";
 import { Router } from "express";
 import { requireActiveDriver } from "../middlewares/driver-auth.middleware.js";
 import {
@@ -19,8 +20,8 @@ router.get("/:id", getGerenciamientoByIdController);
 router.get("/:id/pdf", downloadGerenciamientoPdfController);
 router.get("/:id/vista-previa-pdf", previewGerenciamientoPdfController);
 router.get("/viaje/:idViaje", getGerenciamientoByViajeController);
-router.patch("/:id/aprobar", aprovarGerenciamientoController);
-router.patch("/:id/decision", aprovarGerenciamientoController);
+router.patch("/:id/aprobar", requireAdminSession, requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), aprovarGerenciamientoController);
+router.patch("/:id/decision", requireAdminSession, requireAdminRoles(ROLES_SUPERVISOR_Y_SUPERIOR), aprovarGerenciamientoController);
 router.patch("/:id/reporte-hora", registrarReporteHoraController);
 
 export default router;

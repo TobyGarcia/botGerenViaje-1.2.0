@@ -1,7 +1,6 @@
 import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
-import { getAdminUsuarios } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
 import { IconDocumento } from "../components/Icons.jsx";
 
@@ -89,7 +88,6 @@ function ApprovalSignature({ onChange }) {
 
 export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
   const [list, setList] = useState([]);
-  const [usuariosAdmin, setUsuariosAdmin] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterRiesgo, setFilterRiesgo] = useState("");
@@ -100,8 +98,6 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
 
   // Approval modal state
   const [approving, setApproving] = useState(false);
-  const [autorizadorId, setAutorizadorId] = useState("");
-  const [autorizadorNombre, setAutorizadorNombre] = useState(user?.nombre || user?.username || "");
   const [firmaAutorizador, setFirmaAutorizador] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
@@ -115,15 +111,11 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
       if (filterRiesgo) url += `riesgo=${filterRiesgo}&`;
       if (filterEstado) url += `estado=${filterEstado}&`;
 
-      const [gerenRes, usersRes] = await Promise.all([
-        apiFetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } }),
-        getAdminUsuarios().catch(() => ({ data: [] }))
-      ]);
+      const gerenRes = await apiFetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } });
 
       if (!gerenRes.ok) throw new Error("Error cargando gerenciamientos de viaje.");
       const gerenData = await readApiJson(gerenRes);
       setList(gerenData.data || []);
-      setUsuariosAdmin(usersRes.data || []);
     } catch (err) {
       setError(err.message || "Error conectando con el servidor.");
     } finally {
@@ -134,14 +126,6 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  function handleSelectAutorizador(idStr) {
-    setAutorizadorId(idStr);
-    const found = usuariosAdmin.find((u) => String(u.id_usuarios_admin) === String(idStr));
-    if (found) {
-      setAutorizadorNombre(found.nombre || found.username);
-    }
-  }
 
   async function handleDecide(nuevoEstado) {
     if (nuevoEstado === "APROBADO" && !firmaAutorizador) {
@@ -159,8 +143,6 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
         },
         body: JSON.stringify({
           estado: nuevoEstado,
-          idUsuarioAdmin: autorizadorId || user?.id_usuarios_admin || 1,
-          nombreAutorizador: autorizadorNombre,
           firmaAutorizador: firmaAutorizador,
           observaciones: observaciones
         })
@@ -713,7 +695,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
           <>
-            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');setAutorizadorNombre(item.nombre_autorizador_firma||user?.nombre||user?.username||'');}}>Ver revisión →</button></article>)}</div>}
+            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');}}>Ver revisión →</button></article>)}</div>}
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>
@@ -753,7 +735,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
                           </small>
                         </td>
                         <td style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                          <button className="secondary-button" onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || ""); setAutorizadorNombre(item.nombre_autorizador_firma || user?.nombre || user?.username || ""); }}>
+                          <button className="secondary-button" onClick={() => { setSelectedDoc(item); setFirmaAutorizador(""); setObservaciones(item.observaciones || "");  }}>
                             Ver revisión
                           </button>
                           <button className="secondary-button" onClick={() => openGerenciamientoPdfPreview(item, true)}>
@@ -1237,31 +1219,8 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
 
                 <div className="inspection-decision-section">
                   <label className="inspection-comment-field">
-                    <span>Seleccionar Persona Autorizadora:</span>
-                    <select
-                      value={autorizadorId}
-                      onChange={(e) => handleSelectAutorizador(e.target.value)}
-                      style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                    >
-                      <option value="">-- Selecciona Autorizador --</option>
-                      {usuariosAdmin.map((u) => (
-                        <option key={u.id_usuarios_admin} value={u.id_usuarios_admin}>
-                          {u.nombre || u.username} — [{u.rol}]
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="inspection-decision-section">
-                  <label className="inspection-comment-field">
-                    <span>Nombre en la Firma:</span>
-                    <input
-                      type="text"
-                      value={autorizadorNombre}
-                      onChange={(e) => setAutorizadorNombre(e.target.value)}
-                      style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                    />
+                    <span>Persona autorizadora</span>
+                    <input type="text" value={user?.nombre || user?.username || ""} readOnly />
                   </label>
                 </div>
 

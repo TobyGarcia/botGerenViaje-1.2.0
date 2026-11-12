@@ -6,11 +6,11 @@ import { sendDriverInspectionNotification } from "../bot/bot.js";
 import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
 
 export async function listAdminInspectionsController(request, response) {
-  try { return response.json({ success: true, data: await listPendingInspections() }); }
+  try { return response.json({ success: true, data: await listPendingInspections(request.adminUser.rol) }); }
   catch { return response.status(500).json({ success: false, message: "No fue posible consultar las inspecciones." }); }
 }
 export async function countAdminInspectionsController(request, response) {
-  try { return response.json({ success: true, data: { total: await countPendingInspections() } }); }
+  try { return response.json({ success: true, data: { total: await countPendingInspections(request.adminUser.rol) } }); }
   catch { return response.status(500).json({ success: false, message: "No fue posible consultar las notificaciones." }); }
 }
 export async function getAdminInspectionController(request, response) {

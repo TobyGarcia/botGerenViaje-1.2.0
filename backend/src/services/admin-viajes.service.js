@@ -1,3 +1,4 @@
+import { isManagementRole, managementTripSql } from "./management-trip-scope.js";
 import { getVehiculos } from "./catalogos.service.js";
 import {
   databasePool
@@ -206,7 +207,8 @@ export async function listAdminTrips({
   status = "TODOS",
   dateFrom = "",
   dateTo = "",
-  idConductor = null
+  idConductor = null,
+  adminRole = null
 } = {}) {
   const normalizedSearch =
     String(search).trim();
@@ -216,6 +218,7 @@ export async function listAdminTrips({
 
   const values = [];
   const conditions = [];
+  if (isManagementRole(adminRole)) conditions.push(managementTripSql());
 
   if (normalizedSearch) {
     values.push(

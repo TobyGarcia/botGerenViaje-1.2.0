@@ -155,7 +155,9 @@ export async function listGerenciamientosController(request, response) {
 export async function aprovarGerenciamientoController(request, response) {
   try {
     const idGerenciamiento = Number(request.params.id);
-    const { idUsuarioAdmin, nombreAutorizador, firmaAutorizador, estado, observaciones } = request.body || {};
+    const { firmaAutorizador, estado, observaciones } = request.body || {};
+    const idUsuarioAdmin = request.adminUser.id_usuarios_admin;
+    const nombreAutorizador = request.adminUser.nombre;
 
     if (!nombreAutorizador) {
       throw new Error("El nombre del autorizador es requerido.");

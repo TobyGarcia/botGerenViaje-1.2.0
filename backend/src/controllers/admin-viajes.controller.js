@@ -168,6 +168,7 @@ export async function listAdminTripsController(
   try {
     const rows =
       await listAdminTrips({
+        adminRole: request.adminUser.rol,
         search:
           request.query.search,
 
