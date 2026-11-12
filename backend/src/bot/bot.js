@@ -181,7 +181,7 @@ export async function sendTripGroupAlert({
     trip.numeroEconomico
       ? `Número económico: ${trip.numeroEconomico}`
       : null,
-    trip.lleva_remolque
+    trip.lleva_remolque === true
       ? `Remolque: ${trip.remolque_nombre ?? "No disponible"}${trip.remolque_numero_economico ? ` (${trip.remolque_numero_economico})` : ""}${trip.remolque_placas ? ` — Placas: ${trip.remolque_placas}` : ""}`
       : null
   ];

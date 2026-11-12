@@ -67,5 +67,12 @@ test('guarda el inicio y responde a su mensaje en paradas manuales, aislando via
     assert.match(parts.at(-1).text,/Lugar 99/);
     await sendTripGroupAlert({action:'iniciado',trip:{idViaje:2,folio:'VJ-2',acompanantes:[{nombre:'Ana'},'Luis',{nombre:' '}]}});
     assert.match(sent.at(-1).text,/Acompañantes: Ana, Luis\n/);
+    for (const lleva_remolque of [false,undefined,null,'false']) {
+      await sendTripGroupAlert({action:'iniciado',trip:{idViaje:2,folio:'VJ-2',lleva_remolque,remolque_nombre:'R-ANTERIOR'}});
+      assert.doesNotMatch(sent.at(-1).text,/Remolque:|Sin remolque|R-ANTERIOR/);
+    }
+    await sendTripGroupAlert({action:'iniciado',trip:{idViaje:2,folio:'VJ-2',lleva_remolque:true,
+      remolque_nombre:'HECHIZO PLANA RETRO',remolque_numero_economico:'REM-001',remolque_placas:'STG-R1'}});
+    assert.match(sent.at(-1).text,/Remolque: HECHIZO PLANA RETRO \(REM-001\) — Placas: STG-R1\n/);
   } finally { bot.telegram.sendMessage=original; delete process.env.TELEGRAM_GROUP_ID; delete process.env.TELEGRAM_BOT_TOKEN; }
 });

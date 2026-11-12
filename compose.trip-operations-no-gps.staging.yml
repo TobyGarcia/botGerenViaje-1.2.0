@@ -1,6 +1,6 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:start-companions-conditional-20261107
+    image: gv-staging-trip-operations-backend:start-trailers-conditional-20261112
   frontend:
     image: gv-staging-trip-operations-frontend:mobile-operation-grid-20261107
   panel-admin:
