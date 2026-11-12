@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-frontend:unified-stop-20261112
+COPY frontend/dist/ /usr/share/nginx/html/

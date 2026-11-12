@@ -43,6 +43,7 @@ import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import StartTripForm from "./components/StartTripForm.jsx";
+import { tripRoutePlace } from './utils/trip-route-place.js';
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -1977,6 +1978,10 @@ function isOutsideOperatingHours() {
                 vehiculo: gerenData.tipo_vehiculo || "Vehículo",
                 numeroEconomico: gerenData.numero_unidad || "N/A",
                 kilometrajeInicial: gerenData.kilometraje || 0,
+                origen: gerenData.origen_nombre || gerenData.origen_texto,
+                destino: gerenData.destino_nombre || gerenData.destino_texto,
+                idOrigen: gerenData.id_origen,
+                idDestino: gerenData.id_destino,
                 estado: "PENDIENTE_APROBACION"
               };
               setCreatedTrip(pendingTrip);
@@ -2475,6 +2480,16 @@ function isOutsideOperatingHours() {
       <div className="gv-trip-dl-row">
         <dt className="gv-trip-dt">Unidad</dt>
         <dd className="gv-trip-dd">{startedTrip?.vehiculo ?? createdTrip.vehiculo}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Origen</dt>
+        <dd className="gv-trip-dd">{tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)}</dd>
+      </div>
+
+      <div className="gv-trip-dl-row">
+        <dt className="gv-trip-dt">Destino</dt>
+        <dd className="gv-trip-dd">{tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}</dd>
       </div>
 
       <div className="gv-trip-dl-row">
