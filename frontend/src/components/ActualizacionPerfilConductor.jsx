@@ -131,15 +131,6 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
   return (
     <div className="perfil-wrapper">
       <section className="perfil-card-container">
-        <header className="perfil-visual-header">
-          <div className="perfil-avatar" aria-hidden="true">{nombre.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'GV'}</div>
-          <div className="perfil-identity">
-            <h2>Mi perfil</h2>
-            <p>{nombre.trim() || 'Tu nombre completo'}</p>
-            {puesto.trim() && <small>{puesto}</small>}
-          </div>
-        </header>
-
         {/* Alertas */}
         {error && (
           <div className="perfil-alert-error">
