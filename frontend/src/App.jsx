@@ -2443,6 +2443,7 @@ function isOutsideOperatingHours() {
                 : "Viaje registrado"}
         </h3>
       </div>
+      {(!startedTrip || finishedTrip || cancelledTrip) && (
       <span
         className={`gv-status-pill ${
           finishedTrip
@@ -2462,6 +2463,7 @@ function isOutsideOperatingHours() {
               ? "EN CURSO"
               : "PENDIENTE"}
       </span>
+      )}
     </div>
 
     {/* Tabla / Lista de Datos Clave */}
