@@ -19,9 +19,9 @@ try {
   if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Interrupted active trip');
   if(!await js("(()=>{const a=document.querySelector('.topbar-help-button').getBoundingClientRect(),b=document.querySelector('.topbar-btn-logout-icon').getBoundingClientRect();return a.right<=b.left&&b.right<=innerWidth})()"))throw Error('Help icon positioning');
   await click('.topbar-help-button');
-  if(await js("document.querySelectorAll('[data-guide-topic]').length")!==3)throw Error('Missing guide menu');
+  if(await js("document.querySelectorAll('[data-guide-topic]').length")!==2)throw Error('Missing guide menu');
   if(width===390){const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(join(tmpdir(),'gv-help-hub.png'),Buffer.from(shot.data,'base64'));}
-  for(const [topic,count] of [['companions',3],['trailers',4],['offline',3]]) {
+  for(const [topic,count] of [['companions',3],['trailers',4]]) {
    await click(`[data-guide-topic="${topic}"]`);
    for(let step=0;step<count;step++) {
     if(!await js("(()=>{const img=document.querySelector('.user-guide-image img');return img.complete&&img.naturalWidth>0})()"))throw Error('Broken screenshot');
@@ -39,12 +39,12 @@ try {
   if(await js(`localStorage.getItem('${key}')`))throw Error('Manual guide marked updates read');
   await send('Page.navigate',{url:'http://127.0.0.1:5178/tools/guides/carousel.html'});await wait(650);
   if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Novedades de la app')throw Error('No automatic updates');
-  for(let step=0;step<3;step++){if(!await js(`document.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')==='${step+1}'`))throw Error('Update navigation');await click('.guide-footer-actions .trip-ops-primary');}
+  for(let step=0;step<2;step++){if(!await js(`document.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')==='${step+1}'`))throw Error('Update navigation');await click('.guide-footer-actions .trip-ops-primary');}
   if(!await js(`localStorage.getItem('${key}')`))throw Error('Updates not persisted');
   await click('.trip-operation-close-btn');await send('Page.reload');await wait(650);
   if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Read updates repeated');
   await click('.topbar-help-button');await click('.guide-news-card');
   if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Novedades de la app')throw Error('Cannot replay updates');
-  console.log('PASS '+width+'px: info by logout; no active-trip interruption; 10 guide steps; 3 updates; zoom; independent read persistence; replay');
+  console.log('PASS '+width+'px: info by logout; no active-trip interruption; 7 guide steps; 2 updates; zoom; independent read persistence; replay');
  }
 } finally {await send('Browser.close').catch(()=>{});ws.close();chrome.kill();}

@@ -8,10 +8,6 @@ import safeStorage from '../utils/safeStorage.js';
 import './TripOperations.css';
 import './UserGuides.css';
 
-function OfflineIcon({size=22}) {
- return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M2 2l20 20M8.5 8.5A11 11 0 0 1 22 10M2 10a15 15 0 0 1 3.7-2.5M6 14a9 9 0 0 1 3.4-1.7M10 18a3 3 0 0 1 4 0M12 21h.01" strokeLinecap="round"/></svg>;
-}
-
 export default function UserGuides({ driverId, autoOpen = false }) {
  const key=`gv_updates_seen:${driverId}:${appUpdates.id}`;
  const [open,setOpen]=useState(false),[mode,setMode]=useState('hub'),[topic,setTopic]=useState(0),[step,setStep]=useState(0),[expanded,setExpanded]=useState(false);
@@ -42,7 +38,7 @@ export default function UserGuides({ driverId, autoOpen = false }) {
     {mode==='hub'?<div className="guide-hub">
      <button type="button" className="guide-news-card" onClick={showUpdates}><span className="guide-news-icon"><IconSparkles size={28}/></span><span><small>{read?'ACTUALIZACIÓN':'NUEVO'}</small><strong>Qué hay de nuevo</strong><span>Conoce las últimas mejoras</span></span><b aria-hidden="true">→</b></button>
      <div className="guide-hub-heading"><h3>Guías visuales</h3><span>Paso a paso</span></div>
-     {userGuides.map((g,i)=>{const Icon=[IconUsers,TripTrailerIcon,OfflineIcon][i];return <button key={g.id} type="button" className={`guide-topic-card guide-topic-${g.id}`} data-guide-topic={g.id} onClick={()=>choose(i)}><span className="guide-topic-icon"><Icon size={26}/></span><span><strong>{g.label}</strong><small>{g.steps.length} pasos · Capturas reales</small></span><b aria-hidden="true">›</b></button>})}
+     {userGuides.map((g,i)=>{const Icon=[IconUsers,TripTrailerIcon][i];return <button key={g.id} type="button" className={`guide-topic-card guide-topic-${g.id}`} data-guide-topic={g.id} onClick={()=>choose(i)}><span className="guide-topic-icon"><Icon size={26}/></span><span><strong>{g.label}</strong><small>{g.steps.length} pasos · Capturas reales</small></span><b aria-hidden="true">›</b></button>})}
     </div>:<>
      <div className="guide-slide-heading"><span className="guide-step-pill">{mode==='updates'?'Novedad':'Paso'} {step+1} de {slides.length}</span><button type="button" className="guide-index-button" onClick={hub}>Ver guías</button></div>
      <div className="user-guide-copy" aria-live="polite"><h3>{slide.title}</h3><p>{slide.text}</p></div>
