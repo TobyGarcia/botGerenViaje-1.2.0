@@ -67,9 +67,10 @@ export default function TopBar({
                 title="Cerrar sesión / Salir"
                 aria-label="Cerrar sesión"
                 style={{
-                  background: "rgba(244, 63, 94, 0.15)",
-                  border: "1px solid rgba(244, 63, 94, 0.3)",
-                  borderRadius: "8px",
+                  background: "transparent",
+                  border: 0,
+                  borderRadius: 0,
+                  boxShadow: "none",
                   width: "38px",
                   height: "38px",
                   color: "#fda4af",
