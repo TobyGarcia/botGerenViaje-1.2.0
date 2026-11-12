@@ -1883,6 +1883,9 @@ function isOutsideOperatingHours() {
     );
   }
 
+  const tripTabMode = gerenciamientoPendiente || gerenciamientoDoc ? "gerenciamiento" : "urban";
+  const showTripContent = activeTabMode === tripTabMode;
+
   return (
     <div className="app-shell">
       <TopBar
@@ -1897,7 +1900,7 @@ function isOutsideOperatingHours() {
           <p>{offlineNotice}</p>
           <button type="button" onClick={syncOfflineState}>Sincronizar pendientes</button>
         </div>}
-        {createdTrip ? (
+        {createdTrip && showTripContent ? (
           <div className="gv-screen-header">
             <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
             <p className="gv-screen-subtitle">Control operativo y seguimiento de trayecto</p>
@@ -1934,7 +1937,15 @@ function isOutsideOperatingHours() {
           </>
         ) : null}
 
-        {!createdTrip && activeTabMode === "siniestro" && (
+        {createdTrip && !showTripContent && ['urban', 'gerenciamiento'].includes(activeTabMode) && (
+          <section className="information-panel">
+            <h1>{activeTabMode === 'urban' ? 'Viaje local' : 'Gerenciamiento de viajes'}</h1>
+            <p>Ya tienes un viaje registrado: <strong>{createdTrip.folio}</strong>. Finalízalo antes de registrar otro.</p>
+            <button type="button" onClick={() => setActiveTabMode(tripTabMode)}>Volver a mi viaje</button>
+          </section>
+        )}
+
+        {activeTabMode === "siniestro" && (
           <ReporteSiniestro
             conductor={authenticatedDriver}
             vehiculoAsignado={selectedVehicle}
@@ -1947,7 +1958,7 @@ function isOutsideOperatingHours() {
           />
         )}
 
-        {!createdTrip && activeTabMode === "perfil" && (
+        {activeTabMode === "perfil" && (
           <ActualizacionPerfilConductor
             conductor={authenticatedDriver}
             onProfileUpdated={(updatedConductor) => {
@@ -2359,7 +2370,7 @@ function isOutsideOperatingHours() {
 
      
 
-      {createdTrip && !startedTrip && (
+      {createdTrip && showTripContent && !startedTrip && (
         <section className="gv-success-alert" data-purpose="status-notification">
           <div className="gv-alert-icon-box">
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -2381,7 +2392,7 @@ function isOutsideOperatingHours() {
         </p>
       )}
 
-{gerenciamientoPendiente && (
+{gerenciamientoPendiente && showTripContent && (
   <section className="result-card" style={{ background: "#fff7ed", border: "1.5px solid #fdba74", marginBottom: "16px" }}>
     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
       <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#ffedd5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -2410,7 +2421,7 @@ function isOutsideOperatingHours() {
   </section>
 )}
 
-{createdTrip && (
+{createdTrip && showTripContent && (
   <section className="gv-trip-card">
     {/* Header de la tarjeta con Estado */}
     <div className="gv-trip-header">
