@@ -712,7 +712,7 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
         </div>
       )}
 
-      <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }}>
+      <form className="gw-sections-form" onSubmit={(e) => { e.preventDefault(); handleNextStep(); }}>
         
         {/* STEP 1: Ruta y Unidad */}
         {currentStep === 1 && (

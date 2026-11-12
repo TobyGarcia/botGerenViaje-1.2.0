@@ -4140,3 +4140,7 @@ form#urban-trip-form {
 .gv-approval-details dl>div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px; }
 .gv-approval-details dt { color:#64748b; }
 .gv-approval-details dd { margin:0; color:#24485a; overflow-wrap:anywhere; }
+
+/* Each management section owns its surface; the form is only a layout. */
+.gw-container .gw-sections-form { display:grid; min-width:0; gap:16px; margin:0; padding:0; background:transparent; border:0; border-radius:0; box-shadow:none; }
+.gw-sections-form > .gw-card { width:100%; min-width:0; margin-bottom:0; }
