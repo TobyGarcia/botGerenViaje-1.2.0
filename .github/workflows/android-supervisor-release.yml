@@ -59,6 +59,7 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - run: npm ci --prefix panel-admin
+      - run: npm test --prefix panel-admin
       - run: npm ci --prefix supervisor-app
       - run: node supervisor-app/scripts/build-web.mjs
       - run: node supervisor-app/scripts/prepare-android.mjs

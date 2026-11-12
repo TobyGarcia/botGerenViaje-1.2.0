@@ -14,6 +14,10 @@ try{for(const width of [390,768]){
  await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
  await send('Page.navigate',{url:'http://127.0.0.1:5179/tools/supervisor/index.html?login=1'});await wait(800);
  if(!await js("document.body.textContent.includes('Iniciar sesión con Microsoft')"))throw Error('Login missing');
+ await send('Page.navigate',{url:'http://127.0.0.1:5179/tools/supervisor/index.html?invalid=1'});await wait(700);
+ await click('.supervisor-login button');
+ if(!await js("document.body.textContent.includes('El servidor no devolvió una respuesta válida')"))throw Error('Missing invalid-response error');
+ if(await js("document.body.textContent.includes('Cannot read')"))throw Error('Null response crash');
  await send('Page.navigate',{url:'http://127.0.0.1:5179/tools/supervisor/index.html'});await wait(850);
  if(!await js("document.body.textContent.includes('PENDIENTE-DEMO')"))throw Error('Pending row missing');
  if(await js("document.body.textContent.includes('APROBADA-OCULTA')"))throw Error('Pending filter wrong');

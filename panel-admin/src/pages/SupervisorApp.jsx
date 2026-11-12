@@ -16,12 +16,14 @@ export default function SupervisorApp(){
  async function check(){
   if(!ticket.current||checking.current)return;const activeTicket=ticket.current;checking.current=true;
   try{const result=await pollSupervisorAppLogin(activeTicket);if(disposed.current||ticket.current!==activeTicket)return;
-   if(!result.data.pending){localStorage.setItem('gv_supervisor_token',result.data.token);localStorage.setItem('adminToken',result.data.token);ticket.current=null;setWaiting(false);setUser(result.data.user);await Browser.close().catch(()=>{});}
+   if(!result?.data || typeof result.data.pending!=='boolean')throw new Error('El servidor no devolvió un estado de acceso válido. Intenta de nuevo.');
+   if(!result.data.pending){
+    if(typeof result.data.token!=='string'||!result.data.user)throw new Error('No se pudo confirmar la sesión. Inicia sesión de nuevo.');localStorage.setItem('gv_supervisor_token',result.data.token);localStorage.setItem('adminToken',result.data.token);ticket.current=null;setWaiting(false);setUser(result.data.user);await Browser.close().catch(()=>{});}
   }catch(e){if(!disposed.current){ticket.current=null;setWaiting(false);setError(e.message);}}
   finally{checking.current=false;}
  }
  useEffect(()=>{disposed.current=false;let listener,link;const expired=()=>{const hadToken=Boolean(localStorage.getItem('gv_supervisor_token'));clear();if(hadToken)setError('Tu sesión expiró. Inicia sesión de nuevo.');};window.addEventListener('supervisor-session-expired',expired);
-  getAdminSession().then(r=>{if(!disposed.current)setUser(r.data.user);}).catch(()=>{}).finally(()=>{if(!disposed.current)setLoading(false);});
+  getAdminSession().then(r=>{if(!disposed.current)setUser(r?.data?.user || null);}).catch(()=>{}).finally(()=>{if(!disposed.current)setLoading(false);});
   const interval=setInterval(()=>void check(),2000);
   if(Capacitor.isNativePlatform()){
    NativeApp.addListener('appStateChange',state=>{if(state.isActive)void check();}).then(l=>{if(disposed.current)l.remove();else listener=l;});
@@ -36,7 +38,9 @@ export default function SupervisorApp(){
   const events=['pointerdown','keydown','scroll','touchstart'];events.forEach(event=>window.addEventListener(event,reset,{passive:true}));reset();
   return()=>{clearTimeout(timer);events.forEach(event=>window.removeEventListener(event,reset));};
  },[user]);
- async function login(){setError('');setWaiting(true);try{const result=await startSupervisorAppLogin();ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken};
+ async function login(){setError('');setWaiting(true);try{const result=await startSupervisorAppLogin();
+  if(!result?.data?.ticket || !result.data.pollToken || typeof result.data.authUrl!=='string' || !result.data.authUrl.startsWith('https://'))throw new Error('No se pudo preparar el acceso con Microsoft. Intenta de nuevo.');
+  ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken};
   if(Capacitor.isNativePlatform())await Browser.open({url:result.data.authUrl});else window.open(result.data.authUrl,'_blank','noopener');
  }catch(e){setError(e.message);setWaiting(false);ticket.current=null;}}
  async function logout(){try{await logoutAdmin();}catch{}finally{ticket.current=null;setWaiting(false);clear();}}

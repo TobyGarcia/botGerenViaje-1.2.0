@@ -1,3 +1,4 @@
+import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import { getAdminUsuarios } from "../services/api.js";
@@ -115,12 +116,12 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
       if (filterEstado) url += `estado=${filterEstado}&`;
 
       const [gerenRes, usersRes] = await Promise.all([
-        fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } }),
+        apiFetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } }),
         getAdminUsuarios().catch(() => ({ data: [] }))
       ]);
 
       if (!gerenRes.ok) throw new Error("Error cargando gerenciamientos de viaje.");
-      const gerenData = await gerenRes.json();
+      const gerenData = await readApiJson(gerenRes);
       setList(gerenData.data || []);
       setUsuariosAdmin(usersRes.data || []);
     } catch (err) {
@@ -150,7 +151,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
 
     setApproving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/gerenciamiento-viajes/${selectedDoc.id_gerenciamiento}/decision`, {
+      const res = await apiFetch(`${API_BASE_URL}/gerenciamiento-viajes/${selectedDoc.id_gerenciamiento}/decision`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -165,7 +166,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
         })
       });
 
-      const data = await res.json();
+      const data = await readApiJson(res);
       if (!res.ok) throw new Error(data.message || "Error procesando solicitud.");
 
       alert(`Gerenciamiento de viaje ${nuevoEstado.toLowerCase()} exitosamente.`);

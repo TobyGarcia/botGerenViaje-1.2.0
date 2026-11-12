@@ -1,3 +1,4 @@
+import { apiFetch, readApiJson } from "./http-transport.js";
 // En Render ambos sitios reciben el dominio público de la API, sin el
 // prefijo /api. Se admite también el valor anterior terminado en /api para
 // que los despliegues existentes no construyan URLs como /api/api/...
@@ -11,7 +12,7 @@ const API_BASE_URL = configuredApiBaseUrl.replace(
 );
 
 async function request(path, options = {}) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api${path}`,
     {
       credentials: "include",
@@ -24,15 +25,9 @@ async function request(path, options = {}) {
     }
   );
 
-  let body = null;
-
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
-
   if (response.status === 401 && import.meta.env.VITE_SUPERVISOR_APP === 'true') window.dispatchEvent(new Event('supervisor-session-expired'));
+  const body = await readApiJson(response);
+
   if (!response.ok) {
     throw new Error(
       body?.message ||
@@ -598,7 +593,7 @@ export function getAdminInspeccionPdfPreviewUrl(idInspeccion) {
   return `${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/vista-previa-pdf`;
 }
 export async function descargarAdminInspeccionPdf(idInspeccion) {
-  const response = await fetch(`${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/pdf`, { credentials: "include" });
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/inspecciones/${idInspeccion}/pdf`, { credentials: "include", responseType:"arraybuffer", headers:{Accept:"application/pdf"} });
   if (!response.ok) throw new Error("No fue posible descargar el reporte PDF.");
   const blob = await response.blob();
   const disposition = response.headers.get("content-disposition") || "";
