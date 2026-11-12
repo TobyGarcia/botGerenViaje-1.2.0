@@ -2,9 +2,10 @@ services:
   backend:
     image: gv-staging-trip-operations-backend:stop-compact-lines-20261112
   frontend:
-    image: gv-staging-trip-operations-frontend:pending-trip-clean-20261112
+    image: gv-staging-trip-operations-frontend:created-trip-route-20261112
   panel-admin:
     image: gv-staging-trip-operations-panel:assigned-trailer-card-20261112
+
 
 
 

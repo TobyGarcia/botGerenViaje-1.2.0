@@ -43,7 +43,7 @@ import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import StartTripForm from "./components/StartTripForm.jsx";
-import { tripRoutePlace } from './utils/trip-route-place.js';
+import { tripRoutePlace, preserveCreatedTripRoute } from './utils/trip-route-place.js';
 import TripRouteValue from './components/TripRouteValue.jsx';
 import IntermediatePointModal from './components/IntermediatePointModal.jsx';
 import { formatOperationalDate } from "./utils/operational-date.js";
@@ -1437,7 +1437,7 @@ function isOutsideOperatingHours() {
         : await createViaje(tripPayload);
 
       const createdData = {
-        ...response.data,
+        ...preserveCreatedTripRoute(response.data, tripPayload, lugares),
         idViaje: response.data.idViaje || response.data.id_viajes,
         kilometrajeInicial:
           response.data.kilometrajeInicial ??

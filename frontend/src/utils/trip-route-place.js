@@ -10,3 +10,16 @@ export function tripRoutePlace(trips, kind, places = []) {
   }
   return 'No registrado';
 }
+
+export function preserveCreatedTripRoute(trip, request, places = []) {
+  const result = {
+    ...trip,
+    idOrigen: trip.idOrigen ?? trip.id_origen ?? request.idOrigen,
+    idDestino: trip.idDestino ?? trip.id_destino ?? request.idDestino
+  };
+  for (const kind of ['origen', 'destino']) {
+    const name = tripRoutePlace([result], kind, places);
+    if (name !== 'No registrado') result[kind] = name;
+  }
+  return result;
+}
