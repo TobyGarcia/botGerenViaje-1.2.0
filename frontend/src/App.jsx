@@ -39,6 +39,7 @@ import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
 import FinishTripAlert from "./components/FinishTripAlert.jsx";
+import { IconCar } from "./components/Icons.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
@@ -1940,10 +1941,16 @@ function isOutsideOperatingHours() {
         ) : null}
 
         {createdTrip && !showTripContent && ['urban', 'gerenciamiento'].includes(activeTabMode) && (
-          <section className="information-panel">
-            <h1>{activeTabMode === 'urban' ? 'Viaje local' : 'Gerenciamiento de viajes'}</h1>
-            <p>Ya tienes un viaje registrado: <strong>{createdTrip.folio}</strong>. Finalízalo antes de registrar otro.</p>
-            <button type="button" onClick={() => setActiveTabMode(tripTabMode)}>Volver a mi viaje</button>
+          <section className="trip-return-card">
+            <span className="trip-return-icon" aria-hidden="true"><IconCar size={34} /></span>
+            <h1>{finishedTrip || cancelledTrip ? 'Tu último viaje' : 'Tienes un viaje registrado'}</h1>
+            <span className="trip-return-folio">{createdTrip.folio}</span>
+            <p>{finishedTrip || cancelledTrip
+              ? 'Consulta el estado y la sincronización de tu viaje.'
+              : 'Continúa tu viaje antes de registrar uno nuevo.'}</p>
+            <button type="button" onClick={() => setActiveTabMode(tripTabMode)}>
+              {finishedTrip || cancelledTrip ? 'Ver mi viaje' : 'Volver a mi viaje'}
+            </button>
           </section>
         )}
 
