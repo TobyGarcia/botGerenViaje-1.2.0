@@ -36,15 +36,12 @@ try {
   await click('.user-guide-image');
   if(width===390){const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(join(tmpdir(),'gv-help-carousel.png'),Buffer.from(shot.data,'base64'));}
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await wait(100);
-  if(await js(`localStorage.getItem('${key}')`))throw Error('Manual guide marked updates read');
-  await send('Page.navigate',{url:'http://127.0.0.1:5178/tools/guides/carousel.html'});await wait(650);
-  if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Novedades de la app')throw Error('No automatic updates');
-  for(let step=0;step<2;step++){if(!await js(`document.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')==='${step+1}'`))throw Error('Update navigation');await click('.guide-footer-actions .trip-ops-primary');}
-  if(!await js(`localStorage.getItem('${key}')`))throw Error('Updates not persisted');
-  await click('.trip-operation-close-btn');await send('Page.reload');await wait(650);
-  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Read updates repeated');
-  await click('.topbar-help-button');await click('.guide-news-card');
-  if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Novedades de la app')throw Error('Cannot replay updates');
-  console.log('PASS '+width+'px: info by logout; no active-trip interruption; 7 guide steps; 2 updates; zoom; independent read persistence; replay');
+  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Escape did not close');
+  await send('Page.reload');await wait(650);
+  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Unexpected automatic popup');
+  await click('.topbar-help-button');
+  if(await js("document.querySelectorAll('[data-guide-topic]').length")!==2)throw Error('Expected only two guides');
+  if(await js("Boolean(document.querySelector('.guide-news-card,[data-guide-topic=offline]'))"))throw Error('Removed content remains');
+  console.log('PASS '+width+'px: info by logout; only companions and trailers; 7 steps; zoom; Escape; manual reopen; no automatic popup');
  }
 } finally {await send('Browser.close').catch(()=>{});ws.close();chrome.kill();}
