@@ -3029,10 +3029,14 @@ form#urban-trip-form {
   font-variant-numeric: tabular-nums;
 }
 
-/* La ruta ocupa la misma fila y altura del dato anterior, incluso con nombres largos. */
-.gv-trip-route { display:flex; align-items:center; min-width:0; max-width:100%; white-space:nowrap; overflow:hidden; }
-.gv-trip-route > .gv-trip-route-text { display:block; flex:none; white-space:nowrap; transform-origin:left center; }
-.gv-trip-route-label { white-space:nowrap; flex-shrink:0; }
+/* Los elementos invisibles conservan las medidas originales de la tarjeta. */
+.gv-trip-route-card { position:relative; }
+.gv-trip-route-placeholder { opacity:0; pointer-events:none; }
+.gv-trip-route-stacked { position:absolute; inset:0; margin:0; padding:3px 10px; display:grid; grid-template-rows:repeat(2,minmax(0,1fr)); }
+.gv-trip-route-line { display:flex; align-items:center; gap:6px; min-width:0; min-height:0; }
+.gv-trip-route-caption { flex:0 0 44px; color:#64748b; font-size:.625rem; font-weight:600; text-transform:uppercase; }
+.gv-trip-route-name { flex:1; min-width:0; overflow:hidden; white-space:nowrap; color:#0f172a; font-size:.8rem; font-weight:700; line-height:1.1; }
+.gv-trip-route-name > span { display:block; width:max-content; white-space:nowrap; transform-origin:left center; }
 
 /* Info Callout */
 .gv-trip-info-callout {

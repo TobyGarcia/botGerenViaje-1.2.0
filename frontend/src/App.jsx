@@ -2468,8 +2468,9 @@ function isOutsideOperatingHours() {
         <dd className="gv-badge-mono">{createdTrip.folio}</dd>
       </div>
 
-      <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt gv-trip-route-label">Ruta</dt>
+      <div className="gv-trip-dl-row gv-trip-route-card">
+        <dt className="gv-trip-dt gv-trip-route-placeholder">Ruta</dt>
+        <dd className="gv-badge-mono gv-trip-route-placeholder" aria-hidden="true">&nbsp;</dd>
         <TripRouteValue origin={tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)} destination={tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)} />
       </div>
 
