@@ -12420,3 +12420,6 @@ min-width: 0;
 .manejo-filter-advanced summary { cursor: pointer; color: #0284c7; font-size: 13px; font-weight: 600; }
 .manejo-filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
 @media (max-width: 640px) { .manejo-filter-primary { grid-template-columns: 1fr; } .manejo-filter-heading { flex-wrap: wrap; } }
+
+.supervisor-document > summary { display:none; }
+.supervisor-content .supervisor-document > summary { display:list-item; }

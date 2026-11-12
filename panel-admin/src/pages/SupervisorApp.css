@@ -38,3 +38,87 @@
  .supervisor-review-cards small { color:#78909e; font-size:12px; }
  .supervisor-review-cards button { margin:4px 0 0; width:100%; min-height:42px; background:#eaf7fd; border:1px solid #cce9f6; border-radius:9px; color:#007fac; }
 }
+
+/* Shared conductor visual language: light cards, readable type and cyan navigation. */
+.supervisor-shell { font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; color:#173c4d; }
+.supervisor-shell button,.supervisor-shell input,.supervisor-shell select,.supervisor-shell textarea { font:inherit; }
+.supervisor-shell button { touch-action:manipulation; }
+.supervisor-shell button:focus-visible,.supervisor-shell input:focus-visible,.supervisor-shell select:focus-visible { outline:3px solid #51c8f3; outline-offset:2px; }
+.supervisor-topbar { min-height:72px; box-shadow:0 2px 8px #10243018; }
+.supervisor-topbar img { width:clamp(136px,25vw,180px); max-width:45%; height:auto; }
+.supervisor-topbar>span { min-width:0; font-size:12px; font-weight:500; }
+.supervisor-topbar strong { font-weight:500; overflow-wrap:anywhere; }
+.supervisor-topbar button { min-width:44px; min-height:44px; display:grid; place-items:center; flex-shrink:0; }
+.supervisor-welcome { margin-bottom:18px; }
+.supervisor-welcome h1 { font-size:clamp(20px,3vw,24px); font-weight:600; }
+.supervisor-welcome p { font-size:14px; margin:0; overflow-wrap:anywhere; }
+.supervisor-scope { display:block; margin-top:8px; font-size:12px; line-height:1.5; color:#5b7b8a; }
+.supervisor-content { width:100%; padding:20px 16px; }
+.supervisor-content .module-page { width:100%; }
+.supervisor-content .modal-overlay { z-index:1000; padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom)) !important; }
+.supervisor-content .modal-card { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.supervisor-content .modal-card button { min-height:44px; }
+.supervisor-content .modal-card input,.supervisor-content .modal-card select,.supervisor-content .modal-card textarea { max-width:100%; min-width:0; }
+.supervisor-content .modal-title-row h2,.supervisor-content .form-panel-header h2 { font-size:20px; font-weight:600; overflow-wrap:anywhere; }
+.supervisor-content .modal-header-info,.supervisor-content .info-card-content { min-width:0; }
+.supervisor-content .info-card-value { overflow-wrap:anywhere; }
+.supervisor-tabs { box-shadow:0 -4px 18px #173c4d08; }
+.supervisor-tabs button { min-height:48px; font-weight:400; }
+.supervisor-tabs button[aria-current=page] svg { background:#e8f8fe; border-radius:8px; box-sizing:content-box; padding:5px; margin:-5px; }
+@media(max-width:900px){
+ .supervisor-content .trips-toolbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+ .supervisor-content .trips-toolbar>label:first-child { grid-column:1/-1; }
+ .supervisor-content .trips-toolbar>label,.supervisor-content .trips-toolbar input,.supervisor-content .trips-toolbar select { min-width:0; width:100%; }
+ .supervisor-content .trips-toolbar button { min-height:44px; }
+ .supervisor-content .trip-detail-content-split { display:flex; flex-direction:column; overflow:visible; }
+ .supervisor-content .trip-detail-left-col,.supervisor-content .trip-detail-right-col { width:100%; min-width:0; overflow:visible; padding:0; }
+ .supervisor-content .map-container-box { height:340px; flex:none; }
+}
+@media(max-width:768px){
+ .supervisor-content { padding:16px 12px; }
+ .supervisor-content .logistics-nav-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); white-space:normal; }
+ .supervisor-content .logistics-tab-btn { min-width:0; min-height:46px; padding:10px 6px; font-size:12px; }
+ .supervisor-review-cards { display:grid; gap:12px; }
+ .supervisor-review-cards + .table-wrapper { display:none; }
+ .supervisor-review-cards article { padding:16px; border:1px solid #d2e4ee; border-radius:14px; background:#fff; display:grid; gap:10px; min-width:0; box-shadow:0 2px 8px #173c4d04; }
+ .supervisor-review-cards header { display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between; }
+ .supervisor-review-cards header>strong { font-size:13px; font-weight:600; color:#1b516f; overflow-wrap:anywhere; }
+ .supervisor-review-cards p { margin:0; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+ .supervisor-review-cards small { color:#5b7b8a; font-size:12px; overflow-wrap:anywhere; }
+ .supervisor-review-cards button { width:100%; min-height:44px; border:1px solid #cce9f6; border-radius:10px; background:#e8f8fe; color:#007fac; font-size:14px; }
+ .supervisor-content .inspection-detail-modal-enhanced { width:100% !important; max-width:100% !important; height:auto !important; max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important; border-radius:18px !important; }
+ .supervisor-content .modal-scroll-body { min-height:0; overflow-y:auto; padding:16px; }
+ .supervisor-content .modal-top-header { padding:16px; }
+ .supervisor-content .modal-card.trip-detail-modal { padding:16px !important; max-height:calc(100dvh - 24px) !important; }
+ .supervisor-content .modal-header-actions { align-self:flex-end; }
+ .supervisor-content .table-pagination { flex-wrap:wrap; gap:12px; }
+ .supervisor-content .pagination-controls { flex-wrap:wrap; }
+ .supervisor-content .table-panel,.supervisor-content .table-card { padding:12px; }
+}
+@media(max-width:360px){
+ .supervisor-topbar { gap:8px; padding-left:12px; padding-right:12px; }
+ .supervisor-topbar>span { font-size:11px; }
+ .supervisor-content .info-cards-grid,.supervisor-content .trip-detail-grid { grid-template-columns:minmax(0,1fr); }
+}
+
+.supervisor-geren-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+.supervisor-geren-summary article { display:grid; gap:6px; background:#f8fcfe; border:1px solid #d2e4ee; border-radius:12px; padding:14px; min-width:0; }
+.supervisor-geren-summary span { color:#5b7b8a; font-size:12px; }
+.supervisor-geren-summary strong { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.supervisor-content .supervisor-document { border:1px solid #d2e4ee; border-radius:12px; margin-bottom:16px; }
+.supervisor-content .supervisor-document summary { cursor:pointer; padding:16px; color:#007fac; font-size:14px; }
+.supervisor-content .supervisor-document-scroll { overflow:auto; max-width:100%; }
+.supervisor-content .supervisor-document-scroll>div { min-width:700px; }
+.supervisor-content .geren-filters { flex-wrap:wrap; }
+.supervisor-content .geren-filters label { min-width:0; flex:1 1 200px; flex-direction:column; align-items:stretch !important; font-weight:500 !important; }
+.supervisor-content .geren-filters select { width:100%; min-height:44px; }
+.supervisor-content .inspection-decision-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.supervisor-content .inspection-decision-actions button { white-space:normal; min-width:0; }
+@media(max-width:360px){.supervisor-geren-summary { grid-template-columns:minmax(0,1fr); }.supervisor-content .inspection-decision-actions { grid-template-columns:1fr; }}
+
+.supervisor-content .inspection-comment-field input,.supervisor-content .inspection-comment-field textarea { width:100%; border:1px solid #d2e4ee; border-radius:10px; padding:12px; background:#fff; font-weight:400; font-size:16px; }
+.supervisor-content .inspection-comment-field input[readonly] { background:#f4f8fb; color:#385c70; }
+.supervisor-content .inspection-comment-field>span { font-size:14px; font-weight:500; }
+.supervisor-content .inspection-decision-section:has(canvas)>div>div:has(>canvas) { border:1px dashed #83bfd9 !important; border-radius:12px !important; }
+.supervisor-content .inspection-decision-actions button { font-size:15px; font-weight:600; border-radius:10px; padding:12px; }
+@media(max-width:768px){.supervisor-content .modal-card.inspection-detail-modal { padding:16px !important; }}

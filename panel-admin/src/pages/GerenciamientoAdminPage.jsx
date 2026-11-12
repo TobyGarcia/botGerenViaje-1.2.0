@@ -646,7 +646,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
   return (
     <>
       {/* Filtros idénticos al diseño del proyecto */}
-      <div style={{ display: "flex", gap: "14px", background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
+      <div className="geren-filters" style={{ display: "flex", gap: "14px", background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
         <label style={{ fontSize: "0.85rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
           Nivel de Riesgo:
           <select
@@ -804,6 +804,15 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
               <button className="close-button" onClick={() => setSelectedDoc(null)}>×</button>
             </div>
 
+            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-geren-summary">{[
+ ['Origen',selectedDoc.origen_nombre || selectedDoc.origen_texto],['Destino',selectedDoc.destino_nombre || selectedDoc.destino_texto],
+ ['Conductor',selectedDoc.nombre_conductor || selectedDoc.conductor_nombre],['Unidad',selectedDoc.tipo_vehiculo],
+ ['Riesgo',`${selectedDoc.nivel_riesgo || 'Sin evaluar'} · ${selectedDoc.puntaje_total ?? 0} puntos`],['Salida',selectedDoc.hora_salida],
+ ['Acompañantes',Array.isArray(selectedDoc.acompanantes) ? selectedDoc.acompanantes.join(', ') : selectedDoc.acompanantes]
+ ].filter(([,value])=>value).map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>}
+            <details className="supervisor-document" open={import.meta.env.VITE_SUPERVISOR_APP !== 'true'}>
+            <summary>Documento e inspección completos</summary>
+            <div className="supervisor-document-scroll">
             {/* HOJA COMPLETA SII-MX-23-LOG-003 v3.0 EN EL MODAL */}
             <div style={{ border: "1.5px solid #000", padding: "6px", background: "#ffffff", fontSize: "0.78rem", marginBottom: "16px" }}>
               
@@ -1193,6 +1202,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
               </div>
             </div>
 
+            </div></details>
             {/* Acciones del Modal */}
             <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <button
@@ -1247,7 +1257,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
                     disabled={approving}
                     onClick={() => handleDecide("RECHAZADO")}
                   >
-                    Rechazar Viaje
+                    {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Rechazar' : 'Rechazar Viaje'}
                   </button>
                   <button
                     type="button"
@@ -1255,7 +1265,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
                     disabled={approving || !firmaAutorizador}
                     onClick={() => handleDecide("APROBADO")}
                   >
-                    Aprobar Gerenciamiento e Inspección
+                    {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Aprobar' : 'Aprobar Gerenciamiento e Inspección'}
                   </button>
                 </div>
               </div>

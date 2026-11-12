@@ -30,3 +30,12 @@ Backend: `node --test backend/src/tests/supervisor-app-login.test.js` (secreto, 
 Interfaz: iniciar Vite para panel-admin con VITE_SUPERVISOR_APP=true en 127.0.0.1:5179 y ejecutar `node panel-admin/tools/supervisor/verify.mjs`. La escena usa componentes reales y datos ficticios de sólo lectura; no inicia sesión ni aprueba contra AWS.
 
 La validación completa del proveedor Microsoft y del retorno del navegador debe hacerse en un teléfono con una cuenta autorizada. No se simula una identidad real ni se cambia el rol de una cuenta para las pruebas.
+
+
+## Versión 0.1.3 (código 4)
+
+Una APK para SUPERVISOR, QHSE, COORDINADOR, COORDINADOR_AREA, COORDINADOR_QHSE, INSTRUCTOR, GERENTE, GERENTE_GENERAL y ADMINISTRADOR. La identidad de Android y firma se conservan para actualizar la instalación existente.
+
+Se incorpora el filtro de gerencia y la identificación del autorizador desde la sesión ya desplegados en el servidor. La vista usa tarjetas y navegación como conductor, nombre del rol, filtros adaptables y datos del gerenciamiento legibles. La hoja completa con su inspección permanece desplegable; las acciones de revisión y firma están fuera de ella. Las tablas documentales extensas permiten desplazamiento dentro de su sección sin ensanchar la pantalla.
+
+QA con componentes reales y datos ficticios: 320, 360, 390, 600, 768, 844 en horizontal, 1024 y 1280 px; login, pendientes, revisión de inspección, gerenciamiento, acciones accesibles, viajes y detalle; acceso de los nueve roles. No se realizan aprobaciones reales durante las pruebas. Microsoft y retorno nativo requieren prueba final en un teléfono autorizado.
