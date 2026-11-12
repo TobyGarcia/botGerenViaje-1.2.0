@@ -698,18 +698,6 @@ export default function GerenciamientoForm({ telegramAuth, vehiculos = [], lugar
         </div>
       </div>
 
-      {/* Stepper Header Card */}
-      <div className="gw-stepper-header-card">
-        <div className="gw-header-tag">
-          <IconCheck size={14} color="#0284c7" />
-          <span>Operación y Logística</span>
-        </div>
-        <h1 className="gw-header-title">GERENCIAMIENTO DE VIAJE</h1>
-        <p className="gw-header-subtitle">
-          CÓDIGO: SII-MX-23-LOG-003 v3.0 (Fuera de Ciudad/Estado + Inspección Vehicular Integrada)
-        </p>
-      </div>
-
       {errorMessage && (
         <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 14px", borderRadius: "12px", border: "1px solid #fca5a5", marginBottom: "16px", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px" }}>
           <IconAlert size={18} color="#dc2626" />
