@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { getTripItems, getVehiculos, getLugares } from '../services/api.js';
 import DestinationAutocomplete from './DestinationAutocomplete.jsx';
@@ -13,6 +13,7 @@ import { movementBackgroundStatus } from '../services/movement-background.js';
 import { cacheMovementState, enqueueMovement, getMovementState, operationItemRef, pendingMovementCount, projectMovements, syncTripMovements, withMovementCapture } from '../services/trip-operation-queue.js';
 import { getOfflineTrip, resolveOfflineTripId } from '../services/offline-trip-storage.js';
 import { resolveOperationTripId } from '../utils/trip-operation-id.js';
+import { buildStopDraft } from '../utils/stop-draft.js';
 
 export default function TripOperations({ tripId, driverId, closing = false }) {
   const serverId = () => resolveOperationTripId(tripId, resolveOfflineTripId);
@@ -39,6 +40,7 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
   const [warningConfirmed, setWarningConfirmed] = useState(false);
   const [pending, setPending] = useState(null);
   const [actions,setActions] = useState([]);
+  const submitting = useRef(false);
   const refresh = async () => {
     setSyncNotice('');
     let state = getMovementState(driverId, tripId);
@@ -89,6 +91,8 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
     if (id) setShowInspection(true);
   }
   async function submit(payload) {
+    if (submitting.current || closing) return;
+    submitting.current = true;
     setBusy(true); setError('');
     let operation = pending;
     try {
@@ -100,22 +104,22 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
       }
       await enqueueMovement(driverId, tripId, operation);
       });
-      setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false); setPlaceId('');
+      setPending(null); setActions([]); setCompanionDraft(['']); setTrailer(''); setInspection(null); setWarningConfirmed(false); setPlaceId(''); setModal(null);
       try { await refresh(); }
       catch { setLoaded(false); setError('Las acciones se guardaron. Actualiza el viaje para ver el estado confirmado.'); }
     } catch (e) {
       if (!e.message?.includes('guardar en el teléfono')) setPending(null);
       setError(e.message || 'No se pudo registrar. Comprueba conexión y permiso de ubicación.');
     }
-    finally { setBusy(false); }
+    finally { submitting.current = false; setBusy(false); }
   }
   const disabled = busy || closing || !loaded || Boolean(pending);
   const names = companionDraft.map(value => value.trim()).filter(Boolean);
   const onboardCount = items.filter(item => item.kind === 'companion' && !item.removed_at).length;
-  const attachedTrailersCount = items.filter(item => item.kind === 'trailer' && !item.removed_at).length;
   const projectedCount=onboardCount-actions.filter(a=>a.type==='COMPANION_DROPPED_OFF').length+actions.filter(a=>a.type==='COMPANION_ADDED').length;
   const availableSeats = Math.max(0, 4 - projectedCount);
-  const confirmationActions = [...actions, ...names.map(name => ({ type: 'COMPANION_ADDED', name }))];
+  const stopDraft = buildStopDraft({ stagedActions: actions, companionDraft, trailerId: trailer, inspection, warningConfirmed, vehicles });
+  const confirmationActions = stopDraft.actions;
   const finalCount = projectedCount + names.length;
   function toggleRemoval(item) {
     const type=item.kind==='companion'?'COMPANION_DROPPED_OFF':'TRAILER_DETACHED';
@@ -137,12 +141,12 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
     {queuedCount>0 && <p role="status">{queuedCount} {queuedCount===1?'parada guardada':'paradas guardadas'} en el teléfono, pendientes de sincronizar. {movementBackgroundStatus()}</p>}
     {syncNotice && <p role="status">Los datos locales se conservan. {syncNotice}</p>}
     {!modal && alerts}
-    {!modal && confirmationActions.length>0 && <button type="button" onClick={()=>setModal('companions')}>Continuar cambios pendientes</button>}
+    {!modal && (confirmationActions.length>0 || trailer) && <button type="button" onClick={()=>setModal(trailer ? 'trailers' : 'companions')}>Continuar parada pendiente</button>}
     {!modal && !loaded && !busy && <button type="button" onClick={() => refresh().catch(e => setError(e.message))}>Actualizar viaje</button>}
     {modal && !showInspection && (
       <TripOperationModal
-        title={modal === 'companions' ? 'Acompañantes' : 'Remolques'}
-        badge={modal === 'companions' ? `${onboardCount} / 4 a bordo` : `${attachedTrailersCount} ${attachedTrailersCount === 1 ? 'enganchado' : 'enganchados'}`}
+        title="Parada técnica"
+        badge={confirmationActions.length ? `${confirmationActions.length} movimientos` : null}
         icon={modal === 'companions' ? <IconUsers size={22}/> : <TripTrailerIcon size={22}/>}
         busy={busy || closing}
         onClose={() => setModal(null)}
@@ -167,10 +171,10 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
             <button
               type="button"
               className="trip-ops-primary"
-              disabled={disabled || !placeId || !confirmationActions.length || finalCount > 4 || finalCount < 0}
+              disabled={disabled || !placeId || !confirmationActions.length || Boolean(stopDraft.error) || finalCount > 4 || finalCount < 0}
               onClick={() => submit({ type: 'CONFIRMED_ACTIONS', actions: confirmationActions, placeId: Number(placeId) })}
             >
-              <span>{busy ? 'Guardando…' : 'Confirmar cambios'}</span>
+              <span>{busy ? 'Guardando…' : 'Confirmar parada'}</span>
               {!busy && confirmationActions.length > 0 && (
                 <span className="trip-ops-confirm-count">{confirmationActions.length}</span>
               )}
@@ -190,6 +194,20 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
             onChange={value => setPlaceId(value)} disabled={disabled} placeholder="Buscar en destinos…" required />
           {placeError && <p role="alert">{placeError} <button type="button" disabled={busy} onClick={loadPlaces}>Reintentar</button></p>}
         </div>
+        <div className="trip-stop-tabs" role="tablist" aria-label="Movimientos de la parada">
+          {['companions', 'trailers'].map(tab => {
+            const count = confirmationActions.filter(action => action.type.startsWith(tab === 'companions' ? 'COMPANION_' : 'TRAILER_')).length;
+            return <button key={tab} type="button" role="tab" id={`trip-stop-tab-${tab}`} aria-selected={modal === tab}
+              aria-controls={`trip-stop-panel-${tab}`} disabled={disabled} onClick={() => setModal(tab)}>
+              {tab === 'companions' ? <IconUsers size={18}/> : <TripTrailerIcon size={18}/>}
+              <span>{tab === 'companions' ? 'Acompañantes' : 'Remolques'}</span>
+              {count > 0 && <small>{count}</small>}
+            </button>;
+          })}
+        </div>
+        <p className="trip-stop-hint">Selecciona todos los movimientos de esta parada y confirma una sola vez.</p>
+        {stopDraft.error && modal === 'companions' && <p role="status">{stopDraft.error}</p>}
+        <div role="tabpanel" id={`trip-stop-panel-${modal}`} aria-labelledby={`trip-stop-tab-${modal}`}>
         <div className="trip-ops-active-section">
           <div className="trip-ops-section-header">
             <h3>{activeKind === 'companion' ? '¿Quién baja?' : '¿Qué remolque se deja?'}</h3>
@@ -374,7 +392,7 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
                     disabled={disabled || !warningConfirmed || !inspection}
                     onClick={() => stageTrailer()}
                   >
-                    Añadir enganche a la selección
+                    Añadir otro remolque
                   </button>
                 </div>
               )}
@@ -408,6 +426,7 @@ export default function TripOperations({ tripId, driverId, closing = false }) {
             </div>
           </details>
         )}
+        </div>
       </TripOperationModal>
     )}
     {showInspection && <InspeccionRemolqueModal vehiculos={vehicles.filter(v => Number(v.id_vehiculos) === Number(trailer))} initialData={inspection || { idRemolque: Number(trailer) }}

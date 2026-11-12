@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { buildStopDraft } from '../src/utils/stop-draft.js';
 const values=new Map(); let failWrite=false;
 globalThis.window={location:{pathname:'/'},localStorage:{getItem:key=>values.get(key)||null,setItem:(key,value)=>{if(failWrite)throw new Error('quota');values.set(key,String(value));},removeItem:key=>values.delete(key)}};
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false},configurable:true});
@@ -10,6 +11,24 @@ const operation=actions=>({type:'CONFIRMED_ACTIONS',eventKey:crypto.randomUUID()
 const hook=(captureId=crypto.randomUUID())=>({type:'TRAILER_ATTACHED',itemId:2,inspectionMode:'new',warningConfirmed:true,inspection:{idRemolque:2,captureId,checklist:{luces:'B'},danos:{frente:[{x:1,y:2}]}}});
 test.beforeEach(()=>{values.clear();failWrite=false;navigator.onLine=false;});
 async function prepare(items=[]) { await cacheMovementState(7,1,{items,places,vehicles}); }
+
+test('personal y remolque de ambas pestañas se guardan y sincronizan como una única parada',async()=>{
+ await prepare();
+ const inspection=hook().inspection;
+ const draft=buildStopDraft({companionDraft:['Ana','Luis'],trailerId:2,inspection,warningConfirmed:true,vehicles});
+ assert.equal(draft.error,'');
+ const body=operation(draft.actions);await enqueueMovement(7,1,body);
+ assert.equal(pendingMovementCount(7,1),1);
+ assert.equal(getMovementState(7,1).pending[0].actions.length,3);
+ const projected=projectMovements(getMovementState(7,1));
+ assert.equal(projected.filter(item=>item.kind==='companion').length,2);
+ assert.equal(projected.find(item=>item.kind==='trailer').inspection.data.captureId,inspection.captureId);
+ navigator.onLine=true;const sent=[];
+ await syncTripMovements(7,1,{send:async(id,payload)=>sent.push(payload),fetchItems:async()=>({data:projected})});
+ await syncTripMovements(7,1,{send:async(id,payload)=>sent.push(payload),fetchItems:async()=>({data:projected})});
+ assert.equal(sent.length,1);assert.equal(sent[0].eventKey,body.eventKey);
+ assert.equal(sent[0].actions.length,3);assert.equal(pendingMovementCount(7,1),0);
+});
 
 test('guarda lugar, hora, GPS e inspección; al recargar permite dejar altas locales y exige inspección nueva',async()=>{
  await prepare([{id:1,initial_key:'companion-0',kind:'companion',name:'Inicial',removed_at:null}]);
