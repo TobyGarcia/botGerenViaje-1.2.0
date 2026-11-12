@@ -1,6 +1,6 @@
 import React from "react";
 import logoGv from "../assets/LOGOGV.png";
-import { IconMenu, IconCar, IconMap, IconAlert, IconUser } from "./Icons.jsx";
+import { IconMenu, IconCar, IconMap, IconUser } from "./Icons.jsx";
 
 export default function TopBar({
   conductor,
@@ -178,7 +178,6 @@ export default function TopBar({
             {[
               ['urban', 'Viaje local', IconCar],
               ['gerenciamiento', 'Gerenciamiento', IconMap],
-              ['siniestro', 'Incidentes', IconAlert],
               ['perfil', 'Mi perfil', IconUser]
             ].map(([id, label, Icon]) => (
               <button key={id} type="button" className="driver-nav-item"
