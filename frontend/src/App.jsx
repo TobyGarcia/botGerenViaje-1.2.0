@@ -2370,7 +2370,7 @@ function isOutsideOperatingHours() {
 
      
 
-      {createdTrip && showTripContent && !startedTrip && (
+      {createdTrip && showTripContent && !gerenciamientoPendiente && !startedTrip && (
         <section className="gv-success-alert" data-purpose="status-notification">
           <div className="gv-alert-icon-box">
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -2386,40 +2386,11 @@ function isOutsideOperatingHours() {
         </section>
       )}
 
-      {message && (
+      {message && !(gerenciamientoPendiente && messageType === "success") && (
         <p className={`message message-${messageType}`} role={messageType === "error" ? "alert" : "status"} aria-live="polite">
           {message}
         </p>
       )}
-
-{gerenciamientoPendiente && showTripContent && (
-  <section className="result-card" style={{ background: "#fff7ed", border: "1.5px solid #fdba74", marginBottom: "16px" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-      <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#ffedd5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <IconClock size={24} color="#c2410c" />
-      </div>
-      <div>
-        <h2 style={{ margin: 0, color: "#c2410c", fontSize: "1.15rem" }}>
-          GERENCIAMIENTO PENDIENTE DE APROBACIÓN
-        </h2>
-        <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "#475569" }}>
-          Folio Documento: <strong>{gerenciamientoPendiente.folio_documento || "SII-MX-23-LOG-003"}</strong>
-        </p>
-      </div>
-    </div>
-
-    <div style={{ background: "#ffffff", padding: "14px", borderRadius: "8px", border: "1px solid #fed7aa", fontSize: "0.88rem", display: "grid", gap: "6px", marginBottom: "12px" }}>
-      <div><strong>Conductor:</strong> {telegramAuth?.conductor?.nombre || "Conductor"}</div>
-      <div><strong>Evaluación de Riesgo:</strong> <span style={{ padding: "3px 10px", borderRadius: "10px", background: gerenciamientoPendiente.nivel_riesgo === "ALTO" ? "#fee2e2" : gerenciamientoPendiente.nivel_riesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", color: gerenciamientoPendiente.nivel_riesgo === "ALTO" ? "#991b1b" : gerenciamientoPendiente.nivel_riesgo === "MEDIO" ? "#854d0e" : "#166534", fontWeight: "bold" }}>RIESGO {gerenciamientoPendiente.nivel_riesgo || "EVALUADO"}</span></div>
-      <div><strong>Autorización Requerida:</strong> <strong>{gerenciamientoPendiente.autorizacion_requerida || "SUPERVISIÓN / QHSE"}</strong></div>
-      <div><strong>Estado Actual:</strong> <span style={{ padding: "3px 10px", borderRadius: "10px", background: "#ea580c", color: "#ffffff", fontWeight: "bold" }}>PENDIENTE DE APROBACIÓN POR SUPERVISOR</span></div>
-    </div>
-
-    <div style={{ background: "#eff6ff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bfdbfe", fontSize: "0.83rem", color: "#1e40af", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-      <IconSend size={16} color="#1e40af" /> <span><strong>Notificación Enviada:</strong> Se envió la alerta automática al grupo de supervisores en Telegram. Tan pronto como autoricen tu Gerenciamiento e Inspección Vehicular, podrás iniciar el recorrido.</span>
-    </div>
-  </section>
-)}
 
 {createdTrip && showTripContent && (
   <section className="gv-trip-card">
@@ -2451,10 +2422,10 @@ function isOutsideOperatingHours() {
               ? "Viaje cancelado"
               : startedTrip
                 ? "Viaje en curso"
-                : "Viaje registrado"}
+                : gerenciamientoPendiente ? "Pendiente de aprobación" : "Viaje registrado"}
         </h3>
       </div>
-      {(!startedTrip || finishedTrip || cancelledTrip) && (
+      {!gerenciamientoPendiente && (!startedTrip || finishedTrip || cancelledTrip) && (
       <span
         className={`gv-status-pill ${
           finishedTrip
@@ -2562,7 +2533,7 @@ function isOutsideOperatingHours() {
     )}
 
     {/* Mensaje Informativo Previo a Iniciar */}
-    {!startedTrip && !finishedTrip && !cancelledTrip && (
+    {!gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
       <div className="gv-trip-info-callout">
         <svg
           style={{ width: "16px", height: "16px", color: "#0284c7", flexShrink: 0, marginTop: "2px" }}
@@ -2584,29 +2555,26 @@ function isOutsideOperatingHours() {
     )}
 
     {gerenciamientoPendiente && !startedTrip && !finishedTrip && !cancelledTrip && (
-      <div style={{ background: "#fff7ed", border: "1.5px solid #fdba74", color: "#c2410c", padding: "12px 14px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: "bold", marginTop: "10px" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconClock size={18} color="#ea580c" /> Gerenciamiento Registrado — Esperando Aprobación de Supervisión
-        </span>
-        <p style={{ margin: "4px 0 0", fontSize: "0.78rem", color: "#475569", fontWeight: "normal" }}>
-          Tu gerenciamiento de viaje fuera del estado fue enviado a supervisión. En cuanto sea aprobado, se activará el botón para iniciar el viaje.
-        </p>
+      <div className="gv-approval-notice" role="status">
+        <div className="gv-approval-hint">
+          <IconClock size={18} color="#b45309" />
+          <p>Podrás iniciar cuando supervisión autorice el viaje.</p>
+        </div>
+        <details className="gv-approval-details">
+          <summary>Detalles de la solicitud</summary>
+          <dl>
+            {gerenciamientoPendiente.folio_documento && <div><dt>Documento</dt><dd>{gerenciamientoPendiente.folio_documento}</dd></div>}
+            {gerenciamientoPendiente.nivel_riesgo && <div><dt>Riesgo</dt><dd>{gerenciamientoPendiente.nivel_riesgo}</dd></div>}
+            {gerenciamientoPendiente.autorizacion_requerida && <div><dt>Autoriza</dt><dd>{gerenciamientoPendiente.autorizacion_requerida}</dd></div>}
+          </dl>
+        </details>
       </div>
     )}
 
     {/* Botones de Acción Previos al Inicio */}
     {!startedTrip && !finishedTrip && !cancelledTrip && (
       <div className="gv-trip-actions">
-        {gerenciamientoPendiente ? (
-          <button
-            type="button"
-            className="gv-btn-primary"
-            disabled
-            style={{ opacity: 0.85, cursor: "not-allowed", backgroundColor: "#ea580c" }}
-          >
-            <IconClock size={16} color="#ffffff" className="spin" /> Esperando Autorización de Gerenciamiento...
-          </button>
-        ) : inspectionStatus === "loading" || inspectionStatus === "idle" ? (
+        {gerenciamientoPendiente ? null : inspectionStatus === "loading" || inspectionStatus === "idle" ? (
           <button
             type="button"
             className="gv-btn-primary"
