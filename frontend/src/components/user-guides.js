@@ -8,7 +8,6 @@ import trailerDrop from '../assets/guides/trailer-drop.png';
 import offlineBanner from '../assets/guides/offline-banner.png';
 import offlineQueue from '../assets/guides/offline-queue.png';
 
-export const GUIDE_VERSION = 'trip-operations-2026-11-v1';
 export const userGuides = [
  {id:'companions',label:'Acompañantes',steps:[
   {title:'Abre Acompañantes',text:'Durante el viaje, toca Acompañantes para gestionar quién sube y quién baja.',image:companionsOpen,alt:'Captura real del viaje: acceso Acompañantes resaltado.'},

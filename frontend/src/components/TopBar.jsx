@@ -1,4 +1,5 @@
 import React from "react";
+import UserGuides from "./UserGuides.jsx";
 import logoGv from "../assets/LOGOGV.png";
 import { IconMenu, IconCar, IconMap, IconUser } from "./Icons.jsx";
 
@@ -9,7 +10,8 @@ export default function TopBar({
   onTabChange,
   onMenuClick,
   isRegisterMode = false,
-  onLoginClick
+  onLoginClick,
+  showReleaseNotes = false
 }) {
 
   const isTelegram = Boolean(window.Telegram?.WebApp);
@@ -59,7 +61,8 @@ export default function TopBar({
           )}
 
           {conductor ? (
-            <div className="topbar-user-area">
+            <div className="topbar-user-area" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <UserGuides driverId={conductor.id_conductores} autoOpen={showReleaseNotes} />
               <button
                 type="button"
                 className="topbar-btn-logout-icon"

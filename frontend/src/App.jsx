@@ -38,7 +38,6 @@ import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConduc
 import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
-import UserGuides from "./components/UserGuides.jsx";
 import TripActionAlert from "./components/TripActionAlert.jsx";
 import { IconCar } from "./components/Icons.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
@@ -1894,6 +1893,7 @@ function isOutsideOperatingHours() {
         onLogout={handleLogout}
         activeTabMode={activeTabMode}
         onTabChange={setActiveTabMode}
+        showReleaseNotes={!createdTrip && !gerenciamientoPendiente && activeTabMode === 'urban'}
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         {cancelTripAlertOpen && <TripActionAlert action="cancel" inProgress={Boolean(startedTrip)} busy={cancellingTrip}
@@ -1987,9 +1987,7 @@ function isOutsideOperatingHours() {
           />
         )}
 
-        <UserGuides driverId={authenticatedDriver?.id_conductores}
-          autoOpen={!createdTrip && !gerenciamientoPendiente && activeTabMode === 'urban'}
-          showEntry={activeTabMode === 'perfil'} />
+
 
         {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
         <GerenciamientoForm
