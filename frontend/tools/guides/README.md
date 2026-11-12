@@ -1,7 +1,7 @@
 # Guías visuales de la app
 
 Dos recorridos visibles: acompañantes (3 pasos) y remolques (4).
-El icono de información junto a Salir abre únicamente Guías visuales. No hay sección de novedades, tutorial de uso sin conexión ni aperturas automáticas. Las guías no están en Mi perfil.
+El icono de información junto a Salir abre únicamente Guías visuales. No hay sección de novedades ni tutorial de uso sin conexión. Tras instalar una versión nueva, la guía se abre automáticamente al entrar con sesión y sin un viaje registrado. Android utiliza AndroidVersion.getInfo (versionCode y canal instalados); la PWA usa el build. La marca de visto se guarda por conductor y versión cuando se cierra o completa la guía. Un viaje registrado aplaza la apertura y el acceso manual permanece disponible. Las guías no están en Mi perfil.
 
 Las imágenes son capturas de los componentes reales del frontend con datos ficticios. Los recuadros se agregan sobre la interfaz durante la captura. No son imágenes generadas ni se capturan datos de usuarios.
 
@@ -13,6 +13,6 @@ Requiere Chrome instalado en Windows. Los scripts abren Chrome headless con un p
 
 La escena importa los componentes de producción. Simula ausencia de red y bloquea fetch, prepara exclusivamente datos locales de demostración en ese perfil aislado y nunca confirma movimientos contra un servidor. La inspección se completa únicamente en el borrador local para capturar el paso de confirmación. Los archivos de tools no se incluyen en dist.
 
-El verificador recorre los 7 pasos a 320/390/768 px; comprueba el icono junto a Salir, la ausencia de aperturas automáticas, las dos guías exactas, carga de imágenes, límites del modal, ampliación, cierre con Escape y reapertura manual. Las capturas se incluyen como assets PNG en el precache de la PWA y las compilaciones Android futuras.
+El verificador recorre los 7 pasos a 320/390/768 px; comprueba el icono junto a Salir, la apertura tras actualizar, el aplazamiento durante viajes y la persistencia por versión, las dos guías exactas, carga de imágenes, límites del modal, ampliación, cierre con Escape y reapertura manual. Las capturas se incluyen como assets PNG en el precache de la PWA y las compilaciones Android futuras.
 
 Cuando cambie el flujo, regenerar imágenes y revisar `src/components/user-guides.js`. Las capturas históricas de uso sin conexión se conservan como fuente, pero no se importan ni forman parte de las guías visibles.

@@ -10,7 +10,8 @@ export default function TopBar({
   onTabChange,
   onMenuClick,
   isRegisterMode = false,
-  onLoginClick
+  onLoginClick,
+  autoOpenGuides = false
 }) {
 
   const isTelegram = Boolean(window.Telegram?.WebApp);
@@ -61,7 +62,7 @@ export default function TopBar({
 
           {conductor ? (
             <div className="topbar-user-area" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <UserGuides />
+              <UserGuides driverId={conductor.id_conductores} autoOpen={autoOpenGuides} />
               <button
                 type="button"
                 className="topbar-btn-logout-icon"

@@ -1893,6 +1893,7 @@ function isOutsideOperatingHours() {
         onLogout={handleLogout}
         activeTabMode={activeTabMode}
         onTabChange={setActiveTabMode}
+        autoOpenGuides={!loading && !createdTrip && !gerenciamientoPendiente}
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
         {cancelTripAlertOpen && <TripActionAlert action="cancel" inProgress={Boolean(startedTrip)} busy={cancellingTrip}

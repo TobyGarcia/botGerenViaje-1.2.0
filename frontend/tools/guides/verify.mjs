@@ -42,6 +42,20 @@ try {
   await click('.topbar-help-button');
   if(await js("document.querySelectorAll('[data-guide-topic]').length")!==2)throw Error('Expected only two guides');
   if(await js("Boolean(document.querySelector('.guide-news-card,[data-guide-topic=offline]'))"))throw Error('Removed content remains');
-  console.log('PASS '+width+'px: info by logout; only companions and trailers; 7 steps; zoom; Escape; manual reopen; no automatic popup');
+  await click('.trip-operation-close-btn');
+  await js("Object.keys(localStorage).filter(k=>k.startsWith('gv_installed_guides_seen:capture-test:')).forEach(k=>localStorage.removeItem(k))");
+  await send('Page.navigate',{url:'http://127.0.0.1:5178/tools/guides/carousel.html?updated=1&active=1'});await wait(650);
+  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Interrupted active trip');
+  await send('Page.navigate',{url:'http://127.0.0.1:5178/tools/guides/carousel.html?updated=1'});await wait(700);
+  if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Acompañantes')throw Error('Did not auto-open after update');
+  for(let i=0;i<3;i++)await click('.guide-footer-actions .trip-ops-primary');
+  if(await js("document.querySelector('#trip-operation-modal-title').textContent")!=='Remolques')throw Error('Did not advance to trailers');
+  for(let i=0;i<4;i++)await click('.guide-footer-actions .trip-ops-primary');
+  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Tour did not finish');
+  await send('Page.reload');await wait(650);
+  if(await js("Boolean(document.querySelector('dialog[open]'))"))throw Error('Tour repeated for same installed version');
+  await click('.topbar-help-button');
+  if(await js("document.querySelectorAll('[data-guide-topic]').length")!==2)throw Error('Manual guides missing');
+  console.log('PASS '+width+'px: 7 guide steps; opens after update; defers active trip; persists completion; does not repeat; manual access retained');
  }
 } finally {await send('Browser.close').catch(()=>{});ws.close();chrome.kill();}

@@ -1,16 +1,34 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TripOperationModal from './TripOperationModal.jsx';
 import { IconUsers, IconInfo } from './Icons.jsx';
 import TripTrailerIcon from './TripTrailerIcon.jsx';
 import { userGuides } from './user-guides.js';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import safeStorage from '../utils/safeStorage.js';
+import { installedGuideVersion } from '../utils/guide-version.js';
 import './TripOperations.css';
 import './UserGuides.css';
 
-export default function UserGuides() {
+const AndroidVersion = registerPlugin('AndroidVersion');
+export default function UserGuides({ driverId, autoOpen = false }) {
  const [open,setOpen]=useState(false),[mode,setMode]=useState('hub'),[topic,setTopic]=useState(0),[step,setStep]=useState(0),[expanded,setExpanded]=useState(false);
- const touch=useRef(null),swiped=useRef(false);
- const close=()=>{setOpen(false);setExpanded(false);};
- const hub=()=>{setMode('hub');setExpanded(false);setStep(0);};
+ const touch=useRef(null),swiped=useRef(false),prompted=useRef(null);
+ const [version,setVersion]=useState(null),[automaticTour,setAutomaticTour]=useState(false);
+ const seenKey=driverId&&version?`gv_installed_guides_seen:${driverId}:${version}`:null;
+ useEffect(()=>{
+  let disposed=false;
+  installedGuideVersion({native:Capacitor.isNativePlatform(),platform:Capacitor.getPlatform(),getNativeInfo:()=>AndroidVersion.getInfo(),webVersion:typeof __APP_VERSION__==='string'?__APP_VERSION__:'development'})
+   .then(value=>{if(!disposed)setVersion(value);}).catch(()=>{});
+  return()=>{disposed=true;};
+ },[]);
+ useEffect(()=>{
+  if(autoOpen&&seenKey&&prompted.current!==seenKey&&!safeStorage.getItem(seenKey)){
+   prompted.current=seenKey;setAutomaticTour(true);setTopic(0);setStep(0);setMode('guide');setExpanded(false);setOpen(true);
+  }
+ },[autoOpen,seenKey]);
+ const markSeen=()=>{if(seenKey)safeStorage.setItem(seenKey,'1');};
+ const close=()=>{markSeen();setAutomaticTour(false);setOpen(false);setExpanded(false);};
+ const hub=()=>{markSeen();setAutomaticTour(false);setMode('hub');setExpanded(false);setStep(0);};
  const choose=index=>{setTopic(index);setStep(0);setMode('guide');setExpanded(false);};
  const slides=userGuides[topic].steps;
  const slide=slides[step];
@@ -18,13 +36,13 @@ export default function UserGuides() {
  const last=step===slides.length-1;
  const title=mode==='hub'?'Guías visuales':userGuides[topic].label;
  return <>
-  <button type="button" className="topbar-help-button" aria-label="Guías visuales" title="Guías visuales" onClick={()=>{setMode('hub');setStep(0);setExpanded(false);setOpen(true);}}>
+  <button type="button" className="topbar-help-button" aria-label="Guías visuales" title="Guías visuales" onClick={()=>{setAutomaticTour(false);setMode('hub');setStep(0);setExpanded(false);setOpen(true);}}>
    <IconInfo/>
   </button>
   {open&&<TripOperationModal headerCaption="GV MOBILITY" title={title} icon={<IconInfo/>} onClose={close}
    footer={mode==='hub'?<button type="button" className="trip-operation-done-btn" onClick={close}>Cerrar</button>:<div className="user-guides-footer">
     <div className="guide-progress" role="progressbar" aria-label="Progreso" aria-valuemin={1} aria-valuemax={slides.length} aria-valuenow={step+1}>{slides.map((_,i)=><i key={i} className={i<=step?'filled':''}/>)}</div>
-    <div className="guide-footer-actions"><button type="button" className="trip-operation-done-btn" onClick={()=>step>0?move(step-1):hub()}>{step>0?'Atrás':'Todas las guías'}</button><button type="button" className="trip-ops-primary" onClick={()=>last?hub():move(step+1)}>{last?'Listo':'Siguiente'}</button></div>
+    <div className="guide-footer-actions"><button type="button" className="trip-operation-done-btn" onClick={()=>step>0?move(step-1):hub()}>{step>0?'Atrás':'Todas las guías'}</button><button type="button" className="trip-ops-primary" onClick={()=>{if(!last)move(step+1);else if(automaticTour&&topic<userGuides.length-1)choose(topic+1);else if(automaticTour)close();else hub();}}>{last?(automaticTour?(topic<userGuides.length-1?'Siguiente guía':'Entendido'):'Listo'):'Siguiente'}</button></div>
    </div>}>
    <div className="visual-guide">
     {mode==='hub'?<div className="guide-hub">
