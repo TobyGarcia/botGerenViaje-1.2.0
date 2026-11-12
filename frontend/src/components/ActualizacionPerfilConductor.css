@@ -482,3 +482,29 @@
 .perfil-card-container .perfil-upload-card { border-style:solid; background:#f8fbfd; padding:12px 8px; }
 .perfil-card-container .perfil-upload-btn-label { min-height:34px; display:flex; align-items:center; justify-content:center; font-weight:400; }
 .perfil-alert-error { scroll-margin-top:100px; }
+
+/* Visual profile: separate, full-width sections without nested surfaces. */
+.perfil-wrapper .perfil-card-container { padding:0; background:transparent; border:0; box-shadow:none; gap:16px; }
+.perfil-visual-header { display:flex; align-items:center; gap:14px; padding:20px; background:linear-gradient(120deg,#e7f7fc,#f8fcfe); border:1px solid #d5eaf3; border-radius:16px; }
+.perfil-avatar { display:grid; place-items:center; flex-shrink:0; width:60px; height:60px; border-radius:50%; background:#007fac; color:white; font-size:21px; font-weight:500; }
+.perfil-identity { min-width:0; }
+.perfil-identity h2 { margin:0 0 4px; color:#16495f; font-size:18px; font-weight:600; }
+.perfil-identity p { margin:0; color:#315e72; font-size:14px; overflow-wrap:anywhere; }
+.perfil-identity small { display:block; margin-top:4px; color:#6c8694; font-size:12px; }
+.perfil-visual-section { display:flex; flex-direction:column; gap:16px; min-width:0; padding:18px; border:1px solid #dce8ef; border-radius:16px; background:white; }
+.perfil-visual-section-heading { display:flex; align-items:center; gap:10px; }
+.perfil-visual-section h3 { margin:0; color:#244f63; font-size:14px; font-weight:600; }
+.perfil-section-number { display:grid; place-items:center; width:30px; height:30px; border-radius:9px; background:#edf8fc; color:#0083b4; font-size:12px; font-weight:500; }
+.perfil-visual-section .perfil-section-title { margin:0; gap:10px; }
+.perfil-visual-section .perfil-section-title>svg { width:24px; height:24px; padding:3px; box-sizing:content-box; background:#edf8fc; border-radius:8px; }
+.perfil-visual-section .perfil-input-compact { min-height:44px; font-size:14px; min-width:0; }
+.perfil-visual-section .perfil-grid-two-cols { min-width:0; }
+.perfil-visual-section .perfil-upload-card { min-width:0; gap:8px; border:1px solid #d8e8f0; background:#f6fbfd; }
+.perfil-visual-section .perfil-upload-preview-box, .perfil-visual-section .perfil-upload-placeholder-box { width:100%; height:90px; max-height:none; margin:0; background:white; }
+.perfil-visual-section .perfil-upload-preview-img { height:90px; object-fit:contain; }
+.perfil-visual-section .perfil-upload-placeholder-box svg { width:34px; height:34px; }
+.perfil-visual-section .perfil-upload-card-title { margin:0; font-size:13px; color:#244f63; }
+.perfil-visual-section .perfil-upload-filename { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.perfil-visual-section .perfil-upload-btn-label { width:100%; box-sizing:border-box; min-height:38px; font-size:12px; margin:0; }
+.perfil-card-container .perfil-actions-row { margin:0; padding:0; border:0; }
+@media(max-width:350px) { .perfil-visual-section { padding:14px; } .perfil-visual-section .perfil-grid-two-cols { grid-template-columns:1fr; } .perfil-visual-header { padding:16px; } }

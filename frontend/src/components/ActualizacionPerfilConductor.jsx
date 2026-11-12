@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { actualizarPerfilConductor } from "../services/api.js";
 import "./ActualizacionPerfilConductor.css";
 import CameraModal from "./CameraModal.jsx";
+import { IconUser } from "./Icons.jsx";
 
 const TIPOS_LICENCIA_OPCIONES = [
   { value: "AUTOMOVILISTA", label: "AUTOMOVILISTA" },
@@ -130,24 +131,14 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
   return (
     <div className="perfil-wrapper">
       <section className="perfil-card-container">
-        {/* Encabezado: Ícono de usuario y títulos */}
-        <div className="perfil-header">
-          <div className="perfil-header-icon">
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path
-                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+        <header className="perfil-visual-header">
+          <div className="perfil-avatar" aria-hidden="true">{nombre.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'GV'}</div>
+          <div className="perfil-identity">
+            <h2>Mi perfil</h2>
+            <p>{nombre.trim() || 'Tu nombre completo'}</p>
+            {puesto.trim() && <small>{puesto}</small>}
           </div>
-          <div>
-            <h2 className="perfil-header-title">Mi perfil</h2>
-            <p className="perfil-header-desc">
-              Actualiza tus datos personales y tu licencia.
-            </p>
-          </div>
-        </div>
+        </header>
 
         {/* Alertas */}
         {error && (
@@ -166,7 +157,8 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
 
         {/* Formulario */}
         <form className="perfil-form" onSubmit={handleSubmit}>
-          <div className="perfil-section-title">Datos personales</div>
+          <section className="perfil-visual-section" aria-labelledby="perfil-personal-title">
+          <div className="perfil-visual-section-heading"><span className="perfil-section-number"><IconUser size={20} /></span><h3 id="perfil-personal-title">Datos personales</h3></div>
           <div className="perfil-field">
             <label className="perfil-label" htmlFor="full-name">Nombre completo <span className="perfil-required">*</span></label>
             <input id="full-name" type="text" className="perfil-input" value={nombre}
@@ -223,8 +215,10 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
             />
           </div>
 
+          </section>
+
           {/* Sección de Licencia */}
-          <div className="perfil-section-divider">
+          <section className="perfil-visual-section">
             <div className="perfil-section-title">
               <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
                 <path
@@ -233,7 +227,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Licencia de conducir</span>
+              <h3>Licencia de conducir</h3>
             </div>
 
             {/* Fila con Número y Vencimiento */}
@@ -302,10 +296,10 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Fotos de la licencia */}
-          <div className="perfil-section-divider">
+          <section className="perfil-visual-section">
             <div className="perfil-section-title">
               <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
                 <path
@@ -315,13 +309,13 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 />
                 <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span>Fotos de la licencia</span>
+              <h3>Fotos de la licencia</h3>
             </div>
 
             <div className="perfil-upload-grid">
               {/* Frente */}
               <div className="perfil-upload-card">
-                <span className="perfil-upload-card-title">Frente de Licencia</span>
+                <span className="perfil-upload-card-title">Frente</span>
 
                 {previewFrente ? (
                   <div className="perfil-upload-preview-box">
@@ -341,7 +335,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
 
                 <button type="button" className="perfil-upload-btn-label" onClick={() => setCameraSide("frente")}>Tomar foto</button>
                 <label className="perfil-upload-btn-label">
-                  <span>Seleccionar archivo</span>
+                  <span>Subir imagen</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -351,13 +345,13 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 </label>
 
                 <span className="perfil-upload-filename">
-                  {licenciaNombreArchivo || (previewFrente ? "Cargado" : "Sin foto nueva")}
+                  {licenciaNombreArchivo || (previewFrente ? "✓ Foto disponible" : "Sin foto")}
                 </span>
               </div>
 
               {/* Reverso */}
               <div className="perfil-upload-card">
-                <span className="perfil-upload-card-title">Reverso de Licencia</span>
+                <span className="perfil-upload-card-title">Reverso</span>
 
                 {previewReverso ? (
                   <div className="perfil-upload-preview-box">
@@ -377,7 +371,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
 
                 <button type="button" className="perfil-upload-btn-label" onClick={() => setCameraSide("reverso")}>Tomar foto</button>
                 <label className="perfil-upload-btn-label">
-                  <span>Seleccionar archivo</span>
+                  <span>Subir imagen</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -387,11 +381,11 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 </label>
 
                 <span className="perfil-upload-filename">
-                  {licenciaReversoNombre || (previewReverso ? "Cargado" : "Sin foto nueva")}
+                  {licenciaReversoNombre || (previewReverso ? "✓ Foto disponible" : "Sin foto")}
                 </span>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Botones de Acción */}
           <div className="perfil-actions-row">
