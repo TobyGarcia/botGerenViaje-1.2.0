@@ -45,6 +45,7 @@ import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import StartTripForm from "./components/StartTripForm.jsx";
 import { tripRoutePlace } from './utils/trip-route-place.js';
 import TripRouteValue from './components/TripRouteValue.jsx';
+import IntermediatePointModal from './components/IntermediatePointModal.jsx';
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -1027,21 +1028,23 @@ const [cancelledTrip, setCancelledTrip] =
   }, [startedTrip?.idViaje, createdTrip?.idViaje]);
 
 const [savingIntermediatePoint, setSavingIntermediatePoint] = useState(false);
+const [intermediatePointOpen, setIntermediatePointOpen] = useState(false);
 
-async function handleAddIntermediatePoint() {
+async function handleAddIntermediatePoint(note) {
   const idViaje = startedTrip?.idViaje ?? startedTrip?.id_viajes;
-  if (!idViaje) return;
-  const note = window.prompt("Ingresa un nombre o motivo del punto intermedio (ej. Parada técnica, Gasolinera, Descanso):", "Parada técnica");
-  if (note === null) return;
+  if (!idViaje) throw new Error('No se encontró el viaje activo.');
+  if (!note?.trim()) throw new Error('Escribe el nombre o motivo de la parada.');
   setSavingIntermediatePoint(true);
   setMessage("");
   try {
-    await captureIntermediatePoint(idViaje, note || "Punto Intermedio");
+    await captureIntermediatePoint(idViaje, note.trim());
+    setIntermediatePointOpen(false);
     setMessage("Punto intermedio registrado con éxito.");
     setMessageType("success");
   } catch (err) {
     setMessage(err.message || "Error al registrar el punto intermedio.");
     setMessageType("error");
+    throw err;
   } finally {
     setSavingIntermediatePoint(false);
   }
@@ -2642,12 +2645,13 @@ function isOutsideOperatingHours() {
 
       return (
         <>
+          {intermediatePointOpen && <IntermediatePointModal busy={savingIntermediatePoint} onSave={handleAddIntermediatePoint} onClose={() => setIntermediatePointOpen(false)} />}
           <div className="gv-trip-actions-block">
             <div className="gv-trip-mid-actions">
               <button
                 type="button"
                 className="gv-btn-midpoint"
-                onClick={handleAddIntermediatePoint}
+                onClick={() => setIntermediatePointOpen(true)}
                 disabled={savingIntermediatePoint}
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
