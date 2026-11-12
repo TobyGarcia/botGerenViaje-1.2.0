@@ -38,6 +38,7 @@ import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConduc
 import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
+import FinishTripAlert from "./components/FinishTripAlert.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import { offlineTripNotice } from "./services/offline-trip-notice.js";
 import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
@@ -1050,8 +1051,11 @@ async function handleAddIntermediatePoint(note) {
   }
 }
 
-  async function handleFinishTrip(event) {
-    event.preventDefault();
+  const [finishTripAlertOpen, setFinishTripAlertOpen] = useState(false);
+
+  async function handleFinishTrip(event, confirmed = false) {
+    event?.preventDefault();
+    if (finishingTrip) return;
 
   const idViaje =
     startedTrip?.idViaje ??
@@ -1085,11 +1089,8 @@ async function handleAddIntermediatePoint(note) {
     return;
     }
 
-    const confirmed = window.confirm(
-      "¿Confirmas que deseas finalizar el viaje? Se detendrá el GPS y se registrará la hora de llegada."
-    );
-
     if (!confirmed) {
+      setFinishTripAlertOpen(true);
       return;
     }
 
@@ -1895,6 +1896,12 @@ function isOutsideOperatingHours() {
         onTabChange={setActiveTabMode}
       />
       <main className={`container ${createdTrip ? "gv-active-trip-view" : ""}`}>
+        {finishTripAlertOpen && <FinishTripAlert busy={finishingTrip}
+          onClose={() => setFinishTripAlertOpen(false)}
+          onConfirm={async () => {
+            try { await handleFinishTrip(null, true); }
+            finally { setFinishTripAlertOpen(false); }
+          }} />}
         <OfflineBanner idViaje={createdTrip?.idViaje} />
         {offlineNotice && <div role="status" className="offline-trip-notice">
           <p>{offlineNotice}</p>

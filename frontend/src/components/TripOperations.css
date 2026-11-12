@@ -142,3 +142,7 @@
   .trip-operation-shortcut strong { font-size:12px; }
   .trip-operation-shortcut small { grid-column:1 / -1; grid-row:3; justify-self:start; }
 }
+
+.finish-trip-alert-actions { display:grid; grid-template-columns:1fr 1.4fr; gap:10px; width:100%; }
+.finish-trip-alert-text { margin:0; color:#536d7c; font-size:14px; line-height:1.6; }
+.gv-trip-operations .finish-trip-alert-confirm { background:#b90f43; color:white; border-color:#b90f43; }
