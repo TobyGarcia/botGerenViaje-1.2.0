@@ -14,13 +14,13 @@ export default function SupervisorApp(){
  const ticket=useRef(null),checking=useRef(false),disposed=useRef(false);
  const clear=()=>{localStorage.removeItem('gv_supervisor_token');localStorage.removeItem('adminToken');setUser(null);};
  async function check(){
-  if(!ticket.current||checking.current)return;checking.current=true;
-  try{const result=await pollSupervisorAppLogin(ticket.current);if(disposed.current)return;
+  if(!ticket.current||checking.current)return;const activeTicket=ticket.current;checking.current=true;
+  try{const result=await pollSupervisorAppLogin(activeTicket);if(disposed.current||ticket.current!==activeTicket)return;
    if(!result.data.pending){localStorage.setItem('gv_supervisor_token',result.data.token);localStorage.setItem('adminToken',result.data.token);ticket.current=null;setWaiting(false);setUser(result.data.user);await Browser.close().catch(()=>{});}
   }catch(e){if(!disposed.current){ticket.current=null;setWaiting(false);setError(e.message);}}
   finally{checking.current=false;}
  }
- useEffect(()=>{disposed.current=false;let listener,link;const expired=()=>{clear();setError('Tu sesión expiró. Inicia sesión de nuevo.');};window.addEventListener('supervisor-session-expired',expired);
+ useEffect(()=>{disposed.current=false;let listener,link;const expired=()=>{const hadToken=Boolean(localStorage.getItem('gv_supervisor_token'));clear();if(hadToken)setError('Tu sesión expiró. Inicia sesión de nuevo.');};window.addEventListener('supervisor-session-expired',expired);
   getAdminSession().then(r=>{if(!disposed.current)setUser(r.data.user);}).catch(()=>{}).finally(()=>{if(!disposed.current)setLoading(false);});
   const interval=setInterval(()=>void check(),2000);
   if(Capacitor.isNativePlatform()){
