@@ -2468,8 +2468,12 @@ function isOutsideOperatingHours() {
       </div>
 
       <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Número económico</dt>
-        <dd className="gv-badge-mono">{startedTrip?.numeroEconomico ?? createdTrip.numeroEconomico}</dd>
+        <dt className="gv-trip-dt gv-trip-route-label">Origen / destino</dt>
+        <dd className="gv-badge-mono gv-trip-route" title={`${tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)} → ${tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}`}>
+          <span>{tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)}</span>
+          <span className="gv-trip-route-arrow" aria-hidden="true">→</span>
+          <span>{tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}</span>
+        </dd>
       </div>
 
       <div className="gv-trip-dl-row">
@@ -2480,16 +2484,6 @@ function isOutsideOperatingHours() {
       <div className="gv-trip-dl-row">
         <dt className="gv-trip-dt">Unidad</dt>
         <dd className="gv-trip-dd">{startedTrip?.vehiculo ?? createdTrip.vehiculo}</dd>
-      </div>
-
-      <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Origen</dt>
-        <dd className="gv-trip-dd">{tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)}</dd>
-      </div>
-
-      <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt">Destino</dt>
-        <dd className="gv-trip-dd">{tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}</dd>
       </div>
 
       <div className="gv-trip-dl-row">

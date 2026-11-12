@@ -3029,6 +3029,12 @@ form#urban-trip-form {
   font-variant-numeric: tabular-nums;
 }
 
+/* La ruta ocupa la misma fila y altura del dato anterior, incluso con nombres largos. */
+.gv-trip-route { display:flex; gap:4px; min-width:0; max-width:100%; white-space:nowrap; }
+.gv-trip-route > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.gv-trip-route > .gv-trip-route-arrow { flex:none; }
+.gv-trip-route-label { white-space:nowrap; flex-shrink:0; }
+
 /* Info Callout */
 .gv-trip-info-callout {
   border-radius: 12px;
