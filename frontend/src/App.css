@@ -463,8 +463,9 @@
 }
 
 .topbar-logo-img {
-  height: 30px;
-  max-width: 110px;
+  width: 174px;
+  height: 58px;
+  max-width: 100%;
   object-fit: contain;
   display: block;
 }

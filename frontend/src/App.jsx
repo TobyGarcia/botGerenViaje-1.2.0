@@ -1900,12 +1900,7 @@ function isOutsideOperatingHours() {
           <p>{offlineNotice}</p>
           <button type="button" onClick={syncOfflineState}>Sincronizar pendientes</button>
         </div>}
-        {createdTrip && showTripContent ? (
-          <div className="gv-screen-header">
-            <h1 className="gv-screen-title">Gerenciamiento de Viaje</h1>
-            <p className="gv-screen-subtitle">Control operativo y seguimiento de trayecto</p>
-          </div>
-        ) : (gerenciamientoPendiente && activeTabMode !== "siniestro" && activeTabMode !== "perfil") ? (
+        {!createdTrip && gerenciamientoPendiente && activeTabMode !== "siniestro" && activeTabMode !== "perfil" ? (
           <>
             <h1>Nuevo viaje</h1>
 
