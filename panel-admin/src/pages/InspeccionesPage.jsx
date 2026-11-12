@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import TrailerInspectionContent from '../components/TrailerInspectionContent.jsx';
 import TrailerInspectionCards from '../components/TrailerInspectionCards.jsx';
 import './TrailerInspectionCards.css';
 import {
@@ -816,28 +815,15 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
                     {renderChecklistByCategories(detail.checklist)}
                   </div>
 
-                  {/* Sección Remolque (si aplica) */}
-                  {detail.lleva_remolque && (
-                    <div className="modal-section-card" style={{ borderLeft: "4px solid #2563eb", background: "#f8fafc", padding: "16px", borderRadius: "8px", marginTop: "12px" }}>
-                      <div className="section-card-title">
-                        <h3 style={{ color: "#1e293b", margin: 0 }}>🚛 Inspección de Remolque Asignado</h3>
-                        <p style={{ margin: "4px 0 10px", color: "#64748b" }}>
-                          Unidad de Remolque: <strong>{detail.remolque_numero_economico || ("ID " + detail.id_remolque)} - {detail.remolque_nombre || "Remolque"}</strong> (Placas: {detail.remolque_placas || "N/A"})
-                        </p>
-                      </div>
-
-                      {(() => {
-                        const remData = typeof detail.inspeccion_remolque === "string" ? JSON.parse(detail.inspeccion_remolque) : (detail.inspeccion_remolque || {});
-                        return (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            <TrailerInspectionContent data={remData} renderChecklist={renderChecklistByCategories} />
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  <TrailerInspectionCards items={detail.trailer_inspections} />
+                  <TrailerInspectionCards
+                    items={detail.trailer_inspections}
+                    assigned={detail.lleva_remolque ? {
+                      name: detail.remolque_nombre || detail.remolque_numero_economico || `Remolque ${detail.id_remolque}`,
+                      numero_economico: detail.remolque_numero_economico,
+                      placas: detail.remolque_placas,
+                      inspection: detail.inspeccion_remolque
+                    } : null}
+                  />
 
                   {/* Observaciones del Conductor */}
                   <div className="modal-section-card">

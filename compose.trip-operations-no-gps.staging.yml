@@ -4,6 +4,7 @@ services:
   frontend:
     image: gv-staging-trip-operations-frontend:intermediate-point-modal-20261112
   panel-admin:
-    image: gv-staging-trip-operations-panel:inspection-order-20261112
+    image: gv-staging-trip-operations-panel:assigned-trailer-card-20261112
+
 
 

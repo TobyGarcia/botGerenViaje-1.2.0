@@ -15,8 +15,23 @@ function renderChecklist(checklist = {}, groups = {}) {
   })}</div></div><div className="checklist-cards-grid">{categories.map(([name,items]) => <div className="checklist-card" key={name}><div className="checklist-card-header"><span className="checklist-card-title">{name}</span><span className="checklist-card-count">{items.length} elementos</span></div><div className="checklist-card-body">{items.map(([name,value]) => <div className="checklist-item-row" key={name}><span className="checklist-item-name">{name}</span><span className={`checklist-badge checklist-badge-${value === 'B' ? 'good' : value === 'R' ? 'regular' : value === 'M' ? 'bad' : 'na'}`}>{value === 'B' ? 'BUENO' : value === 'R' ? 'REGULAR' : value === 'M' ? 'MALO' : 'N/A'}</span></div>)}</div></div>)}</div></div>;
 }
 
-export default function TrailerInspectionCards({ items = [] }) {
-  if (!items.length) return null;
+export default function TrailerInspectionCards({ items = [], assigned = null }) {
+  const inspections = assigned ? [{ ...assigned, id: 'assigned', assigned: true }, ...items] : items;
+  if (!inspections.length) return null;
   const date = value => value ? new Date(value).toLocaleString('es-MX') : 'Continúa enganchado';
-  return <section className="trailer-inspections-section"><h3>Inspecciones de remolques</h3><p>Una inspección independiente por cada enganche.</p>{items.map(item => <details className="trailer-inspection-card" key={item.id}><summary><strong>{item.name}</strong><span>Enganche #{item.id} · {item.removed_at ? 'Desenganchado' : 'Enganchado'}</span></summary><div className="trailer-inspection-body"><dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{date(item.added_at)}</dd></div><div><dt>Desenganche</dt><dd>{date(item.removed_at)}</dd></div></dl><TrailerInspectionContent data={item.inspection} renderChecklist={renderChecklist} /></div></details>)}</section>;
+  return <section className="trailer-inspections-section">
+    <h3>Inspecciones de remolques</h3>
+    <p>Una inspección independiente por cada enganche.</p>
+    {inspections.map(item => <details className="trailer-inspection-card" key={item.id}>
+      <summary>
+        <strong>{item.name}</strong>
+        <span>{item.assigned ? 'Remolque asignado · Inspección inicial' : `Enganche #${item.id} · ${item.removed_at ? 'Desenganchado' : 'Enganchado'}`}</span>
+      </summary>
+      <div className="trailer-inspection-body">
+        {item.assigned ? <p>Número económico: {item.numero_economico || 'N/A'} · Placas: {item.placas || 'N/A'}</p> :
+          <dl className="trailer-inspection-meta"><div><dt>Enganche</dt><dd>{date(item.added_at)}</dd></div><div><dt>Desenganche</dt><dd>{date(item.removed_at)}</dd></div></dl>}
+        <TrailerInspectionContent data={item.inspection} renderChecklist={renderChecklist} />
+      </div>
+    </details>)}
+  </section>;
 }
