@@ -44,6 +44,7 @@ import DestinationAutocomplete from "./components/DestinationAutocomplete.jsx";
 import VehicleDropdown from "./components/VehicleDropdown.jsx";
 import StartTripForm from "./components/StartTripForm.jsx";
 import { tripRoutePlace } from './utils/trip-route-place.js';
+import TripRouteValue from './components/TripRouteValue.jsx';
 import { formatOperationalDate } from "./utils/operational-date.js";
 import { recoverFinishedTrip } from './services/finish-trip-recovery.js';
 import {
@@ -2468,12 +2469,8 @@ function isOutsideOperatingHours() {
       </div>
 
       <div className="gv-trip-dl-row">
-        <dt className="gv-trip-dt gv-trip-route-label">Origen / destino</dt>
-        <dd className="gv-badge-mono gv-trip-route" title={`${tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)} → ${tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}`}>
-          <span>{tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)}</span>
-          <span className="gv-trip-route-arrow" aria-hidden="true">→</span>
-          <span>{tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)}</span>
-        </dd>
+        <dt className="gv-trip-dt gv-trip-route-label">Ruta</dt>
+        <TripRouteValue origin={tripRoutePlace([startedTrip, createdTrip], 'origen', lugares)} destination={tripRoutePlace([startedTrip, createdTrip], 'destino', lugares)} />
       </div>
 
       <div className="gv-trip-dl-row">
