@@ -299,7 +299,7 @@ function ApprovalSignature({ onChange }) {
   );
 }
 
-export default function InspeccionesPage({ user, onPendingChange, initialTab }) {
+export default function InspeccionesPage({ user, onPendingChange, initialTab, pendingOnly = false }) {
   const [activeTab, setActiveTab] = useState(() => {
     if (initialTab) return initialTab;
     const hash = window.location.hash.toLowerCase();
@@ -318,7 +318,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
   const [signature, setSignature] = useState("");
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(pendingOnly ? "PENDIENTE_APROBACION" : "ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -422,7 +422,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
           className={`logistics-tab-btn ${activeTab === "inspecciones" ? "active" : ""}`}
         >
           <IconInspecciones size={18} />
-          <span>Inspecciones Vehiculares</span>
+          <span>{pendingOnly ? "Inspecciones" : "Inspecciones Vehiculares"}</span>
           {pendingCount > 0 && (
             <span className="tab-pending-badge" title={`${pendingCount} inspecciones por aprobar`}>
               {pendingCount}
@@ -444,12 +444,12 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
           className={`logistics-tab-btn tab-btn-gerenciamiento ${activeTab === "gerenciamiento" ? "active" : ""}`}
         >
           <IconDestinos size={18} />
-          <span>Gerenciamiento de Viajes</span>
+          <span>{pendingOnly ? "Gerenciamientos" : "Gerenciamiento de Viajes"}</span>
         </button>
       </div>
 
       {activeTab === "gerenciamiento" ? (
-        <GerenciamientoAdminPage user={user} />
+        <GerenciamientoAdminPage user={user} initialStatus={pendingOnly ? "PENDIENTE" : ""} />
       ) : (
         <>
           {/* Barra de herramientas con buscador y filtros rápidos */}
@@ -527,6 +527,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab }) 
               </div>
             ) : (
               <>
+                {pendingOnly && <div className="supervisor-review-cards">{paginatedRows.map(row=><article key={row.id_inspeccion}><header><strong>{row.folio}</strong><StatusBadge estado={row.estado}/></header><p>{row.vehiculo} · {row.numero_economico}</p><small>{row.conductor}</small><button type="button" className="btn-review" onClick={()=>open(row)}>Revisar inspección →</button></article>)}</div>}
                 <div className="table-wrapper">
                   <table className="admin-table inspections-table">
                     <thead>

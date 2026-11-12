@@ -1,10 +1,10 @@
 services:
   backend:
-    image: gv-staging-trip-operations-backend:driver-profile-20261112
+    image: gv-staging-trip-operations-backend:supervisor-app-20261112
   frontend:
     image: gv-staging-trip-operations-frontend:installed-guides-20261112
   panel-admin:
-    image: gv-staging-trip-operations-panel:assigned-trailer-card-20261112
+    image: gv-staging-trip-operations-panel:supervisor-app-20261112
 
 
 

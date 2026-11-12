@@ -1,0 +1,4 @@
+FROM gv-staging-trip-operations-backend:driver-profile-20261112
+COPY backend/src/controllers/admin-auth.controller.js /app/src/controllers/admin-auth.controller.js
+COPY backend/src/routes/admin-auth.routes.js /app/src/routes/admin-auth.routes.js
+COPY backend/src/services/supervisor-app-login.service.js /app/src/services/supervisor-app-login.service.js

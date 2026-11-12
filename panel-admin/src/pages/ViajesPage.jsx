@@ -142,8 +142,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function ViajesPage({ user }) {
-  const canDelete = user?.rol === "ADMINISTRADOR";
+function ViajesPage({ user, readOnly = false }) {
+  const canDelete = !readOnly && user?.rol === "ADMINISTRADOR";
   const [viajes, setViajes] =
     useState([]);
 
@@ -691,6 +691,7 @@ function ViajesPage({ user }) {
           </p>
         ) : (
           <>
+            {readOnly && <div className="supervisor-review-cards">{paginatedViajes.map(trip=><article key={trip.idViaje}><header><strong>{trip.folio}</strong><small>{trip.estado?.nombre}</small></header><p>{trip.vehiculo?.nombre} · {trip.conductor?.nombre}</p><small>{trip.origen?.nombre} → {trip.destino?.nombre}</small><div className="table-actions"><button type="button" className="edit-button" onClick={()=>openTripDetail(trip.idViaje)}>Ver detalle →</button></div></article>)}</div>}
             <div className="table-wrapper">
               <table className="admin-table trips-table">
                 <thead>

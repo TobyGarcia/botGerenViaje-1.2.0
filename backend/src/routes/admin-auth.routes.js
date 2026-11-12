@@ -11,6 +11,8 @@ import {
   loginAdminController,
   loginWithTenantEmailController,
   loginWithPinController,
+  startSupervisorAppLoginController,
+  pollSupervisorAppLoginController,
   logoutAdminController
 } from "../controllers/admin-auth.controller.js";
 
@@ -19,6 +21,9 @@ import {
 } from "../middlewares/admin-auth.middleware.js";
 
 const router = Router();
+
+router.post('/supervisor-app/start', startSupervisorAppLoginController);
+router.post('/supervisor-app/poll', pollSupervisorAppLoginController);
 
 router.post(
   "/login",

@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -24,7 +26,9 @@ import {
 
 const INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000;
 
-function App() {
+const SupervisorApp = lazy(() => import("./pages/SupervisorApp.jsx"));
+
+function AdministrativeApp() {
   const [sessionLoading, setSessionLoading] =
     useState(true);
 
@@ -37,6 +41,10 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const stateParam = urlParams.get("state");
     const codeParam = urlParams.get("code");
+
+    if (stateParam?.startsWith('supervisor_app_') || urlParams.has('supervisor_app_done')) {
+      setAdminUser(null);setSessionLoading(false);return;
+    }
 
     if (stateParam === "supervisor" || window.location.pathname.startsWith("/supervisor")) {
       const codeQuery = codeParam ? `?code=${encodeURIComponent(codeParam)}&state=supervisor` : "";
@@ -147,4 +155,6 @@ function App() {
 }
 
 
-export default App;
+export default function App(){
+ return import.meta.env.VITE_SUPERVISOR_APP === 'true' ? <Suspense fallback={<main className="session-loading">Cargando supervisor…</main>}><SupervisorApp/></Suspense> : <AdministrativeApp/>;
+}

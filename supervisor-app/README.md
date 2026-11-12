@@ -1,0 +1,32 @@
+# GV Supervisor - pruebas Android
+
+Aplicación independiente de conductor. Package `com.aspromex.gvmobility.supervisor.testing`, nombre GV Supervisor Pruebas, API exclusivamente `https://gvmobility.aspromex.mx`.
+
+## Alcance
+
+- Acceso Microsoft del panel existente; requiere cuenta autorizada y rol de supervisión o superior.
+- Pendientes: inspecciones vehiculares y gerenciamientos, por aprobar al abrir la pantalla. Se reutilizan revisión, firma y decisiones del panel.
+- Viajes: consulta y detalle existente (ruta, GPS, paradas y acompañantes). En esta app no se ofrece eliminar viajes.
+- Tarjetas en móvil, navegación inferior, cierre de sesión e inactividad de 20 minutos. Las aprobaciones requieren conexión.
+
+## Autenticación
+
+La APK abre Microsoft en el navegador del sistema. Un ticket aleatorio y un secreto independiente permiten entregar la sesión verificada a la app solicitante por una sola vez. Se conservan las validaciones de Microsoft, lista blanca y roles del servidor. El ticket expira a los cinco minutos y vive en memoria de una instancia del backend; si éste reinicia durante el acceso, se debe reintentar. No se necesitan URI nuevas en Azure: se reutiliza el redirect ya configurado para el panel. El retorno `gvsupervisor://auth` sólo despierta la app; no contiene credenciales. También se puede regresar manualmente desde el navegador y pulsar Ya inicié sesión.
+
+Los tokens no se incorporan a enlaces, APK, capturas ni repositorio. La API normal conserva la autenticación del panel web. No se habilitan PIN ni accesos alternativos.
+
+## Compilar
+
+`npm ci --prefix panel-admin`, `npm ci --prefix supervisor-app`, `node supervisor-app/scripts/build-web.mjs`, `node supervisor-app/scripts/prepare-android.mjs`.
+
+Se genera el proyecto Android desde Capacitor 8, con identidad propia y enlace de regreso. Compilar con Java 21 y SDK Android 36. Firma mediante las variables ANDROID_KEYSTORE_PATH/PASSWORD, ANDROID_KEY_ALIAS/PASSWORD. Versiones mediante ANDROID_VERSION_NAME/CODE.
+
+Desde el workflow registrado Android firmado, elegir application=supervisor, channel=testing y versión. Se delega al workflow android-supervisor-release.yml, genera un borrador independiente con tag android-supervisor-testing-vVERSION-CODE, gv-supervisor.apk y update.json. Verificar firma, ID, host y SHA256 antes de publicarlo como prerelease. Estos tags no entran en el descubrimiento de actualizaciones del conductor.
+
+## Verificaciones
+
+Backend: `node --test backend/src/tests/supervisor-app-login.test.js` (secreto, consumo único, rol, expiración y capacidad).
+
+Interfaz: iniciar Vite para panel-admin con VITE_SUPERVISOR_APP=true en 127.0.0.1:5179 y ejecutar `node panel-admin/tools/supervisor/verify.mjs`. La escena usa componentes reales y datos ficticios de sólo lectura; no inicia sesión ni aprueba contra AWS.
+
+La validación completa del proveedor Microsoft y del retorno del navegador debe hacerse en un teléfono con una cuenta autorizada. No se simula una identidad real ni se cambia el rol de una cuenta para las pruebas.

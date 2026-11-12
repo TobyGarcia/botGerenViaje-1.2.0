@@ -86,13 +86,13 @@ function ApprovalSignature({ onChange }) {
   );
 }
 
-export default function GerenciamientoAdminPage({ user }) {
+export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
   const [list, setList] = useState([]);
   const [usuariosAdmin, setUsuariosAdmin] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterRiesgo, setFilterRiesgo] = useState("");
-  const [filterEstado, setFilterEstado] = useState("");
+  const [filterEstado, setFilterEstado] = useState(initialStatus);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -104,7 +104,7 @@ export default function GerenciamientoAdminPage({ user }) {
   const [firmaAutorizador, setFirmaAutorizador] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+  const API_BASE_URL = `${String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "").replace(/\/api$/, "")}/api`;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -712,6 +712,7 @@ export default function GerenciamientoAdminPage({ user }) {
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
           <>
+            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');setAutorizadorNombre(item.nombre_autorizador_firma||user?.nombre||user?.username||'');}}>Ver revisión →</button></article>)}</div>}
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>

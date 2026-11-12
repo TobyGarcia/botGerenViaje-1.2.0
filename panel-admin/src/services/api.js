@@ -15,11 +15,12 @@ async function request(path, options = {}) {
     `${API_BASE_URL}/api${path}`,
     {
       credentials: "include",
+      ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(import.meta.env.VITE_SUPERVISOR_APP === 'true' && localStorage.getItem('gv_supervisor_token') ? {Authorization:`Bearer ${localStorage.getItem('gv_supervisor_token')}`} : {}),
         ...options.headers
-      },
-      ...options
+      }
     }
   );
 
@@ -31,6 +32,7 @@ async function request(path, options = {}) {
     body = null;
   }
 
+  if (response.status === 401 && import.meta.env.VITE_SUPERVISOR_APP === 'true') window.dispatchEvent(new Event('supervisor-session-expired'));
   if (!response.ok) {
     throw new Error(
       body?.message ||
@@ -71,12 +73,12 @@ export function getAzureOAuthUrl() {
   return request("/admin/auth/azure/url");
 }
 
-export function exchangeAzureOAuthCode({ code, redirectUri }) {
+export function exchangeAzureOAuthCode({ code, redirectUri, mobileState }) {
   return request(
     "/admin/auth/azure/exchange-code",
     {
       method: "POST",
-      body: JSON.stringify({ code, redirectUri })
+      body: JSON.stringify({ code, redirectUri, ...(mobileState ? { mobileState } : {}) })
     }
   );
 }
@@ -681,3 +683,6 @@ export function getAuditLogs(filters = {}) {
   return request("/admin/auditoria?" + query);
 }
 export function getAuditIssues() { return request("/admin/auditoria/issues"); }
+
+export const startSupervisorAppLogin = () => request('/admin/auth/supervisor-app/start', {method:'POST',body:'{}'});
+export const pollSupervisorAppLogin = payload => request('/admin/auth/supervisor-app/poll', {method:'POST',body:JSON.stringify(payload)});

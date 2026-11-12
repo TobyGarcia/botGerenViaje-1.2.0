@@ -1,0 +1,86 @@
+name: APK Supervisor pruebas
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      version_code:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        default: '0.1.0'
+      version_code:
+        required: true
+        default: '1'
+permissions:
+  contents: write
+concurrency:
+  group: android-supervisor-testing
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: android-testing
+    env:
+      ANDROID_VERSION_NAME: ${{ inputs.version }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/supervisor-signing.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            panel-admin/package-lock.json
+            supervisor-app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Preparar firma y SDK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [[ "$ANDROID_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$ANDROID_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
+          test "$ANDROID_VERSION_CODE" -le 2100000000
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: npm ci --prefix panel-admin
+      - run: npm ci --prefix supervisor-app
+      - run: node supervisor-app/scripts/build-web.mjs
+      - run: node supervisor-app/scripts/prepare-android.mjs
+      - name: Compilar y verificar APK
+        run: |
+          cd supervisor-app/android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/release/app-release.apk | head -8
+      - name: Publicar borrador de pruebas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p supervisor-app/release
+          cp supervisor-app/android/app/build/outputs/apk/release/app-release.apk supervisor-app/release/gv-supervisor.apk
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const tag=`android-supervisor-testing-v${process.env.ANDROID_VERSION_NAME}-${process.env.ANDROID_VERSION_CODE}`;
+          writeFileSync('supervisor-app/release/update.json',JSON.stringify({appId:'com.aspromex.gvmobility.supervisor.testing',versionName:process.env.ANDROID_VERSION_NAME,versionCode:Number(process.env.ANDROID_VERSION_CODE),channel:'testing',downloadUrl:`https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${tag}/gv-supervisor.apk`,sha256:createHash('sha256').update(readFileSync('supervisor-app/release/gv-supervisor.apk')).digest('hex')},null,2));
+          JS
+          TAG="android-supervisor-testing-v${ANDROID_VERSION_NAME}-${ANDROID_VERSION_CODE}"
+          gh release create "$TAG" supervisor-app/release/gv-supervisor.apk supervisor-app/release/update.json --draft --prerelease --target "$GITHUB_SHA" --title "GV Supervisor pruebas $ANDROID_VERSION_NAME" --generate-notes
+      - name: Retirar firma temporal
+        if: always()
+        run: rm -f "$ANDROID_KEYSTORE_PATH"

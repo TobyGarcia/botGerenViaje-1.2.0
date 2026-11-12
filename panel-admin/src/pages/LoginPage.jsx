@@ -4,6 +4,7 @@ import logoGvBlack from "../assets/LOGOGVBLACK.png";
 import gvMobilityVideo from "../assets/LoginAssets/videoGVMobility.mp4";
 
 function LoginPage({ onAuthenticated }) {
+  const [mobileComplete, setMobileComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -12,6 +13,8 @@ function LoginPage({ onAuthenticated }) {
     const codeParam = urlParams.get("code");
     const stateParam = urlParams.get("state");
     const errorParam = urlParams.get("error");
+
+    if(urlParams.get('supervisor_app_done')==='1'){setMobileComplete(true);setMessage('Acceso confirmado. Regresa a GV Supervisor.');window.history.replaceState({},document.title,window.location.pathname);return;}
 
     if (stateParam === "supervisor" || window.location.pathname.startsWith("/supervisor")) {
       const codeQuery = codeParam ? `?code=${encodeURIComponent(codeParam)}&state=supervisor` : "";
@@ -27,10 +30,11 @@ function LoginPage({ onAuthenticated }) {
       setMessage("Autenticando en Microsoft...");
 
       const redirectUri = window.location.origin + "/";
-      exchangeAzureOAuthCode({ code: codeParam, redirectUri })
+      exchangeAzureOAuthCode({ code: codeParam, redirectUri, ...(stateParam?.startsWith("supervisor_app_") ? {mobileState:stateParam} : {}) })
         .then((response) => {
           window.history.replaceState({}, document.title, window.location.pathname);
-          onAuthenticated(response.data.user);
+          if(response.data.mobileCompleted){setMobileComplete(true);setMessage('Acceso confirmado. Regresa a GV Supervisor.');}
+          else onAuthenticated(response.data.user);
         })
         .catch((error) => {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -93,7 +97,7 @@ function LoginPage({ onAuthenticated }) {
             <button
               type="button"
               className="login-submit-btn tenant-submit-btn microsoft-sso-btn"
-              onClick={handleAzureMicrosoftLogin}
+              onClick={()=>mobileComplete ? window.location.assign("gvsupervisor://auth") : handleAzureMicrosoftLogin()}
               disabled={loading}
             >
               {loading ? (
@@ -108,7 +112,7 @@ function LoginPage({ onAuthenticated }) {
                     <rect x="0" y="11" width="10" height="10" fill="#00a4ef"/>
                     <rect x="11" y="11" width="10" height="10" fill="#ffb900"/>
                   </svg>
-                  Iniciar sesión con Microsoft
+                  {mobileComplete ? "Volver a GV Supervisor" : "Iniciar sesión con Microsoft"}
                 </>
               )}
             </button>

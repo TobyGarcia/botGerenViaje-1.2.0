@@ -2,6 +2,11 @@ name: Android firmado
 on:
   workflow_dispatch:
     inputs:
+      application:
+        description: 'Aplicación Android'
+        type: choice
+        options: [driver, supervisor]
+        default: driver
       version:
         description: 'Versión visible (ejemplo 1.1.0)'
         required: true
@@ -23,6 +28,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    if: ${{ inputs.application != 'supervisor' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.reuse_testing_signature && 'android-testing' || format('android-{0}', inputs.channel) }}
     defaults:
@@ -102,3 +108,11 @@ jobs:
       - name: Retirar copia temporal de la firma
         if: always()
         run: rm -f "$ANDROID_KEYSTORE_PATH"
+
+  supervisor-release:
+    if: ${{ inputs.application == 'supervisor' }}
+    uses: ./.github/workflows/android-supervisor-release.yml
+    with:
+      version: ${{ inputs.version }}
+      version_code: ${{ inputs.version_code }}
+    secrets: inherit

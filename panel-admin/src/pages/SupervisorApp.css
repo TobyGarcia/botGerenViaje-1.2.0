@@ -1,0 +1,40 @@
+.supervisor-loading { padding:40px 20px; text-align:center; }
+.supervisor-login { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:32px 24px; background:#102430; color:#fff; text-align:center; }
+.supervisor-login>img { width:220px; max-width:80%; }
+.supervisor-login h1 { margin:0; font-size:32px; }
+.supervisor-login p { margin:0; max-width:340px; line-height:1.5; color:#c3d8e4; }
+.supervisor-login button { max-width:360px; width:100%; min-height:48px; border:0; border-radius:12px; padding:12px; color:#fff; background:#008bc4; }
+.supervisor-login button:disabled { opacity:.65; }
+.supervisor-login .supervisor-secondary { background:#ffffff12; }
+.supervisor-environment { font-size:10px; letter-spacing:2px; color:#7dd3fc; }
+.supervisor-shell { min-height:100dvh; padding-bottom:calc(90px + env(safe-area-inset-bottom)); background:#f4f8fb; }
+.supervisor-topbar { position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:12px; padding:calc(12px + env(safe-area-inset-top)) 16px 12px; background:#102430; color:#fff; }
+.supervisor-topbar img { width:110px; }
+.supervisor-topbar>span { display:grid; gap:4px; flex:1; }
+.supervisor-topbar small { font-size:10px; color:#9dbdce; }
+.supervisor-topbar button { padding:8px; border:0; background:transparent; color:#fda4af; }
+.supervisor-content { max-width:1100px; margin:0 auto; padding:18px 12px; }
+.supervisor-welcome h1 { font-size:22px; color:#19465d; margin:0 0 6px; }
+.supervisor-welcome p { color:#78909e; margin:0 0 18px; }
+.supervisor-content .module-header { display:none; }
+.supervisor-content .module-page { min-width:0; }
+.supervisor-content .table-card { overflow-x:auto; }
+.supervisor-tabs { position:fixed; bottom:0; left:0; right:0; z-index:120; display:grid; grid-template-columns:1fr 1fr; background:#fff; border-top:1px solid #dce8ef; padding:8px 16px calc(8px + env(safe-area-inset-bottom)); }
+.supervisor-tabs button { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px; border:0; background:transparent; color:#78909e; font-size:12px; }
+.supervisor-tabs button[aria-current=page] { color:#0089bd; }
+@media(max-width:600px){.supervisor-content .modal-card { max-width:calc(100vw - 16px); width:100%; max-height:92dvh; overflow:auto; }.supervisor-content .trip-detail-modal { display:block; }.supervisor-content .trip-detail-left,.supervisor-content .trip-detail-right { width:100%; }.supervisor-content .trip-detail-modal .leaflet-container { min-height:300px; }}
+
+.supervisor-review-cards { display:none; }
+@media(max-width:600px){
+ .supervisor-content .logistics-nav-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+ .supervisor-content .logistics-tab-btn { min-width:0; padding:12px 6px; gap:5px; font-size:12px; }
+ .supervisor-content .table-panel,.supervisor-content .table-card { padding:12px; }
+ .supervisor-review-cards { display:grid; gap:12px; }
+ .supervisor-review-cards + .table-wrapper { display:none; }
+ .supervisor-review-cards article { display:grid; gap:10px; padding:16px; border:1px solid #dce8ef; border-radius:14px; background:white; }
+ .supervisor-review-cards header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+ .supervisor-review-cards header>strong { font-size:13px; color:#1b516f; }
+ .supervisor-review-cards p { margin:0; color:#385c70; font-size:13px; }
+ .supervisor-review-cards small { color:#78909e; font-size:12px; }
+ .supervisor-review-cards button { margin:4px 0 0; width:100%; min-height:42px; background:#eaf7fd; border:1px solid #cce9f6; border-radius:9px; color:#007fac; }
+}

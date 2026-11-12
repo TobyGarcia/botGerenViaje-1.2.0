@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.2",
     "@e965/xlsx": "^0.20.3",
     "leaflet": "^1.9.4",
     "react": "^19.2.7",

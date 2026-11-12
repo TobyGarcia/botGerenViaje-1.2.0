@@ -1,3 +1,4 @@
+import { supervisorLoginBroker } from "../services/supervisor-app-login.service.js";
 import {
   authenticateAdminUser,
   authenticateAdminByTenantEmail,
@@ -186,7 +187,9 @@ export function initiateAzureOAuthLoginController(request, response) {
 export async function exchangeAzureOAuthCodeController(request, response) {
   try {
     const code = String(request.body?.code || request.query?.code || "").trim();
-    const redirectUri = String(request.body?.redirectUri || getAzureRedirectUri(request)).trim();
+    const mobileState = String(request.body?.mobileState || "");
+    const isSupervisorApp = mobileState.startsWith('supervisor_app_');
+    const redirectUri = isSupervisorApp ? supervisorLoginBroker.redirect(mobileState) : String(request.body?.redirectUri || getAzureRedirectUri(request)).trim();
 
     if (!code) {
       return response.status(400).json({
@@ -218,19 +221,20 @@ export async function exchangeAzureOAuthCodeController(request, response) {
     }
 
     const token = createAdminSessionToken(result.user);
+    if (isSupervisorApp) supervisorLoginBroker.complete(mobileState, {token, user:serializeAdminUser(result.user)});
     response.cookie(getAdminCookieName(), token, getAdminCookieOptions());
 
     return response.status(200).json({
       success: true,
       data: {
         authenticated: true,
-        token,
+        ...(isSupervisorApp ? { mobileCompleted:true } : { token }),
         user: serializeAdminUser(result.user)
       }
     });
   } catch (error) {
     console.error("Error al intercambiar código de Microsoft:", error.message);
-    return response.status(500).json({
+    return response.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Error al autenticar con Microsoft."
     });
@@ -244,6 +248,11 @@ export async function azureOAuthCallbackController(request, response) {
   const adminUrl = getAdminPanelUrl(request);
   const code = request.query.code;
   const oauthError = request.query.error || request.query.error_description;
+  if(String(request.query.state||'').startsWith('supervisor_app_') && code && !oauthError){
+    const proxy={status(){return proxy;},cookie(...args){response.cookie(...args);return proxy;},json(result){return response.redirect(`${adminUrl}/?supervisor_app_done=${result.success?'1':'0'}${result.success?'':`&error=${encodeURIComponent(result.message)}`}`);}};
+    return exchangeAzureOAuthCodeController({body:{code,mobileState:request.query.state},query:{}},proxy);
+  }
+
 
   if (oauthError) {
     console.error("Error devuelto por Microsoft Azure AD:", oauthError);
@@ -366,4 +375,16 @@ export async function loginWithPinController(request, response) {
       message: "Error al autenticar por PIN."
     });
   }
+}
+
+export function startSupervisorAppLoginController(request,response) {
+ try {
+  const ticket=supervisorLoginBroker.start(getAzureRedirectUri({query:{},body:{},headers:request.headers,get:name=>request.get(name)}));
+  response.set('Cache-Control','no-store');
+  return response.json({success:true,data:{...ticket,authUrl:getAzureOAuthLoginUrl({redirectUri:supervisorLoginBroker.redirect(ticket.state),state:ticket.state})}});
+ } catch(error){return response.status(error.statusCode||500).json({success:false,message:error.message});}
+}
+export function pollSupervisorAppLoginController(request,response) {
+ try {response.set('Cache-Control','no-store');return response.json({success:true,data:supervisorLoginBroker.poll(request.body?.ticket,request.body?.pollToken)});}
+ catch(error){return response.status(error.statusCode||400).json({success:false,message:error.message});}
 }
