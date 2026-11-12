@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IconCross } from './Icons.jsx';
 
-export default function TripOperationModal({ title, badge, icon, busy, onClose, children, footer, role = "dialog" }) {
+export default function TripOperationModal({ title, badge, icon, busy, onClose, children, footer, role = "dialog", headerCaption = "GESTIONAR VIAJE" }) {
   const ref = useRef(null);
   useEffect(() => {
     const focus = document.activeElement;
@@ -33,7 +33,7 @@ export default function TripOperationModal({ title, badge, icon, busy, onClose, 
         <header className="trip-operation-dialog-header">
           <span className="trip-operation-dialog-icon">{icon}</span>
           <div className="trip-operation-dialog-HeadingText">
-            <small>GESTIONAR VIAJE</small>
+            <small>{headerCaption}</small>
             <div className="trip-operation-dialog-title-row">
               <h2 id="trip-operation-modal-title">{title}</h2>
               {badge && <span className="trip-operation-dialog-badge">{badge}</span>}

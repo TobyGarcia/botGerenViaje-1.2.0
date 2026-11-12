@@ -38,6 +38,7 @@ import ActualizacionPerfilConductor from "./components/ActualizacionPerfilConduc
 import ReporteSiniestro from "./components/ReporteSiniestro.jsx";
 import PinLoginForm from "./components/PinLoginForm.jsx";
 import TopBar from "./components/TopBar.jsx";
+import UserGuides from "./components/UserGuides.jsx";
 import FinishTripAlert from "./components/FinishTripAlert.jsx";
 import { IconCar } from "./components/Icons.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
@@ -1981,6 +1982,10 @@ function isOutsideOperatingHours() {
             onCancel={() => setActiveTabMode("urban")}
           />
         )}
+
+        <UserGuides driverId={authenticatedDriver?.id_conductores}
+          autoOpen={!createdTrip && !gerenciamientoPendiente && activeTabMode === 'urban'}
+          showEntry={activeTabMode === 'perfil'} />
 
         {!createdTrip && !gerenciamientoPendiente && activeTabMode === "gerenciamiento" && (
         <GerenciamientoForm
