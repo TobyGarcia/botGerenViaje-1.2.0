@@ -21,6 +21,7 @@ function formatDateForInput(dateStr) {
 }
 
 export default function ActualizacionPerfilConductor({ conductor, onProfileUpdated, onCancel }) {
+  const [nombre, setNombre] = useState(conductor?.nombre || "");
   const [telefono, setTelefono] = useState(conductor?.telefono || "");
   const [licenciaNumero, setLicenciaNumero] = useState(conductor?.licencia_numero || conductor?.licenciaNumero || "");
   const [tipoLicencia, setTipoLicencia] = useState(conductor?.tipo_licencia || "AUTOMOVILISTA");
@@ -72,6 +73,11 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
     setError("");
     setMessage("");
 
+    if (!nombre.trim()) {
+      setError("Escribe tu nombre completo.");
+      return;
+    }
+
     if (!telefono.trim()) {
       setError("El número de teléfono / contacto de emergencia es obligatorio.");
       return;
@@ -90,6 +96,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
     setSaving(true);
     try {
       const payload = {
+        nombre: nombre.trim(),
         telefono: telefono.trim(),
         licenciaNumero: licenciaNumero.trim(),
         tipoLicencia: tipoLicencia.trim(),
@@ -101,7 +108,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
 
       const response = await actualizarPerfilConductor(payload);
       if (response?.success) {
-        setMessage("¡Tus datos y licencia han sido actualizados exitosamente!");
+        setMessage("Cambios guardados.");
         if (typeof onProfileUpdated === "function" && response.data?.conductor) {
           onProfileUpdated(response.data.conductor);
         }
@@ -135,9 +142,9 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
             </svg>
           </div>
           <div>
-            <h2 className="perfil-header-title">Actualización de Datos del Conductor</h2>
+            <h2 className="perfil-header-title">Mi perfil</h2>
             <p className="perfil-header-desc">
-              Modifica tu contacto de emergencia y datos de la licencia de conducir.
+              Actualiza tus datos personales y tu licencia.
             </p>
           </div>
         </div>
@@ -159,29 +166,11 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
 
         {/* Formulario */}
         <form className="perfil-form" onSubmit={handleSubmit}>
-          {/* Nombre Completo (Solo Lectura) */}
+          <div className="perfil-section-title">Datos personales</div>
           <div className="perfil-field">
-            <label className="perfil-label" htmlFor="full-name">
-              Nombre Completo
-            </label>
-            <div className="perfil-input-wrapper">
-              <input
-                id="full-name"
-                type="text"
-                className="perfil-input-readonly"
-                value={conductor?.nombre || ""}
-                readOnly
-              />
-              <div className="perfil-input-icon-right">
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path
-                    d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </div>
+            <label className="perfil-label" htmlFor="full-name">Nombre completo <span className="perfil-required">*</span></label>
+            <input id="full-name" type="text" className="perfil-input" value={nombre}
+              onChange={(event) => setNombre(event.target.value)} required maxLength={150} autoComplete="name" disabled={saving} />
           </div>
 
           {/* Teléfono / Contacto de Emergencia */}
@@ -207,7 +196,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
               required
             />
             <p className="perfil-helper-text">
-              Número al cual avisar en caso de alguna incidencia durante los viajes.
+              Contacto para avisar en una emergencia.
             </p>
           </div>
 
@@ -244,7 +233,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Datos de Licencia de Conducir</span>
+              <span>Licencia de conducir</span>
             </div>
 
             {/* Fila con Número y Vencimiento */}
@@ -315,7 +304,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
             </div>
           </div>
 
-          {/* Fotografías de la Licencia (Frente y Reverso) */}
+          {/* Fotos de la licencia */}
           <div className="perfil-section-divider">
             <div className="perfil-section-title">
               <svg width="16" height="16" fill="none" stroke="#0284c7" strokeWidth="2" viewBox="0 0 24 24">
@@ -326,7 +315,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 />
                 <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span>Fotografías de la Licencia (Frente y Reverso)</span>
+              <span>Fotos de la licencia</span>
             </div>
 
             <div className="perfil-upload-grid">
@@ -362,7 +351,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 </label>
 
                 <span className="perfil-upload-filename">
-                  {licenciaNombreArchivo || (previewFrente ? "Cargado" : "Ningún archivo")}
+                  {licenciaNombreArchivo || (previewFrente ? "Cargado" : "Sin foto nueva")}
                 </span>
               </div>
 
@@ -398,7 +387,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                 </label>
 
                 <span className="perfil-upload-filename">
-                  {licenciaReversoNombre || (previewReverso ? "Cargado" : "Ningún archivo")}
+                  {licenciaReversoNombre || (previewReverso ? "Cargado" : "Sin foto nueva")}
                 </span>
               </div>
             </div>
@@ -422,7 +411,7 @@ export default function ActualizacionPerfilConductor({ conductor, onProfileUpdat
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
+              <span>{saving ? "Guardando..." : "Guardar cambios"}</span>
             </button>
           </div>
         </form>

@@ -279,6 +279,7 @@ export async function findDriverById(idConductor) {
 }
 
 export async function updateDriverSelfProfile(idConductor, {
+  nombre,
   telefono,
   licenciaNumero,
   tipoLicencia,
@@ -289,6 +290,12 @@ export async function updateDriverSelfProfile(idConductor, {
 }) {
   const updates = [];
   const params = [idConductor];
+
+  if (nombre !== undefined) {
+    if (typeof nombre !== "string" || !nombre.trim() || nombre.trim().length > 150) throw new Error("Nombre completo inválido.");
+    params.push(nombre.trim());
+    updates.push(`nombre = $${params.length}`);
+  }
 
   if (telefono !== undefined) {
     params.push(String(telefono).trim());

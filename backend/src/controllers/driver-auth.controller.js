@@ -153,6 +153,7 @@ export async function updateDriverProfileController(request, response) {
     }
 
     const {
+      nombre,
       telefono,
       licenciaNumero,
       tipoLicencia,
@@ -163,6 +164,10 @@ export async function updateDriverProfileController(request, response) {
       licenciaNombreArchivo,
       licenciaReversoNombre
     } = request.body || {};
+
+    if (nombre !== undefined && (typeof nombre !== "string" || !nombre.trim() || nombre.trim().length > 150)) {
+      return response.status(400).json({ success: false, message: "El nombre completo es obligatorio y debe tener hasta 150 caracteres." });
+    }
 
     let licenciaUrl = undefined;
     let licenciaReversoUrl = undefined;
@@ -176,6 +181,7 @@ export async function updateDriverProfileController(request, response) {
     }
 
     const updatedDriver = await updateDriverSelfProfile(idConductor, {
+      nombre,
       telefono,
       licenciaNumero,
       tipoLicencia,

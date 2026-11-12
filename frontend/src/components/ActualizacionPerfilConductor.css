@@ -472,3 +472,13 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* A single surface, divided into readable profile sections. */
+.perfil-card-container .perfil-form { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; gap:18px; }
+.perfil-wrapper { font-family:var(--font-sans, sans-serif); }
+.perfil-card-container { box-shadow:0 2px 8px #123d5008; }
+.perfil-card-container .perfil-input, .perfil-card-container .perfil-select { min-height:44px; font-size:14px; }
+.perfil-header-title { font-weight:600; }
+.perfil-card-container .perfil-upload-card { border-style:solid; background:#f8fbfd; padding:12px 8px; }
+.perfil-card-container .perfil-upload-btn-label { min-height:34px; display:flex; align-items:center; justify-content:center; font-weight:400; }
+.perfil-alert-error { scroll-margin-top:100px; }

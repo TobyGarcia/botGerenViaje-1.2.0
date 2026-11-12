@@ -1,0 +1,3 @@
+FROM gv-staging-trip-operations-backend:stop-compact-lines-20261112
+COPY backend/src/controllers/driver-auth.controller.js /app/src/controllers/driver-auth.controller.js
+COPY backend/src/services/driver-auth.service.js /app/src/services/driver-auth.service.js
