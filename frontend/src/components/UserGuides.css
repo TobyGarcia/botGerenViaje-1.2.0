@@ -1,20 +1,9 @@
 .app-topbar button.topbar-help-button { display:grid; place-items:center; position:relative; width:38px; height:38px; min-width:38px; margin:0; padding:0; background:transparent; color:#b8def0; border:0; border-radius:8px; box-shadow:none; }
 .app-topbar button.topbar-help-button:hover { background:#ffffff0c; color:white; }
 .app-topbar button.topbar-help-button:focus-visible { outline:2px solid #51c8f3; outline-offset:2px; }
-.topbar-help-dot { position:absolute; top:5px; right:5px; width:6px; height:6px; border-radius:50%; background:#34d399; border:2px solid #0f1d28; }
 .trip-operation-dialog:has(.visual-guide) { max-height:96dvh; }
 .visual-guide { display:grid; gap:14px; }
 .guide-hub { display:grid; gap:12px; }
-.gv-trip-operations .guide-news-card { display:flex; align-items:center; gap:12px; margin:0 0 4px; padding:18px 14px; min-width:0; width:100%; background:linear-gradient(120deg,#e9f7fe,#f4fbff); border:1px solid #cce7f5; border-radius:16px; box-shadow:none; text-align:left; color:#14698e; }
-.guide-news-icon { display:grid; place-items:center; flex-shrink:0; width:46px; height:46px; border-radius:14px; background:#fff; color:#008ac1; }
-.guide-news-card>span:nth-child(2) { flex:1; min-width:0; display:grid; gap:4px; }
-.guide-news-card small { font-size:9px; font-weight:600; letter-spacing:1px; color:#008ac1; }
-.guide-news-card strong { font-size:16px; font-weight:600; }
-.guide-news-card span>span { color:#64889e; font-size:11px; font-weight:400; }
-.guide-news-card b { font-size:20px; font-weight:400; }
-.guide-hub-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px; }
-.guide-hub-heading h3 { margin:0; font-size:15px; font-weight:600; color:#21495f; }
-.guide-hub-heading>span { color:#8398a5; font-size:11px; }
 .gv-trip-operations .guide-topic-card { display:flex; align-items:center; gap:12px; margin:0; padding:14px; width:100%; border:1px solid #e0eaf0; border-radius:14px; background:#fff; color:#244f63; text-align:left; box-shadow:none; }
 .guide-topic-icon { display:grid; place-items:center; flex-shrink:0; width:46px; height:46px; border-radius:13px; color:#0088b8; background:#edf9fd; }
 .guide-topic-trailers .guide-topic-icon { color:#947031; background:#fff8e8; }
