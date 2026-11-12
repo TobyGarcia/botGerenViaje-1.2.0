@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:management-scope-b1ec4cc
+COPY backend/src/controllers/android-update.controller.js /app/src/controllers/android-update.controller.js

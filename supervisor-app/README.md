@@ -39,3 +39,13 @@ Una APK para SUPERVISOR, QHSE, COORDINADOR, COORDINADOR_AREA, COORDINADOR_QHSE, 
 Se incorpora el filtro de gerencia y la identificación del autorizador desde la sesión ya desplegados en el servidor. La vista usa tarjetas y navegación como conductor, nombre del rol, filtros adaptables y datos del gerenciamiento legibles. La hoja completa con su inspección permanece desplegable; las acciones de revisión y firma están fuera de ella. Las tablas documentales extensas permiten desplazamiento dentro de su sección sin ensanchar la pantalla.
 
 QA con componentes reales y datos ficticios: 320, 360, 390, 600, 768, 844 en horizontal, 1024 y 1280 px; login, pendientes, revisión de inspección, gerenciamiento, acciones accesibles, viajes y detalle; acceso de los nueve roles. No se realizan aprobaciones reales durante las pruebas. Microsoft y retorno nativo requieren prueba final en un teléfono autorizado.
+
+
+## Versión 0.1.4 (código 5): actualizaciones y ajustes Android
+
+- Actualizaciones independientes: `/api/android/update?application=supervisor&channel=testing`. Descubrimiento de releases publicados `android-supervisor-testing-*`, sin mezclar versiones de conductor. Usa el descubrimiento de pruebas ya configurado.
+- Aviso antes y después del login, al regresar a la app y cada minuto visible. Botón para consultar manualmente junto a salir. Más tarde pospone 30 minutos. No interrumpe un modal de revisión.
+- Descarga privada dentro de la app y verificación SHA256, versión mayor, paquete y certificado iguales antes de abrir el instalador Android. Se reutilizan las clases del actualizador del conductor en la preparación del proyecto. El usuario debe permitir instalaciones desde esta fuente si Android lo solicita.
+- La 0.1.3 carece del actualizador: instalar una vez esta APK mediante enlace; versiones posteriores se detectan desde la app. No requiere desinstalar ni cerrar sesión.
+- Insets nativos de Capacitor 8 para reservar las barras del sistema y el teclado. Filtros de estado en cuadrícula y filtros de gerenciamiento adaptables sin expandir el lienzo del WebView.
+- QA adicional sobre el bundle compilado, no solo Vite: `node panel-admin/tools/supervisor/serve-built.mjs`; ejecutar verify.mjs con SUPERVISOR_QA_BUILT=true. Incluye estados vacíos, nueve roles, controles sin recorte y navegación visible. Sin dispositivo Android conectado: el comportamiento final del instalador y proveedor Microsoft se valida en teléfono.

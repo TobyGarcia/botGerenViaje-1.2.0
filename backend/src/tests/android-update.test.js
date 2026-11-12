@@ -60,3 +60,14 @@ test("descubre solo releases publicados del canal testing y selecciona mayor có
     else process.env.ANDROID_UPDATE_TESTING = previousRaw;
   }
 });
+
+test("aprobadores descubre su propio canal, ignora conductor y borradores", async()=>{
+ const originalFetch=globalThis.fetch,previous=process.env.ANDROID_UPDATE_DISCOVERY;
+ const base='https://github.com/TobyGarcia/botGerenViaje-1.2.0/releases/download/';
+ const release=(code,draft=false)=>({tag_name:`android-supervisor-testing-v0.1.4-${code}`,draft,prerelease:true,assets:['update.json','gv-supervisor.apk'].map(name=>({name,browser_download_url:`${base}android-supervisor-testing-v0.1.4-${code}/${name}`}))});
+ globalThis.fetch=async url=>({ok:true,json:async()=>url.startsWith('https://api.github.com/')?[release(99,true),release(4),release(5),{tag_name:'android-testing-v1.2.40-46',draft:false,prerelease:true}]:{appId:'com.aspromex.gvmobility.supervisor.testing',channel:'testing',versionCode:5,versionName:'0.1.4',sha256:'a'.repeat(64),downloadUrl:`${base}android-supervisor-testing-v0.1.4-5/gv-supervisor.apk`}});
+ const response=()=>({code:200,set(){},status(code){this.code=code;return this;},json(data){this.data=data;return this;}});
+ try{process.env.ANDROID_UPDATE_DISCOVERY='testing';const res=response();await androidUpdateController({query:{application:'supervisor',channel:'testing'}},res);assert.equal(res.code,200);assert.equal(res.data.versionCode,5);assert.equal(res.data.appId,'com.aspromex.gvmobility.supervisor.testing');
+ const invalid=response();await androidUpdateController({query:{application:'supervisor',channel:'stable'}},invalid);assert.equal(invalid.code,400);
+ }finally{globalThis.fetch=originalFetch;if(previous===undefined)delete process.env.ANDROID_UPDATE_DISCOVERY;else process.env.ANDROID_UPDATE_DISCOVERY=previous;}
+});
