@@ -62,6 +62,8 @@ final class ApproverNotifications {
   java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
   if(!PriorityAlertPolicy.isCurrentSnapshot(updated,prefs(c).getLong("critical_revision",0)))return;
   boolean priorityRequest=false;
+  List<Runnable> ordinaryNotices=new ArrayList<>();
+  Runnable priorityNotice=()->{};
   Set<String> seen=new HashSet<>(prefs(c).getStringSet("seen",new HashSet<>()));
   JSONArray events=payload.optJSONArray("events");if(events==null)events=new JSONArray();
   for(int i=0;i<events.length();i++){JSONObject event=events.getJSONObject(i);String id=event.getString("id");if(seen.contains(id))continue;
@@ -74,7 +76,8 @@ final class ApproverNotifications {
    if(decision)manager.cancel("request:"+trip,7302);
    NotificationCompat.Builder eventNotice=builder(c,EVENTS_CHANNEL,event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true);
    if(Build.VERSION.SDK_INT<26)eventNotice.setDefaults(Notification.DEFAULT_SOUND|Notification.DEFAULT_VIBRATE);
-   manager.notify(request?"request:"+trip:"event:"+id,7302,eventNotice.build());seen.add(id);
+   String tag=request?"request:"+trip:"event:"+id;
+   Notification ordinary=eventNotice.build();ordinaryNotices.add(()->manager.notify(tag,7302,ordinary));seen.add(id);
   }
   if(seen.size()>500){List<String> ordered=new ArrayList<>(seen);ordered.sort((a,b)->Long.compare(Long.parseLong(a),Long.parseLong(b)));seen=new HashSet<>(ordered.subList(ordered.size()-500,ordered.size()));}
   prefs(c).edit().putStringSet("seen",seen).apply();
@@ -85,12 +88,18 @@ final class ApproverNotifications {
    int managementCount=critical.optInt("managementCount");String managementSignature=critical.optJSONArray("managementFolios")!=null?critical.optJSONArray("managementFolios").toString():"";
    String channel=PRIORITY_CHANNEL;
    String oldChannel=prefs(c).getString("critical_channel",PRIORITY_CHANNEL);if(!channel.equals(oldChannel))manager.cancel(7301);
+   String renderKey=count+"|"+signature+"|"+channel;
+   boolean present=false;for(android.service.notification.StatusBarNotification active:c.getSystemService(NotificationManager.class).getActiveNotifications())if(active.getId()==7301){present=true;break;}
+   if(PriorityAlertPolicy.shouldRefresh(alert,present,prefs(c).getString("critical_render_key",""),renderKey)){
    NotificationCompat.Builder notice=builder(c,channel,count==1?"ATENCIÓN: viaje prioritario por aprobar":"ATENCIÓN: "+count+" viajes prioritarios",android.text.TextUtils.join(", ",names)+" · Fuera de horario o del estado. Revisa las aprobaciones.","pending")
     .setPriority(NotificationCompat.PRIORITY_HIGH).setColor(0xFFDC6803).setOngoing(true).setAutoCancel(false).setCategory(NotificationCompat.CATEGORY_REMINDER).setOnlyAlertOnce(!alert);
    if(!alert)notice.setSilent(true);
    if(Build.VERSION.SDK_INT<26&&alert)notice.setSound(managementSound(c)).setVibrate(NotificationSoundPolicy.managementVibration());
-   manager.notify(7301,notice.build());
+   Notification priority=notice.build();
+   priorityNotice=()->{manager.notify(7301,priority);prefs(c).edit().putString("critical_render_key",renderKey).apply();};
+   }
    prefs(c).edit().putInt("critical_count",count).putString("critical_signature",signature).putInt("management_count",managementCount).putString("management_signature",managementSignature).putString("critical_channel",channel).apply();}
+  PriorityAlertPolicy.publish(priorityNotice,ordinaryNotices);
   prefs(c).edit().putLong("critical_revision",updated).apply();
  }
 }
