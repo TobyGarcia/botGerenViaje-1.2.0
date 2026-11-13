@@ -37,5 +37,8 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8"
+  },
+  "overrides": {
+    "@firebase/database-compat": "2.1.5"
   }
 }
