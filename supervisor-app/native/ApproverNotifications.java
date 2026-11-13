@@ -4,7 +4,7 @@ import androidx.core.app.NotificationCompat;import androidx.core.app.Notificatio
 import org.json.*;import java.util.*;import java.net.*;import java.io.*;import java.nio.charset.StandardCharsets;
 final class ApproverNotifications {
  static final String PRIORITY_CHANNEL="approver_priority_v2";
- static final String MANAGEMENT_CHANNEL="approver_management_v1",MANAGEMENT_PRIORITY_CHANNEL="approver_management_pending_v1";
+ static final String MANAGEMENT_CHANNEL="approver_management_v2",MANAGEMENT_PRIORITY_CHANNEL="approver_management_pending_v2";
  static final String BASE="https://gvmobility.aspromex.mx/api/approver-notifications";
  static final java.util.concurrent.ExecutorService IO=java.util.concurrent.Executors.newSingleThreadExecutor();
  static android.content.SharedPreferences prefs(Context c){return c.getSharedPreferences("approver-notifications",Context.MODE_PRIVATE);}
@@ -22,7 +22,7 @@ final class ApproverNotifications {
   m.createNotificationChannel(priority);
   for(String id:new String[]{MANAGEMENT_CHANNEL,MANAGEMENT_PRIORITY_CHANNEL}){
    NotificationChannel management=new NotificationChannel(id,id.equals(MANAGEMENT_CHANNEL)?"Gerenciamiento de viajes":"Gerenciamientos prioritarios pendientes",NotificationManager.IMPORTANCE_HIGH);
-   management.setDescription("Sonido GV para las solicitudes y decisiones de gerenciamiento");management.enableVibration(true);management.setVibrationPattern(new long[]{0,350,150,350});
+   management.setDescription("Sonido GV para las solicitudes y decisiones de gerenciamiento");management.enableVibration(true);management.setVibrationPattern(NotificationSoundPolicy.managementVibration());
    management.setSound(managementSound(c),new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());m.createNotificationChannel(management);
   }
   if(!prefs(c).getBoolean("priority_v2_migrated",false)){m.cancel(7301);prefs(c).edit().putBoolean("priority_v2_migrated",true).apply();}
@@ -68,7 +68,7 @@ final class ApproverNotifications {
   for(int i=0;i<events.length();i++){JSONObject event=events.getJSONObject(i);String id=event.getString("id");if(seen.contains(id))continue;
    boolean management=NotificationSoundPolicy.isManagement(event.optString("category"),event.optString("title"));
    NotificationCompat.Builder eventNotice=builder(c,management?MANAGEMENT_CHANNEL:"approver_events",event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true);
-   if(management){eventNotice.setPriority(NotificationCompat.PRIORITY_HIGH);if(managementPlayed)eventNotice.setSilent(true);else if(Build.VERSION.SDK_INT<26)eventNotice.setSound(managementSound(c)).setVibrate(new long[]{0,350,150,350});managementPlayed=true;}
+   if(management){eventNotice.setPriority(NotificationCompat.PRIORITY_HIGH);if(managementPlayed)eventNotice.setSilent(true);else if(Build.VERSION.SDK_INT<26)eventNotice.setSound(managementSound(c)).setVibrate(NotificationSoundPolicy.managementVibration());managementPlayed=true;}
    manager.notify("event:"+id,7302,eventNotice.build());seen.add(id);
   }
   if(seen.size()>500){List<String> ordered=new ArrayList<>(seen);ordered.sort((a,b)->Long.compare(Long.parseLong(a),Long.parseLong(b)));seen=new HashSet<>(ordered.subList(ordered.size()-500,ordered.size()));}
@@ -87,7 +87,7 @@ final class ApproverNotifications {
    NotificationCompat.Builder notice=builder(c,channel,count==1?"ATENCIÓN: viaje prioritario por aprobar":"ATENCIÓN: "+count+" viajes prioritarios",android.text.TextUtils.join(", ",names)+" · Fuera de horario o del estado. Revisa las aprobaciones.","pending")
     .setPriority(NotificationCompat.PRIORITY_HIGH).setColor(0xFFDC6803).setOngoing(true).setAutoCancel(false).setCategory(NotificationCompat.CATEGORY_REMINDER).setOnlyAlertOnce(!alert);
    if(!alert)notice.setSilent(true);
-   if(Build.VERSION.SDK_INT<26&&alert)notice.setSound(managementCount>0?managementSound(c):prioritySound(c)).setVibrate(new long[]{0,350,150,350,150,600});
+   if(Build.VERSION.SDK_INT<26&&alert)notice.setSound(managementCount>0?managementSound(c):prioritySound(c)).setVibrate(managementCount>0?NotificationSoundPolicy.managementVibration():new long[]{0,350,150,350,150,600});
    manager.notify(7301,notice.build());
    prefs(c).edit().putInt("critical_count",count).putString("critical_signature",signature).putInt("management_count",managementCount).putString("management_signature",managementSignature).putString("critical_channel",channel).apply();}
   prefs(c).edit().putLong("critical_revision",updated).apply();

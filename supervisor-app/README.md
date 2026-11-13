@@ -81,3 +81,8 @@ La prueba temporal enviada al dispositivo autorizado se identifica como PRUEBA y
 Se incorpora íntegro el MP3 proporcionado por el usuario, validado con 4.13 segundos de duración, como `resources/raw/gv_management.mp3`. Las solicitudes y decisiones de gerenciamiento usan un canal propio con ese sonido; el resumen prioritario usa el MP3 cuando contiene gerenciamientos. Las inspecciones y otros viajes conservan sus canales. Los eventos que ya sonaron en el mismo lote evitan un segundo sonido del resumen; los refrescos sin cambios continúan silenciosos.
 
 El servidor añade la categoría y estado de cada evento y distingue los pendientes de gerenciamiento. La APK conserva una identificación de compatibilidad para mensajes anteriores sin categoría. No se cambian permisos de aprobación ni reglas de visibilidad.
+
+
+## Versión 0.1.8 (código 9): vibración larga de gerenciamiento
+
+Los avisos y el resumen persistente de gerenciamiento usan una vibración continua de tres segundos, conservando el MP3 GV. Se versionan ambos canales para aplicar el patrón en instalaciones existentes. Otros tipos conservan sus patrones; los refrescos siguen sin volver a alertar. La intensidad y disponibilidad dependen de Android y del dispositivo.
