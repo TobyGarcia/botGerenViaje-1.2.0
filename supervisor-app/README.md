@@ -67,3 +67,10 @@ El permiso se solicita tras iniciar sesión. Un dispositivo se vincula a una sol
 Se mantiene un resumen silencioso y ongoing mientras existan inspecciones/gerenciamientos prioritarios pendientes, aunque el viaje ya haya terminado: las aprobaciones pueden ser posteriores. Al decidir se actualiza/cancela el resumen; la app también refresca el estado al volver y periódicamente mientras está abierta. Android controla el permiso, ahorro de batería y la posibilidad de descartar/ocultar notificaciones; no se promete una notificación imposible de quitar.
 
 Requiere migración 046 y backend con APPROVER_PUSH_ENABLED=true y GOOGLE_APPLICATION_CREDENTIALS apuntando a un archivo montado como secreto de sólo lectura. Nunca incluir la clave privada en Git, imágenes o APK. El JSON público Android no es esa credencial. FCM puede demorar mensajes por conectividad o restricciones de Android. Una app detenida forzosamente desde Ajustes debe abrirse otra vez.
+
+
+## Versión 0.1.6 (código 7): prioridad visible y audible
+
+El resumen prioritario usa un canal nuevo de importancia HIGH, tono propio, vibración y estilo destacado. Un pendiente nuevo alerta una vez; los refrescos sin cambios, las bajas por aprobación y la cancelación del resumen son silenciosos. El canal nuevo permite actualizar instalaciones que tenían el canal anterior de baja importancia. No se altera el volumen del teléfono ni se omite No molestar. Android y los ajustes del usuario controlan la presentación emergente y la permanencia.
+
+La prueba temporal enviada al dispositivo autorizado se identifica como PRUEBA y restaura el estado real automáticamente, sin crear viajes ni aprobaciones.

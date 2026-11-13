@@ -3,11 +3,23 @@ import android.app.*;import android.content.*;import android.os.Build;
 import androidx.core.app.NotificationCompat;import androidx.core.app.NotificationManagerCompat;
 import org.json.*;import java.util.*;import java.net.*;import java.io.*;import java.nio.charset.StandardCharsets;
 final class ApproverNotifications {
+ static final String PRIORITY_CHANNEL="approver_priority_v2";
  static final String BASE="https://gvmobility.aspromex.mx/api/approver-notifications";
  static final java.util.concurrent.ExecutorService IO=java.util.concurrent.Executors.newSingleThreadExecutor();
  static android.content.SharedPreferences prefs(Context c){return c.getSharedPreferences("approver-notifications",Context.MODE_PRIVATE);}
  static boolean bound(Context c){return !prefs(c).getString("device","").isEmpty();}
- static void channels(Context c){if(Build.VERSION.SDK_INT>=26){NotificationManager m=c.getSystemService(NotificationManager.class);m.createNotificationChannel(new NotificationChannel("approver_events","Avisos de viajes y aprobaciones",NotificationManager.IMPORTANCE_DEFAULT));m.createNotificationChannel(new NotificationChannel("approver_pending","Aprobaciones prioritarias pendientes",NotificationManager.IMPORTANCE_LOW));}}
+ static android.net.Uri prioritySound(Context c){return android.net.Uri.parse("android.resource://"+c.getPackageName()+"/raw/priority_trip");}
+ static void channels(Context c){if(Build.VERSION.SDK_INT>=26){
+  NotificationManager m=c.getSystemService(NotificationManager.class);
+  m.createNotificationChannel(new NotificationChannel("approver_events","Avisos de viajes y aprobaciones",NotificationManager.IMPORTANCE_DEFAULT));
+  NotificationChannel priority=new NotificationChannel(PRIORITY_CHANNEL,"Viajes prioritarios por aprobar",NotificationManager.IMPORTANCE_HIGH);
+  priority.setDescription("Avisos destacados para viajes fuera de horario o del estado pendientes de aprobación");
+  priority.enableVibration(true);priority.setVibrationPattern(new long[]{0,350,150,350,150,600});
+  priority.enableLights(true);priority.setLightColor(android.graphics.Color.CYAN);
+  priority.setSound(prioritySound(c),new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+  m.createNotificationChannel(priority);
+  if(!prefs(c).getBoolean("priority_v2_migrated",false)){m.cancel(7301);prefs(c).edit().putBoolean("priority_v2_migrated",true).apply();}
+ }}
  static JSONObject request(Context c,String method,String path,JSONObject body)throws Exception{
   return request(method,path,body,prefs(c).getString("device",""),ApproverSecrets.decrypt(prefs(c).getString("secret","")));
  }
@@ -36,7 +48,7 @@ final class ApproverNotifications {
  static JSONObject critical(JSONArray rows)throws Exception{JSONArray folios=new JSONArray();for(int i=0;i<Math.min(rows.length(),3);i++)folios.put(rows.getJSONObject(i).getString("folio"));return new JSONObject().put("count",rows.length()).put("folios",folios);}
  static PendingIntent intent(Context c,String tab){Intent i=new Intent(c,MainActivity.class).putExtra("notification_tab",tab).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);return PendingIntent.getActivity(c,tab.equals("pending")?7301:7302,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
  static NotificationCompat.Builder builder(Context c,String channel,String title,String body,String tab){
-  Notification publicView=new NotificationCompat.Builder(c,channel).setSmallIcon(R.drawable.ic_stat_approver).setContentTitle("GV Mobility").setContentText("Tienes novedades de tus viajes").build();
+  Notification publicView=new NotificationCompat.Builder(c,channel).setSmallIcon(R.drawable.ic_stat_approver).setContentTitle(channel.equals(PRIORITY_CHANNEL)?"GV Mobility · Aprobación prioritaria":"GV Mobility").setContentText(channel.equals(PRIORITY_CHANNEL)?"Abre la app para revisar los viajes pendientes":"Tienes novedades de tus viajes").build();
   return new NotificationCompat.Builder(c,channel).setSmallIcon(R.drawable.ic_stat_approver).setContentTitle(title).setContentText(body).setStyle(new NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(intent(c,tab)).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicView).setOnlyAlertOnce(true);
  }
  static synchronized void apply(Context c,JSONObject payload)throws Exception{
@@ -53,8 +65,15 @@ final class ApproverNotifications {
   java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
   if(updated<prefs(c).getLong("critical_revision",0))return;
   JSONObject critical=payload.getJSONObject("critical");int count=critical.optInt("count");
-  if(count==0)manager.cancel(7301);else{JSONArray folios=critical.optJSONArray("folios");List<String> names=new ArrayList<>();if(folios!=null)for(int i=0;i<folios.length();i++)names.add(folios.optString(i));
-   manager.notify(7301,builder(c,"approver_pending",count==1?"Viaje prioritario por aprobar":count+" viajes prioritarios por aprobar",android.text.TextUtils.join(", ",names)+" · Fuera de horario o del estado","pending").setOngoing(true).setAutoCancel(false).setCategory(NotificationCompat.CATEGORY_REMINDER).build());}
+  if(count==0){manager.cancel(7301);prefs(c).edit().putInt("critical_count",0).putString("critical_signature","").apply();}else{JSONArray folios=critical.optJSONArray("folios");List<String> names=new ArrayList<>();if(folios!=null)for(int i=0;i<folios.length();i++)names.add(folios.optString(i));
+   String signature=android.text.TextUtils.join("|",names);
+   boolean alert=PriorityAlertPolicy.shouldAlert(prefs(c).getInt("critical_count",0),prefs(c).getString("critical_signature",""),count,signature);
+   NotificationCompat.Builder notice=builder(c,PRIORITY_CHANNEL,count==1?"ATENCIÓN: viaje prioritario por aprobar":"ATENCIÓN: "+count+" viajes prioritarios",android.text.TextUtils.join(", ",names)+" · Fuera de horario o del estado. Revisa las aprobaciones.","pending")
+    .setPriority(NotificationCompat.PRIORITY_HIGH).setColor(0xFFDC6803).setOngoing(true).setAutoCancel(false).setCategory(NotificationCompat.CATEGORY_REMINDER).setOnlyAlertOnce(!alert);
+   if(!alert)notice.setSilent(true);
+   if(Build.VERSION.SDK_INT<26&&alert)notice.setSound(prioritySound(c)).setVibrate(new long[]{0,350,150,350,150,600});
+   manager.notify(7301,notice.build());
+   prefs(c).edit().putInt("critical_count",count).putString("critical_signature",signature).apply();}
   prefs(c).edit().putLong("critical_revision",updated).apply();
  }
 }
