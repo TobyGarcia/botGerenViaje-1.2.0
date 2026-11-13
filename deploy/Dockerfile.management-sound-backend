@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:approver-push-6365387
+COPY backend/src/services/approver-push.service.js /app/src/services/approver-push.service.js

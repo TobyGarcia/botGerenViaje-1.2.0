@@ -40,9 +40,10 @@ public class MainActivity extends BridgeActivity {
  @Override public void onCreate(Bundle savedInstanceState) {registerPlugin(AndroidVersionPlugin.class);registerPlugin(ApproverNotificationsPlugin.class);super.onCreate(savedInstanceState);}
  @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);}
 }`);
-for(const name of ['ApproverNotifications','ApproverFirebaseService','ApproverNotificationsPlugin','PriorityAlertPolicy'])writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(app,'native',name+'.java'),'utf8'));
+for(const name of ['ApproverNotifications','ApproverFirebaseService','ApproverNotificationsPlugin','PriorityAlertPolicy','NotificationSoundPolicy'])writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(app,'native',name+'.java'),'utf8'));
 mkdirSync(resolve(app,'android/app/src/main/res/raw'),{recursive:true});
-writeFileSync(resolve(app,'android/app/src/main/res/raw/priority_trip.wav'),readFileSync(resolve(app,'resources/raw/priority_trip.wav')));
+for(const name of ['priority_trip.wav','gv_management.mp3'])writeFileSync(resolve(app,'android/app/src/main/res/raw',name),readFileSync(resolve(app,'resources/raw',name)));
+writeFileSync(resolve(nativeTestDir,'NotificationSoundPolicyTest.java'),readFileSync(resolve(app,'native-tests/NotificationSoundPolicyTest.java'),'utf8'));
 writeFileSync(resolve(nativeTestDir,'PriorityAlertPolicyTest.java'),readFileSync(resolve(app,'native-tests/PriorityAlertPolicyTest.java'),'utf8'));
 writeFileSync(resolve(nativeDir,'ApproverSecrets.java'),readFileSync(resolve(sharedNative,'GpsSecrets.java'),'utf8').replaceAll('com.aspromex.gerenciamientoviajes','com.aspromex.gvmobility.supervisor.testing').replaceAll('GpsSecrets','ApproverSecrets').replaceAll('gv-gps-token','gv-approver-token'));
 let notificationManifest=readFileSync(manifest,'utf8');

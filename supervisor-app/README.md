@@ -74,3 +74,10 @@ Requiere migración 046 y backend con APPROVER_PUSH_ENABLED=true y GOOGLE_APPLIC
 El resumen prioritario usa un canal nuevo de importancia HIGH, tono propio, vibración y estilo destacado. Un pendiente nuevo alerta una vez; los refrescos sin cambios, las bajas por aprobación y la cancelación del resumen son silenciosos. El canal nuevo permite actualizar instalaciones que tenían el canal anterior de baja importancia. No se altera el volumen del teléfono ni se omite No molestar. Android y los ajustes del usuario controlan la presentación emergente y la permanencia.
 
 La prueba temporal enviada al dispositivo autorizado se identifica como PRUEBA y restaura el estado real automáticamente, sin crear viajes ni aprobaciones.
+
+
+## Versión 0.1.7 (código 8): sonido GV para gerenciamiento
+
+Se incorpora íntegro el MP3 proporcionado por el usuario, validado con 4.13 segundos de duración, como `resources/raw/gv_management.mp3`. Las solicitudes y decisiones de gerenciamiento usan un canal propio con ese sonido; el resumen prioritario usa el MP3 cuando contiene gerenciamientos. Las inspecciones y otros viajes conservan sus canales. Los eventos que ya sonaron en el mismo lote evitan un segundo sonido del resumen; los refrescos sin cambios continúan silenciosos.
+
+El servidor añade la categoría y estado de cada evento y distingue los pendientes de gerenciamiento. La APK conserva una identificación de compatibilidad para mensajes anteriores sin categoría. No se cambian permisos de aprobación ni reglas de visibilidad.

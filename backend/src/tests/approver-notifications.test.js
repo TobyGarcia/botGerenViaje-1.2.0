@@ -53,3 +53,8 @@ test('rutas de avisos exigen sesión para registrar y credencial de dispositivo 
  await db.query('UPDATE usuarios_admin SET activo=FALSE WHERE id_usuarios_admin=$1',[id]);assert.equal((await fetch(base+'/feed',{headers})).status,401);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+test('el payload distingue gerenciamientos y sus pendientes sin reclasificar inspecciones',()=>{
+ const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',folio:'VJ-1'},{id:'2',tripId:'2',categoria:'inspection',estado:'PENDIENTE_APROBACION',folio:'VJ-2'}],critical:[{folio:'VJ-1',fueraEstado:true},{folio:'VJ-2',fueraEstado:false}],polledAt:new Date().toISOString()};
+ const value=pushSnapshot('test',feed);assert.equal(value.events[0].category,'management');assert.equal(value.events[0].state,'PENDIENTE');assert.equal(value.events[1].category,'inspection');assert.equal(value.critical.managementCount,1);assert.deepEqual(value.critical.managementFolios,['VJ-1']);
+});

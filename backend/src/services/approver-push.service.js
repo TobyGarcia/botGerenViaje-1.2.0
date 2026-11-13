@@ -15,9 +15,9 @@ export function getApproverMessaging(){
 }
 const labels={trip:{PENDIENTE:'Viaje registrado',EN_CURSO:'Viaje iniciado',FINALIZADO:'Viaje finalizado',CANCELADO:'Viaje cancelado'},inspection:{PENDIENTE_APROBACION:'Inspección por aprobar',APROBADA:'Inspección aprobada',RECHAZADA:'Inspección rechazada'},management:{PENDIENTE:'Gerenciamiento por aprobar',APROBADO:'Gerenciamiento aprobado',RECHAZADO:'Gerenciamiento rechazado'}};
 export function pushSnapshot(deviceId,feed){
- const critical={count:feed.critical.length,folios:feed.critical.slice(0,3).map(v=>v.folio)};
+ const critical={count:feed.critical.length,folios:feed.critical.slice(0,3).map(v=>v.folio),managementCount:feed.critical.filter(v=>v.fueraEstado).length,managementFolios:feed.critical.filter(v=>v.fueraEstado).slice(0,3).map(v=>v.folio)};
  const events=[];for(const event of feed.events.slice(0,10)){
-  const value={id:event.id,tripId:event.tripId,title:labels[event.categoria]?.[event.estado]||'Parada técnica',body:[event.folio,event.conductor,event.unidad,event.detalle||`${event.origen||''} → ${event.destino||''}`].filter(Boolean).join(' · ').slice(0,240)};
+  const value={id:event.id,tripId:event.tripId,category:event.categoria,state:event.estado,title:labels[event.categoria]?.[event.estado]||'Parada técnica',body:[event.folio,event.conductor,event.unidad,event.detalle||`${event.origen||''} → ${event.destino||''}`].filter(Boolean).join(' · ').slice(0,240)};
   const candidate={deviceId,events:[...events,value],critical,updatedAt:feed.polledAt};
   if(Buffer.byteLength(JSON.stringify(candidate),'utf8')>3300)break;events.push(value);
  }
