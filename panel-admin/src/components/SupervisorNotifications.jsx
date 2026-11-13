@@ -5,6 +5,7 @@ import {apiFetch,readApiJson}from'../services/http-transport.js';
 const native=registerPlugin('ApproverNotifications');
 const enabled=()=>Capacitor.isNativePlatform()&&Capacitor.getPlatform()==='android';
 let inFlight=null,generation=0;
+export async function refreshApproverNotifications(){if(enabled())await native.refresh().catch(()=>{});}
 export async function stopApproverNotifications(){generation++;if(enabled())await native.stop().catch(()=>{});}
 async function activate(user,request=false){
  if(inFlight)return inFlight;

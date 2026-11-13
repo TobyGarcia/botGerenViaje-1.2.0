@@ -1,3 +1,4 @@
+import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk,requiredRiskRole} from '../../../backend/src/utils/approval-policy.js';
 import { useCallback, useEffect, useRef, useState } from "react";
 import TrailerInspectionCards from '../components/TrailerInspectionCards.jsx';
@@ -367,7 +368,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
       const response = await decidirAdminInspeccion(detail.id_inspeccion, aprobada, comment, signature);
       setMessage(response.message);
       setDetail({ ...detail, ...response.data });
-      await load();
+      await Promise.all([load(),refreshApproverNotifications()]);
     } catch (error) {
       setMessage(error.message);
     } finally {

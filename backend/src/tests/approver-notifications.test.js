@@ -17,6 +17,7 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
  const first=await approverFeed(manager,device.cursor);assert.equal(first.events.some(e=>e.tripId===String(normal)),false);assert.equal(first.events.length,2);assert.equal(first.critical.length,1);assert.equal(first.critical[0].folio.length>0,true);
  const repeated=await approverFeed(manager,first.cursor);assert.equal(repeated.events.length,0);assert.equal(repeated.critical.length,1);
  await db.query("UPDATE inspecciones_vehiculares SET estado='APROBADA' WHERE id_viajes=$1",[late]);
+ const backlog=await approverFeed(manager,device.cursor);assert.equal(backlog.events.find(e=>e.categoria==='inspection'&&e.estado==='PENDIENTE_APROBACION').actionable,false);assert.equal(pushSnapshot(device.deviceId,backlog).events.some(e=>e.state==='PENDIENTE_APROBACION'),false);
  const decided=await approverFeed(manager,first.cursor);assert.equal(decided.events.length,1);assert.equal(decided.critical.length,0);
  await db.query("UPDATE inspecciones_vehiculares SET estado='APROBADA' WHERE id_viajes=$1",[late]);assert.equal((await approverFeed(manager,decided.cursor)).events.length,0);
  assert.equal((await approverFeed({rol:'SUPERVISOR'},device.cursor)).events.some(e=>e.tripId===String(normal)),true);
@@ -55,6 +56,15 @@ test('rutas de avisos exigen sesión para registrar y credencial de dispositivo 
 });
 
 test('el payload distingue gerenciamientos y sus pendientes sin reclasificar inspecciones',()=>{
- const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',folio:'VJ-1'},{id:'2',tripId:'2',categoria:'inspection',estado:'PENDIENTE_APROBACION',folio:'VJ-2'}],critical:[{folio:'VJ-1',fueraEstado:true},{folio:'VJ-2',fueraEstado:false}],polledAt:new Date().toISOString()};
+ const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',folio:'VJ-1',actionable:true},{id:'2',tripId:'2',categoria:'inspection',estado:'PENDIENTE_APROBACION',folio:'VJ-2',actionable:true}],critical:[{tripId:'1',folio:'VJ-1',fueraEstado:true},{tripId:'2',folio:'VJ-2',fueraEstado:false}],polledAt:new Date().toISOString()};
  const value=pushSnapshot('test',feed);assert.equal(value.events[0].category,'management');assert.equal(value.events[0].state,'PENDIENTE');assert.equal(value.events[1].category,'inspection');assert.equal(value.critical.managementCount,1);assert.deepEqual(value.critical.managementFolios,['VJ-1']);
+});
+
+test('no reproduce solicitudes resueltas y no pierde decisiones detrás de solicitudes antiguas',()=>{
+ const feed={events:[...Array.from({length:12},(_,i)=>({id:String(i+1),tripId:'1',categoria:'management',estado:'PENDIENTE',actionable:false})),{id:'13',tripId:'1',categoria:'management',estado:'APROBADO'}],critical:[],polledAt:new Date().toISOString()};
+ const payload=pushSnapshot('test',feed);assert.equal(payload.events.length,1);assert.equal(payload.events[0].id,'13');assert.equal(payload.events[0].request,false);assert.equal(payload.critical.count,0);
+});
+test('una solicitud vigente se marca para avisar al llegar, la decisión no',()=>{
+ const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',actionable:true},{id:'2',tripId:'2',categoria:'management',estado:'APROBADO'}],critical:[{tripId:'1',folio:'VJ-1',fueraEstado:true}],polledAt:new Date().toISOString()};
+ const payload=pushSnapshot('test',feed);assert.equal(payload.events[0].request,true);assert.equal(payload.events[0].priority,true);assert.equal(payload.events[1].request,false);
 });

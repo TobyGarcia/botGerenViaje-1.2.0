@@ -1,3 +1,4 @@
+import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk} from '../../../backend/src/utils/approval-policy.js';
 import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -153,7 +154,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
       if (!res.ok) throw new Error(data.message || "Error procesando solicitud.");
 
       setSelectedDoc(null);
-      await Promise.all([loadData(), onDecision?.()]);
+      await Promise.all([loadData(), onDecision?.(),refreshApproverNotifications()]);
       alert(data.message || `Gerenciamiento de viaje ${nuevoEstado.toLowerCase()} exitosamente.`);
     } catch (err) {
       alert(err.message);

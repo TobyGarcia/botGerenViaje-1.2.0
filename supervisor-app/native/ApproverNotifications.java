@@ -22,7 +22,7 @@ final class ApproverNotifications {
   m.createNotificationChannel(priority);
   for(String id:new String[]{MANAGEMENT_CHANNEL,MANAGEMENT_PRIORITY_CHANNEL}){
    NotificationChannel management=new NotificationChannel(id,id.equals(MANAGEMENT_CHANNEL)?"Gerenciamiento de viajes":"Gerenciamientos prioritarios pendientes",NotificationManager.IMPORTANCE_HIGH);
-   management.setDescription("Sonido GV para las solicitudes y decisiones de gerenciamiento");management.enableVibration(true);management.setVibrationPattern(NotificationSoundPolicy.managementVibration());
+   management.setDescription("Sonido GV para nuevas solicitudes pendientes de gerenciamiento");management.enableVibration(true);management.setVibrationPattern(NotificationSoundPolicy.managementVibration());
    management.setSound(managementSound(c),new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());m.createNotificationChannel(management);
   }
   if(!prefs(c).getBoolean("priority_v2_migrated",false)){m.cancel(7301);prefs(c).edit().putBoolean("priority_v2_migrated",true).apply();}
@@ -62,25 +62,32 @@ final class ApproverNotifications {
   if(!bound(c)||!prefs(c).getString("device","").equals(payload.optString("deviceId")))return;
   channels(c);if(!NotificationManagerCompat.from(c).areNotificationsEnabled())return;
   NotificationManagerCompat manager=NotificationManagerCompat.from(c);
-  boolean managementPlayed=false;
+  java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
+  if(!PriorityAlertPolicy.isCurrentSnapshot(updated,prefs(c).getLong("critical_revision",0)))return;
+  boolean managementPlayed=false,priorityRequest=false;
   Set<String> seen=new HashSet<>(prefs(c).getStringSet("seen",new HashSet<>()));
   JSONArray events=payload.optJSONArray("events");if(events==null)events=new JSONArray();
   for(int i=0;i<events.length();i++){JSONObject event=events.getJSONObject(i);String id=event.getString("id");if(seen.contains(id))continue;
-   boolean management=NotificationSoundPolicy.isManagement(event.optString("category"),event.optString("title"));
+   String category=event.optString("category"),state=event.optString("state"),trip=event.optString("tripId");
+   boolean request=event.optBoolean("request",false)&&NotificationSoundPolicy.isPendingRequest(category,state);
+   boolean decision=NotificationSoundPolicy.isDecision(category,state);
+   if(NotificationSoundPolicy.isPendingRequest(category,state)&&!request){seen.add(id);continue;}
+   boolean priority=request&&event.optBoolean("priority",false);
+   priorityRequest=priorityRequest||priority;
+   boolean management=request&&NotificationSoundPolicy.isManagement(category,event.optString("title"));
+   if(decision)manager.cancel("request:"+trip,7302);
    NotificationCompat.Builder eventNotice=builder(c,management?MANAGEMENT_CHANNEL:"approver_events",event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true);
-   if(management){eventNotice.setPriority(NotificationCompat.PRIORITY_HIGH);if(managementPlayed)eventNotice.setSilent(true);else if(Build.VERSION.SDK_INT<26)eventNotice.setSound(managementSound(c)).setVibrate(NotificationSoundPolicy.managementVibration());managementPlayed=true;}
-   manager.notify("event:"+id,7302,eventNotice.build());seen.add(id);
+   if(decision||priority)eventNotice.setSilent(true);
+   if(management&&!priority){eventNotice.setPriority(NotificationCompat.PRIORITY_HIGH);if(managementPlayed)eventNotice.setSilent(true);else if(Build.VERSION.SDK_INT<26)eventNotice.setSound(managementSound(c)).setVibrate(NotificationSoundPolicy.managementVibration());managementPlayed=true;}
+   manager.notify(request?"request:"+trip:"event:"+id,7302,eventNotice.build());seen.add(id);
   }
   if(seen.size()>500){List<String> ordered=new ArrayList<>(seen);ordered.sort((a,b)->Long.compare(Long.parseLong(a),Long.parseLong(b)));seen=new HashSet<>(ordered.subList(ordered.size()-500,ordered.size()));}
   prefs(c).edit().putStringSet("seen",seen).apply();
-  java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
-  if(updated<prefs(c).getLong("critical_revision",0))return;
   JSONObject critical=payload.getJSONObject("critical");int count=critical.optInt("count");
   if(count==0){manager.cancel(7301);prefs(c).edit().putInt("critical_count",0).putString("critical_signature","").putInt("management_count",0).putString("management_signature","").apply();}else{JSONArray folios=critical.optJSONArray("folios");List<String> names=new ArrayList<>();if(folios!=null)for(int i=0;i<folios.length();i++)names.add(folios.optString(i));
    String signature=android.text.TextUtils.join("|",names);
-   boolean alert=PriorityAlertPolicy.shouldAlert(prefs(c).getInt("critical_count",0),prefs(c).getString("critical_signature",""),count,signature);
+   boolean alert=PriorityAlertPolicy.shouldAlert(priorityRequest,count);
    int managementCount=critical.optInt("managementCount");String managementSignature=critical.optJSONArray("managementFolios")!=null?critical.optJSONArray("managementFolios").toString():"";
-   alert=alert||PriorityAlertPolicy.shouldAlert(prefs(c).getInt("management_count",0),prefs(c).getString("management_signature",""),managementCount,managementSignature);
    if(managementCount>0&&managementPlayed)alert=false;
    String channel=managementCount>0?MANAGEMENT_PRIORITY_CHANNEL:PRIORITY_CHANNEL;
    String oldChannel=prefs(c).getString("critical_channel",PRIORITY_CHANNEL);if(!channel.equals(oldChannel))manager.cancel(7301);

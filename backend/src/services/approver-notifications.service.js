@@ -25,6 +25,8 @@ export async function approverFeed(user,cursor='0',queryDb=db){
  const watermark=(await queryDb.query('SELECT COALESCE(MAX(id_evento),0)::text AS cursor FROM aprobador_eventos')).rows[0].cursor;
  const scope=isManagementRole(user.rol)?`AND ${managementTripSql('v')}`:'';
  const events=(await queryDb.query(`SELECT e.id_evento::text AS id,e.id_viajes::text AS "tripId",v.folio,e.categoria,e.estado,
+ CASE WHEN e.categoria='management' AND e.estado='PENDIENTE' THEN EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_gerenciamiento=e.entidad AND g.estado='PENDIENTE')
+ WHEN e.categoria='inspection' AND e.estado='PENDIENTE_APROBACION' THEN EXISTS(SELECT 1 FROM inspecciones_vehiculares i WHERE i.id_inspeccion=e.entidad AND i.estado='PENDIENTE_APROBACION') ELSE FALSE END AS actionable,
  c.nombre AS conductor,vh.nombre AS unidad,origen.nombre AS origen,destino.nombre AS destino,
  CASE WHEN e.categoria='stop' THEN uv.nombre_punto ELSE NULL END AS detalle
  FROM aprobador_eventos e JOIN viajes v ON v.id_viajes=e.id_viajes
