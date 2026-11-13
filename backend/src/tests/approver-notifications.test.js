@@ -25,7 +25,12 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
  const fakeToken='test_fcm_'+randomUUID();
  await bindApproverToken(device.deviceId,device.deviceSecret,fakeToken);
  const packets=[];const send=async packet=>{packets.push(JSON.parse(packet.data.snapshot));return 'mock-message';};
- assert.equal(await deliverApproverPush({send}),1);assert.equal(await deliverApproverPush({send}),0);
+ assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,0);assert.deepEqual(packets.at(-1).resolvedTrips,[String(late)]);assert.equal(await deliverApproverPush({send}),0);
+ const g=(await db.query("INSERT INTO gerenciamiento_viajes(id_viaje,id_conductor,nivel_riesgo,estado) VALUES($1,$2,'BAJO','PENDIENTE') RETURNING id_gerenciamiento",[late,driver])).rows[0].id_gerenciamiento;
+ const partial=pushSnapshot('test',await approverFeed(manager,device.cursor));assert.equal(partial.resolvedTrips.includes(String(late)),false);assert.equal(partial.events.some(e=>e.category==='management'&&e.request),true);
+ assert.equal(await deliverApproverPush({send}),1);
+ await db.query("UPDATE gerenciamiento_viajes SET estado='APROBADO' WHERE id_gerenciamiento=$1",[g]);
+ assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,0);assert.deepEqual(packets.at(-1).resolvedTrips,[String(late)]);assert.equal(await deliverApproverPush({send}),0);
  const nextTrip=await trip('20:00');
  assert.equal(await deliverApproverPush({send}),0);
  await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_vehiculos,id_conductores,fecha_operativa,combustible,firma_conductor,tipo_asignacion,estado) VALUES($1,$2,$3,'2026-11-12','F','firma','PERMANENTE','PENDIENTE_APROBACION')",[nextTrip,car,driver]);
@@ -36,6 +41,8 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
   await db.query('UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre=$1) WHERE id_viajes=$2',[state,nextTrip]);
   assert.equal(await deliverApproverPush({send}),0);
  }
+ await db.query("UPDATE inspecciones_vehiculares SET estado='RECHAZADA' WHERE id_viajes=$1",[nextTrip]);
+ assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,0);assert.deepEqual(packets.at(-1).resolvedTrips,[String(nextTrip)]);assert.equal(await deliverApproverPush({send}),0);
  assert.ok((await approverFeed({rol:'SUPERVISOR'},device.cursor)).events.every(e=>['inspection','management'].includes(e.categoria)));
  const newer=await registerApproverDevice(manager);await bindApproverToken(newer.deviceId,newer.deviceSecret,fakeToken);
  assert.equal(await approverDevice(device.deviceId,device.deviceSecret),null);
@@ -44,7 +51,7 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
 });
 
 test('push agrupa sin exceder el tamaño FCM y conserva las referencias sin GPS',()=>{
- const feed={events:Array.from({length:50},(_,i)=>({id:String(i+1),tripId:'1',categoria:'inspection',estado:'APROBADA',folio:'VJ',conductor:'Á'.repeat(1000)})),critical:Array.from({length:500},()=>({folio:'VJ-PRUEBA'})),polledAt:new Date().toISOString()};
+ const feed={events:Array.from({length:50},(_,i)=>({id:String(i+1),tripId:'1',categoria:'inspection',estado:'PENDIENTE_APROBACION',actionable:true,folio:'VJ',conductor:'Á'.repeat(1000)})),critical:Array.from({length:500},()=>({folio:'VJ-PRUEBA'})),polledAt:new Date().toISOString()};
  const payload=pushSnapshot('device',feed);assert.ok(payload.events.length>0&&payload.events.length<50);assert.ok(Buffer.byteLength(JSON.stringify(payload))<=3300);assert.equal(payload.critical.count,500);assert.equal(payload.critical.folios.length,3);assert.equal(JSON.stringify(payload).includes('latitud'),false);
 });
 
@@ -68,21 +75,27 @@ test('el payload distingue gerenciamientos y sus pendientes sin reclasificar ins
  const value=pushSnapshot('test',feed);assert.equal(value.events[0].category,'management');assert.equal(value.events[0].state,'PENDIENTE');assert.equal(value.events[1].category,'inspection');assert.equal(value.critical.managementCount,1);assert.deepEqual(value.critical.managementFolios,['VJ-1']);
 });
 
-test('no reproduce solicitudes resueltas y no pierde decisiones detrás de solicitudes antiguas',()=>{
+test('no reproduce solicitudes resueltas ni decisiones detrás de solicitudes antiguas',()=>{
  const feed={events:[...Array.from({length:12},(_,i)=>({id:String(i+1),tripId:'1',categoria:'management',estado:'PENDIENTE',actionable:false})),{id:'13',tripId:'1',categoria:'management',estado:'APROBADO'}],critical:[],polledAt:new Date().toISOString()};
- const payload=pushSnapshot('test',feed);assert.equal(payload.events.length,1);assert.equal(payload.events[0].id,'13');assert.equal(payload.events[0].request,false);assert.equal(payload.critical.count,0);
+ const payload=pushSnapshot('test',feed);assert.equal(payload.events.length,0);assert.equal(payload.critical.count,0);
 });
 test('una solicitud vigente se marca para avisar al llegar, la decisión no',()=>{
  const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',actionable:true},{id:'2',tripId:'2',categoria:'management',estado:'APROBADO'}],critical:[{tripId:'1',folio:'VJ-1',fueraEstado:true}],polledAt:new Date().toISOString()};
- const payload=pushSnapshot('test',feed);assert.equal(payload.events[0].request,true);assert.equal(payload.events[0].priority,true);assert.equal(payload.events[1].request,false);
+ const payload=pushSnapshot('test',feed);assert.equal(payload.events[0].request,true);assert.equal(payload.events[0].priority,true);assert.equal(payload.events.length,1);
 });
 
-test('solo envía solicitudes y decisiones: omite el ciclo de viaje y las paradas sin perder la aprobación posterior',()=>{
+test('solo envía solicitudes: omite ciclo de viaje, paradas y decisiones',()=>{
  const states=['PENDIENTE','EN_CURSO','FINALIZADO','CANCELADO'];
  const noise=Array.from({length:20},(_,i)=>({id:String(i+1),tripId:'1',categoria:'trip',estado:states[i%4]}));
  noise.push({id:'21',tripId:'1',categoria:'stop',estado:'PARADA_TECNICA'});
  const base={events:noise,critical:[],polledAt:new Date().toISOString()};
  assert.equal(pushSnapshot('test',base).events.length,0);
  const result=pushSnapshot('test',{...base,events:[...noise,{id:'22',tripId:'1',categoria:'management',estado:'APROBADO'}]});
- assert.deepEqual(result.events.map(e=>[e.id,e.category,e.state]),[['22','management','APROBADO']]);
+ assert.equal(result.events.length,0);
+});
+
+test('aprobación y rechazo solo envían retiradas silenciosas y caben en el límite FCM',()=>{
+ const events=Array.from({length:50},(_,i)=>({id:String(i+1),tripId:String(9000000000000000000n+BigInt(i)),categoria:i%2?'inspection':'management',estado:i%2?(i%4===1?'APROBADA':'RECHAZADA'):(i%4===0?'APROBADO':'RECHAZADO'),resolved:true}));
+ const payload=pushSnapshot('test',{events,critical:[],polledAt:new Date().toISOString()});
+ assert.equal(payload.events.length,0);assert.equal(payload.resolvedTrips.length,50);assert.ok(Buffer.byteLength(JSON.stringify(payload))<=3300);
 });

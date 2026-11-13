@@ -61,6 +61,8 @@ final class ApproverNotifications {
   NotificationManagerCompat manager=NotificationManagerCompat.from(c);
   java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
   if(!PriorityAlertPolicy.isCurrentSnapshot(updated,prefs(c).getLong("critical_revision",0)))return;
+  JSONArray resolvedTrips=payload.optJSONArray("resolvedTrips");
+  if(resolvedTrips!=null)for(int i=0;i<resolvedTrips.length();i++)manager.cancel("request:"+resolvedTrips.getString(i),7302);
   boolean priorityRequest=false;
   List<Runnable> ordinaryNotices=new ArrayList<>();
   Runnable priorityNotice=()->{};
@@ -70,10 +72,10 @@ final class ApproverNotifications {
    String category=event.optString("category"),state=event.optString("state"),trip=event.optString("tripId");
    boolean request=event.optBoolean("request",false)&&NotificationSoundPolicy.isPendingRequest(category,state);
    boolean decision=NotificationSoundPolicy.isDecision(category,state);
+   if(decision)manager.cancel("request:"+trip,7302);
    int delivery=NotificationSoundPolicy.delivery(category,state,request,event.optBoolean("priority",false));
    if(delivery==NotificationSoundPolicy.SKIP){seen.add(id);continue;}
    if(delivery==NotificationSoundPolicy.PRIORITY){priorityRequest=true;seen.add(id);continue;}
-   if(decision)manager.cancel("request:"+trip,7302);
    NotificationCompat.Builder eventNotice=builder(c,EVENTS_CHANNEL,event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true);
    if(Build.VERSION.SDK_INT<26)eventNotice.setDefaults(Notification.DEFAULT_SOUND|Notification.DEFAULT_VIBRATE);
    String tag=request?"request:"+trip:"event:"+id;
