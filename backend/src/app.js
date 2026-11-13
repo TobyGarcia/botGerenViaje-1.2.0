@@ -1,3 +1,4 @@
+import approverNotificationsRoutes from './routes/approver-notifications.routes.js';
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -118,6 +119,7 @@ app.get("/", (request, response) => {
   });
 });
 
+app.use("/api/approver-notifications", approverNotificationsRoutes);
 app.use("/health", healthRoutes);
 app.get("/api/android/update", androidUpdateController);
 

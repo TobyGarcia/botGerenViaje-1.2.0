@@ -145,3 +145,5 @@ html:has(.supervisor-shell),body:has(.supervisor-shell),#root:has(.supervisor-sh
 @media(max-width:380px){.supervisor-shell .supervisor-content .geren-filters {grid-template-columns:minmax(0,1fr);}}
 
 .supervisor-update-toast { position:fixed; bottom:100px; left:16px; right:16px; z-index:2000; max-width:480px; margin:auto; padding:14px; background:#173c4d; color:#fff; border-radius:12px; font-size:14px; }
+
+.supervisor-notification-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:16px;border:1px solid #cce9f6;border-radius:12px;background:#e8f8fe;color:#385c70;font-size:13px}.supervisor-notification-banner span{flex:1;min-width:180px}.supervisor-notification-banner button{min-height:44px;border:1px solid #83bfd9;border-radius:10px;background:white;padding:8px 12px;color:#007fac}

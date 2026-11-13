@@ -56,3 +56,14 @@ QA con componentes reales y datos ficticios: 320, 360, 390, 600, 768, 844 en hor
 La configuración Android está en `supervisor-app/google-services.json`, proyecto `gv-mobility-pruebas`, paquete `com.aspromex.gvmobility.supervisor.testing`. Se valida antes de preparar Android y se copia al módulo generado. Se integra Firebase Messaging mediante BoM 35.1.0 y Google Services 4.5.0.
 
 Este archivo es configuración del cliente y no autoriza envíos desde AWS. La credencial privada de cuenta de servicio se debe montar como secreto del backend; nunca agregarla al repositorio ni a la APK. La base de eventos/dispositivos y la migración 046 están preparadas para integrar el emisor FCM y el receptor nativo; aún no están desplegadas ni habilitan notificaciones por sí solas.
+
+
+## Versión 0.1.5 (código 6): avisos FCM por rol
+
+Eventos transaccionales de registro, inicio, finalización/cancelación, inspecciones, decisiones y paradas técnicas. El servidor entrega lotes acotados por dispositivo; reintenta errores temporales y revoca tokens inválidos. Los eventos mantienen identificadores estables para que el teléfono descarte reenvíos. El filtro de gerencia se aplica antes de enviar.
+
+El permiso se solicita tras iniciar sesión. Un dispositivo se vincula a una sola cuenta; un cambio de usuario revoca el vínculo anterior del mismo token FCM. El secreto de consulta del dispositivo se cifra mediante Android Keystore, es independiente del JWT de aprobación y sólo permite notificaciones. Al cerrar sesión se borran los avisos locales y se solicita revocación en el servidor. Los avisos no muestran datos sensibles en la pantalla bloqueada.
+
+Se mantiene un resumen silencioso y ongoing mientras existan inspecciones/gerenciamientos prioritarios pendientes, aunque el viaje ya haya terminado: las aprobaciones pueden ser posteriores. Al decidir se actualiza/cancela el resumen; la app también refresca el estado al volver y periódicamente mientras está abierta. Android controla el permiso, ahorro de batería y la posibilidad de descartar/ocultar notificaciones; no se promete una notificación imposible de quitar.
+
+Requiere migración 046 y backend con APPROVER_PUSH_ENABLED=true y GOOGLE_APPLICATION_CREDENTIALS apuntando a un archivo montado como secreto de sólo lectura. Nunca incluir la clave privada en Git, imágenes o APK. El JSON público Android no es esa credencial. FCM puede demorar mensajes por conectividad o restricciones de Android. Una app detenida forzosamente desde Ajustes debe abrirse otra vez.

@@ -1,3 +1,4 @@
+import SupervisorNotifications,{stopApproverNotifications} from '../components/SupervisorNotifications.jsx';
 import SupervisorUpdateNotice,{supervisorUpdateEnabled} from '../components/SupervisorUpdateNotice.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
@@ -36,7 +37,7 @@ function SupervisorShell(){
  useEffect(()=>{
   if(!user)return;
   let timer;
-  const reset=()=>{clearTimeout(timer);timer=setTimeout(()=>{void logout();setError('La sesión se cerró por inactividad.');},20*60*1000);};
+  const reset=()=>{clearTimeout(timer);timer=setTimeout(()=>{void logout({keepNotifications:true});setError('La sesión se cerró por inactividad.');},20*60*1000);};
   const events=['pointerdown','keydown','scroll','touchstart'];events.forEach(event=>window.addEventListener(event,reset,{passive:true}));reset();
   return()=>{clearTimeout(timer);events.forEach(event=>window.removeEventListener(event,reset));};
  },[user]);
@@ -45,13 +46,13 @@ function SupervisorShell(){
   ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken};
   if(Capacitor.isNativePlatform())await Browser.open({url:result.data.authUrl});else window.open(result.data.authUrl,'_blank','noopener');
  }catch(e){setError(e.message);setWaiting(false);ticket.current=null;}}
- async function logout(){try{await logoutAdmin();}catch{}finally{ticket.current=null;setWaiting(false);clear();}}
+ async function logout({keepNotifications=false}={}){if(!keepNotifications)await stopApproverNotifications();try{await logoutAdmin();}catch{}finally{ticket.current=null;setWaiting(false);clear();}}
  if(loading)return <main className="supervisor-loading">Validando sesión…</main>;
  if(user&&!roles.includes(user.rol))return <main className="supervisor-login"><h1>Acceso de supervisión requerido</h1><p>Tu cuenta no tiene permisos para revisar o autorizar viajes.</p><button onClick={logout}>Cerrar sesión</button></main>;
  if(!user)return <main className="supervisor-login"><img src={logo} alt="GV Mobility"/><span className="supervisor-environment">PRUEBAS</span><h1>Aprobaciones</h1><p>Revisa inspecciones, autoriza y consulta viajes.</p><button disabled={waiting} onClick={login}>{waiting?'Esperando acceso de Microsoft…':'Iniciar sesión con Microsoft'}</button>{waiting&&<><p>Completa el acceso en el navegador y regresa a esta app.</p><button className="supervisor-secondary" onClick={()=>void check()}>Ya inicié sesión</button><button className="supervisor-secondary" onClick={()=>{ticket.current=null;setWaiting(false);}}>Cancelar</button></>}{error&&<p role="alert">{error}</p>}</main>;
  return <div className="supervisor-shell"><header className="supervisor-topbar"><img src={logo} alt="GV Mobility"/><span><strong>{roleLabels[user.rol]}</strong><small>Pruebas</small></span>{supervisorUpdateEnabled()&&<button aria-label="Buscar actualizaciones" onClick={()=>window.dispatchEvent(new Event('supervisor-check-update'))}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></button>}<button aria-label="Cerrar sesión" onClick={logout}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M9 4H4v16h5M14 7l5 5-5 5M8 12h11"/></svg></button></header>
  <main className="supervisor-content"><div className="supervisor-welcome"><h1>{tab==='pending'?'Pendientes de aprobación':'Viajes'}</h1><p>{user.nombre}</p>{['GERENTE','GERENTE_GENERAL'].includes(user.rol)&&<small className="supervisor-scope">Gerenciamientos y locales fuera de horario</small>}</div>
- {tab==='pending'?<InspeccionesPage user={user} initialTab="inspecciones" pendingOnly/>:<ViajesPage user={user} readOnly/>}
+ <SupervisorNotifications user={user} onNavigate={setTab}/>{tab==='pending'?<InspeccionesPage user={user} initialTab="inspecciones" pendingOnly/>:<ViajesPage user={user} readOnly/>}
  </main><nav className="supervisor-tabs" aria-label="Navegación de supervisor"><button aria-current={tab==='pending'?'page':undefined} onClick={()=>setTab('pending')}><IconInspecciones size={22}/><span>Pendientes</span></button><button aria-current={tab==='trips'?'page':undefined} onClick={()=>setTab('trips')}><IconViajes size={22}/><span>Viajes</span></button></nav></div>;
 }
 

@@ -58,3 +58,8 @@ render.yaml
 # Respaldos y descriptores generados durante despliegues
 rollback/
 compose.monitor.image.json
+
+# Private Firebase server credentials are kept outside this checkout.
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+.secrets/

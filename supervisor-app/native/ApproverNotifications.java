@@ -1,0 +1,60 @@
+package com.aspromex.gvmobility.supervisor.testing;
+import android.app.*;import android.content.*;import android.os.Build;
+import androidx.core.app.NotificationCompat;import androidx.core.app.NotificationManagerCompat;
+import org.json.*;import java.util.*;import java.net.*;import java.io.*;import java.nio.charset.StandardCharsets;
+final class ApproverNotifications {
+ static final String BASE="https://gvmobility.aspromex.mx/api/approver-notifications";
+ static final java.util.concurrent.ExecutorService IO=java.util.concurrent.Executors.newSingleThreadExecutor();
+ static android.content.SharedPreferences prefs(Context c){return c.getSharedPreferences("approver-notifications",Context.MODE_PRIVATE);}
+ static boolean bound(Context c){return !prefs(c).getString("device","").isEmpty();}
+ static void channels(Context c){if(Build.VERSION.SDK_INT>=26){NotificationManager m=c.getSystemService(NotificationManager.class);m.createNotificationChannel(new NotificationChannel("approver_events","Avisos de viajes y aprobaciones",NotificationManager.IMPORTANCE_DEFAULT));m.createNotificationChannel(new NotificationChannel("approver_pending","Aprobaciones prioritarias pendientes",NotificationManager.IMPORTANCE_LOW));}}
+ static JSONObject request(Context c,String method,String path,JSONObject body)throws Exception{
+  return request(method,path,body,prefs(c).getString("device",""),ApproverSecrets.decrypt(prefs(c).getString("secret","")));
+ }
+ static JSONObject request(String method,String path,JSONObject body,String device,String secret)throws Exception{
+  HttpURLConnection con=(HttpURLConnection)new URL(BASE+path).openConnection();
+  try{con.setRequestMethod(method);con.setInstanceFollowRedirects(false);con.setConnectTimeout(10000);con.setReadTimeout(15000);con.setRequestProperty("X-Notification-Device",device);con.setRequestProperty("X-Notification-Key",secret);con.setRequestProperty("Content-Type","application/json");
+   if(body!=null){con.setDoOutput(true);try(OutputStream out=con.getOutputStream()){out.write(body.toString().getBytes(StandardCharsets.UTF_8));}}
+   int code=con.getResponseCode();if(code==401)throw new SecurityException("Dispositivo no autorizado");if(code<200||code>=300)throw new IOException("Avisos temporalmente no disponibles");
+   try(InputStream in=con.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){out.write(b,0,n);if(out.size()>1048576)throw new IOException("Respuesta excesiva");}return new JSONObject(out.toString("UTF-8"));}
+  }finally{con.disconnect();}
+ }
+ static synchronized void bind(Context c,String device,String secret,String user,String cursor)throws Exception{
+  clear(c);prefs(c).edit().putString("device",device).putString("secret",ApproverSecrets.encrypt(secret)).putString("user",user).putString("cursor",cursor.matches("[0-9]+")?cursor:"0").apply();channels(c);
+ }
+ static synchronized void clear(Context c){prefs(c).edit().clear().apply();NotificationManagerCompat.from(c).cancelAll();}
+ static void token(Context c,String token)throws Exception{if(!bound(c))return;request(c,"PUT","/token",new JSONObject().put("token",token));}
+ static void sync(Context c)throws Exception{
+  for(int page=0;page<5;page++){
+   if(!bound(c))return;String device=prefs(c).getString("device","");
+   JSONObject response=request(c,"GET","/feed?after="+prefs(c).getString("cursor","0"),null);JSONObject snapshot=response.getJSONObject("data");
+   apply(c,snapshot);
+   synchronized(ApproverNotifications.class){if(!device.equals(prefs(c).getString("device","")))return;prefs(c).edit().putString("cursor",snapshot.getString("cursor")).apply();}
+   if(!snapshot.optBoolean("hasMore"))return;
+  }
+ }
+ static JSONObject critical(JSONArray rows)throws Exception{JSONArray folios=new JSONArray();for(int i=0;i<Math.min(rows.length(),3);i++)folios.put(rows.getJSONObject(i).getString("folio"));return new JSONObject().put("count",rows.length()).put("folios",folios);}
+ static PendingIntent intent(Context c,String tab){Intent i=new Intent(c,MainActivity.class).putExtra("notification_tab",tab).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);return PendingIntent.getActivity(c,tab.equals("pending")?7301:7302,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
+ static NotificationCompat.Builder builder(Context c,String channel,String title,String body,String tab){
+  Notification publicView=new NotificationCompat.Builder(c,channel).setSmallIcon(R.drawable.ic_stat_approver).setContentTitle("GV Mobility").setContentText("Tienes novedades de tus viajes").build();
+  return new NotificationCompat.Builder(c,channel).setSmallIcon(R.drawable.ic_stat_approver).setContentTitle(title).setContentText(body).setStyle(new NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(intent(c,tab)).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicView).setOnlyAlertOnce(true);
+ }
+ static synchronized void apply(Context c,JSONObject payload)throws Exception{
+  if(!bound(c)||!prefs(c).getString("device","").equals(payload.optString("deviceId")))return;
+  channels(c);if(!NotificationManagerCompat.from(c).areNotificationsEnabled())return;
+  NotificationManagerCompat manager=NotificationManagerCompat.from(c);
+  Set<String> seen=new HashSet<>(prefs(c).getStringSet("seen",new HashSet<>()));
+  JSONArray events=payload.optJSONArray("events");if(events==null)events=new JSONArray();
+  for(int i=0;i<events.length();i++){JSONObject event=events.getJSONObject(i);String id=event.getString("id");if(seen.contains(id))continue;
+   manager.notify("event:"+id,7302,builder(c,"approver_events",event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true).build());seen.add(id);
+  }
+  if(seen.size()>500){List<String> ordered=new ArrayList<>(seen);ordered.sort((a,b)->Long.compare(Long.parseLong(a),Long.parseLong(b)));seen=new HashSet<>(ordered.subList(ordered.size()-500,ordered.size()));}
+  prefs(c).edit().putStringSet("seen",seen).apply();
+  java.text.SimpleDateFormat date=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);date.setTimeZone(TimeZone.getTimeZone("UTC"));long updated=date.parse(payload.getString("updatedAt")).getTime();
+  if(updated<prefs(c).getLong("critical_revision",0))return;
+  JSONObject critical=payload.getJSONObject("critical");int count=critical.optInt("count");
+  if(count==0)manager.cancel(7301);else{JSONArray folios=critical.optJSONArray("folios");List<String> names=new ArrayList<>();if(folios!=null)for(int i=0;i<folios.length();i++)names.add(folios.optString(i));
+   manager.notify(7301,builder(c,"approver_pending",count==1?"Viaje prioritario por aprobar":count+" viajes prioritarios por aprobar",android.text.TextUtils.join(", ",names)+" · Fuera de horario o del estado","pending").setOngoing(true).setAutoCancel(false).setCategory(NotificationCompat.CATEGORY_REMINDER).build());}
+  prefs(c).edit().putLong("critical_revision",updated).apply();
+ }
+}

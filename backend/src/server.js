@@ -1,3 +1,4 @@
+import {deliverApproverPush} from './services/approver-push.service.js';
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -423,3 +424,6 @@ process.on("uncaughtException", (error) => {
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "uncaught_exception", message: error.message, stack: error.stack }));
   process.exit(1);
 });
+
+const approverPushTimer=setInterval(()=>{void deliverApproverPush().catch(()=>console.warn('Avisos de aprobadores pendientes de entrega.'));},5000);
+approverPushTimer.unref();

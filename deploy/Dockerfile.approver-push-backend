@@ -1,0 +1,4 @@
+FROM gv-staging-trip-operations-backend:approver-updates-88d5437
+COPY backend/package.json backend/package-lock.json /app/
+RUN npm ci --omit=dev
+COPY backend/src/ /app/src/

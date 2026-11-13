@@ -37,8 +37,15 @@ writeFileSync(resolve(nativeDir,'MainActivity.java'),`package com.aspromex.gvmob
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
- @Override public void onCreate(Bundle savedInstanceState) {registerPlugin(AndroidVersionPlugin.class);super.onCreate(savedInstanceState);}
+ @Override public void onCreate(Bundle savedInstanceState) {registerPlugin(AndroidVersionPlugin.class);registerPlugin(ApproverNotificationsPlugin.class);super.onCreate(savedInstanceState);}
+ @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);}
 }`);
+for(const name of ['ApproverNotifications','ApproverFirebaseService','ApproverNotificationsPlugin'])writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(app,'native',name+'.java'),'utf8'));
+writeFileSync(resolve(nativeDir,'ApproverSecrets.java'),readFileSync(resolve(sharedNative,'GpsSecrets.java'),'utf8').replaceAll('com.aspromex.gerenciamientoviajes','com.aspromex.gvmobility.supervisor.testing').replaceAll('GpsSecrets','ApproverSecrets').replaceAll('gv-gps-token','gv-approver-token'));
+let notificationManifest=readFileSync(manifest,'utf8');
+if(!notificationManifest.includes('ApproverFirebaseService'))notificationManifest=notificationManifest.replace('</application>',`<service android:name=".ApproverFirebaseService" android:exported="false"><intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service><meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" /></application>`);
+writeFileSync(manifest,notificationManifest);
+writeFileSync(resolve(app,'android/app/src/main/res/drawable/ic_stat_approver.xml'),'<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFF" android:pathData="M5,3h4V1h6v2h4v19H5zM8,12l3,3 6,-7 -2,-2 -4,5 -1,-1z"/></vector>');
 writeFileSync(resolve(app,'android/app/src/main/res/values/update_channel.xml'),'<resources><string name="android_update_channel">testing</string></resources>');
 
 run(['cap','sync','android']);
