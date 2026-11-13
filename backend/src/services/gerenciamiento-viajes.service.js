@@ -1,3 +1,4 @@
+import {approveJointDocuments} from './joint-approval.service.js';
 import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
 import { createTrip } from "./viajes.service.js";
@@ -317,7 +318,7 @@ export async function getGerenciamientoById(idGerenciamiento) {
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
+    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
     LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_gerenciamiento = $1
   `, [idGerenciamiento]);
@@ -353,7 +354,7 @@ export async function getGerenciamientoByViaje(idViaje) {
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
+    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
     LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_viaje = $1
     ORDER BY g.id_gerenciamiento DESC
@@ -410,7 +411,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN inspecciones_vehiculares i ON i.id_viajes = g.id_viaje
+    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
     ${whereSql}
     ORDER BY g.creado_en DESC
     LIMIT ${limitParam} OFFSET ${offsetParam}
@@ -420,123 +421,15 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
   return result.rows;
 }
 
-async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, estado = 'APROBADO', observaciones = null }) {
-  const client = await databasePool.connect();
-  try {
-    await client.query("BEGIN");
+async function aprovarGerenciamientoImpl({idGerenciamiento,idUsuarioAdmin,nombreAutorizador,firmaAutorizador,estado='APROBADO',observaciones=null}){
+ if(estado==='APROBADO')return (await approveJointDocuments({idGerenciamiento,idUsuarioAdmin,signature:firmaAutorizador,comment:observaciones})).management;
+ if(estado!=='RECHAZADO')throw Object.assign(new Error('Decisión inválida.'),{statusCode:400});
+ const client=await databasePool.connect();try{await client.query('BEGIN');
+ const current=(await client.query('SELECT * FROM gerenciamiento_viajes WHERE id_gerenciamiento=$1 FOR UPDATE',[idGerenciamiento])).rows[0];
+ if(!current){await client.query('COMMIT');return null;}if(current.estado!=='PENDIENTE')throw new Error('Este gerenciamiento ya tiene una decisión registrada.');
+ const record=(await client.query(`UPDATE gerenciamiento_viajes SET estado='RECHAZADO',id_usuario_autorizador=$1,nombre_autorizador_firma=$2,firma_autorizador=$3,fecha_firma_autorizador=CURRENT_TIMESTAMP,observaciones=COALESCE($4,observaciones),actualizado_en=CURRENT_TIMESTAMP WHERE id_gerenciamiento=$5 RETURNING *`,[idUsuarioAdmin,nombreAutorizador,firmaAutorizador,observaciones,idGerenciamiento])).rows[0];
+ if(record.id_viaje){
 
-    // Consultar registro para validar nivel de riesgo
-    const checkRes = await client.query("SELECT id_gerenciamiento, estado, nivel_riesgo, id_viaje, id_conductor, id_origen, id_destino, numero_unidad, placa, acompanantes, kilometraje FROM gerenciamiento_viajes WHERE id_gerenciamiento = $1 FOR UPDATE", [idGerenciamiento]);
-    const recordCheck = checkRes.rows[0];
-    if (!recordCheck) { await client.query("COMMIT"); return null; }
-    if (recordCheck.estado !== 'PENDIENTE') throw new Error("Este gerenciamiento ya tiene una decisión registrada.");
-    if (!["APROBADO", "RECHAZADO"].includes(estado)) throw new Error("Decisión inválida.");
-    if (!Number.isInteger(Number(idUsuarioAdmin)) || Number(idUsuarioAdmin) <= 0) throw new Error("Se requiere un autorizador autenticado.");
-    if (estado === "APROBADO" && !String(firmaAutorizador || "").startsWith("data:image/png;base64,")) throw new Error("La firma del autorizador es requerida.");
-
-    if (estado === 'APROBADO' && recordCheck && idUsuarioAdmin) {
-      const userRes = await client.query("SELECT rol FROM usuarios_admin WHERE id_usuarios_admin = $1", [idUsuarioAdmin]);
-      const userRol = String(userRes.rows[0]?.rol || "").toUpperCase();
-
-      const rolesBajo = ['SUPERVISOR', 'QHSE', 'COORDINADOR', 'COORDINADOR_AREA', 'COORDINADOR_QHSE', 'GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN', 'INSTRUCTOR'];
-      const rolesMedio = ['COORDINADOR', 'COORDINADOR_AREA', 'COORDINADOR_QHSE', 'GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'];
-      const rolesAlto = ['GERENTE', 'GERENTE_GENERAL', 'ADMINISTRADOR', 'ADMIN'];
-
-      if (recordCheck.nivel_riesgo === 'BAJO' && !rolesBajo.includes(userRol)) {
-        throw new Error("El nivel de Riesgo BAJO (0-15 pts) requiere la aprobación de Supervisor o superior.");
-      }
-      if (recordCheck.nivel_riesgo === 'MEDIO' && !rolesMedio.includes(userRol)) {
-        throw new Error("El nivel de Riesgo MEDIO (16-22 pts) requiere la aprobación de Coordinador o superior.");
-      }
-      if (recordCheck.nivel_riesgo === 'ALTO' && !rolesAlto.includes(userRol)) {
-        throw new Error("El nivel de Riesgo ALTO (>23 pts) requiere la aprobación de Gerente o Administrador.");
-      }
-    }
-
-    const updateRes = await client.query(`
-      UPDATE gerenciamiento_viajes
-      SET estado = $1,
-          id_usuario_autorizador = $2,
-          nombre_autorizador_firma = $3,
-          firma_autorizador = $4,
-          fecha_firma_autorizador = CURRENT_TIMESTAMP,
-          observaciones = COALESCE($5, observaciones),
-          actualizado_en = CURRENT_TIMESTAMP
-      WHERE id_gerenciamiento = $6
-      RETURNING *
-    `, [estado, idUsuarioAdmin, nombreAutorizador, firmaAutorizador, observaciones, idGerenciamiento]);
-
-    const record = updateRes.rows[0];
-
-    // Aprobar la inspección sin alterar el estado operativo actual del viaje.
-    if (record) {
-      if (estado === 'APROBADO') {
-        let targetViajeId = record.id_viaje;
-        if (!targetViajeId) {
-          try {
-            let idVehiculo = null;
-            if (record.numero_unidad || record.placa) {
-              const vRes = await client.query("SELECT id_vehiculos FROM vehiculos WHERE numero_economico = $1 OR placas = $2 LIMIT 1", [record.numero_unidad || "", record.placa || ""]);
-              if (vRes.rows[0]) idVehiculo = vRes.rows[0].id_vehiculos;
-            }
-            if (!idVehiculo) {
-              const vFirst = await client.query("SELECT id_vehiculos FROM vehiculos WHERE activo = TRUE LIMIT 1");
-              if (vFirst.rows[0]) idVehiculo = vFirst.rows[0].id_vehiculos;
-            }
-
-            let idOrigen = record.id_origen;
-            if (!idOrigen) {
-              const oFirst = await client.query("SELECT id_lugares FROM lugares WHERE activo = TRUE ORDER BY id_lugares ASC LIMIT 1");
-              if (oFirst.rows[0]) idOrigen = oFirst.rows[0].id_lugares;
-            }
-
-            let idDestino = record.id_destino;
-            if (!idDestino) {
-              const dFirst = await client.query("SELECT id_lugares FROM lugares WHERE activo = TRUE AND id_lugares != $1 ORDER BY id_lugares DESC LIMIT 1", [idOrigen || 0]);
-              if (dFirst.rows[0]) idDestino = dFirst.rows[0].id_lugares;
-            }
-
-            if (idVehiculo && idOrigen && idDestino) {
-              const newTrip = await createTrip({
-                idConductor: record.id_conductor,
-                idVehiculo,
-                idOrigen,
-                idDestino,
-                acompanantes: record.acompanantes || [],
-                kilometrajeInicial: Number(record.kilometraje || 0),
-                motivo: `Gerenciamiento Fuera de Ciudad - Riesgo ${record.nivel_riesgo}`,
-                esGerenciamiento: true
-              });
-              targetViajeId = newTrip.id_viajes || newTrip.idViaje || null;
-              if (targetViajeId) {
-                await client.query("UPDATE gerenciamiento_viajes SET id_viaje = $1 WHERE id_gerenciamiento = $2", [targetViajeId, record.id_gerenciamiento]);
-                record.id_viaje = targetViajeId;
-              }
-            }
-          } catch (tErr) {
-            console.warn("[GerenciamientoViajes] No se pudo crear viaje al aprobar:", tErr.message);
-          }
-        }
-
-        if (targetViajeId) {
-          await client.query(`
-            UPDATE inspecciones_vehiculares
-            SET estado = 'APROBADA',
-                id_usuario_admin_aprobador = $1,
-                firma_supervisor = $2,
-                comentario_aprobacion = $3,
-                aprobado_en = CURRENT_TIMESTAMP,
-                actualizado_en = CURRENT_TIMESTAMP
-            WHERE estado = 'PENDIENTE_APROBACION' AND id_conductores = $5
-              AND id_vehiculos = (SELECT id_vehiculos FROM viajes WHERE id_viajes=$4)
-              AND (id_viajes=$4 OR fecha_operativa IN (
-                SELECT original.fecha_operativa FROM inspecciones_vehiculares original
-                WHERE original.id_viajes=$4 OR EXISTS (SELECT 1 FROM viaje_inspeccion_uso uso
-                  WHERE uso.id_viajes=$4 AND uso.id_inspeccion=original.id_inspeccion)
-              ))
-          `, [idUsuarioAdmin, firmaAutorizador, observaciones, targetViajeId, record.id_conductor]);
-        }
-      } else if (estado === 'RECHAZADO' && record.id_viaje) {
         await client.query(`
           UPDATE viajes
           SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'CANCELADO' LIMIT 1),
@@ -552,19 +445,10 @@ async function aprovarGerenciamientoImpl({ idGerenciamiento, idUsuarioAdmin, nom
               actualizado_en = CURRENT_TIMESTAMP
           WHERE id_viajes = $3
         `, [idUsuarioAdmin, observaciones, record.id_viaje]);
-      }
-    }
 
-    await client.query("COMMIT");
-    recordOperation({ step: "gerenciamiento-viajes.transaction", result: "COMMIT" });
-    return record ?? null;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    recordOperation({ step: "gerenciamiento-viajes.transaction", result: "ROLLBACK", level: "WARN" });
-    throw err;
-  } finally {
-    client.release();
-  }
+ }
+ await client.query('COMMIT');return record;
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
 export async function registrarReporteHoraPoint({ idGerenciamiento, puntoIndex, horaReportada }) {

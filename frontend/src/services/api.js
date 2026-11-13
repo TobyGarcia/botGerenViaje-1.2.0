@@ -34,6 +34,9 @@ async function request(path, options = {}) {
   const controller = new AbortController();
   const timeoutMs = options.timeout || 25000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const abortParent=()=>controller.abort();
+  options.signal?.addEventListener("abort",abortParent,{once:true});
+  if(options.signal?.aborted)controller.abort();
 
   try {
     const response = await apiFetch(
@@ -85,6 +88,7 @@ async function request(path, options = {}) {
     throw err;
   } finally {
     clearTimeout(timeoutId);
+    options.signal?.removeEventListener("abort",abortParent);
   }
 }
 
@@ -142,8 +146,8 @@ export function registrarUbicacion(
   );
 }
 
-export function getInspeccionVehicular(idViaje) {
-  return request(`/api/viajes/${idViaje}/inspeccion`);
+export function getInspeccionVehicular(idViaje, options = {}) {
+  return request(`/api/viajes/${idViaje}/inspeccion`, { ...options, cache: "no-store", headers: { "Cache-Control": "no-cache", ...options.headers } });
 }
 
 export function enviarInspeccionVehicular(idViaje, data) {
@@ -300,12 +304,12 @@ export function crearGerenciamientoViaje(payload) {
   });
 }
 
-export function getGerenciamientoViaje(idGerenciamiento) {
-  return request(`/api/gerenciamiento-viajes/${idGerenciamiento}`);
+export function getGerenciamientoViaje(idGerenciamiento, options = {}) {
+  return request(`/api/gerenciamiento-viajes/${idGerenciamiento}`, { ...options, cache: "no-store", headers: { "Cache-Control": "no-cache", ...options.headers } });
 }
 
-export function getGerenciamientoViajePorViaje(idViaje) {
-  return request(`/api/gerenciamiento-viajes/viaje/${idViaje}`);
+export function getGerenciamientoViajePorViaje(idViaje, options = {}) {
+  return request(`/api/gerenciamiento-viajes/viaje/${idViaje}`, { ...options, cache: "no-store", headers: { "Cache-Control": "no-cache", ...options.headers } });
 }
 
 export function listGerenciamientosViaje(params = {}) {

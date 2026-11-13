@@ -265,6 +265,7 @@ export async function sendTechnicalStopAlert({ trip, stop }) {
 export async function sendDriverInspectionNotification({
   telegramUserId,
   approved,
+  managementApproved = false,
   trip,
   comment
 }) {
@@ -273,7 +274,7 @@ export async function sendDriverInspectionNotification({
   const reason = String(comment || "").trim();
   const message = approved
     ? [
-      "✅ Inspección vehicular aprobada",
+      managementApproved ? "✅ Gerenciamiento e inspección vehicular aprobados" : "✅ Inspección vehicular aprobada",
       `Folio: ${trip?.folio ?? "No disponible"}`,
       `Unidad: ${trip?.vehiculo ?? "No disponible"}`,
       "Ya puedes abrir la Mini App e iniciar el viaje cuando estés listo."

@@ -1,3 +1,4 @@
+import {canApproveRisk} from '../../../backend/src/utils/approval-policy.js';
 import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
@@ -1262,10 +1263,10 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
                   <button
                     type="button"
                     className="primary-button"
-                    disabled={approving || !firmaAutorizador}
+                    disabled={approving || !firmaAutorizador || !canApproveRisk(user?.rol,selectedDoc.nivel_riesgo)}
                     onClick={() => handleDecide("APROBADO")}
                   >
-                    {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Aprobar' : 'Aprobar Gerenciamiento e Inspección'}
+                    {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Aprobar ambos' : 'Aprobar Gerenciamiento e Inspección'}
                   </button>
                 </div>
               </div>

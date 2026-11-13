@@ -1,3 +1,4 @@
+import {approveJointDocuments,inspectionManagementContext} from './joint-approval.service.js';
 import { isManagementRole, managementInspectionSql } from "./management-trip-scope.js";
 import { traceOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
@@ -160,7 +161,8 @@ export async function getAdminInspection(idInspeccion) {
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
   const detail = result.rows[0];
-  return detail ? { ...detail, trailer_inspections: await getTripInspectionAnnexes(detail.id_viajes, { inspectionId: detail.id_inspeccion }) } : null;
+  const approvalContext=detail?await inspectionManagementContext(detail.id_inspeccion):null;
+  return detail ? { ...detail, approval_context:approvalContext, trailer_inspections: await getTripInspectionAnnexes(detail.id_viajes, { inspectionId: detail.id_inspeccion }) } : null;
 }
 
 export async function getInspectionByViaje(idViaje) {
@@ -180,6 +182,8 @@ export async function countPendingInspections(adminRole = null) {
 }
 
 async function approveInspectionImpl({ idInspeccion, idUsuarioAdmin, approved, comentario, firmaSupervisor = null }) {
+  if(approved){const result=await approveJointDocuments({idInspeccion,idUsuarioAdmin,signature:firmaSupervisor,comment:comentario});return {...result.inspection,jointApproval:result.management?{idGerenciamiento:result.management.id_gerenciamiento,idViaje:result.management.id_viaje}:null};}
+
   const result = await databasePool.query(`
     UPDATE inspecciones_vehiculares
     SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3, firma_supervisor=$4,

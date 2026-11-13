@@ -1,3 +1,4 @@
+import {canApproveRisk,requiredRiskRole} from '../../../backend/src/utils/approval-policy.js';
 import { useCallback, useEffect, useRef, useState } from "react";
 import TrailerInspectionCards from '../components/TrailerInspectionCards.jsx';
 import './TrailerInspectionCards.css';
@@ -858,11 +859,12 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                   )}
 
                   {/* Panel de Decisión (si está pendiente de aprobación) */}
-                  {detail.estado === "PENDIENTE_APROBACION" ? (
+                  {(detail.estado === "PENDIENTE_APROBACION" || detail.approval_context?.management?.estado === "PENDIENTE") ? (
                     <div className="modal-section-card decision-panel-card">
                       <div className="section-card-title">
-                        <h3>Dictamen de Aprobación de Inspección</h3>
-                        <p>Como supervisor, revisa los datos y firma para autorizar la operación del vehículo.</p>
+                        <h3>{detail.approval_context?.management?"Aprobar gerenciamiento e inspección":"Aprobar inspección"}</h3>
+                        <p>{detail.approval_context?.management?`Una firma para ambos documentos. Riesgo ${detail.approval_context.management.nivel_riesgo}: autoriza ${requiredRiskRole(detail.approval_context.management.nivel_riesgo)}.`:'Revisa los datos y firma para aprobar la inspección.'}</p>
+                        {detail.approval_context?.ambiguous&&<p role="alert">Hay varios gerenciamientos vinculados. Selecciona el viaje desde Gerenciamientos.</p>}
                       </div>
 
                       <div className="decision-preview-box">
@@ -905,11 +907,11 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                         <button
                           type="button"
                           className="btn-decision-approve"
-                          disabled={saving || !signature}
+                          disabled={saving || !signature || detail.approval_context?.ambiguous || (detail.approval_context?.management && !canApproveRisk(user?.rol,detail.approval_context.management.nivel_riesgo))}
                           onClick={() => decide(true)}
                         >
                           <IconCheck size={16} />
-                          <span>Aprobar y Generar PDF Oficial</span>
+                          <span>{detail.approval_context?.management?"Aprobar ambos":"Aprobar inspección"}</span>
                         </button>
                       </div>
                     </div>

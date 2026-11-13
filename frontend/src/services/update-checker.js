@@ -1,10 +1,10 @@
 // Consulta al iniciar, recuperar foco/conexión y periódicamente, sin solapar peticiones.
-export function watchAndroidUpdates({ check, onResult, onError = () => {}, onChecking = () => {},
-  subscribeResume,
+export function watchRemoteStatus({ check, onResult, onError = () => {}, onChecking = () => {},
+  subscribeResume, intervalMs=60000, minimumIntervalMs=60000,
   windowObject = window, documentObject = document, timers = globalThis, now = () => Date.now() }) {
   let stopped = false, inFlight = null, lastCheck = -Infinity, controller;
   async function trigger(force = false) {
-    if (stopped || inFlight || (!force && (documentObject.hidden || now() - lastCheck < 60000))) return inFlight;
+    if (stopped || inFlight || (!force && (documentObject.hidden || now() - lastCheck < minimumIntervalMs))) return inFlight;
     lastCheck = now(); controller = new AbortController();
     const requestController = controller;
     let timeout;
@@ -32,7 +32,7 @@ export function watchAndroidUpdates({ check, onResult, onError = () => {}, onChe
   if (subscribeResume) Promise.resolve().then(() => subscribeResume(() => { void trigger(true); })).then(listener => {
     if (stopped) void listener?.remove(); else resumeListener = listener;
   }).catch(onError);
-  const interval = timers.setInterval(refresh, 60000);
+  const interval = timers.setInterval(refresh, intervalMs);
   void trigger();
   return { refresh: () => trigger(true), stop() {
     stopped = true; controller?.abort(); timers.clearInterval(interval);
@@ -42,3 +42,5 @@ export function watchAndroidUpdates({ check, onResult, onError = () => {}, onChe
     void resumeListener?.remove();
   } };
 }
+
+export const watchAndroidUpdates=watchRemoteStatus;

@@ -1,3 +1,4 @@
+import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import {
   notifyNewGerenciamientoRequest,
   notifyGerenciamientoCheckpoint
@@ -12,13 +13,9 @@ import {
   aprovarGerenciamiento,
   registrarReporteHoraPoint,
   storeGerenciamientoPdf,
-  updateGerenciamientoSharePointDetails,
   getStoredGerenciamientoPdf
 } from "../services/gerenciamiento-viajes.service.js";
 import { buildGerenciamientoWithAnnexes as buildGerenciamientoPdf } from "../services/trip-inspection-annexes.service.js";
-import { uploadGerenciamientoPdfToSharePoint, uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
-import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
-import { getInspectionByViaje, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 
 import { databasePool } from "../database/pool.js";
 
@@ -114,6 +111,7 @@ export async function createGerenciamientoController(request, response) {
 }
 
 export async function getGerenciamientoByIdController(request, response) {
+  response.set("Cache-Control","no-store");
   try {
     const idGerenciamiento = Number(request.params.id);
     const data = await getGerenciamientoById(idGerenciamiento);
@@ -127,6 +125,7 @@ export async function getGerenciamientoByIdController(request, response) {
 }
 
 export async function getGerenciamientoByViajeController(request, response) {
+  response.set("Cache-Control","no-store");
   try {
     const idViaje = Number(request.params.idViaje);
     const data = await getGerenciamientoByViaje(idViaje);
@@ -176,68 +175,15 @@ export async function aprovarGerenciamientoController(request, response) {
       return response.status(404).json({ success: false, message: "No se encontró el registro para actualizar." });
     }
 
-    let sharepointResult = null;
-    if ((estado || 'APROBADO') === 'APROBADO') {
-      try {
-        // 1. Generar y subir PDF del Gerenciamiento de Viaje -> Carpeta "Gerenciamientos"
-        const fullDetail = await getGerenciamientoById(idGerenciamiento);
-        const pdf = await buildGerenciamientoPdf(fullDetail || updated);
-        await storeGerenciamientoPdf({ idGerenciamiento, nombre: pdf.nombre, document: pdf.buffer });
-
-        sharepointResult = await uploadGerenciamientoPdfToSharePoint({
-          filename: pdf.nombre,
-          pdfBuffer: pdf.buffer,
-          folio: updated.folio_documento || `GERENCIAMIENTO-${idGerenciamiento}`,
-          date: updated.creado_en || new Date()
-        });
-
-        if (sharepointResult.success && sharepointResult.webUrl) {
-          await updateGerenciamientoSharePointDetails({
-            idGerenciamiento,
-            webUrl: sharepointResult.webUrl,
-            itemId: sharepointResult.itemId
-          });
-        }
-
-        // 2. Si existe una Inspección Vehicular vinculada a este viaje, generar su PDF y subirlo -> Carpeta "Inspecciones"
-        if (updated.id_viaje) {
-          try {
-            const linkedInsp = await getInspectionByViaje(updated.id_viaje);
-            if (linkedInsp && linkedInsp.id_inspeccion) {
-              const inspPdf = await buildInspectionPdf(linkedInsp);
-              await storeInspectionPdf({ idInspeccion: linkedInsp.id_inspeccion, nombre: inspPdf.nombre, document: inspPdf.buffer });
-
-              const inspSpRes = await uploadInspectionPdfToSharePoint({
-                filename: inspPdf.nombre,
-                pdfBuffer: inspPdf.buffer,
-                folio: linkedInsp.folio || `INSP-${linkedInsp.id_inspeccion}`,
-                date: linkedInsp.creado_en || new Date()
-              });
-
-              if (inspSpRes.success && inspSpRes.webUrl) {
-                await updateInspectionSharePointDetails({
-                  idInspeccion: linkedInsp.id_inspeccion,
-                  webUrl: inspSpRes.webUrl,
-                  itemId: inspSpRes.itemId
-                });
-              }
-            }
-          } catch (inspSpErr) {
-            console.error("[GerenciamientoViajes] Error al generar/subir PDF de la inspección vinculada:", inspSpErr.message);
-          }
-        }
-      } catch (spError) {
-        console.error("[GerenciamientoViajes] Error al generar/subir PDF a SharePoint:", spError.message);
-      }
-    }
+    const sharepointResult=(estado||'APROBADO')==='APROBADO'?await publishJointApprovalDocuments(idGerenciamiento):null;
 
     return response.json({
       success: true,
-      message: `Gerenciamiento ${estado || 'APROBADO'} exitosamente.`,
+      message: (estado||'APROBADO')==='APROBADO'?'Gerenciamiento e inspección aprobados.':`Gerenciamiento ${estado} exitosamente.`,
       data: { ...updated, sharepoint: sharepointResult }
     });
   } catch (error) {
-    return response.status(400).json({ success: false, message: error.message });
+    return response.status(error.statusCode || 400).json({ success: false, message: error.message });
   }
 }
 

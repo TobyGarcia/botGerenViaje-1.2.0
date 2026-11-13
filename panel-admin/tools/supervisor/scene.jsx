@@ -10,7 +10,7 @@ window.fetch=async(input,options={})=>{const path=new URL(input,location.origin)
  if(path.endsWith('/auth/session')){if(login){status=401;data=null;}else data={user:{nombre:'Supervisora Demo',rol:role,idUsuarioAdmin:1}};}
  else if(path.endsWith('/gerenciamiento-viajes'))data=[{id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']}];
  else if(path.endsWith('/admin/inspecciones'))data=rows;
- else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F'};
+ else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F',approval_context:{management:{id_gerenciamiento:7,nivel_riesgo:'BAJO',estado:'PENDIENTE'},ambiguous:false}};
  else if(path.endsWith('/admin/viajes'))data=[trip];
  else if(path.endsWith('/admin/viajes/41'))data={trip,locations:[]};
  if(empty&&(path.endsWith('/admin/inspecciones')||path.endsWith('/gerenciamiento-viajes')))data=[];

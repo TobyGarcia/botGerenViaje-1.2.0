@@ -1,3 +1,4 @@
+import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, getAdminInspection, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
 import { cancelTrip } from "../services/viajes.service.js";
@@ -43,6 +44,7 @@ export async function decideSupervisorInspectionController(request, response) {
     const idInspeccion = Number(request.params.idInspeccion);
     const data = await approveInspection({ idInspeccion, idUsuarioAdmin: supervisor.id_usuarios_admin, approved, comentario: comment, firmaSupervisor: signature });
     if (!data) return response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
+    if(data?.jointApproval){await publishJointApprovalDocuments(data.jointApproval.idGerenciamiento);return response.json({success:true,data,message:'Gerenciamiento e inspección aprobados en una sola acción.'});}
     let trip;
     let sharepointResult = null;
     if (approved) {

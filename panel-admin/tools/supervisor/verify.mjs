@@ -33,6 +33,7 @@ try{for(const width of [320,360,390,600,768,844,1024,1280]){
  await layout('list');
  if(width===390){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(tmpdir(),'gv-supervisor-pending.png'),Buffer.from(shot.data,'base64'));}
  await click('.btn-review');if(!await js("Boolean(document.querySelector('.inspection-detail-modal-enhanced'))"))throw Error('Inspection details missing');
+ if(!await js("document.body.textContent.includes('Aprobar ambos')"))throw Error('Missing joint approval action');
  await layout('inspection');
  await js("document.querySelector('.close-modal-btn').click()");await wait(100);
  await click('.logistics-tab-btn:last-child');await wait(400);

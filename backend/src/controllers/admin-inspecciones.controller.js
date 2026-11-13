@@ -1,3 +1,4 @@
+import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
 import { cancelTrip } from "../services/viajes.service.js";
@@ -28,6 +29,7 @@ export async function decideAdminInspectionController(request, response) {
     const signature = String(request.body?.firma || "");
     if (approved && !signature.startsWith("data:image/png;base64,")) return response.status(400).json({ success: false, message: "La firma del aprobador es obligatoria." });
     const data = await approveInspection({ idInspeccion, idUsuarioAdmin: request.adminUser.id_usuarios_admin, approved, comentario: comment, firmaSupervisor: approved ? signature : null });
+    if(data?.jointApproval){await publishJointApprovalDocuments(data.jointApproval.idGerenciamiento);return response.json({success:true,data,message:'Gerenciamiento e inspección aprobados en una sola acción.'});}
     let trip = null;
     let sharepointResult = null;
     if (data && approved) {
@@ -72,7 +74,7 @@ export async function decideAdminInspectionController(request, response) {
       });
     }
     return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. El viaje fue cancelado y el conductor fue notificado." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
-  } catch (error) { return response.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message }); }
 }
 
 export async function downloadAdminInspectionPdfController(request, response) {

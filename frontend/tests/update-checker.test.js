@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { watchAndroidUpdates } from "../src/services/update-checker.js";
+import { watchAndroidUpdates,watchRemoteStatus } from "../src/services/update-checker.js";
 
 function environment() {
   const win = new EventTarget(), doc = new EventTarget(); doc.hidden = false;
@@ -58,4 +58,9 @@ test("descarta respuestas pendientes al desmontar y cancela la consulta", async 
     windowObject: env.win, documentObject: env.doc, timers: env.timers, now: env.now });
   const pending = watcher.refresh(); await Promise.resolve(); watcher.stop(); resolve({ versionCode: 9 }); await pending;
   assert.equal(signal.aborted, true); assert.equal(deliveries, 0);
+});
+
+test('la aprobación refresca de inmediato y al recuperar conexión, foco y retorno nativo',async()=>{
+ const env=environment();let checks=0,handler,result;const watcher=watchRemoteStatus({intervalMs:7000,minimumIntervalMs:0,check:async()=>{checks++;return {estado:checks>1?'APROBADO':'PENDIENTE'};},onResult:value=>{result=value;},subscribeResume:callback=>{handler=callback;return{remove(){}};},windowObject:env.win,documentObject:env.doc,timers:env.timers,now:env.now});
+ await watcher.refresh();assert.equal(result.estado,'PENDIENTE');env.win.dispatchEvent(new Event('online'));await watcher.refresh();assert.equal(result.estado,'APROBADO');const previous=checks;env.win.dispatchEvent(new Event('focus'));await watcher.refresh();assert.ok(checks>previous);await Promise.resolve();handler();await watcher.refresh();assert.ok(checks>previous+1);watcher.stop();
 });
