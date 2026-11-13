@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1088658477433",
+    "project_id": "gv-mobility-pruebas",
+    "storage_bucket": "gv-mobility-pruebas.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1088658477433:android:df376ab7abe95ce2451fa8",
+        "android_client_info": {
+          "package_name": "com.aspromex.gvmobility.supervisor.testing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWz4L4j6rxsyHq3SzzVT3R9aw58JWjhio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

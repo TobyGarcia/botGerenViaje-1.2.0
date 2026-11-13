@@ -49,3 +49,10 @@ QA con componentes reales y datos ficticios: 320, 360, 390, 600, 768, 844 en hor
 - La 0.1.3 carece del actualizador: instalar una vez esta APK mediante enlace; versiones posteriores se detectan desde la app. No requiere desinstalar ni cerrar sesión.
 - Insets nativos de Capacitor 8 para reservar las barras del sistema y el teclado. Filtros de estado en cuadrícula y filtros de gerenciamiento adaptables sin expandir el lienzo del WebView.
 - QA adicional sobre el bundle compilado, no solo Vite: `node panel-admin/tools/supervisor/serve-built.mjs`; ejecutar verify.mjs con SUPERVISOR_QA_BUILT=true. Incluye estados vacíos, nueve roles, controles sin recorte y navegación visible. Sin dispositivo Android conectado: el comportamiento final del instalador y proveedor Microsoft se valida en teléfono.
+
+
+## Firebase de pruebas
+
+La configuración Android está en `supervisor-app/google-services.json`, proyecto `gv-mobility-pruebas`, paquete `com.aspromex.gvmobility.supervisor.testing`. Se valida antes de preparar Android y se copia al módulo generado. Se integra Firebase Messaging mediante BoM 35.1.0 y Google Services 4.5.0.
+
+Este archivo es configuración del cliente y no autoriza envíos desde AWS. La credencial privada de cuenta de servicio se debe montar como secreto del backend; nunca agregarla al repositorio ni a la APK. La base de eventos/dispositivos y la migración 046 están preparadas para integrar el emisor FCM y el receptor nativo; aún no están desplegadas ni habilitan notificaciones por sí solas.

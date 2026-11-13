@@ -61,6 +61,7 @@ jobs:
       - run: npm ci --prefix panel-admin
       - run: npm test --prefix panel-admin
       - run: npm ci --prefix supervisor-app
+      - run: node --test supervisor-app/tests/*.test.mjs
       - run: node supervisor-app/scripts/build-web.mjs
       - run: node supervisor-app/scripts/prepare-android.mjs
       - name: Compilar y verificar APK
