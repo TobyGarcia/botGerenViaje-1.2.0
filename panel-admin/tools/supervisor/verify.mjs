@@ -21,7 +21,7 @@ const layout=async label=>{
 const click=async selector=>{await js(`(()=>{const e=[...document.querySelectorAll(${JSON.stringify(selector)})].find(e=>e.getBoundingClientRect().width>0);if(!e)throw Error('Missing '+${JSON.stringify(selector)});e.click()})()`);await wait(250)};
 try{for(const width of [320,360,390,600,768,844,1024,1280]){
  await send('Emulation.setDeviceMetricsOverride',{width,height:width===844?390:844,deviceScaleFactor:1,mobile:true});
- await send('Page.navigate',{url:qaPage+'?login=1'});await wait(800);
+ await send('Page.navigate',{url:qaPage+'?login=1'});for(let attempt=0;attempt<30;attempt++){await wait(100);if(await js("document.body.textContent.includes('Iniciar sesión con Microsoft')"))break;}
  if(!await js("document.body.textContent.includes('Iniciar sesión con Microsoft')"))throw Error('Login missing');
  await send('Page.navigate',{url:qaPage+'?invalid=1'});await wait(700);
  await click('.supervisor-login button');
