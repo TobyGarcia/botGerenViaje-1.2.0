@@ -33,7 +33,7 @@ export async function approverFeed(user,cursor='0',queryDb=db){
  LEFT JOIN conductores c ON c.id_conductores=v.id_conductores LEFT JOIN vehiculos vh ON vh.id_vehiculos=v.id_vehiculos
  LEFT JOIN lugares origen ON origen.id_lugares=v.id_origen LEFT JOIN lugares destino ON destino.id_lugares=v.id_destino
  LEFT JOIN ubicaciones_viaje uv ON e.categoria='stop' AND uv.id_ubicaciones_viaje=e.entidad
- WHERE e.id_evento>$1 AND e.id_evento<=$2 ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
+ WHERE e.id_evento>$1 AND e.id_evento<=$2 AND e.categoria IN ('inspection','management') ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
  // Return the last delivered ID; never skip the rest of a large batch.
  const next=events.length===50?events.at(-1).id:watermark;
  const critical=(await queryDb.query(`SELECT v.id_viajes::text AS "tripId",v.folio,

@@ -14,7 +14,8 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
  const trip=async(time)=>(await db.query(`INSERT INTO viajes(folio,id_conductores,id_vehiculos,id_origen,id_destino,id_estado_viaje,kilometraje_inicial,licencia_vigente,motivo,hora_salida) VALUES($1,$2,$3,$4,$5,(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE'),100,TRUE,'Prueba',$6) RETURNING id_viajes`,[randomUUID().slice(0,28),driver,car,origin,destination,'2026-11-12 '+time])).rows[0].id_viajes;
  const normal=await trip('12:00'),late=await trip('19:00');
  await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_vehiculos,id_conductores,fecha_operativa,combustible,firma_conductor,tipo_asignacion,estado) VALUES($1,$2,$3,'2026-11-12','F','firma','PERMANENTE','PENDIENTE_APROBACION')",[late,car,driver]);
- const first=await approverFeed(manager,device.cursor);assert.equal(first.events.some(e=>e.tripId===String(normal)),false);assert.equal(first.events.length,2);assert.equal(first.critical.length,1);assert.equal(first.critical[0].folio.length>0,true);
+ await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_vehiculos,id_conductores,fecha_operativa,combustible,firma_conductor,tipo_asignacion,estado) VALUES($1,$2,$3,'2026-11-12','F','firma','PERMANENTE','PENDIENTE_APROBACION')",[normal,car,driver]);
+ const first=await approverFeed(manager,device.cursor);assert.equal(first.events.some(e=>e.tripId===String(normal)),false);assert.equal(first.events.length,1);assert.equal(first.critical.length,1);assert.equal(first.critical[0].folio.length>0,true);
  const repeated=await approverFeed(manager,first.cursor);assert.equal(repeated.events.length,0);assert.equal(repeated.critical.length,1);
  await db.query("UPDATE inspecciones_vehiculares SET estado='APROBADA' WHERE id_viajes=$1",[late]);
  const backlog=await approverFeed(manager,device.cursor);assert.equal(backlog.events.find(e=>e.categoria==='inspection'&&e.estado==='PENDIENTE_APROBACION').actionable,false);assert.equal(pushSnapshot(device.deviceId,backlog).events.some(e=>e.state==='PENDIENTE_APROBACION'),false);
@@ -25,10 +26,17 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
  await bindApproverToken(device.deviceId,device.deviceSecret,fakeToken);
  const packets=[];const send=async packet=>{packets.push(JSON.parse(packet.data.snapshot));return 'mock-message';};
  assert.equal(await deliverApproverPush({send}),1);assert.equal(await deliverApproverPush({send}),0);
- await trip('20:00');
+ const nextTrip=await trip('20:00');
+ assert.equal(await deliverApproverPush({send}),0);
+ await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_vehiculos,id_conductores,fecha_operativa,combustible,firma_conductor,tipo_asignacion,estado) VALUES($1,$2,$3,'2026-11-12','F','firma','PERMANENTE','PENDIENTE_APROBACION')",[nextTrip,car,driver]);
  assert.equal(await deliverApproverPush({send:async()=>{throw Object.assign(Error('offline'),{code:'messaging/server-unavailable'});}}),0);
  await db.query("UPDATE aprobador_dispositivos SET reintentar_en=CURRENT_TIMESTAMP-INTERVAL '1 minute' WHERE id_dispositivo=$1",[device.deviceId]);
  assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,1);assert.equal(await deliverApproverPush({send}),0);
+ for(const state of ['EN_CURSO','FINALIZADO','CANCELADO']){
+  await db.query('UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre=$1) WHERE id_viajes=$2',[state,nextTrip]);
+  assert.equal(await deliverApproverPush({send}),0);
+ }
+ assert.ok((await approverFeed({rol:'SUPERVISOR'},device.cursor)).events.every(e=>['inspection','management'].includes(e.categoria)));
  const newer=await registerApproverDevice(manager);await bindApproverToken(newer.deviceId,newer.deviceSecret,fakeToken);
  assert.equal(await approverDevice(device.deviceId,device.deviceSecret),null);
  await revokeApproverDevice(newer.deviceId,newer.deviceSecret);
@@ -36,7 +44,7 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
 });
 
 test('push agrupa sin exceder el tamaño FCM y conserva las referencias sin GPS',()=>{
- const feed={events:Array.from({length:50},(_,i)=>({id:String(i+1),tripId:'1',categoria:'trip',estado:'EN_CURSO',folio:'VJ',conductor:'Á'.repeat(1000)})),critical:Array.from({length:500},()=>({folio:'VJ-PRUEBA'})),polledAt:new Date().toISOString()};
+ const feed={events:Array.from({length:50},(_,i)=>({id:String(i+1),tripId:'1',categoria:'inspection',estado:'APROBADA',folio:'VJ',conductor:'Á'.repeat(1000)})),critical:Array.from({length:500},()=>({folio:'VJ-PRUEBA'})),polledAt:new Date().toISOString()};
  const payload=pushSnapshot('device',feed);assert.ok(payload.events.length>0&&payload.events.length<50);assert.ok(Buffer.byteLength(JSON.stringify(payload))<=3300);assert.equal(payload.critical.count,500);assert.equal(payload.critical.folios.length,3);assert.equal(JSON.stringify(payload).includes('latitud'),false);
 });
 
@@ -67,4 +75,14 @@ test('no reproduce solicitudes resueltas y no pierde decisiones detrás de solic
 test('una solicitud vigente se marca para avisar al llegar, la decisión no',()=>{
  const feed={events:[{id:'1',tripId:'1',categoria:'management',estado:'PENDIENTE',actionable:true},{id:'2',tripId:'2',categoria:'management',estado:'APROBADO'}],critical:[{tripId:'1',folio:'VJ-1',fueraEstado:true}],polledAt:new Date().toISOString()};
  const payload=pushSnapshot('test',feed);assert.equal(payload.events[0].request,true);assert.equal(payload.events[0].priority,true);assert.equal(payload.events[1].request,false);
+});
+
+test('solo envía solicitudes y decisiones: omite el ciclo de viaje y las paradas sin perder la aprobación posterior',()=>{
+ const states=['PENDIENTE','EN_CURSO','FINALIZADO','CANCELADO'];
+ const noise=Array.from({length:20},(_,i)=>({id:String(i+1),tripId:'1',categoria:'trip',estado:states[i%4]}));
+ noise.push({id:'21',tripId:'1',categoria:'stop',estado:'PARADA_TECNICA'});
+ const base={events:noise,critical:[],polledAt:new Date().toISOString()};
+ assert.equal(pushSnapshot('test',base).events.length,0);
+ const result=pushSnapshot('test',{...base,events:[...noise,{id:'22',tripId:'1',categoria:'management',estado:'APROBADO'}]});
+ assert.deepEqual(result.events.map(e=>[e.id,e.category,e.state]),[['22','management','APROBADO']]);
 });

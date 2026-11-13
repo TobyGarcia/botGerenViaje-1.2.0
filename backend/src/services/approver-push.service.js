@@ -13,16 +13,17 @@ export function getApproverMessaging(){
  if(credentials.project_id!=='gv-mobility-pruebas')throw Error('Proyecto push incorrecto');
  messaging=getMessaging(initializeApp({credential:cert(credentials)},'approver-testing'));return messaging;
 }
-const labels={trip:{PENDIENTE:'Viaje registrado',EN_CURSO:'Viaje iniciado',FINALIZADO:'Viaje finalizado',CANCELADO:'Viaje cancelado'},inspection:{PENDIENTE_APROBACION:'Inspección por aprobar',APROBADA:'Inspección aprobada',RECHAZADA:'Inspección rechazada'},management:{PENDIENTE:'Gerenciamiento por aprobar',APROBADO:'Gerenciamiento aprobado',RECHAZADO:'Gerenciamiento rechazado'}};
+const labels={inspection:{PENDIENTE_APROBACION:'Inspección por aprobar',APROBADA:'Inspección aprobada',RECHAZADA:'Inspección rechazada'},management:{PENDIENTE:'Gerenciamiento por aprobar',APROBADO:'Gerenciamiento aprobado',RECHAZADO:'Gerenciamiento rechazado'}};
 export function pushSnapshot(deviceId,feed){
  const critical={count:feed.critical.length,folios:feed.critical.slice(0,3).map(v=>v.folio),managementCount:feed.critical.filter(v=>v.fueraEstado).length,managementFolios:feed.critical.filter(v=>v.fueraEstado).slice(0,3).map(v=>v.folio)};
  const events=[];for(const event of feed.events){
+  if(!['inspection','management'].includes(event.categoria))continue;
   if(events.length===10)break;
   const request=(event.categoria==='management'&&event.estado==='PENDIENTE')||(event.categoria==='inspection'&&event.estado==='PENDIENTE_APROBACION');
   const priority=feed.critical.some(trip=>String(trip.tripId)===String(event.tripId));
   // Consume obsolete events without displaying a new request after its decision.
   if(request&&(!event.actionable||(event.categoria==='management'&&!priority)))continue;
-  const value={request,priority,id:event.id,tripId:event.tripId,category:event.categoria,state:event.estado,title:labels[event.categoria]?.[event.estado]||'Parada técnica',body:[event.folio,event.conductor,event.unidad,event.detalle||`${event.origen||''} → ${event.destino||''}`].filter(Boolean).join(' · ').slice(0,240)};
+  const value={request,priority,id:event.id,tripId:event.tripId,category:event.categoria,state:event.estado,title:labels[event.categoria]?.[event.estado]||'Novedad de aprobación',body:[event.folio,event.conductor,event.unidad,event.detalle||`${event.origen||''} → ${event.destino||''}`].filter(Boolean).join(' · ').slice(0,240)};
   const candidate={deviceId,events:[...events,value],critical,updatedAt:feed.polledAt};
   if(Buffer.byteLength(JSON.stringify(candidate),'utf8')>3300)break;events.push(value);
  }
