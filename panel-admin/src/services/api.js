@@ -577,14 +577,14 @@ export function getAdminDashboardSummary() {
   return request("/admin/viajes/resumen");
 }
 
-export function getAdminInspecciones() {
-  return request("/admin/inspecciones");
+export function getAdminInspecciones(options = {}) {
+  return request("/admin/inspecciones", {...options,cache:"no-store"});
 }
 export function getAdminInspeccionesPendientesCount() {
   return request("/admin/inspecciones/pendientes/count");
 }
-export function getAdminInspeccionDetalle(idInspeccion) {
-  return request(`/admin/inspecciones/${idInspeccion}`);
+export function getAdminInspeccionDetalle(idInspeccion, options = {}) {
+  return request(`/admin/inspecciones/${idInspeccion}`, {...options,cache:"no-store"});
 }
 export function decidirAdminInspeccion(idInspeccion, aprobada, comentario, firma) {
   return request(`/admin/inspecciones/${idInspeccion}/decision`, { method: "PATCH", body: JSON.stringify({ aprobada, comentario, firma }) });

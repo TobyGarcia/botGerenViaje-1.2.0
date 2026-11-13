@@ -1,3 +1,4 @@
+import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
 import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk,requiredRiskRole} from '../../../backend/src/utils/approval-policy.js';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -314,6 +315,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   });
   const [rows, setRows] = useState([]);
   const [detail, setDetail] = useState(null);
+  const detailRef=useRef(detail);detailRef.current=detail;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [comment, setComment] = useState("");
@@ -324,21 +326,25 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({background=false,signal}={}) => {
+    if(!background)setLoading(true);
     try {
-      const response = await getAdminInspecciones();
+      const id=detailRef.current?.id_inspeccion;
+      const [response,review]=await Promise.all([getAdminInspecciones({signal}),id?getAdminInspeccionDetalle(id,{signal}).catch(()=>null):null]);
+      if(signal?.aborted)return;
       const data = response.data || [];
+      if(review?.data&&String(detailRef.current?.id_inspeccion)===String(id))setDetail(previous=>String(previous?.id_inspeccion)===String(id)?review.data:previous);
       setRows(data);
       onPendingChange?.(data.filter(item => item.estado === "PENDIENTE_APROBACION").length);
     } catch (error) {
-      setMessage(error.message);
+      if(!background&&!signal?.aborted)setMessage(error.message);
     } finally {
-      setLoading(false);
+      if(!background&&!signal?.aborted)setLoading(false);
     }
   }, [onPendingChange]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(()=>{const controller=new AbortController();void load({signal:controller.signal});return()=>controller.abort();},[load]);
+  useApprovalLiveRefresh(load,!saving&&!loading);
 
   function closeDetail() { setDetail(null); }
 
@@ -395,6 +401,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
 
   const totalFiltered = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  useEffect(()=>{setCurrentPage(page=>Math.min(page,totalPages));},[totalPages]);
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (

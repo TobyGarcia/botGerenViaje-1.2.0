@@ -6,11 +6,13 @@ const invalid=new URLSearchParams(location.search).has('invalid');
 const login=new URLSearchParams(location.search).has('login') || invalid;
 const trip={idViaje:41,folio:'VJ-DEMO-0041',fecha:'2026-11-12',conductor:{nombre:'Ana López'},vehiculo:{nombre:'MITSUBISHI L200',numeroEconomico:'AUTO-DEMO',placas:'DEM-001'},origen:{nombre:'Base'},destino:{nombre:'Almacén'},estado:{nombre:'EN_CURSO'},kilometrajeInicial:1200,motivo:'Traslado',acompanantes:[]};
 const rows=[{id_inspeccion:1,folio:'PENDIENTE-DEMO',vehiculo:'MITSUBISHI L200',numero_economico:'AUTO-DEMO',conductor:'Ana López',estado:'PENDIENTE_APROBACION',creado_en:'2026-11-12T17:00:00Z'},{id_inspeccion:2,folio:'APROBADA-OCULTA',estado:'APROBADA',creado_en:'2026-11-12T17:00:00Z'}];
+const management={id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']};
 window.fetch=async(input,options={})=>{const path=new URL(input,location.origin).pathname;if(invalid && path.endsWith('/supervisor-app/start'))return new Response('null',{headers:{'Content-Type':'application/json'}});if((options.method||'GET')!=='GET')throw Error('Mutaciones deshabilitadas en QA');let data=[],status=200;
  if(path.endsWith('/auth/session')){if(login){status=401;data=null;}else data={user:{nombre:'Supervisora Demo',rol:role,idUsuarioAdmin:1}};}
- else if(path.endsWith('/gerenciamiento-viajes'))data=[{id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']}];
+ else if(path.endsWith('/gerenciamiento-viajes'))data=new URL(input,location.origin).searchParams.get('estado')&&new URL(input,location.origin).searchParams.get('estado')!==management.estado?[]:[management];
+ else if(path.endsWith('/gerenciamiento-viajes/7'))data=management;
  else if(path.endsWith('/admin/inspecciones'))data=rows;
- else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F',approval_context:{management:{id_gerenciamiento:7,nivel_riesgo:'BAJO',estado:'PENDIENTE'},ambiguous:false}};
+ else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F',approval_context:{management:{id_gerenciamiento:7,nivel_riesgo:'BAJO',estado:management.estado},ambiguous:false}};
  else if(path.endsWith('/admin/viajes'))data=[trip];
  else if(path.endsWith('/admin/viajes/41'))data={trip,locations:[]};
  if(empty&&(path.endsWith('/admin/inspecciones')||path.endsWith('/gerenciamiento-viajes')))data=[];
@@ -26,6 +28,17 @@ if(new URLSearchParams(location.search).has('decision-test')){
    approved=true;rows[0].estado='APROBADA';return new Response(JSON.stringify({success:true,message:'Aprobados',data:{estado:'APROBADO'}}),{headers:{'Content-Type':'application/json'}});
   }
   if(approved&&path.endsWith('/gerenciamiento-viajes'))return new Response(JSON.stringify({success:true,data:[]}),{headers:{'Content-Type':'application/json'}});
+  return readFixture(input,options);
+ };
+}
+// Remote changes update only mock server data; no React events, approvals or pushes are fired.
+if(new URLSearchParams(location.search).has('live-test')){
+ const readFixture=window.fetch;window.__liveAlerts=0;window.__liveReads=0;window.__liveOffline=false;
+ window.alert=()=>{window.__liveAlerts++;};
+ window.__simulateOtherApprover=state=>{management.estado=state;rows[0].estado=state==='APROBADO'?'APROBADA':'RECHAZADA';};
+ window.fetch=async(input,options={})=>{
+  const path=new URL(input,location.origin).pathname;
+  if(path.includes('/inspecciones')||path.includes('/gerenciamiento-viajes')){window.__liveReads++;if(window.__liveOffline)throw Error('Simulated connection loss');}
   return readFixture(input,options);
  };
 }

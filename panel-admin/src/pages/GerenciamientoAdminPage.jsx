@@ -1,3 +1,4 @@
+import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
 import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk} from '../../../backend/src/utils/approval-policy.js';
 import { apiFetch, readApiJson } from "../services/http-transport.js";
@@ -95,6 +96,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
   const [filterRiesgo, setFilterRiesgo] = useState("");
   const [filterEstado, setFilterEstado] = useState(initialStatus);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const selectedRef=useRef(selectedDoc);selectedRef.current=selectedDoc;
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -105,29 +107,31 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
 
   const API_BASE_URL = `${String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "").replace(/\/api$/, "")}/api`;
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadData = useCallback(async ({background=false,signal}={}) => {
+    if(!background){setLoading(true);setError("");}
     try {
       let url = `${API_BASE_URL}/gerenciamiento-viajes?`;
       if (filterRiesgo) url += `riesgo=${filterRiesgo}&`;
       if (filterEstado) url += `estado=${filterEstado}&`;
 
-      const gerenRes = await apiFetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } });
+      const id=selectedRef.current?.id_gerenciamiento;
+      const options={signal,cache:"no-store",headers:{Authorization:`Bearer ${localStorage.getItem("adminToken")}`}};
+      const [gerenRes,review]=await Promise.all([apiFetch(url,options),id?apiFetch(`${API_BASE_URL}/gerenciamiento-viajes/${id}`,options).then(async response=>response.ok?readApiJson(response):null).catch(()=>null):null]);
 
       if (!gerenRes.ok) throw new Error("Error cargando gerenciamientos de viaje.");
       const gerenData = await readApiJson(gerenRes);
+      if(signal?.aborted)return;
       setList(gerenData.data || []);
+      if(review?.data&&String(selectedRef.current?.id_gerenciamiento)===String(id))setSelectedDoc(previous=>String(previous?.id_gerenciamiento)===String(id)?{...previous,...review.data}:previous);
     } catch (err) {
-      setError(err.message || "Error conectando con el servidor.");
+      if(!background&&!signal?.aborted)setError(err.message || "Error conectando con el servidor.");
     } finally {
-      setLoading(false);
+      if(!background&&!signal?.aborted)setLoading(false);
     }
   }, [API_BASE_URL, filterRiesgo, filterEstado]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(()=>{const controller=new AbortController();void loadData({signal:controller.signal});return()=>controller.abort();},[loadData]);
+  useApprovalLiveRefresh(loadData,!approving&&!loading);
 
   async function handleDecide(nuevoEstado) {
     if (nuevoEstado === "APROBADO" && !firmaAutorizador) {
@@ -640,6 +644,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
 
   const totalFiltered = list.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  useEffect(()=>{setCurrentPage(page=>Math.min(page,totalPages));},[totalPages]);
   const paginatedList = list.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
