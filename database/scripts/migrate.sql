@@ -49,3 +49,5 @@
 \ir ../migrations/044_trip_telegram_start_messages.sql
 \ir ../migrations/045_viaje_inspeccion_uso.sql
 \ir ../migrations/046_approver_notifications.sql
+
+\ir ../migrations/047_cancelled_approval_withdrawals.sql

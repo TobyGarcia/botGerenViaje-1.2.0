@@ -58,4 +58,19 @@ try {
  await until("!document.querySelector('.tab-pending-badge')",'Reconnect did not refresh',30);
  if(await js('window.__liveAlerts')!==0)throw Error('Unexpected network alert');
  console.log('PASS: connection loss retains rows, reconnection refreshes silently');
+ for(const tab of ['inspecciones','gerenciamiento']){
+  await openScene(tab);
+  if(tab==='inspecciones')await click('.btn-review');else{await js("[...document.querySelectorAll('button')].find(b=>/Ver revisión/.test(b.textContent)).click()");await wait(200);}
+  await js('window.__simulateCancellation()');
+  await until("!document.querySelector('.tab-pending-badge')&&document.body.textContent.includes('Solicitud retirada')",'Cancelled request stayed actionable');
+  if(await js("[...document.querySelectorAll('.modal-card button,.inspection-detail-modal-enhanced button')].some(b=>/Aprobar ambos|Aprobar inspección/.test(b.textContent))"))throw Error('Cancelled request has approval controls');
+  if(await js('window.__liveAlerts')!==0)throw Error('Cancellation generated an alert');
+  console.log('PASS: cancellation retires '+tab+' and its open review without a new alert');
+ }
+ await openScene();await js('window.__simulateCancellation(true)');await wait(5500);
+ if(!await js("Boolean(document.querySelector('.tab-pending-badge'))&&Boolean(document.querySelector('.btn-review'))"))throw Error('Shared inspection withdrawn');
+ if(!await js("document.body.textContent.includes('VJ-ACTIVO-COMPARTIDO')"))throw Error('Shared request displays cancelled origin instead of valid consumer');
+ await js("(()=>{const e=document.querySelector('.search-box-enhanced input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'VJ-ACTIVO-COMPARTIDO');e.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait(150);
+ if(!await js("Boolean(document.querySelector('.btn-review'))"))throw Error('Shared request cannot be found by current trip folio');
+ console.log('PASS: shared inspection remains pending under another valid trip');
 } finally {await send('Browser.close').catch(()=>{});ws.close();chrome.kill();}

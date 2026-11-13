@@ -75,8 +75,10 @@ function formatFechaOperativa(value) {
   return value;
 }
 
-function StatusBadge({ estado }) {
+function inspectionRequestFolio(row){return row.estado==='PENDIENTE_APROBACION'&&row.approval_available!==false?row.approval_folio||row.folio:row.folio;}
+function StatusBadge({ estado, available=true }) {
   const norm = (estado || "").toUpperCase();
+  if(!available&&norm==="PENDIENTE_APROBACION")return <span className="status-pill status-pill-default" title="Solicitud retirada; se conserva la inspección">Retirada</span>;
   if (norm === "APROBADA") {
     return (
       <span className="status-pill status-pill-approved">
@@ -335,7 +337,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
       const data = response.data || [];
       if(review?.data&&String(detailRef.current?.id_inspeccion)===String(id))setDetail(previous=>String(previous?.id_inspeccion)===String(id)?review.data:previous);
       setRows(data);
-      onPendingChange?.(data.filter(item => item.estado === "PENDIENTE_APROBACION").length);
+      onPendingChange?.(data.filter(item => item.estado === "PENDIENTE_APROBACION" && item.approval_available!==false).length);
     } catch (error) {
       if(!background&&!signal?.aborted)setMessage(error.message);
     } finally {
@@ -383,16 +385,18 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   }
 
   // Conteos para filtros rápidos
-  const pendingCount = rows.filter(r => r.estado === "PENDIENTE_APROBACION").length;
+  const pendingCount = rows.filter(r => r.estado === "PENDIENTE_APROBACION" && r.approval_available!==false).length;
   const approvedCount = rows.filter(r => r.estado === "APROBADA").length;
   const rejectedCount = rows.filter(r => r.estado === "RECHAZADA").length;
 
   const filteredRows = rows.filter((r) => {
     if (statusFilter !== "ALL" && r.estado !== statusFilter) return false;
+    if(statusFilter==="PENDIENTE_APROBACION"&&r.approval_available===false)return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
       (r.folio || "").toLowerCase().includes(term) ||
+      (r.approval_folio || "").toLowerCase().includes(term) ||
       (r.conductor || "").toLowerCase().includes(term) ||
       (r.vehiculo || "").toLowerCase().includes(term) ||
       (r.numero_economico || "").toLowerCase().includes(term)
@@ -536,7 +540,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
               </div>
             ) : (
               <>
-                {pendingOnly && <div className="supervisor-review-cards">{paginatedRows.map(row=><article key={row.id_inspeccion}><header><strong>{row.folio}</strong><StatusBadge estado={row.estado}/></header><p>{row.vehiculo} · {row.numero_economico}</p><small>{row.conductor}</small><button type="button" className="btn-review" onClick={()=>open(row)}>Revisar inspección →</button></article>)}</div>}
+                {pendingOnly && <div className="supervisor-review-cards">{paginatedRows.map(row=><article key={row.id_inspeccion}><header><strong>{inspectionRequestFolio(row)}</strong><StatusBadge available={row.approval_available!==false} estado={row.estado}/></header><p>{row.vehiculo} · {row.numero_economico}</p><small>{row.conductor}</small><button type="button" className="btn-review" onClick={()=>open(row)}>Revisar inspección →</button></article>)}</div>}
                 <div className="table-wrapper">
                   <table className="admin-table inspections-table">
                     <thead>
@@ -556,7 +560,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                           <tr key={row.id_inspeccion} className="inspection-row">
                             <td>
                               <div className="folio-cell">
-                                <span className="folio-code">{row.folio}</span>
+                                <span className="folio-code">{inspectionRequestFolio(row)}</span>
                                 {row.es_dia_siguiente && (
                                   <span className="next-day-pill" title={`Programada para: ${row.fecha_operativa}`}>
                                     <IconLuna size={12} /> Día Siguiente
@@ -582,7 +586,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                               </div>
                             </td>
                             <td>
-                              <StatusBadge estado={row.estado} />
+                              <StatusBadge available={row.approval_available!==false} estado={row.estado} />
                             </td>
                             <td>
                               <div className="actions-cell">
@@ -673,7 +677,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                   <div className="modal-header-info">
                     <div className="modal-title-row">
                       <h2>Inspección {detail.folio}</h2>
-                      <StatusBadge estado={detail.estado} />
+                      <StatusBadge available={detail.approval_available!==false} estado={detail.estado} />
                     </div>
                     <div className="modal-subtitle-row">
                       <span className="vehicle-pill">
@@ -866,8 +870,10 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                     </div>
                   )}
 
+                  {detail.approval_folio&&detail.approval_folio!==detail.folio&&detail.estado==="PENDIENTE_APROBACION"&&<p role="status">Esta inspección sigue vigente para el viaje {detail.approval_folio}. Se conserva su folio original como historial.</p>}
+                  {detail.approval_available===false&&detail.estado==="PENDIENTE_APROBACION"&&<p role="status">Solicitud retirada. La inspección y sus evidencias se conservan como historial.</p>}
                   {/* Panel de Decisión (si está pendiente de aprobación) */}
-                  {(detail.estado === "PENDIENTE_APROBACION" || detail.approval_context?.management?.estado === "PENDIENTE") ? (
+                  {detail.approval_available!==false && (detail.estado === "PENDIENTE_APROBACION" || detail.approval_context?.management?.estado === "PENDIENTE") ? (
                     <div className="modal-section-card decision-panel-card">
                       <div className="section-card-title">
                         <h3>{detail.approval_context?.management?"Aprobar gerenciamiento e inspección":"Aprobar inspección"}</h3>

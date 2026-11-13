@@ -1,3 +1,4 @@
+import {inspectionMatchesTripSql} from './approval-eligibility.js';
 // Trip timestamps are Mexico City wall time (timestamp without time zone).
 export function isManagementRole(role) {
   return ["GERENTE", "GERENTE_GENERAL"].includes(String(role || "").toUpperCase());
@@ -9,7 +10,6 @@ export function managementTripSql(alias = "v") {
 }
 export function managementInspectionSql() {
   return `EXISTS (SELECT 1 FROM viajes mt WHERE
-    (mt.id_viajes=i.id_viajes OR EXISTS (SELECT 1 FROM viaje_inspeccion_uso mu
-      WHERE mu.id_inspeccion=i.id_inspeccion AND mu.id_viajes=mt.id_viajes))
+    ${inspectionMatchesTripSql('i','mt')}
     AND ${managementTripSql("mt")})`;
 }

@@ -39,11 +39,12 @@ test('eventos de aprobadores: rol, deduplicación, resumen persistente y revocac
  assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,1);assert.equal(await deliverApproverPush({send}),0);
  for(const state of ['EN_CURSO','FINALIZADO','CANCELADO']){
   await db.query('UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre=$1) WHERE id_viajes=$2',[state,nextTrip]);
-  assert.equal(await deliverApproverPush({send}),0);
+  assert.equal(await deliverApproverPush({send}),state==='CANCELADO'?1:0);
+  if(state==='CANCELADO'){assert.equal(packets.at(-1).events.length,0);assert.deepEqual(packets.at(-1).resolvedTrips,[String(nextTrip)]);}
  }
  await db.query("UPDATE inspecciones_vehiculares SET estado='RECHAZADA' WHERE id_viajes=$1",[nextTrip]);
  assert.equal(await deliverApproverPush({send}),1);assert.equal(packets.at(-1).events.length,0);assert.deepEqual(packets.at(-1).resolvedTrips,[String(nextTrip)]);assert.equal(await deliverApproverPush({send}),0);
- assert.ok((await approverFeed({rol:'SUPERVISOR'},device.cursor)).events.every(e=>['inspection','management'].includes(e.categoria)));
+ assert.ok((await approverFeed({rol:'SUPERVISOR'},device.cursor)).events.every(e=>['inspection','management'].includes(e.categoria)||(e.categoria==='trip'&&e.estado==='CANCELADO')));
  const newer=await registerApproverDevice(manager);await bindApproverToken(newer.deviceId,newer.deviceSecret,fakeToken);
  assert.equal(await approverDevice(device.deviceId,device.deviceSecret),null);
  await revokeApproverDevice(newer.deviceId,newer.deviceSecret);

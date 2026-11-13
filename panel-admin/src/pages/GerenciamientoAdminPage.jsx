@@ -702,7 +702,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
           <>
-            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');}}>Ver revisión →</button></article>)}</div>}
+            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.viaje_cancelado&&item.estado==="PENDIENTE"?"Retirado":item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');}}>Ver revisión →</button></article>)}</div>}
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>
@@ -735,7 +735,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
                         <td>{formatDate(item.creado_en || item.fecha_emision)}</td>
                         <td>
                           <span className={`inspection-status inspection-status-${estadoNormalized}`}>
-                            {item.estado === "APROBADO" ? "APROBADO" : item.estado === "RECHAZADO" ? "RECHAZADO" : "PENDIENTE"}
+                            {item.viaje_cancelado&&item.estado==="PENDIENTE"?"RETIRADO":item.estado === "APROBADO" ? "APROBADO" : item.estado === "RECHAZADO" ? "RECHAZADO" : "PENDIENTE"}
                           </span>
                           <small style={{ display: "block", fontSize: "0.72rem", color: "#475569", marginTop: "2px" }}>
                             {item.nivel_riesgo} ({item.puntaje_total} pts)
@@ -1222,7 +1222,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
             </div>
 
             {/* Sección de Aprobación Unificada si está pendiente */}
-            {selectedDoc.estado === "PENDIENTE" ? (
+            {selectedDoc.estado === "PENDIENTE" && selectedDoc.approval_available!==false ? (
               <div className="inspection-decision-panel">
                 <div style={{ padding: "8px 12px", borderRadius: "6px", marginBottom: "12px", background: selectedDoc.nivel_riesgo === "ALTO" ? "#fee2e2" : selectedDoc.nivel_riesgo === "MEDIO" ? "#fef9c3" : "#dcfce7", border: "1px solid #cbd5e1", fontSize: "0.85rem", color: "#000" }}>
                   {selectedDoc.nivel_riesgo === "ALTO" ? (
@@ -1278,7 +1278,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
               </div>
             ) : (
               <div style={{ background: selectedDoc.estado === "APROBADO" ? "#dcfce7" : "#fee2e2", padding: "12px", borderRadius: "8px", textAlign: "center", color: selectedDoc.estado === "APROBADO" ? "#166534" : "#991b1b", fontWeight: "bold" }}>
-                Documento {selectedDoc.estado} por {selectedDoc.nombre_autorizador_firma || "Autorizador"}
+                {selectedDoc.approval_available===false&&selectedDoc.estado==="PENDIENTE"?"Solicitud retirada. El viaje está cancelado o ya no admite aprobación.":<>Documento {selectedDoc.estado} por {selectedDoc.nombre_autorizador_firma || "Autorizador"}</>}
               </div>
             )}
           </section>

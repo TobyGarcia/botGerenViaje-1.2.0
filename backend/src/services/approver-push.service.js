@@ -17,7 +17,7 @@ const labels={inspection:{PENDIENTE_APROBACION:'Inspección por aprobar'},manage
 export function pushSnapshot(deviceId,feed){
  const critical={count:feed.critical.length,folios:feed.critical.slice(0,3).map(v=>v.folio),managementCount:feed.critical.filter(v=>v.fueraEstado).length,managementFolios:feed.critical.filter(v=>v.fueraEstado).slice(0,3).map(v=>v.folio)};
  // Data-only removals never create a visible approval/rejection notification.
- const resolvedTrips=[...new Set(feed.events.filter(e=>e.resolved&&((e.categoria==='management'&&['APROBADO','RECHAZADO'].includes(e.estado))||(e.categoria==='inspection'&&['APROBADA','RECHAZADA'].includes(e.estado)))).map(e=>String(e.tripId)))];
+ const resolvedTrips=[...new Set(feed.events.filter(e=>e.resolved&&((['trip','withdrawal'].includes(e.categoria)&&e.estado==='CANCELADO')||(e.categoria==='management'&&['APROBADO','RECHAZADO'].includes(e.estado))||(e.categoria==='inspection'&&['APROBADA','RECHAZADA'].includes(e.estado)))).map(e=>String(e.tripId)))];
  const events=[];for(const event of feed.events){
   if(!['inspection','management'].includes(event.categoria))continue;
   if(events.length===10)break;

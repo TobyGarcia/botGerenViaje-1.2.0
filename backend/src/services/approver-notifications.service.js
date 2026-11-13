@@ -1,3 +1,4 @@
+import {nonCancelledTripSql,tripHasPendingApprovalsSql} from './approval-eligibility.js';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {databasePool as db} from '../database/pool.js';
 import {isManagementRole,managementTripSql} from './management-trip-scope.js';
@@ -25,25 +26,21 @@ export async function approverFeed(user,cursor='0',queryDb=db){
  const watermark=(await queryDb.query('SELECT COALESCE(MAX(id_evento),0)::text AS cursor FROM aprobador_eventos')).rows[0].cursor;
  const scope=isManagementRole(user.rol)?`AND ${managementTripSql('v')}`:'';
  const events=(await queryDb.query(`SELECT e.id_evento::text AS id,e.id_viajes::text AS "tripId",v.folio,e.categoria,e.estado,
- CASE WHEN e.categoria='management' AND e.estado='PENDIENTE' THEN EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_gerenciamiento=e.entidad AND g.estado='PENDIENTE')
- WHEN e.categoria='inspection' AND e.estado='PENDIENTE_APROBACION' THEN EXISTS(SELECT 1 FROM inspecciones_vehiculares i WHERE i.id_inspeccion=e.entidad AND i.estado='PENDIENTE_APROBACION') ELSE FALSE END AS actionable,
- NOT EXISTS(SELECT 1 FROM gerenciamiento_viajes pending_g WHERE pending_g.id_viaje=v.id_viajes AND pending_g.estado='PENDIENTE')
- AND NOT EXISTS(SELECT 1 FROM inspecciones_vehiculares pending_i WHERE pending_i.estado='PENDIENTE_APROBACION' AND (pending_i.id_viajes=v.id_viajes OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso pending_u WHERE pending_u.id_viajes=v.id_viajes AND pending_u.id_inspeccion=pending_i.id_inspeccion))) AS resolved,
+ CASE WHEN e.categoria='management' AND e.estado='PENDIENTE' THEN ${nonCancelledTripSql('v')} AND EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_gerenciamiento=e.entidad AND g.estado='PENDIENTE')
+ WHEN e.categoria='inspection' AND e.estado='PENDIENTE_APROBACION' THEN ${nonCancelledTripSql('v')} AND EXISTS(SELECT 1 FROM inspecciones_vehiculares i WHERE i.id_inspeccion=e.entidad AND i.estado='PENDIENTE_APROBACION') ELSE FALSE END AS actionable,
+ NOT ${tripHasPendingApprovalsSql('v')} AS resolved,
  c.nombre AS conductor,vh.nombre AS unidad,origen.nombre AS origen,destino.nombre AS destino,
  CASE WHEN e.categoria='stop' THEN uv.nombre_punto ELSE NULL END AS detalle
  FROM aprobador_eventos e JOIN viajes v ON v.id_viajes=e.id_viajes
  LEFT JOIN conductores c ON c.id_conductores=v.id_conductores LEFT JOIN vehiculos vh ON vh.id_vehiculos=v.id_vehiculos
  LEFT JOIN lugares origen ON origen.id_lugares=v.id_origen LEFT JOIN lugares destino ON destino.id_lugares=v.id_destino
  LEFT JOIN ubicaciones_viaje uv ON e.categoria='stop' AND uv.id_ubicaciones_viaje=e.entidad
- WHERE e.id_evento>$1 AND e.id_evento<=$2 AND e.categoria IN ('inspection','management') ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
+ WHERE e.id_evento>$1 AND e.id_evento<=$2 AND (e.categoria IN ('inspection','management') OR (e.categoria IN ('trip','withdrawal') AND e.estado='CANCELADO')) ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
  // Return the last delivered ID; never skip the rest of a large batch.
  const next=events.length===50?events.at(-1).id:watermark;
  const critical=(await queryDb.query(`SELECT v.id_viajes::text AS "tripId",v.folio,
  EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_viaje=v.id_viajes) AS "fueraEstado"
- FROM viajes v WHERE ${managementTripSql('v')} AND (
- EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_viaje=v.id_viajes AND g.estado='PENDIENTE') OR
- EXISTS(SELECT 1 FROM inspecciones_vehiculares i WHERE i.estado='PENDIENTE_APROBACION' AND (i.id_viajes=v.id_viajes OR EXISTS(
- SELECT 1 FROM viaje_inspeccion_uso u WHERE u.id_viajes=v.id_viajes AND u.id_inspeccion=i.id_inspeccion))))
+ FROM viajes v WHERE ${managementTripSql('v')} AND ${tripHasPendingApprovalsSql('v')}
  ORDER BY v.id_viajes DESC`)).rows;
  return {events,cursor:next,critical,polledAt:new Date().toISOString()};
 }

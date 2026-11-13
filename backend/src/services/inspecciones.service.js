@@ -1,3 +1,4 @@
+import {inspectionAvailableSql,inspectionRequestJoinSql} from './approval-eligibility.js';
 import {approveJointDocuments,inspectionManagementContext} from './joint-approval.service.js';
 import { isManagementRole, managementInspectionSql } from "./management-trip-scope.js";
 import { traceOperation } from "./operation-log.service.js";
@@ -122,7 +123,7 @@ async function getInspectionRequirementImpl({ idViaje, idConductor }) {
 
 export async function listPendingInspections(adminRole = null) {
   const result = await databasePool.query(`
-    SELECT i.id_inspeccion, i.estado, i.creado_en, i.requiere_autorizacion_fuera_horario,
+    SELECT i.id_inspeccion, i.estado, (eligible_request.id_viajes IS NOT NULL) AS approval_available, eligible_request.folio AS approval_folio, eligible_request.id_viajes AS approval_trip_id, i.creado_en, i.requiere_autorizacion_fuera_horario,
       i.fecha_operativa, i.es_dia_siguiente, i.lleva_remolque, i.id_remolque,
       v.folio, c.nombre AS conductor, vh.nombre AS vehiculo, vh.numero_economico,
       rem.nombre AS remolque_nombre, rem.numero_economico AS remolque_numero_economico
@@ -131,6 +132,7 @@ export async function listPendingInspections(adminRole = null) {
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
     LEFT JOIN vehiculos rem ON rem.id_vehiculos=i.id_remolque
+    ${inspectionRequestJoinSql('i')}
     ${isManagementRole(adminRole) ? `WHERE ${managementInspectionSql()}` : ""}
     ORDER BY CASE WHEN i.estado='PENDIENTE_APROBACION' THEN 0 ELSE 1 END, i.creado_en DESC`);
   return result.rows;
@@ -138,7 +140,7 @@ export async function listPendingInspections(adminRole = null) {
 
 export async function getAdminInspection(idInspeccion) {
   const result = await databasePool.query(`
-    SELECT i.id_inspeccion, i.id_viajes, i.id_vehiculos, i.id_conductores,
+    SELECT i.id_inspeccion, (eligible_request.id_viajes IS NOT NULL) AS approval_available, eligible_request.folio AS approval_folio, eligible_request.id_viajes AS approval_trip_id, i.id_viajes, i.id_vehiculos, i.id_conductores,
       i.fecha_operativa, i.es_dia_siguiente, i.combustible, i.tipo_asignacion, i.asignacion_inicio,
       i.asignacion_fin, i.danos, i.checklist, i.observaciones_conductor,
       i.firma_conductor, i.firma_supervisor, i.estado, i.requiere_autorizacion_fuera_horario,
@@ -151,14 +153,16 @@ export async function getAdminInspection(idInspeccion) {
       vh.seguro_vencimiento,
       vh_rem.nombre AS remolque_nombre, vh_rem.marca AS remolque_marca, vh_rem.modelo AS remolque_modelo,
       vh_rem.numero_economico AS remolque_numero_economico, vh_rem.placas AS remolque_placas,
-      COALESCE(NULLIF(gv.nombre_autorizador_firma, ''), ua.nombre, 'N/A') AS aprobador
+      COALESCE(NULLIF(gv.nombre_autorizador_firma, ''), approver_person.nombre, 'N/A') AS aprobador
     FROM inspecciones_vehiculares i
     INNER JOIN viajes v ON v.id_viajes=i.id_viajes
     INNER JOIN conductores c ON c.id_conductores=i.id_conductores
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
     LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos=i.id_remolque
     LEFT JOIN usuarios_admin ua ON ua.id_usuarios_admin=i.id_usuario_admin_aprobador
+    LEFT JOIN conductores approver_person ON approver_person.id_conductores=ua.id_conductores
     LEFT JOIN gerenciamiento_viajes gv ON gv.id_viaje=i.id_viajes
+    ${inspectionRequestJoinSql('i')}
     WHERE i.id_inspeccion=$1 LIMIT 1`, [idInspeccion]);
   const detail = result.rows[0];
   const approvalContext=detail?await inspectionManagementContext(detail.id_inspeccion):null;
@@ -177,7 +181,7 @@ export async function getInspectionByViaje(idViaje) {
 }
 
 export async function countPendingInspections(adminRole = null) {
-  const result = await databasePool.query(`SELECT COUNT(*)::INTEGER AS total FROM inspecciones_vehiculares i WHERE estado='PENDIENTE_APROBACION' ${isManagementRole(adminRole) ? `AND ${managementInspectionSql()}` : ""}`);
+  const result = await databasePool.query(`SELECT COUNT(*)::INTEGER AS total FROM inspecciones_vehiculares i WHERE estado='PENDIENTE_APROBACION' AND ${inspectionAvailableSql('i')} ${isManagementRole(adminRole) ? `AND ${managementInspectionSql()}` : ""}`);
   return result.rows[0].total;
 }
 
@@ -188,7 +192,7 @@ async function approveInspectionImpl({ idInspeccion, idUsuarioAdmin, approved, c
     UPDATE inspecciones_vehiculares
     SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3, firma_supervisor=$4,
       aprobado_en=CURRENT_TIMESTAMP, actualizado_en=CURRENT_TIMESTAMP
-    WHERE id_inspeccion=$5 AND estado='PENDIENTE_APROBACION'
+    WHERE id_inspeccion=$5 AND estado='PENDIENTE_APROBACION' AND ${inspectionAvailableSql('inspecciones_vehiculares')}
     RETURNING *`, [approved ? "APROBADA" : "RECHAZADA", idUsuarioAdmin, comentario || null, firmaSupervisor, idInspeccion]);
   return result.rows[0] ?? null;
 }

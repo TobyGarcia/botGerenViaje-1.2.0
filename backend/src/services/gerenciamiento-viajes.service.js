@@ -1,3 +1,4 @@
+import {managementAvailableSql,managementCancelledSql} from './approval-eligibility.js';
 import {approveJointDocuments} from './joint-approval.service.js';
 import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
@@ -290,7 +291,7 @@ async function createGerenciamientoViajeImpl({ idConductor, data }) {
 
 export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
-    SELECT g.*,
+    SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
@@ -327,7 +328,7 @@ export async function getGerenciamientoById(idGerenciamiento) {
 
 export async function getGerenciamientoByViaje(idViaje) {
   const result = await databasePool.query(`
-    SELECT g.*,
+    SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
@@ -371,6 +372,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
   if (estado) {
     whereClauses.push(`g.estado = $${paramIndex++}`);
     values.push(estado);
+    if(estado==='PENDIENTE')whereClauses.push(managementAvailableSql('g'));
   }
   if (nivelRiesgo) {
     whereClauses.push(`g.nivel_riesgo = $${paramIndex++}`);
@@ -389,7 +391,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
   const offsetParam = `$${paramIndex++}`;
 
   const query = `
-    SELECT g.*,
+    SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
@@ -427,6 +429,7 @@ async function aprovarGerenciamientoImpl({idGerenciamiento,idUsuarioAdmin,nombre
  const client=await databasePool.connect();try{await client.query('BEGIN');
  const current=(await client.query('SELECT * FROM gerenciamiento_viajes WHERE id_gerenciamiento=$1 FOR UPDATE',[idGerenciamiento])).rows[0];
  if(!current){await client.query('COMMIT');return null;}if(current.estado!=='PENDIENTE')throw new Error('Este gerenciamiento ya tiene una decisión registrada.');
+ if(current.id_viaje){const trip=(await client.query('SELECT v.id_viajes,ev.nombre FROM viajes v JOIN estados_viaje ev USING(id_estado_viaje) WHERE v.id_viajes=$1 FOR UPDATE OF v',[current.id_viaje])).rows[0];if(trip?.nombre==='CANCELADO')throw Object.assign(new Error('El viaje fue cancelado; su solicitud fue retirada.'),{statusCode:409});}
  const record=(await client.query(`UPDATE gerenciamiento_viajes SET estado='RECHAZADO',id_usuario_autorizador=$1,nombre_autorizador_firma=$2,firma_autorizador=$3,fecha_firma_autorizador=CURRENT_TIMESTAMP,observaciones=COALESCE($4,observaciones),actualizado_en=CURRENT_TIMESTAMP WHERE id_gerenciamiento=$5 RETURNING *`,[idUsuarioAdmin,nombreAutorizador,firmaAutorizador,observaciones,idGerenciamiento])).rows[0];
  if(record.id_viaje){
 

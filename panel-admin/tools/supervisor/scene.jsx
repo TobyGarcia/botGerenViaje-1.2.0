@@ -9,7 +9,7 @@ const rows=[{id_inspeccion:1,folio:'PENDIENTE-DEMO',vehiculo:'MITSUBISHI L200',n
 const management={id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']};
 window.fetch=async(input,options={})=>{const path=new URL(input,location.origin).pathname;if(invalid && path.endsWith('/supervisor-app/start'))return new Response('null',{headers:{'Content-Type':'application/json'}});if((options.method||'GET')!=='GET')throw Error('Mutaciones deshabilitadas en QA');let data=[],status=200;
  if(path.endsWith('/auth/session')){if(login){status=401;data=null;}else data={user:{nombre:'Supervisora Demo',rol:role,idUsuarioAdmin:1}};}
- else if(path.endsWith('/gerenciamiento-viajes'))data=new URL(input,location.origin).searchParams.get('estado')&&new URL(input,location.origin).searchParams.get('estado')!==management.estado?[]:[management];
+ else if(path.endsWith('/gerenciamiento-viajes'))data=(new URL(input,location.origin).searchParams.get('estado')==='PENDIENTE'&&management.approval_available===false)||(new URL(input,location.origin).searchParams.get('estado')&&new URL(input,location.origin).searchParams.get('estado')!==management.estado)?[]:[management];
  else if(path.endsWith('/gerenciamiento-viajes/7'))data=management;
  else if(path.endsWith('/admin/inspecciones'))data=rows;
  else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F',approval_context:{management:{id_gerenciamiento:7,nivel_riesgo:'BAJO',estado:management.estado},ambiguous:false}};
@@ -35,6 +35,7 @@ if(new URLSearchParams(location.search).has('decision-test')){
 if(new URLSearchParams(location.search).has('live-test')){
  const readFixture=window.fetch;window.__liveAlerts=0;window.__liveReads=0;window.__liveOffline=false;
  window.alert=()=>{window.__liveAlerts++;};
+ window.__simulateCancellation=(shared=false)=>{management.approval_available=false;management.viaje_cancelado=true;rows[0].approval_available=shared;rows[0].approval_folio=shared?'VJ-ACTIVO-COMPARTIDO':null;};
  window.__simulateOtherApprover=state=>{management.estado=state;rows[0].estado=state==='APROBADO'?'APROBADA':'RECHAZADA';};
  window.fetch=async(input,options={})=>{
   const path=new URL(input,location.origin).pathname;
