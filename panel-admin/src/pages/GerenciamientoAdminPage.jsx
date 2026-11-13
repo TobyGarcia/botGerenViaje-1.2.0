@@ -87,7 +87,7 @@ function ApprovalSignature({ onChange }) {
   );
 }
 
-export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
+export default function GerenciamientoAdminPage({ user, initialStatus = "", onDecision }) {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -152,9 +152,9 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "" }) {
       const data = await readApiJson(res);
       if (!res.ok) throw new Error(data.message || "Error procesando solicitud.");
 
-      alert(`Gerenciamiento de viaje ${nuevoEstado.toLowerCase()} exitosamente.`);
       setSelectedDoc(null);
-      loadData();
+      await Promise.all([loadData(), onDecision?.()]);
+      alert(data.message || `Gerenciamiento de viaje ${nuevoEstado.toLowerCase()} exitosamente.`);
     } catch (err) {
       alert(err.message);
     } finally {

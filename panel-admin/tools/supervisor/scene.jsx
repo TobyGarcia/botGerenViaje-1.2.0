@@ -15,4 +15,18 @@ window.fetch=async(input,options={})=>{const path=new URL(input,location.origin)
  else if(path.endsWith('/admin/viajes/41'))data={trip,locations:[]};
  if(empty&&(path.endsWith('/admin/inspecciones')||path.endsWith('/gerenciamiento-viajes')))data=[];
  return new Response(JSON.stringify({success:status===200,data,message:status===401?'Sesión requerida':undefined}),{status,headers:{'Content-Type':'application/json'}});
-};createRoot(document.getElementById('root')).render(<SupervisorApp/>);
+};
+// Explicit opt-in simulation; intercepted locally, never sent to a real API.
+if(new URLSearchParams(location.search).has('decision-test')){
+ const readFixture=window.fetch;let approved=false;window.__decisionRequests=0;window.alert=()=>{};
+ window.fetch=async(input,options={})=>{
+  const path=new URL(input,location.origin).pathname;
+  if(options.method==='PATCH'&&path.endsWith('/gerenciamiento-viajes/7/decision')){
+   window.__decisionRequests++;if(JSON.parse(options.body).estado!=='APROBADO')throw Error('Unexpected mock decision');
+   approved=true;rows[0].estado='APROBADA';return new Response(JSON.stringify({success:true,message:'Aprobados',data:{estado:'APROBADO'}}),{headers:{'Content-Type':'application/json'}});
+  }
+  if(approved&&path.endsWith('/gerenciamiento-viajes'))return new Response(JSON.stringify({success:true,data:[]}),{headers:{'Content-Type':'application/json'}});
+  return readFixture(input,options);
+ };
+}
+createRoot(document.getElementById('root')).render(<SupervisorApp/>);

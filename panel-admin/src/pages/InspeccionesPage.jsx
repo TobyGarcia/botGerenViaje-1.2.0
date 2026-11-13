@@ -450,7 +450,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
       </div>
 
       {activeTab === "gerenciamiento" ? (
-        <GerenciamientoAdminPage user={user} initialStatus={pendingOnly ? "PENDIENTE" : ""} />
+        <GerenciamientoAdminPage user={user} onDecision={load} initialStatus={pendingOnly ? "PENDIENTE" : ""} />
       ) : (
         <>
           {/* Barra de herramientas con buscador y filtros rápidos */}
