@@ -21,6 +21,10 @@ on:
         description: 'Reutilizar la firma existente de android-testing para el APK estable'
         type: boolean
         default: false
+      candidate_only:
+        description: 'Aprobadores: compilar candidato privado sin publicar'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -28,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: ${{ inputs.application != 'supervisor' }}
+    if: ${{ inputs.application != 'supervisor' && !inputs.candidate_only }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.reuse_testing_signature && 'android-testing' || format('android-{0}', inputs.channel) }}
     defaults:
@@ -115,4 +119,6 @@ jobs:
     with:
       version: ${{ inputs.version }}
       version_code: ${{ inputs.version_code }}
+      channel: ${{ inputs.channel }}
+      candidate_only: ${{ inputs.candidate_only }}
     secrets: inherit
