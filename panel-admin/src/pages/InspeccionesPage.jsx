@@ -718,7 +718,8 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                       className="close-modal-btn"
                       disabled={saving}
                       onClick={closeDetail}
-                      title="Cerrar modal"
+                      title="Cerrar inspección"
+                      aria-label="Cerrar inspección"
                     >
                       <IconCross size={18} />
                     </button>

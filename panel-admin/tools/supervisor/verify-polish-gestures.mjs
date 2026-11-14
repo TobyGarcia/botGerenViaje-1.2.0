@@ -46,6 +46,13 @@ try{
   const footer=await js("document.querySelector('.trip-detail-actions').getBoundingClientRect().toJSON()");if(footer.bottom>844)throw Error('Close footer clipped');
   await click('[aria-label="Cerrar detalle"]');console.log('PASS compact trips, retained filters and fixed square close '+width+'px');
  }
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await scene();await click('.btn-review');await until("Boolean(document.querySelector('.inspection-detail-modal-enhanced'))",'Inspection missing');await wait(400);
+ const close=await js("document.querySelector('[aria-label=\"Cerrar inspección\"]').getBoundingClientRect().toJSON()");
+ const box=await js("document.querySelector('.inspection-detail-modal-enhanced').getBoundingClientRect().toJSON()");
+ if(close.x<300||close.y>box.y+30||Math.abs(close.width-close.height)>1)throw Error('Inspection close is not top-right');
+ await js("(()=>{const e=document.querySelector('.modal-scroll-body');e.scrollTop=e.scrollHeight;})()");await wait(100);
+ if(Math.abs(await js("document.querySelector('[aria-label=\"Cerrar inspección\"]').getBoundingClientRect().y")-close.y)>1)throw Error('Inspection close scrolled away');
+ await click('[aria-label="Cerrar inspección"]');console.log('PASS inspection close stays top-right without a PDF button');
  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await scene();await swipe(300,100);await until("Boolean(document.querySelector('.trip-search-panel'))",'Swipe to Trips failed');await swipe(100,300);await until("Boolean(document.querySelector('.logistics-nav-tabs'))",'Swipe to Pending failed');
  console.log('PASS horizontal swipes navigate Pending/Trips');
  await click('.logistics-tab-btn:last-child');await js("[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Ver revisión')).click()");await until("Boolean(document.querySelector('.management-review-dialog'))&&!document.querySelector('.management-loading')",'Review missing');
