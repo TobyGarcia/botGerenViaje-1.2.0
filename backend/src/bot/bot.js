@@ -283,7 +283,7 @@ export async function sendDriverInspectionNotification({
     : [
       "❌ Inspección vehicular rechazada",
       `Folio: ${trip?.folio ?? "No disponible"}`,
-      tripCancelled ? "El viaje fue cancelado automáticamente." : "Se conserva el historial de los viajes finalizados.",
+      tripCancelled ? "El viaje fue cancelado automáticamente." : "Los viajes en curso pueden terminar; se conserva el historial y los siguientes viajes requieren una nueva inspección.",
       `Motivo: ${reason || "No se proporcionó un comentario administrativo."}`
     ];
 

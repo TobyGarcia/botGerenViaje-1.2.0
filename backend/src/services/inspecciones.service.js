@@ -93,6 +93,12 @@ async function getApprovalForStartImpl(idViaje, idConductor) {
       AND i.fecha_operativa = ${operationalDateSql}::date
       AND i.estado IN ('PENDIENTE_APROBACION', 'APROBADA')
       AND NOT EXISTS (
+        SELECT 1 FROM inspecciones_vehiculares rejected
+        WHERE rejected.id_conductores=i.id_conductores AND rejected.id_vehiculos=i.id_vehiculos
+          AND rejected.fecha_operativa=i.fecha_operativa AND rejected.estado='RECHAZADA'
+          AND rejected.id_inspeccion>i.id_inspeccion
+      )
+      AND NOT EXISTS (
         SELECT 1
         FROM viajes uso_posterior
         WHERE uso_posterior.id_vehiculos = i.id_vehiculos

@@ -71,7 +71,7 @@ export async function decideAdminInspectionController(request, response) {
         comment
       });
     }
-    return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. Se cancelaron los viajes activos que la usaban; se conservaron los finalizados." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
+    return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. Se cancelaron los viajes pendientes; los que están en curso pueden terminar y los finalizados se conservan." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
   } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message }); }
 }
 

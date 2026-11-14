@@ -11,7 +11,10 @@ export async function rejectSharedInspection(client, {idInspeccion,idUsuarioAdmi
  }
  const record=(await client.query(`UPDATE inspecciones_vehiculares SET estado='RECHAZADA',id_usuario_admin_aprobador=$2,comentario_aprobacion=$3,firma_supervisor=$4,aprobado_en=CURRENT_TIMESTAMP,actualizado_en=CURRENT_TIMESTAMP WHERE id_inspeccion=$1 RETURNING *`,[idInspeccion,idUsuarioAdmin,comentario||null,firmaSupervisor])).rows[0];
  const cancelled=[];
- for(const trip of consumers.filter(t=>['PENDIENTE','EN_CURSO'].includes(t.estado))){
+ for(const trip of consumers.filter(t=>t.estado==='EN_CURSO')){
+  await client.query('INSERT INTO historial_estados_viaje(id_viajes,id_estado_anterior,id_estado_nuevo,observaciones) VALUES($1,NULL,$2,$3)',[trip.id_viajes,trip.id_estado_viaje,`Inspección #${idInspeccion} rechazada durante el recorrido. Se permite finalizar este viaje; los siguientes requieren una nueva inspección.${comentario?` Motivo: ${comentario}`:''}`]);
+ }
+ for(const trip of consumers.filter(t=>t.estado==='PENDIENTE')){
   const state=(await client.query("UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='CANCELADO' AND activo),actualizado_en=CURRENT_TIMESTAMP WHERE id_viajes=$1 RETURNING id_estado_viaje",[trip.id_viajes])).rows[0];
   await client.query('INSERT INTO historial_estados_viaje(id_viajes,id_estado_anterior,id_estado_nuevo,observaciones) VALUES($1,$2,$3,$4)',[trip.id_viajes,trip.id_estado_viaje,state.id_estado_viaje,`Inspección #${idInspeccion} rechazada.${comentario?` Motivo: ${comentario}`:''}`]);
   cancelled.push({idViaje:trip.id_viajes,folio:trip.folio,estado:'CANCELADO'});

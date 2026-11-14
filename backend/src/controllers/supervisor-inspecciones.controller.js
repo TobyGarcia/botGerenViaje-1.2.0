@@ -70,7 +70,7 @@ export async function decideSupervisorInspectionController(request, response) {
     return response.json({
       success: true,
       data: { ...data, viaje: trip, sharepoint: sharepointResult },
-      message: approved ? "Inspección aprobada y PDF generado." : "Inspección rechazada. Viajes activos cancelados e historial conservado."
+      message: approved ? "Inspección aprobada y PDF generado." : "Inspección rechazada. Viajes pendientes cancelados; viajes en curso conservados con registro en el historial."
     });
   } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible registrar la decisión." }); }
 }

@@ -126,7 +126,7 @@ test('grupos de APK separan locales y gerenciamientos sin perder inspecciones co
  assert.equal((await listPendingInspections()).find(i=>i.id_inspeccion===managed.inspection).approval_group,'management');
 });
 
-test('rechazo compartido conserva finalizados, PDF y vínculos; cancela todos los activos una sola vez',async()=>{
+test('rechazo compartido conserva finalizados, PDF y vínculos; cancela pendientes y permite terminar los que están en curso',async()=>{
  const f=await fixture('BAJO'),id=await actor('GERENTE');
  await db.query("UPDATE inspecciones_vehiculares SET creado_en=CURRENT_TIMESTAMP-INTERVAL '2 minutes',fecha_operativa=(CURRENT_TIMESTAMP+INTERVAL '2 hours')::date,pdf_nombre='conservar.pdf' WHERE id_inspeccion=$1",[f.inspection]);
  const reused=await linkedTrip(f,{usage:false}),finished=await linkedTrip(f,{usage:false,finalized:true}),running=await linkedTrip(f,{});
@@ -134,13 +134,18 @@ test('rechazo compartido conserva finalizados, PDF y vínculos; cancela todos lo
  const before=(await db.query('SELECT to_jsonb(v) AS snapshot FROM viajes v WHERE id_viajes=$1',[finished.trip])).rows[0].snapshot;
  const other=await fixture('BAJO');
  const result=await approveInspection({idInspeccion:f.inspection,idUsuarioAdmin:id,approved:false,comentario:'Frenos'});
- assert.deepEqual(result.cancelledTrips.map(t=>t.idViaje).sort((a,b)=>a-b),[f.trip,reused.trip,running.trip].sort((a,b)=>a-b));
+ assert.deepEqual(result.cancelledTrips.map(t=>t.idViaje).sort((a,b)=>a-b),[f.trip,reused.trip].sort((a,b)=>a-b));
  assert.deepEqual((await db.query('SELECT to_jsonb(v) AS snapshot FROM viajes v WHERE id_viajes=$1',[finished.trip])).rows[0].snapshot,before);
+ const {finishTrip}=await import('../services/viajes.service.js');
+ assert.equal((await db.query('SELECT e.nombre FROM viajes v JOIN estados_viaje e USING(id_estado_viaje) WHERE id_viajes=$1',[running.trip])).rows[0].nombre,'EN_CURSO');
+ assert.match((await db.query('SELECT observaciones FROM historial_estados_viaje WHERE id_viajes=$1',[running.trip])).rows[0].observaciones,/rechazada durante el recorrido/);
+ await finishTrip({idViaje:running.trip,kilometrajeFinal:105});
+ assert.equal((await db.query('SELECT e.nombre FROM viajes v JOIN estados_viaje e USING(id_estado_viaje) WHERE id_viajes=$1',[running.trip])).rows[0].nombre,'FINALIZADO');
  assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM viaje_inspeccion_uso WHERE id_inspeccion=$1',[f.inspection])).rows[0].n,4);
  assert.equal((await db.query('SELECT pdf_nombre FROM inspecciones_vehiculares WHERE id_inspeccion=$1',[f.inspection])).rows[0].pdf_nombre,'conservar.pdf');
  assert.equal((await states(other)).inspection,'PENDIENTE_APROBACION');
  assert.equal(await approveInspection({idInspeccion:f.inspection,idUsuarioAdmin:id,approved:false}),null);
- assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM historial_estados_viaje WHERE id_viajes=ANY($1)',[[f.trip,reused.trip,running.trip]])).rows[0].n,3);
+ assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM historial_estados_viaje WHERE id_viajes=ANY($1)',[[f.trip,reused.trip,running.trip]])).rows[0].n,4);
 });
 test('rechazar gerenciamiento de viaje terminado conserva el cierre y alcanza consumidores activos',async()=>{
  const f=await fixture('BAJO'),id=await actor('GERENTE'),shared=await linkedTrip(f,{});
@@ -157,4 +162,15 @@ test('un fallo al registrar el historial revierte rechazo y cancelaciones',async
  await db.query('CREATE TRIGGER reject_history_failure BEFORE INSERT ON historial_estados_viaje FOR EACH ROW EXECUTE FUNCTION fail_rejection_history()');
  try{await assert.rejects(approveInspection({idInspeccion:f.inspection,idUsuarioAdmin:id,approved:false}),/historial no disponible/);assert.equal((await states(f)).inspection,'PENDIENTE_APROBACION');assert.equal((await db.query('SELECT e.nombre FROM viajes v JOIN estados_viaje e USING(id_estado_viaje) WHERE id_viajes=$1',[f.trip])).rows[0].nombre,'PENDIENTE');}
  finally{await db.query('DROP TRIGGER reject_history_failure ON historial_estados_viaje');await db.query('DROP FUNCTION fail_rejection_history()');}
+});
+
+test('tras un rechazo no reutiliza inspecciones anteriores y exige una captura nueva',async()=>{
+ const {getApprovalForStart}=await import('../services/inspecciones.service.js');
+ const old=await fixture('BAJO'),id=await actor('GERENTE'),newTrip=await linkedTrip(old,{});
+ await db.query("UPDATE inspecciones_vehiculares SET estado='APROBADA',fecha_operativa=(timezone('America/Mexico_City',CURRENT_TIMESTAMP)+INTERVAL '2 hours')::date WHERE id_inspeccion=$1",[old.inspection]);
+ const rejected=(await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_conductores,id_vehiculos,fecha_operativa,combustible,tipo_asignacion,firma_conductor,estado) SELECT $1,id_conductores,id_vehiculos,fecha_operativa,'F','PERMANENTE',$2,'PENDIENTE_APROBACION' FROM inspecciones_vehiculares WHERE id_inspeccion=$3 RETURNING id_inspeccion",[newTrip.trip,signature,old.inspection])).rows[0].id_inspeccion;
+ await approveInspection({idInspeccion:rejected,idUsuarioAdmin:id,approved:false});
+ const next=await linkedTrip(old,{usage:false});assert.equal((await getApprovalForStart(next.trip,old.driver)).id_inspeccion,null);
+ const fresh=(await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_conductores,id_vehiculos,fecha_operativa,combustible,tipo_asignacion,firma_conductor,estado) SELECT $1,id_conductores,id_vehiculos,fecha_operativa,'F','PERMANENTE',$2,'PENDIENTE_APROBACION' FROM inspecciones_vehiculares WHERE id_inspeccion=$3 RETURNING id_inspeccion",[next.trip,signature,old.inspection])).rows[0].id_inspeccion;
+ assert.equal((await getApprovalForStart(next.trip,old.driver)).id_inspeccion,fresh);
 });
