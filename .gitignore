@@ -63,3 +63,4 @@ compose.monitor.image.json
 **/*firebase-adminsdk*.json
 **/*service-account*.json
 .secrets/
+output/releases/
