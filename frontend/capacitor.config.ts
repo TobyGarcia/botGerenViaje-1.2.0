@@ -1,12 +1,12 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import {driverBuildEnvironment} from './android-build-environment.mjs';
 
 /**
  * El APK funciona como contenedor de la Mini App/PWA publicada. Al cargarla
  * desde su URL HTTPS, las rutas /api conservan el mismo origen que la web
  * (https://gv.aspromex.mx) y no se bloquean por CORS dentro del WebView.
  */
-const webUrl = process.env.ANDROID_WEB_URL || "https://gvmobility.aspromex.mx/conductor/";
-const bundled = process.env.ANDROID_BUNDLED === "true";
+const {webUrl,bundled} = driverBuildEnvironment();
 const config: CapacitorConfig = {
   appId: "com.aspromex.gerenciamientoviajes",
   appName: "GVMobility",

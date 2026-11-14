@@ -22,7 +22,7 @@ on:
         type: boolean
         default: false
       candidate_only:
-        description: 'Aprobadores: compilar candidato privado sin publicar'
+        description: 'Compilar candidato privado sin publicar (conductor o aprobadores)'
         type: boolean
         default: false
 permissions:
@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: ${{ inputs.application != 'supervisor' && !inputs.candidate_only }}
+    if: ${{ inputs.application != 'supervisor' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.reuse_testing_signature && 'android-testing' || format('android-{0}', inputs.channel) }}
     defaults:
@@ -90,9 +90,8 @@ jobs:
           chmod +x gradlew
           ./gradlew testDebugUnitTest assembleRelease --no-daemon
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
-      - name: Publicar APK y manifiesto en borrador
+      - name: Preparar APK y manifiesto
         env:
-          GH_TOKEN: ${{ github.token }}
           RELEASE_CHANNEL: ${{ inputs.channel }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -105,6 +104,19 @@ jobs:
           const sha256 = createHash('sha256').update(readFileSync('release/gv-mobility.apk')).digest('hex');
           writeFileSync('release/update.json', JSON.stringify({versionName:process.env.ANDROID_VERSION_NAME,versionCode:Number(process.env.ANDROID_VERSION_CODE),channel:process.env.RELEASE_CHANNEL,downloadUrl:`https://github.com/${process.env.REPOSITORY}/releases/download/${tag}/gv-mobility.apk`,sha256},null,2));
           JS
+      - name: Conservar candidato privado sin publicar
+        if: inputs.candidate_only
+        uses: actions/upload-artifact@v4
+        with:
+          name: driver-${{ inputs.channel }}-candidate-${{ inputs.version }}-${{ inputs.version_code }}
+          path: frontend/release/
+          retention-days: 14
+      - name: Publicar APK y manifiesto en borrador
+        if: ${{ !inputs.candidate_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
           TAG="android-${RELEASE_CHANNEL}-v${ANDROID_VERSION_NAME}-${ANDROID_VERSION_CODE}"
           ARGS=(--draft --target "$GITHUB_SHA" --title "$TAG" --generate-notes)
           if [ "$RELEASE_CHANNEL" = testing ]; then ARGS+=(--prerelease); fi

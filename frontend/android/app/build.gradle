@@ -14,8 +14,12 @@ android {
         if (gpsOrigin.scheme != 'https' || !(gpsOrigin.host in ['gv.aspromex.mx', 'gvmobility.aspromex.mx']) || gpsOrigin.userInfo != null || !(gpsOrigin.port in [-1, 443])) {
             throw new GradleException('ANDROID_WEB_URL debe pertenecer al ambiente HTTPS autorizado')
         }
+        def updateChannel = System.getenv('ANDROID_UPDATE_CHANNEL') ?: 'testing'
+        if (!(updateChannel in ['stable', 'testing']) || gpsOrigin.host != (updateChannel == 'stable' ? 'gv.aspromex.mx' : 'gvmobility.aspromex.mx')) {
+            throw new GradleException('El servidor GPS y el canal de actualización deben corresponder al mismo ambiente')
+        }
         buildConfigField 'String', 'GPS_ORIGIN', '"https://' + gpsOrigin.host + '"'
-        resValue 'string', 'android_update_channel', System.getenv('ANDROID_UPDATE_CHANNEL') ?: 'testing'
+        resValue 'string', 'android_update_channel', updateChannel
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

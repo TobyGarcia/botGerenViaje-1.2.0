@@ -60,8 +60,17 @@ public class GpsQueueTest {
     }
     @Test public void sqliteUpgradePreservesGpsAndSessions() throws Exception {
         db.save(point("before-upgrade"));db.session("11",11,27,BuildConfig.GPS_ORIGIN,"encrypted");
+        db.put("active","true");db.put("trip","11");db.put("folio","VJ-UPGRADE");
+        db.completion("11",new JSONObject().put("kilometrajeFinal",1500).put("horaLlegada","2026-11-14T12:30:00Z"));
         db.getWritableDatabase().execSQL("DROP TABLE movement_jobs");db.getWritableDatabase().setVersion(1);db.close();
         assertEquals(1,db.pending("11",100).length());assertEquals(1,db.sessions().length());assertEquals(0,db.movementCount());
+        assertEquals("before-upgrade",db.pending("11",100).getJSONObject(0).getString("clientLocationId"));
+        assertEquals("2026-10-27T15:00:00Z",db.pending("11",100).getJSONObject(0).getString("fechaGps"));
+        assertEquals("encrypted",db.sessions().getJSONObject(0).getString("token"));
+        assertEquals(BuildConfig.GPS_ORIGIN,db.sessions().getJSONObject(0).getString("origin"));
+        assertEquals("true",db.read("active","false"));assertEquals("VJ-UPGRADE",db.read("folio",""));
+        assertEquals(1500,db.completion("11").getInt("kilometrajeFinal"));
+        assertEquals("2026-11-14T12:30:00Z",db.completion("11").getString("horaLlegada"));
         assertEquals(2,db.getReadableDatabase().getVersion());
     }
 
