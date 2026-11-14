@@ -6,6 +6,8 @@
 
 **Actualización posterior — conductor y aviso repetido:** el candidato funcional del backend/conductor pasa a `f3c001c0d1cead3c4314fdc402bf85752e6b4b5d`. La APK productiva privada 1.3.0 (49) está firmada y validada, incluida la corrección para que el aviso de rechazo no reaparezca ni recorra rechazos antiguos. Ver `driver-production-candidate.md`. No se ha publicado, no se ha desplegado ni se han modificado datos de producción. El candidato de aprobadores 1.0.0 permanece válido; las nuevas correcciones son del frontend de conductor y de la consulta de avisos del backend.
 
+**Candidato vigente de conductor:** tras la validación del usuario en pruebas 1.2.43 (50), se reconstruyó y validó **1.3.0 (51)** desde `7c65995744c234079b747cf308894d26bfdbf800`. Sustituye al candidato privado de código 49. Queda firmado y almacenado sin publicación ni despliegue; ver el apartado «Resultado vigente» en `driver-production-candidate.md`. La autorización productiva sigue pendiente.
+
 ## Candidato e inventario
 
 - Código funcional candidato: `5f07c58818ac4ee05366c804a33073e9841c6ce7`, rama `gv-fix`. `origin/main` (`ae77b7e`) es ancestro; hay 157 commits nuevos. No asumir que el merge de la rama equivale a autorizar el lanzamiento.

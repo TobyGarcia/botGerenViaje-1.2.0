@@ -2,6 +2,8 @@
 
 La instrucción vigente es preparar y validar, sin publicar la APK ni desplegar servicios. Durante esta preparación no se accede a la base productiva ni se instalan APK en teléfonos con datos reales.
 
+**Candidato vigente: 1.3.0, código 51**, reconstruido después de que el usuario confirmó en pruebas que el aviso ya no se repite. El candidato anterior de código 49 es histórico y no debe distribuirse. Ver el resultado vigente al final de este documento.
+
 ## Identidad y actualización
 
 - Candidato: **1.3.0, código 49**, canal `stable`.
@@ -51,3 +53,15 @@ Mantener APK y manifiesto locales sin publicar. El enlace del manifiesto corresp
 - Archivos privados locales, ignorados por Git: `output/releases/f3c001c0d1cead3c4314fdc402bf85752e6b4b5d/driver/`: `gv-mobility.apk`, `update.json` y `validation.json`.
 - Frontend: 79 pruebas correctas. Backend con la corrección: 149 pruebas correctas. Modal comprobado con consultas repetidas y recarga en 320, 390 y 768 px. Compilación nativa y pruebas de conservación de datos correctas.
 - No existe release `android-stable-v1.3.0-49`; el candidato estable sigue privado y producción no cambió. Tras la autorización específica para pruebas se publicó 1.2.43 (50) y se desplegó la corrección solo en staging. Antes de publicar una versión productiva se debe reconstruir el candidato con código superior al mayor distribuido (ahora al menos 51), sin desinstalar ni borrar datos. Ver `rejection-read-once-staging.md`.
+
+## Resultado vigente — 1.3.0 (51)
+
+- Fuente: `7c65995744c234079b747cf308894d26bfdbf800`. Se comprobó que el código funcional de frontend, Android y backend coincide con el desplegado en pruebas, donde el usuario confirmó que el aviso ya no se repite. Solo cambia la configuración de compilación a producción y su código de versión.
+- [Compilación privada validada](https://github.com/TobyGarcia/botGerenViaje-1.2.0/actions/runs/43631231733): correcta, incluidas pruebas web, nativas y verificación de firma. Publicación omitida.
+- Paquete: `com.aspromex.gerenciamientoviajes`; API y GPS: `https://gv.aspromex.mx`; canal nativo y manifiesto: `stable`; contenido web empaquetado.
+- Código 51 superior a la APK de pruebas publicada 1.2.43 (50) y a la referencia estable publicada 1.2.22 (28). No se creó el release `android-stable-v1.3.0-51` ni se modificaron actualizadores públicos.
+- SHA256 APK: `f71d333a65e21e9226d77ff60a1525ee1187ce9bcf873a8f1703620565e4fc32`.
+- Firma verificada contra la APK estable de referencia: idéntica, certificado SHA256 `bb7eed6e260e018468ed300945312734c0bf05270415c6c7ac984c1e4e5849e4`.
+- En el binario se verificaron el canal estable, el origen WebView productivo, API/GPS productivos y el acuse corregido del rechazo. El DEX no contiene la URL GPS de pruebas. No se incluyeron claves privadas ni keystores.
+- Ubicación local privada e ignorada por Git: `output/releases/7c65995744c234079b747cf308894d26bfdbf800/driver/`, con `gv-mobility.apk`, `update.json` y `validation.json`. El archivo de código y manifiesto del candidato están un nivel arriba.
+- No se instalaron APK en teléfonos con datos reales ni se accedió a la base productiva. No hubo despliegues ni publicaciones en producción o pruebas durante esta reconstrucción. Pendiente únicamente de la autorización de lanzamiento y los controles de corte definidos en el plan; el canario real en teléfono se mantiene para después del despliegue autorizado.
