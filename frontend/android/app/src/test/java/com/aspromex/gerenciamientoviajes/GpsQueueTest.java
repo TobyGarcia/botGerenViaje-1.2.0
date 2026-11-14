@@ -68,7 +68,8 @@ public class GpsQueueTest {
         assertEquals("2026-10-27T15:00:00Z",db.pending("11",100).getJSONObject(0).getString("fechaGps"));
         assertEquals("encrypted",db.sessions().getJSONObject(0).getString("token"));
         assertEquals(BuildConfig.GPS_ORIGIN,db.sessions().getJSONObject(0).getString("origin"));
-        assertEquals("true",db.read("active","false"));assertEquals("VJ-UPGRADE",db.read("folio",""));
+        // Queuing a closure stops capture before upgrading; preserve that state too.
+        assertEquals("false",db.read("active","true"));assertEquals("VJ-UPGRADE",db.read("folio",""));
         assertEquals(1500,db.completion("11").getInt("kilometrajeFinal"));
         assertEquals("2026-11-14T12:30:00Z",db.completion("11").getString("horaLlegada"));
         assertEquals(2,db.getReadableDatabase().getVersion());
