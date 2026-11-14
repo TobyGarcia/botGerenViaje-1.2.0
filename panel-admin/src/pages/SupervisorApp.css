@@ -170,3 +170,14 @@ html:has(.supervisor-shell),body:has(.supervisor-shell),#root:has(.supervisor-sh
 .supervisor-shell .inspection-detail-modal-enhanced .modal-top-header { position:relative; padding-right:72px !important; flex:none; }
 .supervisor-shell .inspection-detail-modal-enhanced .close-modal-btn { position:absolute; top:16px; right:16px; }
 .supervisor-shell .inspection-detail-modal-enhanced .modal-header-actions { justify-content:flex-end; border:0; padding-top:0; }
+
+/* Same GV artwork and 174 × 58 CSS size as the conductor header. */
+.supervisor-shell>.supervisor-topbar { display:grid; grid-template-columns:174px minmax(0,1fr) 40px; gap:10px; min-height:74px; padding:calc(8px + env(safe-area-inset-top)) 14px 8px; }
+.supervisor-shell>.supervisor-topbar .supervisor-brand-logo { display:block; width:174px; height:58px; max-width:none; object-fit:contain; }
+.supervisor-header-context { min-width:0; border-left:1px solid #ffffff35; padding-left:12px; display:grid; gap:3px; align-content:center; }
+.supervisor-header-context h1 { margin:0; color:#fff; font-size:14px; line-height:1.3; font-weight:600; overflow-wrap:anywhere; }
+.supervisor-header-context small { color:#a7c5d5; font-size:10px; line-height:1.3; overflow-wrap:anywhere; }
+.supervisor-header-context .supervisor-header-user { color:#cbdde6; font-size:11px; line-height:1.3; overflow-wrap:anywhere; }
+.supervisor-shell>.supervisor-topbar>button { width:40px; min-width:40px; padding:6px; }
+.supervisor-shell>.supervisor-content { padding-top:12px; }
+@media(max-width:360px){.supervisor-shell>.supervisor-topbar { grid-template-columns:174px minmax(0,1fr) 36px; gap:6px; padding-left:10px; padding-right:10px; }.supervisor-header-context { padding-left:8px; }.supervisor-header-context h1 { font-size:12px; }.supervisor-header-context .supervisor-header-user { font-size:10px; }.supervisor-shell>.supervisor-topbar>button { width:36px; min-width:36px; }}
