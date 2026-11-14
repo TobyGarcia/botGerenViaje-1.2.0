@@ -1,6 +1,6 @@
 import {prepareSupervisorLauncher} from './launcher-branding.mjs';
 import {validateFirebaseConfig} from './firebase-config.mjs';
-import {execFileSync} from 'node:child_process';import{existsSync,readFileSync,writeFileSync,mkdirSync}from'node:fs';import{resolve}from'node:path';import{fileURLToPath}from'node:url';
+import {execFileSync} from 'node:child_process';import{existsSync,readFileSync,writeFileSync,mkdirSync,copyFileSync,unlinkSync}from'node:fs';import{resolve}from'node:path';import{fileURLToPath}from'node:url';
 const app=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const npx=process.platform==='win32'?'npx.cmd':'npx';const run=args=>execFileSync(npx,args,{cwd:app,stdio:'inherit',shell:process.platform==='win32'});
 if(!existsSync(resolve(app,'android')))run(['cap','add','android']);
@@ -46,7 +46,14 @@ writeFileSync(resolve(nativeDir,'ApproverSecrets.java'),readFileSync(resolve(sha
 let notificationManifest=readFileSync(manifest,'utf8');
 if(!notificationManifest.includes('ApproverFirebaseService'))notificationManifest=notificationManifest.replace('</application>',`<service android:name=".ApproverFirebaseService" android:exported="false"><intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service><meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" /></application>`);
 writeFileSync(manifest,notificationManifest);
-writeFileSync(resolve(app,'android/app/src/main/res/drawable/ic_stat_approver.xml'),'<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFF" android:pathData="M5,3h4V1h6v2h4v19H5zM8,12l3,3 6,-7 -2,-2 -4,5 -1,-1z"/></vector>');
+// Android small notification icons use a white silhouette with transparent background.
+// Reuse the original GV notification mark at every density, keeping the resource ID stable.
+const previousNoticeIcon=resolve(app,'android/app/src/main/res/drawable/ic_stat_approver.xml');
+if(existsSync(previousNoticeIcon))unlinkSync(previousNoticeIcon);
+for(const density of ['mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi']){
+ const folder=resolve(app,`android/app/src/main/res/drawable-${density}`);mkdirSync(folder,{recursive:true});
+ copyFileSync(resolve(app,`../frontend/android/app/src/main/res/drawable-${density}/ic_stat_gv.png`),resolve(folder,'ic_stat_approver.png'));
+}
 writeFileSync(resolve(app,'android/app/src/main/res/values/update_channel.xml'),'<resources><string name="android_update_channel">testing</string></resources>');
 
 run(['cap','sync','android']);
