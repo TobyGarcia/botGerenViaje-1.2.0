@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:cards-f2f84f1
+COPY backend/src /app/src

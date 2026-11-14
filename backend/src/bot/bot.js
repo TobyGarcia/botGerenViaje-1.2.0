@@ -266,6 +266,7 @@ export async function sendDriverInspectionNotification({
   telegramUserId,
   approved,
   managementApproved = false,
+  tripCancelled = true,
   trip,
   comment
 }) {
@@ -282,7 +283,7 @@ export async function sendDriverInspectionNotification({
     : [
       "❌ Inspección vehicular rechazada",
       `Folio: ${trip?.folio ?? "No disponible"}`,
-      "El viaje fue cancelado automáticamente.",
+      tripCancelled ? "El viaje fue cancelado automáticamente." : "Se conserva el historial de los viajes finalizados.",
       `Motivo: ${reason || "No se proporcionó un comentario administrativo."}`
     ];
 

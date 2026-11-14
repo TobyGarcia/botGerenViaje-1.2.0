@@ -1,3 +1,4 @@
+import {rejectSharedInspection} from './inspection-rejection.service.js';
 import {inspectionAvailableSql,inspectionRequestJoinSql,inspectionManagementGroupSql} from './approval-eligibility.js';
 import {approveJointDocuments,inspectionManagementContext} from './joint-approval.service.js';
 import { isManagementRole, managementInspectionSql } from "./management-trip-scope.js";
@@ -192,15 +193,14 @@ export async function countPendingInspections(adminRole = null) {
 async function approveInspectionImpl({ idInspeccion, idUsuarioAdmin, approved, comentario, firmaSupervisor = null }) {
   if(approved){const result=await approveJointDocuments({idInspeccion,idUsuarioAdmin,signature:firmaSupervisor,comment:comentario});return {...result.inspection,jointApproval:result.management?{idGerenciamiento:result.management.id_gerenciamiento,idViaje:result.management.id_viaje}:null};}
 
-  const result = await databasePool.query(`
-    UPDATE inspecciones_vehiculares
-    SET estado=$1, id_usuario_admin_aprobador=$2, comentario_aprobacion=$3, firma_supervisor=$4,
-      aprobado_en=CURRENT_TIMESTAMP, actualizado_en=CURRENT_TIMESTAMP
-    WHERE id_inspeccion=$5 AND estado='PENDIENTE_APROBACION' AND ${inspectionAvailableSql('inspecciones_vehiculares')}
-    RETURNING *`, [approved ? "APROBADA" : "RECHAZADA", idUsuarioAdmin, comentario || null, firmaSupervisor, idInspeccion]);
-  return result.rows[0] ?? null;
+  const client=await databasePool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(7846114)');
+    const result=await rejectSharedInspection(client,{idInspeccion,idUsuarioAdmin,comentario,firmaSupervisor});
+    await client.query('COMMIT');return result;
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
-
 export async function storeInspectionPdf({ idInspeccion, nombre, document }) {
   await databasePool.query(`UPDATE inspecciones_vehiculares SET pdf_nombre=$1, pdf_documento=$2, pdf_generado_en=CURRENT_TIMESTAMP WHERE id_inspeccion=$3`, [nombre, document, idInspeccion]);
 }

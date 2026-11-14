@@ -1,7 +1,7 @@
 import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, getAdminInspection, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
-import { cancelTrip } from "../services/viajes.service.js";
+
 import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 import { sendDriverInspectionNotification } from "../bot/bot.js";
 import { getSupervisorAccess } from "../services/supervisor-telegram.service.js";
@@ -64,13 +64,13 @@ export async function decideSupervisorInspectionController(request, response) {
       }
 
       trip = { idViaje: detail.id_viajes, folio: detail.folio, vehiculo: detail.vehiculo, conductor: detail.conductor };
-    } else trip = await cancelTrip({ idViaje: data.id_viajes, observaciones: `Inspección vehicular rechazada.${comment ? ` Motivo: ${comment}` : ""}` });
+    } else trip = data.cancelledTrips?.[0] || null;
     const telegramUser = await findTelegramUserByConductorId(data.id_conductores);
-    await sendDriverInspectionNotification({ telegramUserId: telegramUser?.telegram_user_id, approved, trip, comment });
+    for(const affected of approved ? [trip] : (data.cancelledTrips?.length ? data.cancelledTrips : [null])) await sendDriverInspectionNotification({ telegramUserId: telegramUser?.telegram_user_id, approved, trip:affected || {folio:`Inspección #${data.id_inspeccion}`}, tripCancelled:Boolean(affected), comment });
     return response.json({
       success: true,
       data: { ...data, viaje: trip, sharepoint: sharepointResult },
-      message: approved ? "Inspección aprobada y PDF generado." : "Inspección rechazada y viaje cancelado."
+      message: approved ? "Inspección aprobada y PDF generado." : "Inspección rechazada. Viajes activos cancelados e historial conservado."
     });
   } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message || "No fue posible registrar la decisión." }); }
 }

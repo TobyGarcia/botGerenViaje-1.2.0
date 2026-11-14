@@ -1,7 +1,7 @@
 import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
-import { cancelTrip } from "../services/viajes.service.js";
+
 import { findTelegramUserByConductorId } from "../services/telegram-user.service.js";
 import { sendDriverInspectionNotification } from "../bot/bot.js";
 import { uploadInspectionPdfToSharePoint } from "../services/sharepoint.service.js";
@@ -59,21 +59,19 @@ export async function decideAdminInspectionController(request, response) {
       };
     }
     if (data && !approved) {
-      trip = await cancelTrip({
-        idViaje: data.id_viajes,
-        observaciones: `Inspección vehicular rechazada.${comment ? ` Motivo: ${comment}` : ""}`
-      });
+      trip = data.cancelledTrips?.[0] || null;
     }
     if (data) {
       const telegramUser = await findTelegramUserByConductorId(data.id_conductores);
-      await sendDriverInspectionNotification({
+      for(const affected of approved ? [trip] : (data.cancelledTrips?.length ? data.cancelledTrips : [null])) await sendDriverInspectionNotification({
         telegramUserId: telegramUser?.telegram_user_id,
         approved,
-        trip,
+        trip: affected || {folio: `Inspección #${data.id_inspeccion}`},
+        tripCancelled: Boolean(affected),
         comment
       });
     }
-    return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. El viaje fue cancelado y el conductor fue notificado." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
+    return data ? response.json({ success: true, data: { ...data, viaje: trip }, message: approved ? "Inspección aprobada. El conductor ya puede iniciar el viaje." : "Inspección rechazada. Se cancelaron los viajes activos que la usaban; se conservaron los finalizados." }) : response.status(409).json({ success: false, message: "La inspección ya fue atendida." });
   } catch (error) { return response.status(error.statusCode || 500).json({ success: false, message: error.message }); }
 }
 

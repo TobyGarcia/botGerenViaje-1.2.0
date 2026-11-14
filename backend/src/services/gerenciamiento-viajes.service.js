@@ -1,3 +1,5 @@
+import {inspectionMatchesTripSql} from './approval-eligibility.js';
+import {rejectSharedInspection} from './inspection-rejection.service.js';
 import {managementAvailableSql,managementCancelledSql,managementInspectionJoinSql} from './approval-eligibility.js';
 import {approveJointDocuments} from './joint-approval.service.js';
 import { traceOperation, recordOperation } from "./operation-log.service.js";
@@ -436,29 +438,16 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, in
 async function aprovarGerenciamientoImpl({idGerenciamiento,idUsuarioAdmin,nombreAutorizador,firmaAutorizador,estado='APROBADO',observaciones=null}){
  if(estado==='APROBADO')return (await approveJointDocuments({idGerenciamiento,idUsuarioAdmin,signature:firmaAutorizador,comment:observaciones})).management;
  if(estado!=='RECHAZADO')throw Object.assign(new Error('Decisión inválida.'),{statusCode:400});
- const client=await databasePool.connect();try{await client.query('BEGIN');
+ const client=await databasePool.connect();try{await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(7846114)');
  const current=(await client.query('SELECT * FROM gerenciamiento_viajes WHERE id_gerenciamiento=$1 FOR UPDATE',[idGerenciamiento])).rows[0];
  if(!current){await client.query('COMMIT');return null;}if(current.estado!=='PENDIENTE')throw new Error('Este gerenciamiento ya tiene una decisión registrada.');
  if(current.id_viaje){const trip=(await client.query('SELECT v.id_viajes,ev.nombre FROM viajes v JOIN estados_viaje ev USING(id_estado_viaje) WHERE v.id_viajes=$1 FOR UPDATE OF v',[current.id_viaje])).rows[0];if(trip?.nombre==='CANCELADO')throw Object.assign(new Error('El viaje fue cancelado; su solicitud fue retirada.'),{statusCode:409});}
  const record=(await client.query(`UPDATE gerenciamiento_viajes SET estado='RECHAZADO',id_usuario_autorizador=$1,nombre_autorizador_firma=$2,firma_autorizador=$3,fecha_firma_autorizador=CURRENT_TIMESTAMP,observaciones=COALESCE($4,observaciones),actualizado_en=CURRENT_TIMESTAMP WHERE id_gerenciamiento=$5 RETURNING *`,[idUsuarioAdmin,nombreAutorizador,firmaAutorizador,observaciones,idGerenciamiento])).rows[0];
  if(record.id_viaje){
 
-        await client.query(`
-          UPDATE viajes
-          SET id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre = 'CANCELADO' LIMIT 1),
-              actualizado_en = CURRENT_TIMESTAMP
-          WHERE id_viajes = $1 AND id_estado_viaje = (SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE' LIMIT 1)
-        `, [record.id_viaje]);
-
-        await client.query(`
-          UPDATE inspecciones_vehiculares
-          SET estado = 'RECHAZADA',
-              id_usuario_admin_aprobador = $1,
-              comentario_aprobacion = $2,
-              actualizado_en = CURRENT_TIMESTAMP
-          WHERE id_viajes = $3
-        `, [idUsuarioAdmin, observaciones, record.id_viaje]);
-
+        const source=(await client.query(`SELECT i.id_inspeccion FROM inspecciones_vehiculares i JOIN viajes v ON v.id_viajes=$1 WHERE ${inspectionMatchesTripSql('i','v')} AND i.estado='PENDIENTE_APROBACION' ORDER BY (i.id_viajes=v.id_viajes) DESC,i.id_inspeccion DESC LIMIT 1`,[record.id_viaje])).rows[0];
+        if(source)await rejectSharedInspection(client,{idInspeccion:source.id_inspeccion,idUsuarioAdmin,comentario:observaciones,firmaSupervisor:firmaAutorizador});
+        await client.query(`WITH changed AS (UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='CANCELADO'),actualizado_en=CURRENT_TIMESTAMP WHERE id_viajes=$1 AND id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE') RETURNING *) INSERT INTO historial_estados_viaje(id_viajes,id_estado_anterior,id_estado_nuevo,observaciones) SELECT id_viajes,(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE'),id_estado_viaje,'Gerenciamiento rechazado' FROM changed`,[record.id_viaje]);
  }
  await client.query('COMMIT');return record;
  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
