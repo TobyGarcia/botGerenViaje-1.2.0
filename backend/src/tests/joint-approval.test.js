@@ -187,3 +187,18 @@ test('aviso unificado identifica curso, pendientes cancelados y nueva inspecció
  const {finishTrip}=await import('../services/viajes.service.js');await finishTrip({idViaje:running.trip,kilometrajeFinal:102});
  const [after]=await driverInspectionRejections(f.driver,f.inspection);assert.doesNotMatch(rejectionMessage(after),/Puedes terminar tu viaje en curso:/);
 });
+
+test('el aviso no recorre el historial, usa la decisión estable y deja de aplicar tras una inspección nueva',async()=>{
+ const {driverInspectionRejections}=await import('../services/driver-inspection-rejection.service.js');
+ const f=await fixture('BAJO'),actorId=await actor('GERENTE');
+ await approveInspection({idInspeccion:f.inspection,idUsuarioAdmin:actorId,approved:false});
+ const [first]=await driverInspectionRejections(f.driver);assert.ok(first.rechazo_evento_id);
+ await db.query("UPDATE inspecciones_vehiculares SET actualizado_en=CURRENT_TIMESTAMP+INTERVAL '2 years' WHERE id_inspeccion=$1",[f.inspection]);
+ const [updated]=await driverInspectionRejections(f.driver);assert.equal(updated.rechazo_evento_id,first.rechazo_evento_id);assert.equal(String(updated.rechazado_en),String(first.rechazado_en));
+ const next=await linkedTrip(f,{usage:false});
+ const inspection=(await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_conductores,id_vehiculos,fecha_operativa,combustible,tipo_asignacion,firma_conductor,estado) SELECT $1,id_conductores,id_vehiculos,fecha_operativa,'F','PERMANENTE',$2,'PENDIENTE_APROBACION' FROM inspecciones_vehiculares WHERE id_inspeccion=$3 RETURNING id_inspeccion",[next.trip,signature,f.inspection])).rows[0].id_inspeccion;
+ assert.deepEqual(await driverInspectionRejections(f.driver),[]);
+ await approveInspection({idInspeccion:inspection,idUsuarioAdmin:actorId,approved:false});
+ const notices=await driverInspectionRejections(f.driver);assert.equal(notices.length,1);assert.equal(notices[0].id_inspeccion,inspection);assert.notEqual(notices[0].rechazo_evento_id,first.rechazo_evento_id);
+ assert.equal((await driverInspectionRejections(f.driver,f.inspection))[0].id_inspeccion,f.inspection);
+});

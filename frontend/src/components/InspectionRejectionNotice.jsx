@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {getInspectionRejections} from '../services/api.js';
 import {watchRemoteStatus} from '../services/update-checker.js';
 import safeStorage from '../utils/safeStorage.js';
+import {latestUnreadRejection,acknowledgeRejection} from '../services/inspection-rejection-notice.js';
 import TripOperationModal from './TripOperationModal.jsx';
 import {IconAlert} from './Icons.jsx';
 import './TripOperations.css';
@@ -10,17 +11,17 @@ const NativeResume=registerPlugin('AndroidVersion');
 
 export default function InspectionRejectionNotice({driverId}){
  const [notice,setNotice]=useState(null);
- const key=n=>`inspection_rejection_read:${driverId}:${n.id_inspeccion}:${n.actualizado_en}`;
  useEffect(()=>{
+  setNotice(null);
   if(!driverId)return;
   const watcher=watchRemoteStatus({intervalMs:5000,minimumIntervalMs:4000,
    check:signal=>getInspectionRejections(signal),
    subscribeResume:Capacitor.isNativePlatform()?callback=>NativeResume.addListener('appResumed',callback):undefined,
-   onResult:result=>setNotice((result.data||[]).find(n=>!safeStorage.getItem(key(n)))||null)});
+   onResult:result=>setNotice(latestUnreadRejection(driverId,result.data,safeStorage))});
   return ()=>watcher.stop();
  },[driverId]);
  if(!notice)return null;
- const close=()=>{safeStorage.setItem(key(notice),'1');setNotice(null);};
+ const close=()=>{acknowledgeRejection(driverId,notice,safeStorage);setNotice(null);};
  const running=notice.viajes.filter(t=>t.estado==='EN_CURSO');
  const cancelled=notice.viajes.filter(t=>t.estado==='CANCELADO');
  return <TripOperationModal title="Inspección rechazada" headerCaption="AVISO DE INSPECCIÓN" role="alertdialog"
