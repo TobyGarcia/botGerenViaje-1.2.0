@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:notice-5f07c58
+COPY backend/src /app/src

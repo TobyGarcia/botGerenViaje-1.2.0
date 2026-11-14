@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-frontend:notice-5f07c58
+COPY frontend/dist /usr/share/nginx/html
