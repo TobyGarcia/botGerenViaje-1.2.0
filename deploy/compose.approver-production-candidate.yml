@@ -1,0 +1,12 @@
+# Preparation only. Apply to the reviewed PRODUCTION Compose project only after authorization.
+# Does not redefine PostgreSQL, database URL, application secrets, data or uploads volumes.
+services:
+  backend:
+    environment:
+      APPROVER_ENVIRONMENT: stable
+      APPROVER_FIREBASE_PROJECT_ID: gvmobilityproduccion
+      APPROVER_PUSH_ENABLED: ${PRODUCTION_APPROVER_PUSH_ENABLED:-false}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/approver-production-firebase.json
+      ANDROID_UPDATE_DISCOVERY: stable
+    volumes:
+      - ${PRODUCTION_APPROVER_FIREBASE_FILE:?Set private production service-account path}:/run/secrets/approver-production-firebase.json:ro

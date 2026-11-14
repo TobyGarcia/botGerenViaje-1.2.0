@@ -1,3 +1,4 @@
+import {supervisorScheme} from '../services/supervisor-environment.js';
 import { useEffect, useState } from "react";
 import { exchangeAzureOAuthCode, getAzureOAuthUrl } from "../services/api.js";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
@@ -97,7 +98,7 @@ function LoginPage({ onAuthenticated }) {
             <button
               type="button"
               className="login-submit-btn tenant-submit-btn microsoft-sso-btn"
-              onClick={()=>mobileComplete ? window.location.assign("gvsupervisor://auth") : handleAzureMicrosoftLogin()}
+              onClick={()=>mobileComplete ? window.location.assign(supervisorScheme+'://auth') : handleAzureMicrosoftLogin()}
               disabled={loading}
             >
               {loading ? (

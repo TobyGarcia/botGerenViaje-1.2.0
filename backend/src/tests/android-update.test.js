@@ -71,3 +71,17 @@ test("aprobadores descubre su propio canal, ignora conductor y borradores", asyn
  const invalid=response();await androidUpdateController({query:{application:'supervisor',channel:'stable'}},invalid);assert.equal(invalid.code,400);
  }finally{globalThis.fetch=originalFetch;if(previous===undefined)delete process.env.ANDROID_UPDATE_DISCOVERY;else process.env.ANDROID_UPDATE_DISCOVERY=previous;}
 });
+
+test('actualizador productivo de aprobadores no ofrece APK ni canal de pruebas',async()=>{
+ const keys=['APPROVER_ENVIRONMENT','ANDROID_SUPERVISOR_UPDATE_STABLE'];const before=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+ const response=()=>({code:200,set(){},status(c){this.code=c;return this},json(d){this.data=d;return this}});
+ try{
+ process.env.APPROVER_ENVIRONMENT='stable';
+ const manifest={appId:'com.aspromex.gvmobility.supervisor',versionName:'1.0.0',versionCode:1,channel:'stable',sha256:'a'.repeat(64),downloadUrl:'https://github.com/TobyGarcia/botGerenViaje-1.2.0/releases/download/android-supervisor-stable-v1.0.0-1/gv-supervisor.apk'};
+ process.env.ANDROID_SUPERVISOR_UPDATE_STABLE=JSON.stringify(manifest);
+ const valid=response();await androidUpdateController({query:{application:'supervisor',channel:'stable'}},valid);assert.equal(valid.data.appId,manifest.appId);assert.equal(valid.data.available,true);
+ const wrongChannel=response();await androidUpdateController({query:{application:'supervisor',channel:'testing'}},wrongChannel);assert.equal(wrongChannel.code,400);
+ process.env.ANDROID_SUPERVISOR_UPDATE_STABLE=JSON.stringify({...manifest,appId:'com.aspromex.gvmobility.supervisor.testing'});
+ const wrongPackage=response();await androidUpdateController({query:{application:'supervisor',channel:'stable'}},wrongPackage);assert.equal(wrongPackage.code,503);
+ }finally{for(const k of keys)if(before[k]===undefined)delete process.env[k];else process.env[k]=before[k];}
+});

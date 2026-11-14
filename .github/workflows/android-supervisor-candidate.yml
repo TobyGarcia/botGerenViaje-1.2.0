@@ -1,0 +1,77 @@
+name: Validar APK productiva de aprobadores (sin publicar)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        default: '1.0.0'
+      version_code:
+        required: true
+        default: '1'
+permissions:
+  contents: read
+concurrency:
+  group: supervisor-production-candidate
+  cancel-in-progress: false
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    # Reuse the existing GV signing certificate; no production environment access.
+    environment: android-testing
+    env:
+      ANDROID_UPDATE_CHANNEL: stable
+      ANDROID_VERSION_NAME: ${{ inputs.version }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      APPROVER_GOOGLE_SERVICES_FILE: ${{ github.workspace }}/approver-production-google-services.json
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/candidate-signing.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Preparar firma y configuración Android (no cuenta de servicio)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          GOOGLE_SERVICES_BASE64: ${{ secrets.ANDROID_SUPERVISOR_PRODUCTION_GOOGLE_SERVICES_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$ANDROID_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$ANDROID_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
+          test "$ANDROID_VERSION_CODE" -le 2100000000
+          test -n "$KEYSTORE_BASE64"; test -n "$GOOGLE_SERVICES_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          printf '%s' "$GOOGLE_SERVICES_BASE64" | base64 --decode > "$APPROVER_GOOGLE_SERVICES_FILE"
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: npm ci --prefix panel-admin && npm ci --prefix supervisor-app
+      - run: npm test --prefix panel-admin && node --test supervisor-app/tests/*.test.mjs
+      - run: node supervisor-app/scripts/build-web.mjs && node supervisor-app/scripts/prepare-android.mjs
+      - name: Compilar candidato firmado y verificar identidad
+        run: |
+          set -euo pipefail
+          cd supervisor-app/android
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleRelease --no-daemon
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/release/app-release.apk > ../candidate-badging.txt
+          grep -q "name='com.aspromex.gvmobility.supervisor'" ../candidate-badging.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approver-production-candidate-${{ inputs.version }}-${{ inputs.version_code }}
+          path: |
+            supervisor-app/android/app/build/outputs/apk/release/app-release.apk
+            supervisor-app/candidate-badging.txt
+          retention-days: 14
+      - name: Retirar temporales
+        if: always()
+        run: rm -f "$ANDROID_KEYSTORE_PATH" "$APPROVER_GOOGLE_SERVICES_FILE"

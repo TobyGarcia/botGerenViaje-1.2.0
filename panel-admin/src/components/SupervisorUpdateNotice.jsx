@@ -1,3 +1,4 @@
+import {supervisorChannel} from '../services/supervisor-environment.js';
 import AppFeedbackModal from './AppFeedbackModal.jsx';
 import {validateSupervisorUpdate} from '../services/supervisor-update.js';
 import {useEffect,useState} from 'react';
@@ -15,7 +16,7 @@ export default function SupervisorUpdateNotice(){
   const watcher=watchAndroidUpdates({check:async signal=>{
    const installed=await version.getInfo();
    const base=String(import.meta.env.VITE_API_BASE_URL||'').replace(/\/+$/,'').replace(/\/api$/,'');
-   const response=await apiFetch(`${base}/api/android/update?application=supervisor&channel=testing&_t=${Date.now()}`,{signal,cache:'no-store'});
+   const response=await apiFetch(`${base}/api/android/update?application=supervisor&channel=${supervisorChannel}&_t=${Date.now()}`,{signal,cache:'no-store'});
    if(!response.ok)throw Error('No se pudo consultar la actualización.');
    return validateSupervisorUpdate(await readApiJson(response),installed);
   },onResult:result=>{setUpdate(result);if(manual)setFeedback(result?'':'Ya tienes la versión más reciente.');manual=false;},onError:()=>{if(manual)setFeedback('No se pudo consultar. Revisa tu conexión e intenta de nuevo.');manual=false;},subscribeResume:callback=>version.addListener('appResumed',callback)});

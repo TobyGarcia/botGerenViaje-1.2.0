@@ -1,11 +1,18 @@
+import {approverEnvironment} from './environment.mjs';
 import {prepareSupervisorLauncher} from './launcher-branding.mjs';
 import {validateFirebaseConfig} from './firebase-config.mjs';
-import {execFileSync} from 'node:child_process';import{existsSync,readFileSync,writeFileSync,mkdirSync,copyFileSync,unlinkSync}from'node:fs';import{resolve}from'node:path';import{fileURLToPath}from'node:url';
+import {execFileSync} from 'node:child_process';import{existsSync,readFileSync,writeFileSync,mkdirSync,copyFileSync,unlinkSync,readdirSync}from'node:fs';import{resolve}from'node:path';import{fileURLToPath}from'node:url';
 const app=resolve(fileURLToPath(new URL('..',import.meta.url)));
+const environment=approverEnvironment();
+const firebasePath=process.env.APPROVER_GOOGLE_SERVICES_FILE || (environment.channel==='testing'?resolve(app,'google-services.json'):null);
+if(!firebasePath)throw Error('Falta APPROVER_GOOGLE_SERVICES_FILE para producción.');
+const checkedFirebase=readFileSync(firebasePath,'utf8');
+validateFirebaseConfig(JSON.parse(checkedFirebase),environment);
 const npx=process.platform==='win32'?'npx.cmd':'npx';const run=args=>execFileSync(npx,args,{cwd:app,stdio:'inherit',shell:process.platform==='win32'});
+const existingGradle=resolve(app,'android/app/build.gradle');
+if(existsSync(existingGradle)&&!readFileSync(existingGradle,'utf8').includes(`namespace "${environment.appId}"`))throw Error('Usa un checkout limpio para compilar otro ambiente; no se modificó el proyecto Android existente.');
 if(!existsSync(resolve(app,'android')))run(['cap','add','android']);
-const firebaseConfig=readFileSync(resolve(app,'google-services.json'),'utf8');
-validateFirebaseConfig(JSON.parse(firebaseConfig));
+const firebaseConfig=checkedFirebase;
 writeFileSync(resolve(app,'android/app/google-services.json'),firebaseConfig);
 const rootGradle=resolve(app,'android/build.gradle');
 writeFileSync(rootGradle,readFileSync(rootGradle,'utf8').replace(/com.google.gms:google-services:[^']+/, 'com.google.gms:google-services:4.5.0'));
@@ -27,11 +34,11 @@ writeFileSync(brandStrings,readFileSync(brandStrings,'utf8').replace(/(<string n
 
 // Reuse the conductor updater: same download, SHA256, package and signer checks.
 const sharedNative=resolve(app,'../frontend/android/app/src/main/java/com/aspromex/gerenciamientoviajes');
-const nativeDir=resolve(app,'android/app/src/main/java/com/aspromex/gvmobility/supervisor/testing');mkdirSync(nativeDir,{recursive:true});
+const nativeDir=resolve(app,'android/app/src/main/java',environment.appId.replaceAll('.','/'));mkdirSync(nativeDir,{recursive:true});
 for(const name of ['AndroidVersionPlugin','NativeApkUpdater','ApkUpdateSecurity','BridgeNumbers']) {
  writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(sharedNative,name+'.java'),'utf8').replaceAll('package com.aspromex.gerenciamientoviajes;','package com.aspromex.gvmobility.supervisor.testing;').replaceAll('/gv-mobility.apk','/gv-supervisor.apk'));
 }
-const nativeTestDir=resolve(app,'android/app/src/test/java/com/aspromex/gvmobility/supervisor/testing');mkdirSync(nativeTestDir,{recursive:true});
+const nativeTestDir=resolve(app,'android/app/src/test/java',environment.appId.replaceAll('.','/'));mkdirSync(nativeTestDir,{recursive:true});
 writeFileSync(resolve(nativeTestDir,'ApkUpdateSecurityTest.java'),readFileSync(resolve(app,'../frontend/android/app/src/test/java/com/aspromex/gerenciamientoviajes/ApkUpdateSecurityTest.java'),'utf8').replaceAll('package com.aspromex.gerenciamientoviajes;','package com.aspromex.gvmobility.supervisor.testing;').replaceAll('/gv-mobility.apk','/gv-supervisor.apk'));
 writeFileSync(resolve(nativeDir,'MainActivity.java'),`package com.aspromex.gvmobility.supervisor.testing;
 import android.os.Bundle;
@@ -57,6 +64,13 @@ for(const density of ['mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi']){
  const folder=resolve(app,`android/app/src/main/res/drawable-${density}`);mkdirSync(folder,{recursive:true});
  copyFileSync(resolve(app,`../frontend/android/app/src/main/res/drawable-${density}/ic_stat_gv.png`),resolve(folder,'ic_stat_approver.png'));
 }
-writeFileSync(resolve(app,'android/app/src/main/res/values/update_channel.xml'),'<resources><string name="android_update_channel">testing</string></resources>');
+writeFileSync(resolve(app,'android/app/src/main/res/values/update_channel.xml'),'<resources><string name="android_update_channel">'+environment.channel+'</string></resources>');
 
+// A fresh generated project is required when switching package identities.
+const packageName='com.aspromex.gvmobility.supervisor.testing';
+for(const directory of [nativeDir,nativeTestDir])for(const name of readdirSync(directory)){
+ if(name.endsWith('.java')){const path=resolve(directory,name);writeFileSync(path,readFileSync(path,'utf8').replaceAll(packageName,environment.appId).replaceAll('https://gvmobility.aspromex.mx',environment.apiBase));}
+}
+s=readFileSync(manifest,'utf8').replaceAll('android:scheme="gvsupervisor"',`android:scheme="${environment.scheme}"`);
+writeFileSync(manifest,s);
 run(['cap','sync','android']);

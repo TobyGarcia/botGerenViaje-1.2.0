@@ -1,4 +1,5 @@
 import {readFileSync}from'node:fs';
+import {validateApproverServiceAccount} from './approver-environment.js';
 import {createHash}from'node:crypto';
 import {initializeApp,cert}from'firebase-admin/app';
 import {getMessaging}from'firebase-admin/messaging';
@@ -10,8 +11,8 @@ export function getApproverMessaging(){
  if(messaging)return messaging;
  if(process.env.APPROVER_PUSH_ENABLED!=='true')return null;
  const credentials=JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'));
- if(credentials.project_id!=='gv-mobility-pruebas')throw Error('Proyecto push incorrecto');
- messaging=getMessaging(initializeApp({credential:cert(credentials)},'approver-testing'));return messaging;
+ const environment=validateApproverServiceAccount(credentials);
+ messaging=getMessaging(initializeApp({credential:cert(credentials)},`approver-${environment.channel}`));return messaging;
 }
 const labels={manejo:{PENDIENTE:'Manejo comentado: autorización pendiente'},inspection:{PENDIENTE_APROBACION:'Inspección por aprobar'},management:{PENDIENTE:'Gerenciamiento por aprobar'}};
 export function pushSnapshot(deviceId,feed){

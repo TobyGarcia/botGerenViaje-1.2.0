@@ -38,8 +38,8 @@ export async function androidUpdateController(request, response) {
   const channel = request.query.channel || "testing";
   if (!["testing", "stable"].includes(channel)) return response.status(400).json({ message: "Canal inválido." });
   const application = request.query.application || "driver";
-  if (!["driver", "supervisor"].includes(application) || (application === "supervisor" && channel !== "testing")) return response.status(400).json({ message: "Aplicación o canal inválido." });
-  const raw = application === "supervisor" ? process.env.ANDROID_SUPERVISOR_UPDATE_TESTING : process.env[channel === "stable" ? "ANDROID_UPDATE_STABLE" : "ANDROID_UPDATE_TESTING"];
+  if (!["driver", "supervisor"].includes(application) || (application === "supervisor" && channel !== (process.env.APPROVER_ENVIRONMENT || "testing"))) return response.status(400).json({ message: "Aplicación o canal inválido." });
+  const raw = application === "supervisor" ? process.env[channel === "stable" ? "ANDROID_SUPERVISOR_UPDATE_STABLE" : "ANDROID_SUPERVISOR_UPDATE_TESTING"] : process.env[channel === "stable" ? "ANDROID_UPDATE_STABLE" : "ANDROID_UPDATE_TESTING"];
   try {
     const update = raw ? JSON.parse(raw) : process.env.ANDROID_UPDATE_DISCOVERY === channel ? await discoverUpdate(channel, application) : null;
     if (!update) return response.json({ available: false });
@@ -49,8 +49,8 @@ export async function androidUpdateController(request, response) {
         url.protocol !== "https:" || url.hostname !== "github.com" ||
         !url.pathname.startsWith("/TobyGarcia/botGerenViaje-1.2.0/releases/download/") ||
         update.channel !== channel) throw new Error("Manifiesto inválido");
-    if (application === "supervisor" && (update.appId !== "com.aspromex.gvmobility.supervisor.testing" ||
-        !/^\/TobyGarcia\/botGerenViaje-1\.2\.0\/releases\/download\/android-supervisor-testing-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\/gv-supervisor\.apk$/.test(url.pathname))) throw new Error("APK de aprobadores inválida");
+    if (application === "supervisor" && (update.appId !== (channel === "stable" ? "com.aspromex.gvmobility.supervisor" : "com.aspromex.gvmobility.supervisor.testing") ||
+        !new RegExp('^/TobyGarcia/botGerenViaje-1\\.2\\.0/releases/download/android-supervisor-'+channel+'-v[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+/gv-supervisor\\.apk$').test(url.pathname))) throw new Error("APK de aprobadores inválida");
     return response.json({ ...update, available: true });
   } catch {
     return response.status(503).json({ message: "La actualización todavía no está disponible." });

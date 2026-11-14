@@ -1,3 +1,4 @@
+import {supervisorScheme} from '../services/supervisor-environment.js';
 import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
 import {useModalBack} from '../hooks/useModalBack.js';
 import {dispatchModalBack} from '../services/modal-navigation.js';
@@ -34,7 +35,7 @@ function SupervisorShell(){
   const interval=setInterval(()=>void check(),2000);
   if(Capacitor.isNativePlatform()){
    NativeApp.addListener('appStateChange',state=>{if(state.isActive)void check();}).then(l=>{if(disposed.current)l.remove();else listener=l;});
-   NativeApp.addListener('appUrlOpen',event=>{if(event.url.startsWith('gvsupervisor://auth')){void Browser.close().catch(()=>{});void check();}}).then(l=>{if(disposed.current)l.remove();else link=l;});
+   NativeApp.addListener('appUrlOpen',event=>{if(event.url.startsWith(supervisorScheme+'://auth')){void Browser.close().catch(()=>{});void check();}}).then(l=>{if(disposed.current)l.remove();else link=l;});
   }
   return()=>{disposed.current=true;clearInterval(interval);window.removeEventListener('supervisor-session-expired',expired);listener?.remove();link?.remove();};
  },[]);
