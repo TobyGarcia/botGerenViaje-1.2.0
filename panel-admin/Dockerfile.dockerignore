@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/dev-dist
+**/.env
+**/.env.*
+.git
+tmp
+output
+.secrets
+**/*service-account*.json
+**/*firebase-adminsdk*.json
+supervisor-app
+frontend/android

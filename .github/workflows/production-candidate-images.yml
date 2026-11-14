@@ -19,7 +19,7 @@ jobs:
           TAG="candidate-${GITHUB_SHA}"
           docker build --label org.opencontainers.image.revision="$GITHUB_SHA" -t "gv-production-backend:$TAG" backend
           docker build --label org.opencontainers.image.revision="$GITHUB_SHA" --build-arg VITE_API_BASE_URL=https://gv.aspromex.mx --build-arg APP_VERSION="$GITHUB_SHA" -t "gv-production-frontend:$TAG" frontend
-          docker build --label org.opencontainers.image.revision="$GITHUB_SHA" --build-arg VITE_API_BASE_URL=https://gv.aspromex.mx --build-arg VITE_APPROVER_CHANNEL=stable -t "gv-production-panel-admin:$TAG" panel-admin
+          docker build -f panel-admin/Dockerfile --label org.opencontainers.image.revision="$GITHUB_SHA" --build-arg VITE_API_BASE_URL=https://gv.aspromex.mx --build-arg VITE_APPROVER_CHANNEL=stable -t "gv-production-panel-admin:$TAG" .
           mkdir -p candidate
           docker image inspect "gv-production-backend:$TAG" "gv-production-frontend:$TAG" "gv-production-panel-admin:$TAG" > candidate/images.json
           docker save "gv-production-backend:$TAG" "gv-production-frontend:$TAG" "gv-production-panel-admin:$TAG" | gzip -1 > candidate/images.tar.gz

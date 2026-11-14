@@ -165,8 +165,8 @@ services:
 
   panel-admin:
     build: 
-      context: ./panel-admin
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: panel-admin/Dockerfile
 
     container_name: viajes-panel-admin
 
