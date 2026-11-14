@@ -28,6 +28,8 @@ La validación funcional utiliza pruebas existentes y sus evidencias. El ensayo 
 
 ## Pendientes para el lanzamiento
 
+Validación adicional de clientes antiguos: [resultado y límites en staging](legacy-apk-staging-validation.md). Contratos de servicio probados correctamente; ensayo Android con interrupción real y respuesta de cierre perdida aún pendiente.
+
 1. Autorización explícita y ventana de corte; coordinar viajes en curso y teléfonos con movimientos sin sincronizar. No cancelar viajes ni borrar colas como preparación.
 2. Verificar automatizaciones externas y diferencias finales antes del merge. Esta preparación no autoriza fusionar ni publicar.
 3. Revalidar configuración/inventario y capacidad del servidor. Observados 5.0 GB libres: comprobar espacio suficiente para respaldo, imágenes descomprimidas y logs antes de cargar nada. Si cambian metadatos activos, revisar nuevamente; no sobrescribir con configuración desactualizada.
