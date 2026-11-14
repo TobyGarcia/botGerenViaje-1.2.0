@@ -64,3 +64,4 @@ compose.monitor.image.json
 **/*service-account*.json
 .secrets/
 output/releases/
+!scripts/production/preflight.sql
