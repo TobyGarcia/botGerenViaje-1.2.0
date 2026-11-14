@@ -1,3 +1,4 @@
+import {approvalVehicleName} from './ApprovalTripCard.jsx';
 import DamageViewer from './DamageViewer.jsx';
 import TrailerInspectionCards from './TrailerInspectionCards.jsx';
 import {IconDestinos,IconShield,IconInspecciones} from './Icons.jsx';
@@ -40,7 +41,7 @@ export default function ManagementReviewContent({doc,tab}){
   <section id="management-trip-panel" role="tabpanel" aria-labelledby="management-trip-tab" hidden={tab!=='trip'} className="management-review-panel">
    <div className="management-route"><IconDestinos size={22}/><div><small>Origen</small><strong>{shown(doc.origen_nombre||doc.origen_texto)}</strong><small>Destino</small><strong>{shown(doc.destino_nombre||doc.destino_texto)}</strong></div></div>
    <Facts items={[
-    ['Conductor',doc.nombre_conductor||doc.conductor_nombre],['Unidad',doc.tipo_vehiculo],['Número económico',doc.numero_unidad],['Placas',doc.placa],['Salida',doc.hora_salida],['Fecha',date(doc.fecha_emision)],['Kilometraje',doc.kilometraje!=null?`${doc.kilometraje} km`:null],['Duración estimada',doc.tiempo_viaje_horas!=null?`${doc.tiempo_viaje_horas} h`:null]
+    ['Conductor',doc.nombre_conductor||doc.conductor_nombre],['Unidad',approvalVehicleName(doc)],['Número económico',doc.numero_unidad],['Placas',doc.placa],['Salida',doc.hora_salida],['Fecha',date(doc.fecha_emision)],['Kilometraje',doc.kilometraje!=null?`${doc.kilometraje} km`:null],['Duración estimada',doc.tiempo_viaje_horas!=null?`${doc.tiempo_viaje_horas} h`:null]
    ]}/>
    <div className="management-risk" data-risk={doc.nivel_riesgo}><IconShield size={24}/><div><small>Evaluación de riesgo</small><strong>{shown(doc.nivel_riesgo)} · {doc.puntaje_total??'—'} puntos</strong></div></div>
    <details className="management-fold"><summary>Evaluación y controles</summary><div><Facts items={riskFields.map(([name,key])=>[name,doc[key]!=null?`${riskOptions[key]?.[doc[key]]||'Valor registrado'} · ${doc[key]} puntos`:null])}/>{controls.map(([name,value])=><div className="management-check-row" key={name}><span>{name}</span><strong>{value===true?'Sí':value===false?'No':'Sin registrar'}</strong></div>)}</div></details>
@@ -54,7 +55,7 @@ export default function ManagementReviewContent({doc,tab}){
    {!hasInspection?<p className="management-empty">No hay una inspección vinculada disponible.</p>:<>
     <Facts items={[[ 'Estado',({PENDIENTE_APROBACION:'Por aprobar',APROBADA:'Aprobada',RECHAZADA:'Rechazada'})[doc.inspeccion_estado]||doc.inspeccion_estado?.replaceAll('_',' ')],['Combustible',fuelLabel],['Fecha operativa',date(doc.inspeccion_fecha_operativa)]]}/>
     {doc.inspeccion_es_dia_siguiente&&<p className="management-note">Inspección programada para el día siguiente.</p>}
-    <DamageViewer damages={doc.inspeccion_danos||{}} vehicle={doc.tipo_vehiculo} singleView/>
+    <DamageViewer damages={doc.inspeccion_danos||{}} vehicle={approvalVehicleName(doc)} singleView/>
     <Checklist value={checklist}/>
     <div className="management-note"><h4>Observaciones del conductor</h4><p>{doc.inspeccion_observaciones||'Sin observaciones registradas.'}</p></div>
     {doc.inspeccion_firma_conductor&&<details className="management-fold"><summary>Firma de la inspección</summary><img className="management-signature" src={doc.inspeccion_firma_conductor} alt="Firma de la inspección vehicular"/></details>}

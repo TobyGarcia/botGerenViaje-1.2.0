@@ -1,3 +1,4 @@
+import ApprovalTripCard,{approvalVehicleName} from '../components/ApprovalTripCard.jsx';
 import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
 import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk} from '../../../backend/src/utils/approval-policy.js';
@@ -257,7 +258,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
           <>
-            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><article key={item.id_gerenciamiento}><header><strong>{item.folio_documento}</strong><small>{item.viaje_cancelado&&item.estado==="PENDIENTE"?"Retirado":item.estado}</small></header><p>{item.tipo_vehiculo} · {item.conductor_nombre}</p><small>Riesgo {item.nivel_riesgo} · {item.estado==='APROBADO'&&item.inspeccion_estado==='PENDIENTE_APROBACION'?'Inspección por aprobar':'Viaje e inspección'}</small><button type="button" onClick={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');}}>Ver revisión →</button></article>)}</div>}
+            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-review-cards">{paginatedList.map(item=><ApprovalTripCard key={item.id_gerenciamiento} record={item} onReview={()=>{setSelectedDoc(item);setFirmaAutorizador('');setObservaciones(item.observaciones||'');}}/>)}</div>}
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>
@@ -283,7 +284,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
                           </small>
                         </td>
                         <td>
-                          {item.tipo_vehiculo || "Vehículo"}
+                          {approvalVehicleName(item)}
                           <small style={{ display: "block" }}>{item.numero_unidad || item.placa || "N/A"}</small>
                         </td>
                         <td>{item.nombre_conductor || item.conductor_nombre}</td>
@@ -362,7 +363,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
             <div className="form-panel-header">
               <div>
                 <span className="management-eyebrow">Revisión de viaje</span><h2 id="management-review-title">{selectedDoc.folio_documento}</h2>
-                <p>{selectedDoc.nombre_conductor} · {selectedDoc.tipo_vehiculo} ({selectedDoc.numero_unidad || selectedDoc.placa})</p>
+                <p>{selectedDoc.nombre_conductor} · {approvalVehicleName(selectedDoc)} ({selectedDoc.numero_unidad || selectedDoc.placa})</p>
               </div>
               <button className="management-pdf-button" type="button" onClick={()=>openGerenciamientoPdfPreview(selectedDoc,true)}>PDF</button><button className="close-button" aria-label="Cerrar revisión" disabled={approving} onClick={() => setSelectedDoc(null)}>×</button>
             </div>

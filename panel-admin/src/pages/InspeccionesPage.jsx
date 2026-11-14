@@ -1,3 +1,4 @@
+import ApprovalTripCard from '../components/ApprovalTripCard.jsx';
 import ApprovalPdfViewer from '../components/ApprovalPdfViewer.jsx';
 import {canAuthorizeManejo} from '../../../backend/src/utils/manejo-authorization-policy.js';
 import ManejoAuthorizationRequests from '../components/ManejoAuthorizationRequests.jsx';
@@ -545,7 +546,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
               </div>
             ) : (
               <>
-                {pendingOnly && <div className="supervisor-review-cards">{paginatedRows.map(row=><article key={row.id_inspeccion}><header><strong>{inspectionRequestFolio(row)}</strong><StatusBadge available={row.approval_available!==false} estado={row.estado}/></header><p>{row.vehiculo} · {row.numero_economico}</p><small>{row.conductor}</small><button type="button" className="btn-review" onClick={()=>open(row)}>Revisar inspección →</button></article>)}</div>}
+                {pendingOnly && <div className="supervisor-review-cards">{paginatedRows.map(row=><ApprovalTripCard key={row.id_inspeccion} record={row} local statusBadge={<StatusBadge available={row.approval_available!==false} estado={row.estado}/>} onReview={()=>open(row)}/>)}</div>}
                 <div className="table-wrapper">
                   <table className="admin-table inspections-table">
                     <thead>

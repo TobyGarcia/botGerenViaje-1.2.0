@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-panel:groups-a4b7353
+COPY panel-admin/dist /usr/share/nginx/html

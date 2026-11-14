@@ -109,6 +109,7 @@ test('grupos de APK separan locales y gerenciamientos sin perder inspecciones co
  assert.equal((await listGerenciamientos({estado:'PENDIENTE'})).some(g=>g.id_gerenciamiento===managed.management),false);
  const pending=(await listGerenciamientos({estado:'PENDIENTE',includePendingInspection:true})).find(g=>g.id_gerenciamiento===managed.management);
  assert.equal(pending.inspeccion_estado,'PENDIENTE_APROBACION');
+ assert.equal(pending.vehiculo_nombre,(await db.query('SELECT nombre FROM vehiculos WHERE id_vehiculos=$1',[managed.vehicle])).rows[0].nombre);
  const {listGerenciamientosController}=await import('../controllers/gerenciamiento-viajes.controller.js');let payload;
  await listGerenciamientosController({query:{estado:'PENDIENTE',includeInspection:'true'}},{json:value=>{payload=value;},status:()=>{throw Error('Unexpected list error');}});
  assert.ok(payload.data.some(g=>g.id_gerenciamiento===managed.management));

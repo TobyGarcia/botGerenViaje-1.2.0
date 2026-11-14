@@ -126,6 +126,7 @@ export async function listPendingInspections(adminRole = null) {
     SELECT i.id_inspeccion, i.estado, CASE WHEN ${inspectionManagementGroupSql('i')} THEN 'management' ELSE 'local' END AS approval_group, (eligible_request.id_viajes IS NOT NULL) AS approval_available, eligible_request.folio AS approval_folio, eligible_request.id_viajes AS approval_trip_id, i.creado_en, i.requiere_autorizacion_fuera_horario,
       i.fecha_operativa, i.es_dia_siguiente, i.lleva_remolque, i.id_remolque,
       v.folio, c.nombre AS conductor, vh.nombre AS vehiculo, vh.numero_economico,
+      card_origin.nombre AS origen_nombre, card_destination.nombre AS destino_nombre,
       rem.nombre AS remolque_nombre, rem.numero_economico AS remolque_numero_economico
     FROM inspecciones_vehiculares i
     INNER JOIN viajes v ON v.id_viajes=i.id_viajes
@@ -133,6 +134,9 @@ export async function listPendingInspections(adminRole = null) {
     INNER JOIN vehiculos vh ON vh.id_vehiculos=i.id_vehiculos
     LEFT JOIN vehiculos rem ON rem.id_vehiculos=i.id_remolque
     ${inspectionRequestJoinSql('i')}
+    LEFT JOIN viajes card_trip ON card_trip.id_viajes=CASE WHEN i.estado='PENDIENTE_APROBACION' THEN COALESCE(eligible_request.id_viajes,i.id_viajes) ELSE i.id_viajes END
+    LEFT JOIN lugares card_origin ON card_origin.id_lugares=card_trip.id_origen
+    LEFT JOIN lugares card_destination ON card_destination.id_lugares=card_trip.id_destino
     ${isManagementRole(adminRole) ? `WHERE ${managementInspectionSql()}` : ""}
     ORDER BY CASE WHEN i.estado='PENDIENTE_APROBACION' THEN 0 ELSE 1 END, i.creado_en DESC`);
   return result.rows;

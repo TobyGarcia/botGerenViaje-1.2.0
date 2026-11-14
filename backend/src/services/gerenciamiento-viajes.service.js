@@ -292,6 +292,7 @@ async function createGerenciamientoViajeImpl({ idConductor, data }) {
 export async function getGerenciamientoById(idGerenciamiento) {
   const result = await databasePool.query(`
     SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
+      NULLIF(vehicle_card.nombre, '') AS vehiculo_nombre,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
@@ -316,6 +317,8 @@ export async function getGerenciamientoById(idGerenciamiento) {
       vh_rem.numero_economico AS remolque_numero_economico,
       vh_rem.placas AS remolque_placas
     FROM gerenciamiento_viajes g
+    LEFT JOIN viajes vehicle_trip ON vehicle_trip.id_viajes=g.id_viaje
+    LEFT JOIN vehiculos vehicle_card ON vehicle_card.id_vehiculos=vehicle_trip.id_vehiculos
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
@@ -329,6 +332,7 @@ export async function getGerenciamientoById(idGerenciamiento) {
 export async function getGerenciamientoByViaje(idViaje) {
   const result = await databasePool.query(`
     SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
+      NULLIF(vehicle_card.nombre, '') AS vehiculo_nombre,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre) AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
       COALESCE(NULLIF(g.licencia_tipo, ''), c.tipo_licencia, 'Chofer') AS licencia_tipo,
@@ -352,6 +356,8 @@ export async function getGerenciamientoByViaje(idViaje) {
       vh_rem.numero_economico AS remolque_numero_economico,
       vh_rem.placas AS remolque_placas
     FROM gerenciamiento_viajes g
+    LEFT JOIN viajes vehicle_trip ON vehicle_trip.id_viajes=g.id_viaje
+    LEFT JOIN vehiculos vehicle_card ON vehicle_card.id_vehiculos=vehicle_trip.id_vehiculos
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
@@ -393,6 +399,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, in
 
   const query = `
     SELECT g.*, ${managementAvailableSql('g')} AS approval_available, ${managementCancelledSql('g')} AS viaje_cancelado,
+      NULLIF(vehicle_card.nombre, '') AS vehiculo_nombre,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS conductor_nombre,
       COALESCE(NULLIF(g.nombre_conductor, ''), c.nombre, 'Conductor') AS nombre_conductor,
       COALESCE(NULLIF(g.licencia_numero, ''), c.licencia_numero, 'N/A') AS licencia_numero,
@@ -411,6 +418,8 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, in
       i.firma_conductor AS inspeccion_firma_conductor,
       i.fecha_operativa AS inspeccion_fecha_operativa
     FROM gerenciamiento_viajes g
+    LEFT JOIN viajes vehicle_trip ON vehicle_trip.id_viajes=g.id_viaje
+    LEFT JOIN vehiculos vehicle_card ON vehicle_card.id_vehiculos=vehicle_trip.id_vehiculos
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino

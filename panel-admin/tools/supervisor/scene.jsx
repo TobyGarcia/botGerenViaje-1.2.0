@@ -7,7 +7,7 @@ const invalid=new URLSearchParams(location.search).has('invalid');
 const login=new URLSearchParams(location.search).has('login') || invalid;
 const trip={idViaje:41,folio:'VJ-DEMO-0041',fecha:'2026-11-12',conductor:{nombre:'Ana López'},vehiculo:{nombre:'MITSUBISHI L200',numeroEconomico:'AUTO-DEMO',placas:'DEM-001'},origen:{nombre:'Base'},destino:{nombre:'Almacén'},estado:{nombre:'EN_CURSO'},kilometrajeInicial:1200,motivo:'Traslado',acompanantes:[]};
 const rows=[{id_inspeccion:1,folio:'PENDIENTE-DEMO',vehiculo:'MITSUBISHI L200',numero_economico:'AUTO-DEMO',conductor:'Ana López',estado:'PENDIENTE_APROBACION',creado_en:'2026-11-12T17:00:00Z'},{id_inspeccion:2,folio:'APROBADA-OCULTA',estado:'APROBADA',creado_en:'2026-11-12T17:00:00Z'}];
-const management={id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']};
+const management={vehiculo_nombre:'MITSUBISHI L200',id_gerenciamiento:7,folio_documento:'GEREN-DEMO',nombre_conductor:'Ana López',conductor_nombre:'Ana López',tipo_vehiculo:'MITSUBISHI L200',origen_nombre:'ASPX - ORIGEN CON NOMBRE COMPLETO',destino_nombre:'ASPX - DESTINO CON NOMBRE COMPLETO',nivel_riesgo:'BAJO',puntaje_total:10,estado:'PENDIENTE',acompanantes:['Ana','Juan']};
 if(new URLSearchParams(location.search).has('inspection-review'))Object.assign(management,{
  nombre_conductor:'Ana López',numero_unidad:'AUTO-010',placa:'DEM-001',hora_salida:'08:30',fecha_emision:'2026-11-14',kilometraje:1200,
  inspeccion_estado:'PENDIENTE_APROBACION',inspeccion_combustible:'F',inspeccion_fecha_operativa:'2026-11-14',
@@ -18,6 +18,7 @@ if(new URLSearchParams(location.search).has('inspection-review'))Object.assign(m
  inspeccion_lleva_remolque:true,remolque_nombre:'REMOLQUE DE PRUEBA',inspeccion_remolque:{checklist:{Reflejantes:'B'},danos:{frontal:[{x:30,y:50}]},observaciones:'Revisión completa'},
  pts_distancia:1,pts_clima:2,pts_vehiculos_personas:3,pts_condiciones_via:1,pts_comunicaciones:0,pts_horas_trabajadas:1,pts_hora_traslado:1
 });
+if(new URLSearchParams(location.search).has('card-test')){management.tipo_vehiculo='auto';rows[0].origen_nombre='ASPX - BASE PRINCIPAL CON NOMBRE COMPLETO';rows[0].destino_nombre='ASPX - ALMACÉN CON NOMBRE COMPLETO';}
 if(new URLSearchParams(location.search).has('group-test'))rows.push({...rows[0],id_inspeccion:3,folio:'SOLO-EN-GERENCIAMIENTOS',approval_group:'management'});
 if(new URLSearchParams(location.search).has('inspection-only-test'))Object.assign(management,{estado:'APROBADO',id_inspeccion:3,inspeccion_estado:'PENDIENTE_APROBACION'});
 window.fetch=async(input,options={})=>{const path=new URL(input,location.origin).pathname;if(invalid && path.endsWith('/supervisor-app/start'))return new Response('null',{headers:{'Content-Type':'application/json'}});if((options.method||'GET')!=='GET')throw Error('Mutaciones deshabilitadas en QA');let data=[],status=200;
