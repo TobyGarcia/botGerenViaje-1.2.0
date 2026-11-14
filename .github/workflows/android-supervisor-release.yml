@@ -1,10 +1,16 @@
-name: APK Supervisor pruebas
+name: APK Aprobadores
 on:
   workflow_call:
     inputs:
       version:
         required: true
         type: string
+      channel:
+        type: string
+        default: testing
+      candidate_only:
+        type: boolean
+        default: false
       version_code:
         required: true
         type: string
@@ -13,6 +19,12 @@ on:
       version:
         required: true
         default: '0.1.0'
+      channel:
+        type: string
+        default: testing
+      candidate_only:
+        type: boolean
+        default: false
       version_code:
         required: true
         default: '1'
@@ -26,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: android-testing
     env:
+      ANDROID_UPDATE_CHANNEL: ${{ inputs.channel || 'testing' }}
+      APPROVER_GOOGLE_SERVICES_FILE: ${{ inputs.channel == 'stable' && format('{0}/approver-production-google-services.json', github.workspace) || '' }}
       ANDROID_VERSION_NAME: ${{ inputs.version }}
       ANDROID_VERSION_CODE: ${{ inputs.version_code }}
       ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/supervisor-signing.jks
@@ -51,12 +65,21 @@ jobs:
       - name: Preparar firma y SDK
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PRODUCTION_GOOGLE_SERVICES_BASE64: ${{ secrets.ANDROID_SUPERVISOR_PRODUCTION_GOOGLE_SERVICES_BASE64 }}
         run: |
           [[ "$ANDROID_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ "$ANDROID_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
           test "$ANDROID_VERSION_CODE" -le 2100000000
           test -n "$KEYSTORE_BASE64"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          if [ "$ANDROID_UPDATE_CHANNEL" = stable ]; then
+            test '${{ inputs.candidate_only }}' = true
+            test -n "$PRODUCTION_GOOGLE_SERVICES_BASE64"
+            umask 077
+            printf '%s' "$PRODUCTION_GOOGLE_SERVICES_BASE64" | base64 --decode > "$APPROVER_GOOGLE_SERVICES_FILE"
+          elif [ "$ANDROID_UPDATE_CHANNEL" != testing ]; then
+            exit 1
+          fi
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - run: npm ci --prefix panel-admin
       - run: npm test --prefix panel-admin
@@ -71,7 +94,15 @@ jobs:
           ./gradlew testDebugUnitTest assembleRelease --no-daemon
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/release/app-release.apk | head -8
+      - name: Conservar candidato privado sin publicar
+        if: inputs.candidate_only
+        uses: actions/upload-artifact@v4
+        with:
+          name: approver-production-candidate-${{ inputs.version }}-${{ inputs.version_code }}
+          path: supervisor-app/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
       - name: Publicar borrador de pruebas
+        if: ${{ !inputs.candidate_only && inputs.channel != 'stable' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,4 +118,4 @@ jobs:
           gh release create "$TAG" supervisor-app/release/gv-supervisor.apk supervisor-app/release/update.json --draft --prerelease --target "$GITHUB_SHA" --title "GV Supervisor pruebas $ANDROID_VERSION_NAME" --generate-notes
       - name: Retirar firma temporal
         if: always()
-        run: rm -f "$ANDROID_KEYSTORE_PATH"
+        run: rm -f "$ANDROID_KEYSTORE_PATH" "$APPROVER_GOOGLE_SERVICES_FILE"
