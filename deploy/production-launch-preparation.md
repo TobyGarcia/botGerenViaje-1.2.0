@@ -74,4 +74,10 @@ Restaurar un respaldo sobre producción elimina escrituras posteriores al respal
 
 ## Paquete revisable
 
+### Configuración Android de Firebase recibida
+
+Se validó `gvnot-prod.json` proporcionado por el usuario: es configuración **Android**, proyecto `gvmobilityproduccion`, paquete `com.aspromex.gvmobility.supervisor`, con identificador de app y API key presentes. Copia de preparación fuera de Git: `C:/Users/Soporte TI Junior/.codex/secrets/gv-mobility-production/google-services.json`. El original permanece intacto. No se activaron servicios ni se publicaron APK productivas.
+
+Este archivo no es una cuenta de servicio: no contiene `type=service_account`, `client_email` ni `private_key`. Aún falta la credencial de servicio del mismo proyecto para preparar el envío de Firebase desde el backend; no reemplazarla por la credencial de pruebas. También sigue pendiente adaptar y validar el flujo estable de aprobadores descrito arriba.
+
 `node scripts/production/package-candidate.mjs 5f07c58818ac4ee05366c804a33073e9841c6ce7` crea un archivo de código y un manifiesto con hashes en `output/releases/<SHA>`. No contiene dumps ni secretos locales y no despliega, no fusiona y no publica. Su estado sigue siendo `NOT_AUTHORIZED_FOR_PRODUCTION`.
