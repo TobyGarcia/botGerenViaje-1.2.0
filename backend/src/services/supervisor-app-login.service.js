@@ -14,7 +14,10 @@ export function createSupervisorLoginBroker({ now = Date.now, ttl = 5 * 60 * 100
    if(!ROLES_SUPERVISOR_Y_SUPERIOR.includes(user.rol)){t.result={error:'Tu cuenta no tiene permisos de supervisión.'};const e=new Error(t.result.error);e.statusCode=403;throw e;}
    t.result={token,user};},
   poll(ticket,pollToken){const {id,t}=requireTicket(`supervisor_app_${ticket}`);if(typeof pollToken!=='string'||!timingSafeEqual(t.secret,hash(pollToken))){const e=new Error('Acceso no válido.');e.statusCode=401;throw e;}
-   if(!t.result)return {pending:true};const result=t.result;tickets.delete(id);
+   // Keep the verified result until expiry: Android may lose the HTTP response
+   // while returning from the external browser. The original secret is required
+   // for every retry; completing the OAuth state twice is still rejected.
+   if(!t.result)return {pending:true};const result=t.result;
    if(result.error){const e=new Error(result.error);e.statusCode=403;throw e;}
    return {pending:false,...result};}
  };

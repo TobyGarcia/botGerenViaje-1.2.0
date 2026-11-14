@@ -1,4 +1,5 @@
 import {supervisorScheme} from '../services/supervisor-environment.js';
+import {pendingSupervisorLogin,saveSupervisorLogin,clearSupervisorLogin,retryableSupervisorLoginError} from '../services/supervisor-login-recovery.js';
 import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
 import {useModalBack} from '../hooks/useModalBack.js';
 import {dispatchModalBack} from '../services/modal-navigation.js';
@@ -17,24 +18,28 @@ import './SupervisorApp.css';
 const roleLabels={ADMINISTRADOR:'Administración',GERENTE:'Gerencia',GERENTE_GENERAL:'Gerencia general',COORDINADOR:'Coordinación',COORDINADOR_AREA:'Coordinación de área',COORDINADOR_QHSE:'Coordinación QHSE',SUPERVISOR:'Supervisión',QHSE:'QHSE',INSTRUCTOR:'Instructor'};
 const roles=['ADMINISTRADOR','GERENTE','GERENTE_GENERAL','COORDINADOR','COORDINADOR_AREA','COORDINADOR_QHSE','SUPERVISOR','QHSE','INSTRUCTOR'];
 function SupervisorShell(){
- const[user,setUser]=useState(null),[loading,setLoading]=useState(true),[tab,setTab]=useState('pending'),[error,setError]=useState(''),[waiting,setWaiting]=useState(false);
+ const[user,setUser]=useState(null),[loading,setLoading]=useState(true),[tab,setTab]=useState('pending'),[error,setError]=useState(''),[waiting,setWaiting]=useState(false),[retrying,setRetrying]=useState(false);
  useModalBack(Boolean(user),()=>{if(tab==='trips')setTab('pending');else if(Capacitor.isNativePlatform())void NativeApp.minimizeApp();},false,-10);
- const ticket=useRef(null),checking=useRef(false),disposed=useRef(false);
+ const ticket=useRef(null),checking=useRef(false),disposed=useRef(false),foreground=useRef(true);
  const clear=()=>{localStorage.removeItem('gv_supervisor_token');localStorage.removeItem('adminToken');setUser(null);};
  async function check(){
-  if(!ticket.current||checking.current)return;const activeTicket=ticket.current;checking.current=true;
+  if(!ticket.current||checking.current||!foreground.current)return;const activeTicket=ticket.current;
+  if(activeTicket.expiresAt<=Date.now()){ticket.current=null;clearSupervisorLogin();setWaiting(false);setRetrying(false);setError('El acceso expiró. Inicia sesión de nuevo.');return;}
+  checking.current=true;
   try{const result=await pollSupervisorAppLogin(activeTicket);if(disposed.current||ticket.current!==activeTicket)return;
+   setRetrying(false);
    if(!result?.data || typeof result.data.pending!=='boolean')throw new Error('El servidor no devolvió un estado de acceso válido. Intenta de nuevo.');
    if(!result.data.pending){
-    if(typeof result.data.token!=='string'||!result.data.user)throw new Error('No se pudo confirmar la sesión. Inicia sesión de nuevo.');localStorage.setItem('gv_supervisor_token',result.data.token);localStorage.setItem('adminToken',result.data.token);ticket.current=null;setWaiting(false);setUser(result.data.user);await Browser.close().catch(()=>{});}
-  }catch(e){if(!disposed.current){ticket.current=null;setWaiting(false);setError(e.message);}}
+    if(typeof result.data.token!=='string'||!result.data.user)throw new Error('No se pudo confirmar la sesión. Inicia sesión de nuevo.');localStorage.setItem('gv_supervisor_token',result.data.token);localStorage.setItem('adminToken',result.data.token);ticket.current=null;clearSupervisorLogin();setWaiting(false);setUser(result.data.user);await Browser.close().catch(()=>{});}
+  }catch(e){if(!disposed.current&&ticket.current===activeTicket){if(retryableSupervisorLoginError(e)){setRetrying(true);}else{ticket.current=null;clearSupervisorLogin();setWaiting(false);setRetrying(false);setError(e.message);}}}
   finally{checking.current=false;}
  }
- useEffect(()=>{disposed.current=false;let listener,link;const expired=()=>{const hadToken=Boolean(localStorage.getItem('gv_supervisor_token'));clear();if(hadToken)setError('Tu sesión expiró. Inicia sesión de nuevo.');};window.addEventListener('supervisor-session-expired',expired);
-  getAdminSession().then(r=>{if(!disposed.current)setUser(r?.data?.user || null);}).catch(()=>{}).finally(()=>{if(!disposed.current)setLoading(false);});
+ useEffect(()=>{disposed.current=false;let listener,link;const restored=pendingSupervisorLogin();if(restored){ticket.current=restored;setWaiting(true);}const expired=()=>{const hadToken=Boolean(localStorage.getItem('gv_supervisor_token'));clear();if(hadToken)setError('Tu sesión expiró. Inicia sesión de nuevo.');};window.addEventListener('supervisor-session-expired',expired);
+  getAdminSession().then(r=>{if(!disposed.current){const user=r?.data?.user||null;setUser(user);if(user){ticket.current=null;clearSupervisorLogin();setWaiting(false);}}}).catch(()=>{}).finally(()=>{if(!disposed.current)setLoading(false);});
   const interval=setInterval(()=>void check(),2000);
   if(Capacitor.isNativePlatform()){
-   NativeApp.addListener('appStateChange',state=>{if(state.isActive)void check();}).then(l=>{if(disposed.current)l.remove();else listener=l;});
+   NativeApp.getState().then(state=>{foreground.current=state.isActive;if(state.isActive)void check();}).catch(()=>{});
+   NativeApp.addListener('appStateChange',state=>{foreground.current=state.isActive;if(state.isActive)void check();}).then(l=>{if(disposed.current)l.remove();else listener=l;});
    NativeApp.addListener('appUrlOpen',event=>{if(event.url.startsWith(supervisorScheme+'://auth')){void Browser.close().catch(()=>{});void check();}}).then(l=>{if(disposed.current)l.remove();else link=l;});
   }
   return()=>{disposed.current=true;clearInterval(interval);window.removeEventListener('supervisor-session-expired',expired);listener?.remove();link?.remove();};
@@ -58,15 +63,16 @@ function SupervisorShell(){
   const cancel=()=>{start=null;};window.addEventListener('touchstart',begin,{passive:true});window.addEventListener('touchend',end,{passive:true});window.addEventListener('touchcancel',cancel);
   return()=>{window.removeEventListener('touchstart',begin);window.removeEventListener('touchend',end);window.removeEventListener('touchcancel',cancel);};
  },[user,tab]);
- async function login(){setError('');setWaiting(true);try{const result=await startSupervisorAppLogin();
+ async function login(){setError('');setRetrying(false);setWaiting(true);clearSupervisorLogin();try{const result=await startSupervisorAppLogin();
   if(!result?.data?.ticket || !result.data.pollToken || typeof result.data.authUrl!=='string' || !result.data.authUrl.startsWith('https://'))throw new Error('No se pudo preparar el acceso con Microsoft. Intenta de nuevo.');
-  ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken};
+  if(!Number.isFinite(result.data.expiresAt))throw new Error('No se pudo validar la duración del acceso. Intenta de nuevo.');
+  ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken,expiresAt:result.data.expiresAt};saveSupervisorLogin(ticket.current);
   if(Capacitor.isNativePlatform())await Browser.open({url:result.data.authUrl});else window.open(result.data.authUrl,'_blank','noopener');
- }catch(e){setError(e.message);setWaiting(false);ticket.current=null;}}
- async function logout({keepNotifications=false}={}){if(!keepNotifications)await stopApproverNotifications();try{await logoutAdmin();}catch{}finally{ticket.current=null;setWaiting(false);clear();}}
+ }catch(e){setError(e.message);setWaiting(false);ticket.current=null;clearSupervisorLogin();}}
+ async function logout({keepNotifications=false}={}){if(!keepNotifications)await stopApproverNotifications();try{await logoutAdmin();}catch{}finally{ticket.current=null;clearSupervisorLogin();setWaiting(false);clear();}}
  if(loading)return <main className="supervisor-loading">Validando sesión…</main>;
  if(user&&!roles.includes(user.rol))return <main className="supervisor-login"><h1>Acceso de supervisión requerido</h1><p>Tu cuenta no tiene permisos para revisar o autorizar viajes.</p><button onClick={logout}>Cerrar sesión</button></main>;
- if(!user)return <main className="supervisor-login"><img src={logo} alt="GV Mobility"/><h1>Aprobaciones</h1><p>Revisa inspecciones, autoriza y consulta viajes.</p><button disabled={waiting} onClick={login}>{waiting?'Esperando acceso de Microsoft…':'Iniciar sesión con Microsoft'}</button>{waiting&&<><p>Completa el acceso en el navegador y regresa a esta app.</p><button className="supervisor-secondary" onClick={()=>void check()}>Ya inicié sesión</button><button className="supervisor-secondary" onClick={()=>{ticket.current=null;setWaiting(false);}}>Cancelar</button></>}{error&&<AppFeedbackModal message={error} title="Acceso" type="error" onClose={()=>setError('')}/>}</main>;
+ if(!user)return <main className="supervisor-login"><img src={logo} alt="GV Mobility"/><h1>Aprobaciones</h1><p>Revisa inspecciones, autoriza y consulta viajes.</p><button disabled={waiting} onClick={login}>{waiting?'Esperando acceso de Microsoft…':'Iniciar sesión con Microsoft'}</button>{waiting&&<><p role="status">{retrying?'Reconectando para recuperar tu acceso…':'Completa el acceso en el navegador y regresa a esta app.'}</p><button className="supervisor-secondary" onClick={()=>void check()}>Ya inicié sesión</button><button className="supervisor-secondary" onClick={()=>{ticket.current=null;clearSupervisorLogin();setWaiting(false);setRetrying(false);}}>Cancelar</button></>}{error&&<AppFeedbackModal message={error} title="Acceso" type="error" onClose={()=>setError('')}/>}</main>;
  return <div className="supervisor-shell"><header className="supervisor-topbar"><img className="supervisor-brand-logo" src={logo} alt="GV Mobility"/><div className="supervisor-header-context"><h1 aria-label={tab==='pending'?'Pendientes de aprobación':'Viajes'}>{tab==='pending'?'Pendientes':'Viajes'}</h1><small>{roleLabels[user.rol]}</small><span className="supervisor-header-user" title={user.nombre}>{user.nombre}</span></div><button aria-label="Cerrar sesión" onClick={logout}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M9 4H4v16h5M14 7l5 5-5 5M8 12h11"/></svg></button></header>
  <main className="supervisor-content">
  <SupervisorNotifications user={user} onNavigate={setTab}/>{tab==='pending'?<InspeccionesPage user={user} initialTab="inspecciones" pendingOnly/>:<ViajesPage user={user} readOnly/>}

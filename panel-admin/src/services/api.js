@@ -29,10 +29,12 @@ async function request(path, options = {}) {
   const body = await readApiJson(response);
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       body?.message ||
       "No fue posible completar la solicitud."
     );
+    error.status = response.status;
+    throw error;
   }
 
   return body;
