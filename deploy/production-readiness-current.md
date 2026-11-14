@@ -1,6 +1,6 @@
 # Preparación vigente — 14 de noviembre de 2026
 
-> **Actualización:** servicios productivos desplegados y APK estables publicadas por autorización posterior del usuario. Ver [despliegue](production-deployment-20261114.md) y [publicación de APK](production-apks-20261114.md). El estado de preparación de abajo es histórico.
+> **Actualización:** servicios productivos desplegados, APK estables publicadas y gv-fix integrado en main por autorización posterior del usuario. Ver [despliegue](production-deployment-20261114.md) y [publicación e integración](production-apks-20261114.md). El estado de preparación de abajo es histórico. Falta la comprobación final con usuarios y dispositivos reales.
 
 **PREPARADO, SIN AUTORIZACIÓN DE LANZAMIENTO.** No fusionar main, desplegar ni publicar APK hasta indicación del usuario. Este documento sustituye los pendientes de las revisiones históricas.
 

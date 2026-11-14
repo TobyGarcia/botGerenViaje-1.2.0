@@ -18,3 +18,11 @@ Autorización posterior al despliegue: «ya hazlo todo para quede listo». Se pu
 El conductor puede actualizar sobre su instalación productiva, conservando datos. No desinstalar ni borrar almacenamiento. La APK productiva de aprobadores usa `com.aspromex.gvmobility.supervisor`; la de pruebas tiene otro paquete y canal, y no se convierte en productiva mediante su actualizador testing.
 
 La prueba con personas y teléfonos reales sigue pendiente: acceso Microsoft, registro del dispositivo, permisos, recepción push con app cerrada, actualización y conservación de pendientes. Los endpoints y binarios verificados no sustituyen esa prueba; no se enviaron notificaciones a terceros para comprobarla.
+
+## Integración y comprobación final
+
+`gv-fix` se integró en `main` mediante avance directo, sin forzar historial: `4ffcfc029174eb64dd31408e800a652d88d3a08d`. No aparecieron ejecuciones de Actions para ese commit durante la comprobación. En AWS se compararon contenedores, imágenes, fechas de inicio y entornos antes/después: idénticos y saludables. La integración no recreó ni reinició los servicios observados.
+
+La evidencia privada está en `before-main-integration.json` y `after-main-integration.json` dentro del directorio del corte. Esto demuestra el resultado observado, pero no concede acceso a los webhooks/GitHub Apps ni garantiza ausencia de automatizaciones externas futuras. Se mantiene esa limitación administrativa documentada.
+
+El contenido funcional de los servicios productivos coincide con el integrado; los commits posteriores al build a43a284 son de preparación, herramientas de validación y documentación. Las APK mantienen sus SHA de fuente propios, documentados en sus manifiestos de validación.
