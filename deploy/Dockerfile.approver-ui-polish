@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-panel:cards-f2f84f1
+COPY panel-admin/dist /usr/share/nginx/html

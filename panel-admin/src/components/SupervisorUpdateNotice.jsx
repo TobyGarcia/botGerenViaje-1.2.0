@@ -1,3 +1,4 @@
+import AppFeedbackModal from './AppFeedbackModal.jsx';
 import {validateSupervisorUpdate} from '../services/supervisor-update.js';
 import {useEffect,useState} from 'react';
 import {Capacitor,registerPlugin} from '@capacitor/core';
@@ -22,16 +23,16 @@ export default function SupervisorUpdateNotice(){
   window.addEventListener('supervisor-check-update',refresh);
   return()=>{watcher.stop();window.removeEventListener('supervisor-check-update',refresh);};
  },[]);
- useEffect(()=>{const check=()=>setEditing(Boolean(document.querySelector('.modal-overlay')));const observer=new MutationObserver(check);observer.observe(document.body,{childList:true,subtree:true});check();return()=>observer.disconnect();},[]);
+ useEffect(()=>{const check=()=>setEditing(Boolean(document.querySelector('.modal-overlay,.manejo-review-overlay,.approval-pdf-viewer,.app-feedback-modal[open]')));const observer=new MutationObserver(check);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open']});check();return()=>observer.disconnect();},[]);
  useEffect(()=>{if(!snooze)return;const timer=setTimeout(()=>setSnooze(0),Math.max(0,snooze-Date.now()));return()=>clearTimeout(timer);},[snooze]);
- useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(''),5000);return()=>clearTimeout(timer);},[feedback]);
+
  useEffect(()=>{if(stage!=='downloading')return;let active=true;const timer=setInterval(()=>void version.getDownloadStatus().then(s=>{if(active)setProgress(s.progress>=0?s.progress:null);}).catch(()=>{}),500);return()=>{active=false;clearInterval(timer);};},[stage]);
  async function download(){setBusy(true);setMessage('');try{
-  if(document.querySelector('.modal-overlay'))throw Error('Termina la revisión antes de actualizar.');
+  if(document.querySelector('.modal-overlay,.manejo-review-overlay,.approval-pdf-viewer,.app-feedback-modal[open]'))throw Error('Termina la revisión antes de actualizar.');
   if(ready!==update.versionCode){setStage('downloading');await version.downloadUpdate({url:update.downloadUrl,sha256:update.sha256,versionCode:update.versionCode});setReady(update.versionCode);}
   setStage('installing');const result=await version.installUpdate();setMessage(result.permissionRequired?'Activa «Permitir desde esta fuente» y regresa para instalar.':'Confirma la actualización en el instalador de Android.');
  }catch(error){setMessage(error.message||'No se pudo actualizar. Intenta nuevamente.');}finally{setBusy(false);setStage('');setProgress(null);}}
  if(!supervisorUpdateEnabled())return null;
- if(!update||editing||Date.now()<snooze)return feedback?<div className="supervisor-update-toast" role="status">{feedback}</div>:null;
+ if(!update||editing||Date.now()<snooze)return feedback?<AppFeedbackModal title="Actualizaciones" message={feedback} onClose={()=>setFeedback('')}/>:null;
  return <SupervisorUpdateDialog version={update.versionName} message={message} checking={busy} stage={stage} progress={progress} ready={ready===update.versionCode} onDownload={download} onLater={()=>{setSnooze(Date.now()+30*60000);setMessage('');}}/>;
 }

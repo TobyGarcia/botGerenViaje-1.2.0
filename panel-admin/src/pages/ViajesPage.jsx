@@ -1,3 +1,5 @@
+import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
+import {useModalBack} from '../hooks/useModalBack.js';
 import {
   useEffect,
   useState,
@@ -150,6 +152,7 @@ function ViajesPage({ user, readOnly = false }) {
   const [search, setSearch] =
     useState("");
 
+  const [filtersOpen,setFiltersOpen]=useState(false);
   const [status, setStatus] =
     useState("TODOS");
 
@@ -161,6 +164,7 @@ function ViajesPage({ user, readOnly = false }) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const activeFilterCount=[search.trim(),status!=='TODOS'?status:null,dateFrom,dateTo].filter(Boolean).length;
 
   const [loading, setLoading] =
     useState(true);
@@ -211,6 +215,10 @@ function ViajesPage({ user, readOnly = false }) {
 
   const [deleting, setDeleting] =
     useState(false);
+
+  useModalBack(filtersOpen,()=>setFiltersOpen(false),false,5);
+  useModalBack(showDetail,()=>closeDetailModal());
+  useModalBack(Boolean(tripToDelete),()=>closeDeleteModal(),deleting,40);
 
   const loadViajes = useCallback(async () => {
     setLoading(true);
@@ -285,8 +293,7 @@ function ViajesPage({ user, readOnly = false }) {
       }
 
       if (
-        showDetail &&
-        !loadingDetail
+        showDetail
       ) {
         setShowDetail(false);
         setSelectedTrip(null);
@@ -560,11 +567,13 @@ function ViajesPage({ user, readOnly = false }) {
           <p>
             Consulta el historial,
             revisa detalles y elimina
-            viajes de prueba.
+            viajes registrados.
           </p>
         </div>
       </header>
 
+      <details className="trip-search-panel" open={filtersOpen} onToggle={event=>setFiltersOpen(event.currentTarget.open)}>
+        <summary><span>Buscar y filtrar viajes</span><small>{activeFilterCount?`${activeFilterCount} ${activeFilterCount===1?'filtro activo':'filtros activos'}`:'Búsqueda, estado y fechas'}</small><span className="trip-filter-chevron" aria-hidden="true">⌄</span></summary>
       <section className="trips-toolbar">
         <label>
           <span>Buscar</span>
@@ -667,18 +676,8 @@ function ViajesPage({ user, readOnly = false }) {
         </button>
       </section>
 
-      {message && (
-        <p
-          className={`module-message module-message-${messageType}`}
-          role={
-            messageType === "error"
-              ? "alert"
-              : "status"
-          }
-        >
-          {message}
-        </p>
-      )}
+      </details>
+      {message&&<AppFeedbackModal message={message} type={messageType} title={messageType==='error'?'No se pudo completar':'Aviso'} onClose={()=>setMessage('')}/>}
 
       <section className="table-panel">
         {loading ? (
@@ -884,7 +883,6 @@ function ViajesPage({ user, readOnly = false }) {
                 type="button"
                 className="close-button"
                 onClick={closeDetailModal}
-                disabled={loadingDetail}
                 aria-label="Cerrar detalle"
               >
                 ×
@@ -1095,15 +1093,7 @@ function ViajesPage({ user, readOnly = false }) {
                     }))} />
                   </div>
 
-                  <footer className="trip-detail-footer">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={closeDetailModal}
-                    >
-                      Cerrar Detalle
-                    </button>
-                  </footer>
+
                 </div>
               </div>
             ) : (
@@ -1111,6 +1101,7 @@ function ViajesPage({ user, readOnly = false }) {
                 No fue posible cargar el viaje.
               </p>
             )}
+            <footer className="trip-detail-actions"><button type="button" className="secondary-button" onClick={closeDetailModal}>Cerrar detalle</button></footer>
           </section>
         </div>
       )}

@@ -1,3 +1,5 @@
+import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
+import {useModalBack} from '../hooks/useModalBack.js';
 import ApprovalTripCard,{approvalVehicleName} from '../components/ApprovalTripCard.jsx';
 import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
 import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
@@ -94,6 +96,8 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorAcknowledged,setErrorAcknowledged]=useState(false);
+  const [feedback,setFeedback]=useState(null);
   const [filterRiesgo, setFilterRiesgo] = useState("");
   const [filterEstado, setFilterEstado] = useState(initialStatus);
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -112,11 +116,12 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
   const [approving, setApproving] = useState(false);
   const [firmaAutorizador, setFirmaAutorizador] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  useModalBack(Boolean(selectedDoc),()=>setSelectedDoc(null),approving);
 
   const API_BASE_URL = `${String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "").replace(/\/api$/, "")}/api`;
 
   const loadData = useCallback(async ({background=false,signal}={}) => {
-    if(!background){setLoading(true);setError("");}
+    if(!background){setLoading(true);setError("");setErrorAcknowledged(false);}
     try {
       let url = `${API_BASE_URL}/gerenciamiento-viajes?`;
       if (filterRiesgo) url += `riesgo=${filterRiesgo}&`;
@@ -157,7 +162,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
   const inspectionOnly=selectedDoc?.estado==='APROBADO'&&selectedDoc?.inspeccion_estado==='PENDIENTE_APROBACION';
   async function handleDecide(nuevoEstado) {
     if (nuevoEstado === "APROBADO" && !firmaAutorizador) {
-      alert("Por favor realiza tu firma digital antes de aprobar.");
+      setFeedback({type:"info",title:"Firma requerida",message:"Captura tu firma antes de aprobar."});
       return;
     }
 
@@ -181,9 +186,9 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
 
       setSelectedDoc(null);
       await Promise.all([loadData(), onDecision?.(),refreshApproverNotifications()]);
-      alert(data.message || `Gerenciamiento de viaje ${nuevoEstado.toLowerCase()} exitosamente.`);
+      setFeedback({type:"success",title:"Solicitud atendida",message:data.message || "La decisión se guardó correctamente."});
     } catch (err) {
-      alert(err.message);
+      setFeedback({type:"error",title:"No se pudo completar",message:err.message});
     } finally {
       setApproving(false);
     }
@@ -253,7 +258,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
         {loading ? (
           <p className="table-status">Cargando gerenciamientos...</p>
         ) : error ? (
-          <p style={{ color: "#dc2626", padding: "16px" }}>{error}</p>
+          <p className="table-status">No se pudo cargar esta vista. Usa Actualizar para reintentar.</p>
         ) : list.length === 0 ? (
           <p className="table-status">No se encontraron documentos de gerenciamiento de viaje registrados.</p>
         ) : (
@@ -355,6 +360,8 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
         )}
       </section>
 
+      {error&&!errorAcknowledged&&<AppFeedbackModal type="error" title="No se pudo cargar" message={error} onClose={()=>setErrorAcknowledged(true)}/>}
+      {feedback&&<AppFeedbackModal {...feedback} onClose={()=>setFeedback(null)}/>}
       {pdfPreview&&<ApprovalPdfViewer document={pdfPreview} onClose={()=>setPdfPreview(null)}/>}
       {/* Modal con Hoja Completa Oficial SII-MX-23-LOG-003 */}
       {selectedDoc && (

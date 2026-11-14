@@ -1,3 +1,4 @@
+import {listenForModalBack} from '../src/services/modal-navigation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approvalPdfPath,loadApprovalPdf} from '../src/services/approval-pdf.js';
@@ -26,4 +27,15 @@ test('el visor rechaza HTML, errores HTTP y referencias inválidas sin navegar',
  await assert.rejects(loadApprovalPdf({kind:'inspection',id:1},async()=>new Response('<html>login</html>')),/PDF válido/);
  await assert.rejects(loadApprovalPdf({kind:'inspection',id:1},async()=>new Response('denied',{status:403})),/No se pudo cargar/);
  await assert.rejects(loadApprovalPdf({kind:'inspection',id:1},async()=>new Response('expired',{status:401})),/sesión expiró/);
+});
+
+test('Atrás atiende solo el modal superior y reutiliza un listener nativo',async()=>{
+ let back,registrations=0,removed=0;const calls=[];
+ const app={addListener:async(_,callback)=>{registrations++;back=callback;return {remove:()=>removed++};}};
+ const root=listenForModalBack(()=>calls.push('root'),{native:true,app,priority:-10});
+ const review=listenForModalBack(()=>calls.push('review'),{native:true,app,priority:30});
+ const pdf=listenForModalBack(()=>calls.push('pdf'),{native:true,app,priority:80});
+ const notice=listenForModalBack(()=>calls.push('notice'),{native:true,app,priority:100});
+ await Promise.resolve();back();notice();back();pdf();back();review();back();root();
+ assert.deepEqual(calls,['notice','pdf','review','root']);assert.equal(registrations,1);assert.equal(removed,1);
 });

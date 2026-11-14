@@ -1,5 +1,8 @@
+import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
+import {useModalBack} from '../hooks/useModalBack.js';
+import {dispatchModalBack} from '../services/modal-navigation.js';
 import SupervisorNotifications,{stopApproverNotifications} from '../components/SupervisorNotifications.jsx';
-import SupervisorUpdateNotice,{supervisorUpdateEnabled} from '../components/SupervisorUpdateNotice.jsx';
+import SupervisorUpdateNotice from '../components/SupervisorUpdateNotice.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -14,6 +17,7 @@ const roleLabels={ADMINISTRADOR:'Administración',GERENTE:'Gerencia',GERENTE_GEN
 const roles=['ADMINISTRADOR','GERENTE','GERENTE_GENERAL','COORDINADOR','COORDINADOR_AREA','COORDINADOR_QHSE','SUPERVISOR','QHSE','INSTRUCTOR'];
 function SupervisorShell(){
  const[user,setUser]=useState(null),[loading,setLoading]=useState(true),[tab,setTab]=useState('pending'),[error,setError]=useState(''),[waiting,setWaiting]=useState(false);
+ useModalBack(Boolean(user),()=>{if(tab==='trips')setTab('pending');else if(Capacitor.isNativePlatform())void NativeApp.minimizeApp();},false,-10);
  const ticket=useRef(null),checking=useRef(false),disposed=useRef(false);
  const clear=()=>{localStorage.removeItem('gv_supervisor_token');localStorage.removeItem('adminToken');setUser(null);};
  async function check(){
@@ -41,6 +45,18 @@ function SupervisorShell(){
   const events=['pointerdown','keydown','scroll','touchstart'];events.forEach(event=>window.addEventListener(event,reset,{passive:true}));reset();
   return()=>{clearTimeout(timer);events.forEach(event=>window.removeEventListener(event,reset));};
  },[user]);
+ useEffect(()=>{
+  if(!user)return;let start=null;
+  const begin=event=>{if(event.touches.length!==1)return;const target=event.target;if(target.closest('input,textarea,select,button,a,canvas,summary,.leaflet-container,.approval-pdf-body'))return;start={x:event.touches[0].clientX,y:event.touches[0].clientY};};
+  const end=event=>{if(!start)return;const point=event.changedTouches[0],dx=point.clientX-start.x,dy=point.clientY-start.y,edge=start.x<26;start=null;
+   if(Math.abs(dy)>45||Math.abs(dx)<90)return;
+   if(edge&&dx>0&&dispatchModalBack(undefined,true))return;
+   if(document.querySelector('dialog[open],.modal-overlay,.manejo-review-overlay,.approval-pdf-viewer'))return;
+   if(dx<0&&tab==='pending')setTab('trips');else if(dx>0&&tab==='trips')setTab('pending');
+  };
+  const cancel=()=>{start=null;};window.addEventListener('touchstart',begin,{passive:true});window.addEventListener('touchend',end,{passive:true});window.addEventListener('touchcancel',cancel);
+  return()=>{window.removeEventListener('touchstart',begin);window.removeEventListener('touchend',end);window.removeEventListener('touchcancel',cancel);};
+ },[user,tab]);
  async function login(){setError('');setWaiting(true);try{const result=await startSupervisorAppLogin();
   if(!result?.data?.ticket || !result.data.pollToken || typeof result.data.authUrl!=='string' || !result.data.authUrl.startsWith('https://'))throw new Error('No se pudo preparar el acceso con Microsoft. Intenta de nuevo.');
   ticket.current={ticket:result.data.ticket,pollToken:result.data.pollToken};
@@ -49,8 +65,8 @@ function SupervisorShell(){
  async function logout({keepNotifications=false}={}){if(!keepNotifications)await stopApproverNotifications();try{await logoutAdmin();}catch{}finally{ticket.current=null;setWaiting(false);clear();}}
  if(loading)return <main className="supervisor-loading">Validando sesión…</main>;
  if(user&&!roles.includes(user.rol))return <main className="supervisor-login"><h1>Acceso de supervisión requerido</h1><p>Tu cuenta no tiene permisos para revisar o autorizar viajes.</p><button onClick={logout}>Cerrar sesión</button></main>;
- if(!user)return <main className="supervisor-login"><img src={logo} alt="GV Mobility"/><span className="supervisor-environment">PRUEBAS</span><h1>Aprobaciones</h1><p>Revisa inspecciones, autoriza y consulta viajes.</p><button disabled={waiting} onClick={login}>{waiting?'Esperando acceso de Microsoft…':'Iniciar sesión con Microsoft'}</button>{waiting&&<><p>Completa el acceso en el navegador y regresa a esta app.</p><button className="supervisor-secondary" onClick={()=>void check()}>Ya inicié sesión</button><button className="supervisor-secondary" onClick={()=>{ticket.current=null;setWaiting(false);}}>Cancelar</button></>}{error&&<p role="alert">{error}</p>}</main>;
- return <div className="supervisor-shell"><header className="supervisor-topbar"><img src={logo} alt="GV Mobility"/><span><strong>{roleLabels[user.rol]}</strong><small>Pruebas</small></span>{supervisorUpdateEnabled()&&<button aria-label="Buscar actualizaciones" onClick={()=>window.dispatchEvent(new Event('supervisor-check-update'))}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></button>}<button aria-label="Cerrar sesión" onClick={logout}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M9 4H4v16h5M14 7l5 5-5 5M8 12h11"/></svg></button></header>
+ if(!user)return <main className="supervisor-login"><img src={logo} alt="GV Mobility"/><h1>Aprobaciones</h1><p>Revisa inspecciones, autoriza y consulta viajes.</p><button disabled={waiting} onClick={login}>{waiting?'Esperando acceso de Microsoft…':'Iniciar sesión con Microsoft'}</button>{waiting&&<><p>Completa el acceso en el navegador y regresa a esta app.</p><button className="supervisor-secondary" onClick={()=>void check()}>Ya inicié sesión</button><button className="supervisor-secondary" onClick={()=>{ticket.current=null;setWaiting(false);}}>Cancelar</button></>}{error&&<AppFeedbackModal message={error} title="Acceso" type="error" onClose={()=>setError('')}/>}</main>;
+ return <div className="supervisor-shell"><header className="supervisor-topbar"><img src={logo} alt="GV Mobility"/><span><strong>{roleLabels[user.rol]}</strong></span><button aria-label="Cerrar sesión" onClick={logout}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M9 4H4v16h5M14 7l5 5-5 5M8 12h11"/></svg></button></header>
  <main className="supervisor-content"><div className="supervisor-welcome"><h1>{tab==='pending'?'Pendientes de aprobación':'Viajes'}</h1><p>{user.nombre}</p>{['GERENTE','GERENTE_GENERAL'].includes(user.rol)&&<small className="supervisor-scope">Gerenciamientos y locales fuera de horario</small>}</div>
  <SupervisorNotifications user={user} onNavigate={setTab}/>{tab==='pending'?<InspeccionesPage user={user} initialTab="inspecciones" pendingOnly/>:<ViajesPage user={user} readOnly/>}
  </main><nav className="supervisor-tabs" aria-label="Navegación de supervisor"><button aria-current={tab==='pending'?'page':undefined} onClick={()=>setTab('pending')}><IconInspecciones size={22}/><span>Pendientes</span></button><button aria-current={tab==='trips'?'page':undefined} onClick={()=>setTab('trips')}><IconViajes size={22}/><span>Viajes</span></button></nav></div>;

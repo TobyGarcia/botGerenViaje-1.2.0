@@ -1,3 +1,5 @@
+import AppFeedbackModal from '../components/AppFeedbackModal.jsx';
+import {useModalBack} from '../hooks/useModalBack.js';
 import ApprovalTripCard from '../components/ApprovalTripCard.jsx';
 import ApprovalPdfViewer from '../components/ApprovalPdfViewer.jsx';
 import {canAuthorizeManejo} from '../../../backend/src/utils/manejo-authorization-policy.js';
@@ -324,6 +326,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   const detailRef=useRef(detail);detailRef.current=detail;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  useModalBack(Boolean(detail),()=>setDetail(null),saving);
   const [comment, setComment] = useState("");
   const [signature, setSignature] = useState("");
   const [message, setMessage] = useState("");
@@ -352,7 +355,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   useEffect(()=>{const controller=new AbortController();void load({signal:controller.signal});return()=>controller.abort();},[load]);
   useApprovalLiveRefresh(load,!saving&&!loading);
 
-  function closeDetail() { setDetail(null); }
+  function closeDetail() { if(!saving)setDetail(null); }
 
   async function open(row) {
     try {
@@ -530,7 +533,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
             </div>
           </section>
 
-          {message && <p className="module-message">{message}</p>}
+          {message&&<AppFeedbackModal message={message} onClose={()=>setMessage("")}/>}
 
           <section className="table-panel inspections-table-card">
             {loading ? (
@@ -713,6 +716,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                     <button
                       type="button"
                       className="close-modal-btn"
+                      disabled={saving}
                       onClick={closeDetail}
                       title="Cerrar modal"
                     >

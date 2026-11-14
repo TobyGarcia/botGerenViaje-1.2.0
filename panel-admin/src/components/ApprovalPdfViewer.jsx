@@ -39,6 +39,15 @@ export default function ApprovalPdfViewer({document:request,onClose}){
   return()=>{controller.abort();render.current?.cancel();void task?.destroy().catch(()=>{});};
  },[request.kind,request.id,attempt]);
  useEffect(()=>{
+  const element=body.current;let gesture=null,lastTap=0;
+  const distance=touches=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
+  const start=event=>{if(event.touches.length===2){gesture={distance:Math.max(1,distance(event.touches)),zoom,ratio:1};return;}if(event.touches.length===1){const now=Date.now();if(now-lastTap<280){event.preventDefault();setZoom(value=>value>1?1:1.75);lastTap=0;}else lastTap=now;}};
+  const move=event=>{if(!gesture||event.touches.length!==2)return;event.preventDefault();gesture.ratio=Math.max(1/gesture.zoom,Math.min(2.5/gesture.zoom,distance(event.touches)/gesture.distance));if(canvas.current){canvas.current.style.transformOrigin='top left';canvas.current.style.transform=`scale(${gesture.ratio})`;}};
+  const end=()=>{if(!gesture)return;const next=gesture.zoom*gesture.ratio;gesture=null;if(canvas.current)canvas.current.style.transform='';setZoom(Math.max(1,Math.min(2.5,next)));};
+  element.addEventListener('touchstart',start,{passive:false});element.addEventListener('touchmove',move,{passive:false});element.addEventListener('touchend',end);element.addEventListener('touchcancel',end);
+  return()=>{element.removeEventListener('touchstart',start);element.removeEventListener('touchmove',move);element.removeEventListener('touchend',end);element.removeEventListener('touchcancel',end);};
+ },[zoom]);
+ useEffect(()=>{
   if(!document)return;let cancelled=false,task;
   setBusy(true);setError('');
   (async()=>{try{

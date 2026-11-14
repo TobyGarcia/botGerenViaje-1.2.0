@@ -1,3 +1,4 @@
+import AppFeedbackModal from './AppFeedbackModal.jsx';
 import {useEffect,useRef,useState}from'react';
 import {Capacitor,registerPlugin}from'@capacitor/core';
 import {App}from'@capacitor/app';
@@ -25,7 +26,7 @@ async function activate(user,request=false){
  })().finally(()=>{inFlight=null;});return inFlight;
 }
 export default function SupervisorNotifications({user,onNavigate}){
- const[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[denied,setDenied]=useState(false);const alive=useRef(true),navigate=useRef(onNavigate);navigate.current=onNavigate;
+ const[dismissed,setDismissed]=useState(false);const[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[denied,setDenied]=useState(false);const alive=useRef(true),navigate=useRef(onNavigate);navigate.current=onNavigate;
  async function start(request=false){setBusy(true);try{const ready=await activate(user,request);if(!alive.current)return;setDenied(!ready);setMessage(ready?'':'Activa las notificaciones para recibir los avisos de viajes.');}catch{if(alive.current)setMessage('No se pudieron activar los avisos. Reintenta con conexión.');}finally{if(alive.current)setBusy(false);}}
  useEffect(()=>{if(!enabled()||!user)return;alive.current=true;let listener,notificationListener;
   const key='gv_approver_notice_permission_asked';const asked=localStorage.getItem(key);localStorage.setItem(key,'1');void start(!asked);
@@ -35,6 +36,6 @@ export default function SupervisorNotifications({user,onNavigate}){
   const interval=setInterval(()=>{if(!document.hidden)void start(false);},60000);
   return()=>{alive.current=false;clearInterval(interval);listener?.remove();notificationListener?.remove();};
  },[user?.idUsuarioAdmin,user?.id_usuarios_admin]);
- if(!enabled()||!message)return null;
- return <div className="supervisor-notification-banner" role="status"><span>{message}</span><button disabled={busy} onClick={()=>denied?void native.openSettings():void start(true)}>{busy?'Activando…':denied?'Permitir avisos':'Reintentar'}</button></div>;
+ if(!enabled()||!message||dismissed)return null;
+ return <AppFeedbackModal title="Notificaciones" message={message} busy={busy} onClose={()=>setDismissed(true)} actionLabel={denied?'Permitir avisos':'Reintentar'} onAction={()=>denied?void native.openSettings():void start(true)}/>;
 }

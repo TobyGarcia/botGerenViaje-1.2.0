@@ -21,6 +21,9 @@ writeFileSync(gradle,s);
 const manifest=resolve(app,'android/app/src/main/AndroidManifest.xml');s=readFileSync(manifest,'utf8');if(!s.includes('gvsupervisor'))s=s.replace('        </activity>',`            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="gvsupervisor" android:host="auth"/></intent-filter>
         </activity>`);if(!s.includes('android.permission.POST_NOTIFICATIONS'))s=s.replace('</manifest>','<uses-permission android:name="android.permission.POST_NOTIFICATIONS" /></manifest>');if(!s.includes('android.permission.REQUEST_INSTALL_PACKAGES'))s=s.replace('</manifest>','<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /></manifest>');if(!s.includes('android.permission.VIBRATE'))s=s.replace('</manifest>','<uses-permission android:name="android.permission.VIBRATE" /></manifest>');writeFileSync(manifest,s);
 prepareSupervisorLauncher(app);
+const brandStrings=resolve(app,'android/app/src/main/res/values/strings.xml');
+writeFileSync(brandStrings,readFileSync(brandStrings,'utf8').replace(/(<string name="(?:app_name|title_activity_main)">)[^<]*(<\/string>)/g,'$1GV Aprobadores$2'));
+
 
 // Reuse the conductor updater: same download, SHA256, package and signer checks.
 const sharedNative=resolve(app,'../frontend/android/app/src/main/java/com/aspromex/gerenciamientoviajes');

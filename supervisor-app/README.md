@@ -1,6 +1,6 @@
-# GV Supervisor - pruebas Android
+# GV Aprobadores - Android
 
-Aplicación independiente de conductor. Package `com.aspromex.gvmobility.supervisor.testing`, nombre GV Supervisor Pruebas, API exclusivamente `https://gvmobility.aspromex.mx`.
+Aplicación independiente de conductor. Package `com.aspromex.gvmobility.supervisor.testing`, nombre visible GV Aprobadores, API exclusivamente `https://gvmobility.aspromex.mx`.
 
 ## Alcance
 

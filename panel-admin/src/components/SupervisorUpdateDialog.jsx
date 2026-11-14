@@ -1,9 +1,11 @@
+import {useModalBack} from '../hooks/useModalBack.js';
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./SupervisorUpdateDialog.css";
 
 export default function SupervisorUpdateDialog({ version, checking, message, onDownload, onLater, stage, progress, ready }) {
   const dialog = useRef(null);
+  useModalBack(true,onLater,checking,90);
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -11,6 +13,7 @@ export default function SupervisorUpdateDialog({ version, checking, message, onD
   }, []);
   return createPortal(<dialog ref={dialog} className="supervisor-update-dialog" aria-labelledby="supervisor-update-title"
     aria-describedby="supervisor-update-description" onCancel={event => { event.preventDefault(); if (!checking) onLater(); }}>
+    <button type="button" className="supervisor-update-close" aria-label="Cerrar actualización" disabled={checking} onClick={onLater}>×</button>
     <div className="supervisor-update-symbol" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 3v12m-4-4 4 4 4-4M5 16v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4" />
