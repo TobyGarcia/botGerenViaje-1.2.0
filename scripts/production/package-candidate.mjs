@@ -20,6 +20,6 @@ execFileSync('git',['archive','--format=tar.gz',`--output=${archive}`,ref],{cwd:
 const manifest={applicationCommit:ref,authorization:'NOT_AUTHORIZED_FOR_PRODUCTION',source:{file:'source.tar.gz',sha256:hash(readFileSync(archive))},migrations,
  production:{database:'gerenciamiento_viajes_prod',composeProject:'botgerenviaje-120',databaseVolume:'viajes_postgres_data_prod',uploadsVolume:'viajes_backend_uploads_prod'},
  rollbackImages:{backend:'gv-production-backend:160eb38',frontend:'gv-production-frontend:bfdf6e6',panel:'gv-production-panel-admin:8b09c3f'},
- blockedBy:['explicit_user_launch_instruction','fresh_cutover_backup_and_verified_external_copy','stable_approver_APK_configuration_and_Firebase_registration','production_Microsoft_push_updater_configuration_validation','approved_maintenance_window_and_inflight_trip_policy']};
+ blockedBy:['explicit_user_launch_instruction','fresh_cutover_backup_and_verified_external_copy','production_device_and_Microsoft_canary_after_authorized_deployment','approved_maintenance_window_and_inflight_trip_policy']};
 writeFileSync(resolve(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(`Prepared only; no publication, database migration or deployment.\n${output}`);

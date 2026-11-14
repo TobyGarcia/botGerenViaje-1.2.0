@@ -2,6 +2,8 @@
 
 **Estado: NO AUTORIZADO PARA DESPLEGAR.** El usuario pidió preparar y esperar su indicación. No ejecutar migraciones, reiniciar producción, fusionar `main`, publicar releases estables ni instalar APK de pruebas como productiva.
 
+**Actualización de preparación:** la APK productiva de aprobadores y el backend ya fueron adaptados y validados sin despliegue. Candidato funcional actualizado: `94a3471f68e8352285972913c78040aa84b70932`. Ver `approver-production-candidate.md` para artefactos, firma y evidencias. Las referencias de abajo al candidato inicial y a Firebase faltante describen la revisión inicial; la configuración Firebase ya se recibió, se validó y está fuera de Git. Permanecen vigentes la autorización de lanzamiento, respaldo nuevo del corte/copia externa, ventana y canarios reales de Microsoft y dispositivos después del despliegue autorizado.
+
 ## Candidato e inventario
 
 - Código funcional candidato: `5f07c58818ac4ee05366c804a33073e9841c6ce7`, rama `gv-fix`. `origin/main` (`ae77b7e`) es ancestro; hay 157 commits nuevos. No asumir que el merge de la rama equivale a autorizar el lanzamiento.
