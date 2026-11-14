@@ -4,6 +4,8 @@
 
 **Actualización de preparación:** la APK productiva de aprobadores y el backend ya fueron adaptados y validados sin despliegue. Candidato funcional actualizado: `94a3471f68e8352285972913c78040aa84b70932`. Ver `approver-production-candidate.md` para artefactos, firma y evidencias. Las referencias de abajo al candidato inicial y a Firebase faltante describen la revisión inicial; la configuración Firebase ya se recibió, se validó y está fuera de Git. Permanecen vigentes la autorización de lanzamiento, respaldo nuevo del corte/copia externa, ventana y canarios reales de Microsoft y dispositivos después del despliegue autorizado.
 
+**Actualización posterior — conductor y aviso repetido:** el candidato funcional del backend/conductor pasa a `f3c001c0d1cead3c4314fdc402bf85752e6b4b5d`. La APK productiva privada 1.3.0 (49) está firmada y validada, incluida la corrección para que el aviso de rechazo no reaparezca ni recorra rechazos antiguos. Ver `driver-production-candidate.md`. No se ha publicado, no se ha desplegado ni se han modificado datos de producción. El candidato de aprobadores 1.0.0 permanece válido; las nuevas correcciones son del frontend de conductor y de la consulta de avisos del backend.
+
 ## Candidato e inventario
 
 - Código funcional candidato: `5f07c58818ac4ee05366c804a33073e9841c6ce7`, rama `gv-fix`. `origin/main` (`ae77b7e`) es ancestro; hay 157 commits nuevos. No asumir que el merge de la rama equivale a autorizar el lanzamiento.
