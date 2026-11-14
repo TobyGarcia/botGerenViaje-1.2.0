@@ -31,6 +31,12 @@ try{
   await layout('Header '+width+' '+role);
   const overflow=await js("[...document.querySelectorAll('.supervisor-topbar>*')].some(e=>{const r=e.getBoundingClientRect();return r.left<0||r.right>innerWidth+1||e.scrollWidth>e.clientWidth+1})");
   if(overflow)throw Error('Header content clipped');
+  for(const name of ['María Fernanda de los Ángeles Rodríguez Hernández de la Cruz', 'NombreSinEspacios'.repeat(12)]){
+   await js(`(()=>{const e=document.querySelector('.supervisor-header-user');e.textContent=${JSON.stringify(name)};e.title=e.textContent;})()`);
+   await layout('Long account name '+width+' '+role);
+   const bounds=await js("(()=>{const e=document.querySelector('.supervisor-header-user'),r=e.getBoundingClientRect(),c=document.querySelector('.supervisor-header-context').getBoundingClientRect(),b=document.querySelector('.supervisor-topbar>button').getBoundingClientRect();return {left:r.left,right:r.right,contextRight:c.right,buttonLeft:b.left,height:r.height,line:parseFloat(getComputedStyle(e).lineHeight)}})()");
+   if(bounds.right>bounds.contextRight+1||bounds.contextRight>bounds.buttonLeft||bounds.height>bounds.line*2+1)throw Error('Long name overlaps header controls '+JSON.stringify(bounds));
+  }
   if(width===390&&role==='QHSE'){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(resolve('tmp/compact-supervisor-header.png'),Buffer.from(shot.data,'base64'));}
   await click('.supervisor-tabs button:last-child');await until("Boolean(document.querySelector('.trip-search-panel'))",'Trips missing');
   if(await js("document.querySelector('.supervisor-header-context h1').textContent")!=='Viajes')throw Error('Trips heading not moved');

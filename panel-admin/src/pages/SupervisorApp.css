@@ -178,6 +178,8 @@ html:has(.supervisor-shell),body:has(.supervisor-shell),#root:has(.supervisor-sh
 .supervisor-header-context h1 { margin:0; color:#fff; font-size:14px; line-height:1.3; font-weight:600; overflow-wrap:anywhere; }
 .supervisor-header-context small { color:#a7c5d5; font-size:10px; line-height:1.3; overflow-wrap:anywhere; }
 .supervisor-header-context .supervisor-header-user { color:#cbdde6; font-size:11px; line-height:1.3; overflow-wrap:anywhere; }
+.supervisor-header-context>* { min-width:0; max-width:100%; }
+.supervisor-header-context .supervisor-header-user { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .supervisor-shell>.supervisor-topbar>button { width:40px; min-width:40px; padding:6px; }
 .supervisor-shell>.supervisor-content { padding-top:12px; }
 @media(max-width:360px){.supervisor-shell>.supervisor-topbar { grid-template-columns:174px minmax(0,1fr) 36px; gap:6px; padding-left:10px; padding-right:10px; }.supervisor-header-context { padding-left:8px; }.supervisor-header-context h1 { font-size:12px; }.supervisor-header-context .supervisor-header-user { font-size:10px; }.supervisor-shell>.supervisor-topbar>button { width:36px; min-width:36px; }}
