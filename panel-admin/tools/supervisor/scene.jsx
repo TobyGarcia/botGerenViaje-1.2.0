@@ -43,4 +43,17 @@ if(new URLSearchParams(location.search).has('live-test')){
   return readFixture(input,options);
  };
 }
+// Manejo authorizations are mock-only; supports responsive and remote-decision QA.
+if(new URLSearchParams(location.search).has('manejo-test')){
+ const readFixture=window.fetch;let pending=true;window.__manejoRequests=0;window.__manejoDecisions=[];window.__resolveManejo=()=>{pending=false;};
+ window.fetch=async(input,options={})=>{
+  const path=new URL(input,location.origin).pathname;
+  if(path.includes('/autorizaciones-manejo-comentado')){
+   window.__manejoRequests++;
+   if(options.method==='PATCH'){const data=JSON.parse(options.body);if(!data.firma.startsWith('data:image/png;base64,'))throw Error('Missing signature');window.__manejoDecisions.push(data);pending=false;}
+   return new Response(JSON.stringify({success:true,message:options.method==='PATCH'?'Solicitud atendida':undefined,data:pending?[{id_autorizacion:51,folio:'VJ-MANEJO-DEMO',conductor:'Ana López',vehiculo:'MITSUBISHI L200',numero_economico:'AUTO-010',origen:'ASPX - ORIGEN COMPLETO',destino:'ASPX - DESTINO COMPLETO'}]:[]}),{headers:{'Content-Type':'application/json'}});
+  }
+  return readFixture(input,options);
+ };
+}
 createRoot(document.getElementById('root')).render(<SupervisorApp/>);

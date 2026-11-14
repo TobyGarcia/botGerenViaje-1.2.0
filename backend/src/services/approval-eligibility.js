@@ -14,3 +14,5 @@ export function inspectionAvailableSql(i='i'){return `EXISTS(SELECT 1 FROM viaje
 export function tripHasPendingApprovalsSql(v='v'){return `(${nonCancelledTripSql(v)} AND (EXISTS(SELECT 1 FROM gerenciamiento_viajes pending_g WHERE pending_g.id_viaje=${v}.id_viajes AND pending_g.estado='PENDIENTE') OR EXISTS(SELECT 1 FROM inspecciones_vehiculares pending_i WHERE pending_i.estado='PENDIENTE_APROBACION' AND ${inspectionMatchesTripSql('pending_i',v)})))`;}
 
 export function inspectionRequestJoinSql(i='i'){return `LEFT JOIN LATERAL(SELECT request_trip.id_viajes,request_trip.folio FROM viajes request_trip WHERE ${nonCancelledTripSql('request_trip')} AND ${inspectionMatchesTripSql(i,'request_trip')} ORDER BY (request_trip.id_viajes=${i}.id_viajes) DESC,request_trip.id_viajes DESC LIMIT 1) eligible_request ON TRUE`;}
+
+export function pendingManejoSql(v='v'){return `EXISTS(SELECT 1 FROM autorizaciones_manejo_comentado_viaje pending_m WHERE pending_m.id_viajes=${v}.id_viajes AND pending_m.estado='PENDIENTE' AND EXISTS(SELECT 1 FROM estados_viaje manejo_state WHERE manejo_state.id_estado_viaje=${v}.id_estado_viaje AND manejo_state.nombre='PENDIENTE'))`;}

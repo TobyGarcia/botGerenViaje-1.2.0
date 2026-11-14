@@ -6,7 +6,7 @@ final class NotificationSoundPolicy {
   if(!pending||!currentRequest)return SKIP;
   return pending&&currentRequest&&priority?PRIORITY:NORMAL;
  }
- static boolean isPendingRequest(String category,String state){return ("management".equals(category)&&"PENDIENTE".equals(state))||("inspection".equals(category)&&"PENDIENTE_APROBACION".equals(state));}
- static boolean isDecision(String category,String state){return ("management".equals(category)||"inspection".equals(category))&&!isPendingRequest(category,state);}
+ static boolean isPendingRequest(String category,String state){return ("manejo".equals(category)&&"PENDIENTE".equals(state))||("management".equals(category)&&"PENDIENTE".equals(state))||("inspection".equals(category)&&"PENDIENTE_APROBACION".equals(state));}
+ static boolean isDecision(String category,String state){return ("manejo".equals(category)&&"PENDIENTE".equals(state))||("management".equals(category)||"inspection".equals(category)||"manejo".equals(category))&&!isPendingRequest(category,state);}
  static long[] managementVibration(){return new long[]{0,3000};}
 }

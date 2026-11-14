@@ -51,3 +51,5 @@
 \ir ../migrations/046_approver_notifications.sql
 
 \ir ../migrations/047_cancelled_approval_withdrawals.sql
+
+\ir ../migrations/048_manejo_approval_notifications.sql

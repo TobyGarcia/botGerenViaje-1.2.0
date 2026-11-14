@@ -1,4 +1,5 @@
-import {nonCancelledTripSql,tripHasPendingApprovalsSql} from './approval-eligibility.js';
+import {canAuthorizeManejo} from '../utils/manejo-authorization-policy.js';
+import {nonCancelledTripSql,tripHasPendingApprovalsSql,pendingManejoSql} from './approval-eligibility.js';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {databasePool as db} from '../database/pool.js';
 import {isManagementRole,managementTripSql} from './management-trip-scope.js';
@@ -24,18 +25,21 @@ export async function revokeApproverDevice(id,secret){
 export async function approverFeed(user,cursor='0',queryDb=db){
  if(!/^\d{1,18}$/.test(String(cursor)))throw Error('Cursor inválido');
  const watermark=(await queryDb.query('SELECT COALESCE(MAX(id_evento),0)::text AS cursor FROM aprobador_eventos')).rows[0].cursor;
- const scope=isManagementRole(user.rol)?`AND ${managementTripSql('v')}`:'';
+ const manejo=canAuthorizeManejo(user.rol);
+ const scope=isManagementRole(user.rol)?`AND (e.categoria='manejo' OR ${managementTripSql('v')} OR (e.categoria IN ('trip','withdrawal') AND EXISTS(SELECT 1 FROM autorizaciones_manejo_comentado_viaje a WHERE a.id_viajes=v.id_viajes)))`:'';
+ const pending=`(${tripHasPendingApprovalsSql('v')} ${manejo?`OR ${pendingManejoSql('v')}`:''})`;
  const events=(await queryDb.query(`SELECT e.id_evento::text AS id,e.id_viajes::text AS "tripId",v.folio,e.categoria,e.estado,
- CASE WHEN e.categoria='management' AND e.estado='PENDIENTE' THEN ${nonCancelledTripSql('v')} AND EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_gerenciamiento=e.entidad AND g.estado='PENDIENTE')
+ CASE WHEN e.categoria='manejo' AND e.estado='PENDIENTE' THEN ${pendingManejoSql('v')} AND EXISTS(SELECT 1 FROM autorizaciones_manejo_comentado_viaje a WHERE a.id_autorizacion=e.entidad AND a.estado='PENDIENTE')
+ WHEN e.categoria='management' AND e.estado='PENDIENTE' THEN ${nonCancelledTripSql('v')} AND EXISTS(SELECT 1 FROM gerenciamiento_viajes g WHERE g.id_gerenciamiento=e.entidad AND g.estado='PENDIENTE')
  WHEN e.categoria='inspection' AND e.estado='PENDIENTE_APROBACION' THEN ${nonCancelledTripSql('v')} AND EXISTS(SELECT 1 FROM inspecciones_vehiculares i WHERE i.id_inspeccion=e.entidad AND i.estado='PENDIENTE_APROBACION') ELSE FALSE END AS actionable,
- NOT ${tripHasPendingApprovalsSql('v')} AS resolved,
+ NOT ${pending} AS resolved,
  c.nombre AS conductor,vh.nombre AS unidad,origen.nombre AS origen,destino.nombre AS destino,
- CASE WHEN e.categoria='stop' THEN uv.nombre_punto ELSE NULL END AS detalle
+ CASE WHEN e.categoria='manejo' THEN 'Manejo comentado vencido o no registrado. Requiere autorización para iniciar.' WHEN e.categoria='stop' THEN uv.nombre_punto ELSE NULL END AS detalle
  FROM aprobador_eventos e JOIN viajes v ON v.id_viajes=e.id_viajes
  LEFT JOIN conductores c ON c.id_conductores=v.id_conductores LEFT JOIN vehiculos vh ON vh.id_vehiculos=v.id_vehiculos
  LEFT JOIN lugares origen ON origen.id_lugares=v.id_origen LEFT JOIN lugares destino ON destino.id_lugares=v.id_destino
  LEFT JOIN ubicaciones_viaje uv ON e.categoria='stop' AND uv.id_ubicaciones_viaje=e.entidad
- WHERE e.id_evento>$1 AND e.id_evento<=$2 AND (e.categoria IN ('inspection','management') OR (e.categoria IN ('trip','withdrawal') AND e.estado='CANCELADO')) ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
+ WHERE e.id_evento>$1 AND e.id_evento<=$2 AND (e.categoria IN ('inspection','management') ${manejo?"OR e.categoria='manejo'":''} OR (e.categoria IN ('trip','withdrawal') AND e.estado='CANCELADO')) ${scope} ORDER BY e.id_evento LIMIT 50`,[cursor,watermark])).rows;
  // Return the last delivered ID; never skip the rest of a large batch.
  const next=events.length===50?events.at(-1).id:watermark;
  const critical=(await queryDb.query(`SELECT v.id_viajes::text AS "tripId",v.folio,

@@ -7,7 +7,7 @@ import { sendDriverManejoComentadoAuthorizationNotification } from "../bot/bot.j
 import { getSupervisorAccess } from "../services/supervisor-telegram.service.js";
 import { validateTelegramInitData } from "../utils/telegram-init-data.js";
 
-const ROLES_AUTORIZADORES = ["ADMINISTRADOR", "ADMIN", "GERENTE", "GERENTE_GENERAL"];
+import {canAuthorizeManejo} from '../utils/manejo-authorization-policy.js';
 
 async function requireManejoComentadoAuthorizer(request) {
   let user = request.adminUser;
@@ -19,7 +19,7 @@ async function requireManejoComentadoAuthorizer(request) {
     const access = await getSupervisorAccess(telegramData.user.id);
     user = access?.confirmed && access?.user?.activo ? access.user : null;
   }
-  if (!user?.activo || !ROLES_AUTORIZADORES.includes(user.rol)) {
+  if (!user?.activo || !canAuthorizeManejo(user.rol)) {
     throw Object.assign(new Error("Sólo Gerente o Administrador puede autorizar un viaje con manejo comentado vencido."), { statusCode: 403 });
   }
   return user;
@@ -28,6 +28,7 @@ async function requireManejoComentadoAuthorizer(request) {
 export async function listManejoComentadoAuthorizationsController(request, response) {
   try {
     await requireManejoComentadoAuthorizer(request);
+    response.set("Cache-Control", "no-store");
     return response.json({ success: true, data: await listPendingManejoComentadoAuthorizations() });
   } catch (error) {
     return response.status(error.statusCode || 500).json({ success: false, message: error.message });

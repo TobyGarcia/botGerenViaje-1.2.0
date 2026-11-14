@@ -13,7 +13,7 @@ final class ApproverNotifications {
   NotificationManager m=c.getSystemService(NotificationManager.class);
   android.media.AudioAttributes audio=new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
   NotificationChannel events=new NotificationChannel(EVENTS_CHANNEL,"Avisos de viajes y aprobaciones",NotificationManager.IMPORTANCE_DEFAULT);
-  events.setDescription("Sonido normal del teléfono para novedades, aprobaciones y rechazos");
+  events.setDescription("Sonido normal del teléfono para nuevas solicitudes de aprobación");
   events.setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,audio);
   events.enableVibration(true);m.createNotificationChannel(events);
   NotificationChannel priority=new NotificationChannel(PRIORITY_CHANNEL,"Viajes prioritarios por aprobar · Audio GV",NotificationManager.IMPORTANCE_HIGH);
@@ -63,6 +63,8 @@ final class ApproverNotifications {
   if(!PriorityAlertPolicy.isCurrentSnapshot(updated,prefs(c).getLong("critical_revision",0)))return;
   JSONArray resolvedTrips=payload.optJSONArray("resolvedTrips");
   if(resolvedTrips!=null)for(int i=0;i<resolvedTrips.length();i++)manager.cancel("request:"+resolvedTrips.getString(i),7302);
+  JSONArray resolvedManejo=payload.optJSONArray("resolvedManejoTrips");
+  if(resolvedManejo!=null)for(int i=0;i<resolvedManejo.length();i++)manager.cancel("request:"+resolvedManejo.getString(i)+":manejo",7302);
   boolean priorityRequest=false;
   List<Runnable> ordinaryNotices=new ArrayList<>();
   Runnable priorityNotice=()->{};
@@ -76,9 +78,9 @@ final class ApproverNotifications {
    int delivery=NotificationSoundPolicy.delivery(category,state,request,event.optBoolean("priority",false));
    if(delivery==NotificationSoundPolicy.SKIP){seen.add(id);continue;}
    if(delivery==NotificationSoundPolicy.PRIORITY){priorityRequest=true;seen.add(id);continue;}
-   NotificationCompat.Builder eventNotice=builder(c,EVENTS_CHANNEL,event.optString("title","Novedad del viaje"),event.optString("body"),"trips").setAutoCancel(true);
+   NotificationCompat.Builder eventNotice=builder(c,EVENTS_CHANNEL,event.optString("title","Novedad del viaje"),event.optString("body"),"pending").setAutoCancel(true);
    if(Build.VERSION.SDK_INT<26)eventNotice.setDefaults(Notification.DEFAULT_SOUND|Notification.DEFAULT_VIBRATE);
-   String tag=request?"request:"+trip:"event:"+id;
+   String tag=request?"request:"+trip+("manejo".equals(category)?":manejo":""):"event:"+id;
    Notification ordinary=eventNotice.build();ordinaryNotices.add(()->manager.notify(tag,7302,ordinary));seen.add(id);
   }
   if(seen.size()>500){List<String> ordered=new ArrayList<>(seen);ordered.sort((a,b)->Long.compare(Long.parseLong(a),Long.parseLong(b)));seen=new HashSet<>(ordered.subList(ordered.size()-500,ordered.size()));}

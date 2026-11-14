@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-backend:cancel-0a67ef1
+COPY backend/src /app/src

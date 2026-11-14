@@ -681,3 +681,10 @@ export function getAuditIssues() { return request("/admin/auditoria/issues"); }
 
 export const startSupervisorAppLogin = () => request('/admin/auth/supervisor-app/start', {method:'POST',body:'{}'});
 export const pollSupervisorAppLogin = payload => request('/admin/auth/supervisor-app/poll', {method:'POST',body:JSON.stringify(payload)});
+
+export function getManejoAuthorizationRequests({signal}={}) {
+  return request('/supervisor/inspecciones/autorizaciones-manejo-comentado',{signal,cache:'no-store'});
+}
+export function decideManejoAuthorizationRequest(id,data) {
+  return request(`/supervisor/inspecciones/autorizaciones-manejo-comentado/${id}/decision`,{method:'PATCH',body:JSON.stringify(data)});
+}

@@ -1,3 +1,5 @@
+import {canAuthorizeManejo} from '../../../backend/src/utils/manejo-authorization-policy.js';
+import ManejoAuthorizationRequests from '../components/ManejoAuthorizationRequests.jsx';
 import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
 import {refreshApproverNotifications} from "../components/SupervisorNotifications.jsx";
 import {canApproveRisk,requiredRiskRole} from '../../../backend/src/utils/approval-policy.js';
@@ -418,6 +420,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
         </div>
       </header>
 
+      {canAuthorizeManejo(user?.rol)&&<ManejoAuthorizationRequests Signature={ApprovalSignature}/>}
       {/* Sub-pestañas estilizadas */}
       <div className="logistics-nav-tabs">
         <button

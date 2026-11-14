@@ -15,6 +15,11 @@ public class NotificationSoundPolicyTest {
   for(String state:new String[]{"PENDIENTE","EN_CURSO","FINALIZADO","CANCELADO"})assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("trip",state,false,false));
   assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("stop","PARADA_TECNICA",false,false));
  }
+ @Test public void manejoUsesNormalSoundAndNeverNotifiesDecisions(){
+  assertEquals(NotificationSoundPolicy.NORMAL,NotificationSoundPolicy.delivery("manejo","PENDIENTE",true,false));
+  assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("manejo","PENDIENTE",false,false));
+  for(String state:new String[]{"APROBADA","RECHAZADA"})assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("manejo",state,false,false));
+ }
  @Test public void resolvedOrObsoleteRequestsNeverReplayThePendingNotice(){
   assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("management","PENDIENTE",false,true));
   assertEquals(NotificationSoundPolicy.SKIP,NotificationSoundPolicy.delivery("inspection","PENDIENTE_APROBACION",false,true));
