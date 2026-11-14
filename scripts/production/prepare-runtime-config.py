@@ -14,7 +14,7 @@ names=['viajes-backend','viajes-frontend','viajes-panel-admin','viajes-postgres'
 active=docker('inspect',*names);byname={v['Name'].lstrip('/'):v for v in active}
 for v in active:assert v['Config']['Labels'].get('com.docker.compose.project')=='botgerenviaje-120'
 def fingerprint(rows):
- return [{'name':r['Name'],'image':r['Image'],'started':r['State']['StartedAt'],'mounts':r['Mounts'],
+ return [{'name':r['Name'],'image':r['Image'],'started':r['State']['StartedAt'],'mounts':sorted(r['Mounts'],key=lambda m:m['Destination']),
   'environmentHash':hashlib.sha256(json.dumps(r['Config']['Env'],sort_keys=True).encode()).hexdigest()} for r in rows]
 (out/'production-before.json').write_text(json.dumps(fingerprint(active),indent=2))
 images=json.loads((out/'images.json').read_text());source=(out/'source.txt').read_text().strip()

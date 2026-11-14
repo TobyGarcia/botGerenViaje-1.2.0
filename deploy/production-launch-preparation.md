@@ -1,5 +1,7 @@
 # Preparación de lanzamiento — 14 de noviembre de 2026
 
+> **Estado vigente:** [production-readiness-current.md](production-readiness-current.md). Los pendientes y versiones siguientes son el registro histórico; varios ya se completaron. Imágenes, APK y configuración están preparadas sin despliegue, usando el ambiente de pruebas existente.
+
 **Estado: NO AUTORIZADO PARA DESPLEGAR.** El usuario pidió preparar y esperar su indicación. No ejecutar migraciones, reiniciar producción, fusionar `main`, publicar releases estables ni instalar APK de pruebas como productiva.
 
 **Actualización de preparación:** la APK productiva de aprobadores y el backend ya fueron adaptados y validados sin despliegue. Candidato funcional actualizado: `94a3471f68e8352285972913c78040aa84b70932`. Ver `approver-production-candidate.md` para artefactos, firma y evidencias. Las referencias de abajo al candidato inicial y a Firebase faltante describen la revisión inicial; la configuración Firebase ya se recibió, se validó y está fuera de Git. Permanecen vigentes la autorización de lanzamiento, respaldo nuevo del corte/copia externa, ventana y canarios reales de Microsoft y dispositivos después del despliegue autorizado.
