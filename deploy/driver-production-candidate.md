@@ -32,7 +32,7 @@ Incluida en el nuevo candidato:
 - El backend consulta el último rechazo aplicable y omite el anterior cuando ya existe una inspección nueva enviada o aprobada del mismo conductor y vehículo. Telegram puede consultar expresamente una decisión histórica sin alterar el historial.
 - No se borran inspecciones, decisiones, documentos ni historial. No requiere otra migración SQL.
 
-Validación: 79 pruebas del frontend, suite completa del backend y verificación visual del modal en 320, 390 y 768 px. Se cerró el aviso, se esperó otro ciclo de consulta con `actualizado_en` distinto y se recargó: el aviso no reapareció. La corrección está en código; no se ha aplicado a las instalaciones existentes, porque la publicación y el despliegue siguen bloqueados por instrucción del usuario.
+Validación: 79 pruebas del frontend, suite completa del backend y verificación visual del modal en 320, 390 y 768 px. Se cerró el aviso, se esperó otro ciclo de consulta con `actualizado_en` distinto y se recargó: el aviso no reapareció. Posteriormente el usuario autorizó aplicar esta corrección únicamente en pruebas: ya está desplegada allí y publicada en la APK de pruebas 1.2.43 (50). Las instalaciones anteriores requieren actualizar; producción permanece bloqueada.
 
 ## Condiciones para el lanzamiento posterior
 
@@ -50,4 +50,4 @@ Mantener APK y manifiesto locales sin publicar. El enlace del manifiesto corresp
 - El código de acuse estable del rechazo está dentro de la APK; no se incluyeron claves privadas ni keystores.
 - Archivos privados locales, ignorados por Git: `output/releases/f3c001c0d1cead3c4314fdc402bf85752e6b4b5d/driver/`: `gv-mobility.apk`, `update.json` y `validation.json`.
 - Frontend: 79 pruebas correctas. Backend con la corrección: 149 pruebas correctas. Modal comprobado con consultas repetidas y recarga en 320, 390 y 768 px. Compilación nativa y pruebas de conservación de datos correctas.
-- No existe release `android-stable-v1.3.0-49`; no se modificó el actualizador público ni se desplegó en producción o pruebas. La app instalada conserva el comportamiento anterior hasta una publicación/despliegue autorizado.
+- No existe release `android-stable-v1.3.0-49`; el candidato estable sigue privado y producción no cambió. Tras la autorización específica para pruebas se publicó 1.2.43 (50) y se desplegó la corrección solo en staging. Antes de publicar una versión productiva se debe reconstruir el candidato con código superior al mayor distribuido (ahora al menos 51), sin desinstalar ni borrar datos. Ver `rejection-read-once-staging.md`.
