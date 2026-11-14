@@ -34,10 +34,10 @@ writeFileSync(resolve(nativeDir,'MainActivity.java'),`package com.aspromex.gvmob
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
- @Override public void onCreate(Bundle savedInstanceState) {registerPlugin(AndroidVersionPlugin.class);registerPlugin(ApproverNotificationsPlugin.class);super.onCreate(savedInstanceState);}
+ @Override public void onCreate(Bundle savedInstanceState) {registerPlugin(AndroidVersionPlugin.class);registerPlugin(ApproverNotificationsPlugin.class);registerPlugin(ApprovalPdfFilesPlugin.class);super.onCreate(savedInstanceState);}
  @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);}
 }`);
-for(const name of ['ApproverNotifications','ApproverFirebaseService','ApproverNotificationsPlugin','PriorityAlertPolicy','NotificationSoundPolicy'])writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(app,'native',name+'.java'),'utf8'));
+for(const name of ['ApprovalPdfFilesPlugin','ApproverNotifications','ApproverFirebaseService','ApproverNotificationsPlugin','PriorityAlertPolicy','NotificationSoundPolicy'])writeFileSync(resolve(nativeDir,name+'.java'),readFileSync(resolve(app,'native',name+'.java'),'utf8'));
 mkdirSync(resolve(app,'android/app/src/main/res/raw'),{recursive:true});
 for(const name of ['priority_trip.wav','gv_management.mp3'])writeFileSync(resolve(app,'android/app/src/main/res/raw',name),readFileSync(resolve(app,'resources/raw',name)));
 writeFileSync(resolve(nativeTestDir,'NotificationSoundPolicyTest.java'),readFileSync(resolve(app,'native-tests/NotificationSoundPolicyTest.java'),'utf8'));

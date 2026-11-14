@@ -139,6 +139,7 @@ export async function listGerenciamientosController(request, response) {
   try {
     const { estado, nivelRiesgo, idConductor, limit, offset } = request.query;
     const list = await listGerenciamientos({
+      includePendingInspection:request.query.includeInspection==='true',
       estado,
       nivelRiesgo,
       idConductor: idConductor ? Number(idConductor) : undefined,

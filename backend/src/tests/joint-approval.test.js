@@ -99,3 +99,28 @@ test('otro viaje con inspección propia no mantiene pendiente la inspección del
  await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_conductores,id_vehiculos,fecha_operativa,combustible,tipo_asignacion,firma_conductor,estado) VALUES($1,$2,$3,(CURRENT_TIMESTAMP+INTERVAL '2 hours')::date,'F','PERMANENTE',$4,'PENDIENTE_APROBACION')",[other.trip,f.driver,f.vehicle,signature]);
  await cancelFixture(f);assert.equal((await getAdminInspection(f.inspection)).approval_available,false);await assert.rejects(decide(f,id),e=>e.statusCode===409);assert.equal((await states(f)).inspection,'PENDIENTE_APROBACION');
 });
+
+test('grupos de APK separan locales y gerenciamientos sin perder inspecciones compartidas',async()=>{
+ const {listPendingInspections}=await import('../services/inspecciones.service.js');
+ const {listGerenciamientos}=await import('../services/gerenciamiento-viajes.service.js');
+ const managed=await fixture('BAJO');
+ assert.equal((await listPendingInspections()).find(i=>i.id_inspeccion===managed.inspection).approval_group,'management');
+ await db.query("UPDATE gerenciamiento_viajes SET estado='APROBADO' WHERE id_gerenciamiento=$1",[managed.management]);
+ assert.equal((await listGerenciamientos({estado:'PENDIENTE'})).some(g=>g.id_gerenciamiento===managed.management),false);
+ const pending=(await listGerenciamientos({estado:'PENDIENTE',includePendingInspection:true})).find(g=>g.id_gerenciamiento===managed.management);
+ assert.equal(pending.inspeccion_estado,'PENDIENTE_APROBACION');
+ const {listGerenciamientosController}=await import('../controllers/gerenciamiento-viajes.controller.js');let payload;
+ await listGerenciamientosController({query:{estado:'PENDIENTE',includeInspection:'true'}},{json:value=>{payload=value;},status:()=>{throw Error('Unexpected list error');}});
+ assert.ok(payload.data.some(g=>g.id_gerenciamiento===managed.management));
+
+ const local=await fixture('BAJO');await db.query('DELETE FROM gerenciamiento_viajes WHERE id_gerenciamiento=$1',[local.management]);
+ assert.equal((await listPendingInspections()).find(i=>i.id_inspeccion===local.inspection).approval_group,'local');
+ const consumer=(await db.query(`INSERT INTO viajes(folio,id_conductores,id_vehiculos,id_origen,id_destino,id_estado_viaje,kilometraje_inicial,licencia_vigente,motivo)
+ SELECT $1,id_conductores,id_vehiculos,id_origen,id_destino,(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='PENDIENTE'),100,TRUE,'Local compartido' FROM viajes WHERE id_viajes=$2 RETURNING id_viajes`,[randomUUID().slice(0,28),managed.trip])).rows[0].id_viajes;
+ await db.query('INSERT INTO viaje_inspeccion_uso(id_viajes,id_inspeccion) VALUES($1,$2)',[consumer,managed.inspection]);
+ await db.query("UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='CANCELADO') WHERE id_viajes=$1",[managed.trip]);
+ const shared=(await listPendingInspections()).find(i=>i.id_inspeccion===managed.inspection);assert.equal(shared.approval_group,'local');assert.equal(shared.approval_available,true);
+ assert.equal((await listGerenciamientos({estado:'PENDIENTE',includePendingInspection:true})).some(g=>g.id_gerenciamiento===managed.management),false);
+ await db.query("UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='CANCELADO') WHERE id_viajes=$1",[consumer]);
+ assert.equal((await listPendingInspections()).find(i=>i.id_inspeccion===managed.inspection).approval_group,'management');
+});

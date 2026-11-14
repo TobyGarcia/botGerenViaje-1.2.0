@@ -16,3 +16,8 @@ export function tripHasPendingApprovalsSql(v='v'){return `(${nonCancelledTripSql
 export function inspectionRequestJoinSql(i='i'){return `LEFT JOIN LATERAL(SELECT request_trip.id_viajes,request_trip.folio FROM viajes request_trip WHERE ${nonCancelledTripSql('request_trip')} AND ${inspectionMatchesTripSql(i,'request_trip')} ORDER BY (request_trip.id_viajes=${i}.id_viajes) DESC,request_trip.id_viajes DESC LIMIT 1) eligible_request ON TRUE`;}
 
 export function pendingManejoSql(v='v'){return `EXISTS(SELECT 1 FROM autorizaciones_manejo_comentado_viaje pending_m WHERE pending_m.id_viajes=${v}.id_viajes AND pending_m.estado='PENDIENTE' AND EXISTS(SELECT 1 FROM estados_viaje manejo_state WHERE manejo_state.id_estado_viaje=${v}.id_estado_viaje AND manejo_state.nombre='PENDIENTE'))`;}
+
+// Keep shared daily inspections in the management group only while a valid management consumes them.
+export function inspectionManagementGroupSql(i='i'){return `(EXISTS(SELECT 1 FROM gerenciamiento_viajes group_g JOIN viajes group_v ON group_v.id_viajes=group_g.id_viaje WHERE ${nonCancelledTripSql('group_v')} AND ${inspectionMatchesTripSql(i,'group_v')}) OR ((${i}.estado<>'PENDIENTE_APROBACION' OR NOT ${inspectionAvailableSql(i)}) AND EXISTS(SELECT 1 FROM gerenciamiento_viajes original_g WHERE original_g.id_viaje=${i}.id_viajes)))`;}
+
+export function managementInspectionJoinSql(g='g'){return `LEFT JOIN LATERAL(SELECT source.* FROM inspecciones_vehiculares source JOIN viajes inspection_trip ON inspection_trip.id_viajes=${g}.id_viaje WHERE ${inspectionMatchesTripSql('source','inspection_trip')} ORDER BY (source.id_viajes=${g}.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE`;}

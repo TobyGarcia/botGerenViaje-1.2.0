@@ -1,0 +1,2 @@
+FROM gv-staging-trip-operations-panel:review-c8b3e6b
+COPY panel-admin/dist /usr/share/nginx/html

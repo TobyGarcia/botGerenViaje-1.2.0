@@ -1,4 +1,4 @@
-import {inspectionAvailableSql,inspectionRequestJoinSql} from './approval-eligibility.js';
+import {inspectionAvailableSql,inspectionRequestJoinSql,inspectionManagementGroupSql} from './approval-eligibility.js';
 import {approveJointDocuments,inspectionManagementContext} from './joint-approval.service.js';
 import { isManagementRole, managementInspectionSql } from "./management-trip-scope.js";
 import { traceOperation } from "./operation-log.service.js";
@@ -123,7 +123,7 @@ async function getInspectionRequirementImpl({ idViaje, idConductor }) {
 
 export async function listPendingInspections(adminRole = null) {
   const result = await databasePool.query(`
-    SELECT i.id_inspeccion, i.estado, (eligible_request.id_viajes IS NOT NULL) AS approval_available, eligible_request.folio AS approval_folio, eligible_request.id_viajes AS approval_trip_id, i.creado_en, i.requiere_autorizacion_fuera_horario,
+    SELECT i.id_inspeccion, i.estado, CASE WHEN ${inspectionManagementGroupSql('i')} THEN 'management' ELSE 'local' END AS approval_group, (eligible_request.id_viajes IS NOT NULL) AS approval_available, eligible_request.folio AS approval_folio, eligible_request.id_viajes AS approval_trip_id, i.creado_en, i.requiere_autorizacion_fuera_horario,
       i.fecha_operativa, i.es_dia_siguiente, i.lleva_remolque, i.id_remolque,
       v.folio, c.nombre AS conductor, vh.nombre AS vehiculo, vh.numero_economico,
       rem.nombre AS remolque_nombre, rem.numero_economico AS remolque_numero_economico

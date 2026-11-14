@@ -16,6 +16,7 @@
     "@capacitor/core": "^8.6.2",
     "@e965/xlsx": "^0.20.3",
     "leaflet": "^1.9.4",
+    "pdfjs-dist": "6.5.438",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-leaflet": "^5.0.0"

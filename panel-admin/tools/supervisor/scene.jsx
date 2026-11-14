@@ -1,5 +1,6 @@
 // Read-only fixture. Never sends approvals or login requests to the server.
 import React from 'react';import{createRoot}from'react-dom/client';import SupervisorApp from '../../src/pages/SupervisorApp.jsx';import '../../src/index.css';import '../../src/App.css';
+const fixtureFetch=window.fetch.bind(window);
 const role=new URLSearchParams(location.search).get('role')||'SUPERVISOR';
 const empty=new URLSearchParams(location.search).has('empty');
 const invalid=new URLSearchParams(location.search).has('invalid');
@@ -17,9 +18,12 @@ if(new URLSearchParams(location.search).has('inspection-review'))Object.assign(m
  inspeccion_lleva_remolque:true,remolque_nombre:'REMOLQUE DE PRUEBA',inspeccion_remolque:{checklist:{Reflejantes:'B'},danos:{frontal:[{x:30,y:50}]},observaciones:'Revisión completa'},
  pts_distancia:1,pts_clima:2,pts_vehiculos_personas:3,pts_condiciones_via:1,pts_comunicaciones:0,pts_horas_trabajadas:1,pts_hora_traslado:1
 });
+if(new URLSearchParams(location.search).has('group-test'))rows.push({...rows[0],id_inspeccion:3,folio:'SOLO-EN-GERENCIAMIENTOS',approval_group:'management'});
+if(new URLSearchParams(location.search).has('inspection-only-test'))Object.assign(management,{estado:'APROBADO',id_inspeccion:3,inspeccion_estado:'PENDIENTE_APROBACION'});
 window.fetch=async(input,options={})=>{const path=new URL(input,location.origin).pathname;if(invalid && path.endsWith('/supervisor-app/start'))return new Response('null',{headers:{'Content-Type':'application/json'}});if((options.method||'GET')!=='GET')throw Error('Mutaciones deshabilitadas en QA');let data=[],status=200;
+ if(path.endsWith('/vista-previa-pdf')){if(window.__pdfFailure)return new Response('<html>offline</html>',{status:503});return fixtureFetch('/__qa_pdf');}
  if(path.endsWith('/auth/session')){if(login){status=401;data=null;}else data={user:{nombre:'Supervisora Demo',rol:role,idUsuarioAdmin:1}};}
- else if(path.endsWith('/gerenciamiento-viajes'))data=(new URL(input,location.origin).searchParams.get('estado')==='PENDIENTE'&&management.approval_available===false)||(new URL(input,location.origin).searchParams.get('estado')&&new URL(input,location.origin).searchParams.get('estado')!==management.estado)?[]:[management];
+ else if(path.endsWith('/gerenciamiento-viajes')){const params=new URL(input,location.origin).searchParams,state=params.get('estado'),inspectionPending=params.get('includeInspection')==='true'&&management.estado==='APROBADO'&&management.inspeccion_estado==='PENDIENTE_APROBACION';data=state==='PENDIENTE'&&management.approval_available===false?[]:state&&state!==management.estado&&!inspectionPending?[]:[management];}
  else if(path.endsWith('/gerenciamiento-viajes/7'))data=management;
  else if(path.endsWith('/admin/inspecciones'))data=rows;
  else if(path.endsWith('/admin/inspecciones/1'))data={...rows[0],checklist:{Luces:'B'},danos:{},combustible:'F',approval_context:{management:{id_gerenciamiento:7,nivel_riesgo:'BAJO',estado:management.estado},ambiguous:false}};

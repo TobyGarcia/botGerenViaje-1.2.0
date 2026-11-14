@@ -1,3 +1,4 @@
+import ApprovalPdfViewer from '../components/ApprovalPdfViewer.jsx';
 import {canAuthorizeManejo} from '../../../backend/src/utils/manejo-authorization-policy.js';
 import ManejoAuthorizationRequests from '../components/ManejoAuthorizationRequests.jsx';
 import {useApprovalLiveRefresh} from "../hooks/useApprovalLiveRefresh.js";
@@ -8,9 +9,7 @@ import TrailerInspectionCards from '../components/TrailerInspectionCards.jsx';
 import './TrailerInspectionCards.css';
 import {
   decidirAdminInspeccion,
-  descargarAdminInspeccionPdf,
   getAdminInspeccionDetalle,
-  getAdminInspeccionPdfPreviewUrl,
   getAdminInspecciones
 } from "../services/api.js";
 import DamageViewer from "../components/DamageViewer.jsx";
@@ -319,6 +318,8 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
   });
   const [rows, setRows] = useState([]);
   const [detail, setDetail] = useState(null);
+  const [pdfPreview,setPdfPreview]=useState(null);
+  function openInspectionPdf(id){setPdfPreview({kind:"inspection",id,title:"Inspección vehicular"});}
   const detailRef=useRef(detail);detailRef.current=detail;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -336,7 +337,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
       const id=detailRef.current?.id_inspeccion;
       const [response,review]=await Promise.all([getAdminInspecciones({signal}),id?getAdminInspeccionDetalle(id,{signal}).catch(()=>null):null]);
       if(signal?.aborted)return;
-      const data = response.data || [];
+      const data = (response.data || []).filter(item=>!pendingOnly||item.approval_group!=="management");
       if(review?.data&&String(detailRef.current?.id_inspeccion)===String(id))setDetail(previous=>String(previous?.id_inspeccion)===String(id)?review.data:previous);
       setRows(data);
       onPendingChange?.(data.filter(item => item.estado === "PENDIENTE_APROBACION" && item.approval_available!==false).length);
@@ -345,7 +346,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
     } finally {
       if(!background&&!signal?.aborted)setLoading(false);
     }
-  }, [onPendingChange]);
+  }, [onPendingChange,pendingOnly]);
 
   useEffect(()=>{const controller=new AbortController();void load({signal:controller.signal});return()=>controller.abort();},[load]);
   useApprovalLiveRefresh(load,!saving&&!loading);
@@ -365,7 +366,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
 
   function openPreview() {
     if (!detail) return;
-    window.open(getAdminInspeccionPdfPreviewUrl(detail.id_inspeccion), "_blank", "noopener");
+    openInspectionPdf(detail.id_inspeccion);
   }
 
   async function decide(aprobada) {
@@ -412,6 +413,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
 
   return (
     <section className="module-page">
+      {pdfPreview&&<ApprovalPdfViewer document={pdfPreview} onClose={()=>setPdfPreview(null)}/>}
       <header className="module-header">
         <div>
           <span className="module-label">Logística</span>
@@ -438,7 +440,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
           className={`logistics-tab-btn ${activeTab === "inspecciones" ? "active" : ""}`}
         >
           <IconInspecciones size={18} />
-          <span>{pendingOnly ? "Inspecciones" : "Inspecciones Vehiculares"}</span>
+          <span className={pendingOnly?"approval-group-label":undefined}>{pendingOnly ? "Viajes locales" : "Inspecciones Vehiculares"}{pendingOnly&&<small>Inspección vehicular</small>}</span>
           {pendingCount > 0 && (
             <span className="tab-pending-badge" title={`${pendingCount} inspecciones por aprobar`}>
               {pendingCount}
@@ -460,7 +462,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
           className={`logistics-tab-btn tab-btn-gerenciamiento ${activeTab === "gerenciamiento" ? "active" : ""}`}
         >
           <IconDestinos size={18} />
-          <span>{pendingOnly ? "Gerenciamientos" : "Gerenciamiento de Viajes"}</span>
+          <span className={pendingOnly?"approval-group-label":undefined}>{pendingOnly ? "Gerenciamientos" : "Gerenciamiento de Viajes"}{pendingOnly&&<small>Viaje e inspección</small>}</span>
         </button>
       </div>
 
@@ -538,7 +540,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
             ) : paginatedRows.length === 0 ? (
               <div className="table-empty-state">
                 <IconInspecciones size={40} className="empty-icon" />
-                <h4>No se encontraron inspecciones</h4>
+                <h4>{pendingOnly?"No hay viajes locales en esta vista":"No se encontraron inspecciones"}</h4>
                 <p>Intenta ajustar el término de búsqueda o el filtro de estado seleccionado.</p>
               </div>
             ) : (
@@ -606,8 +608,8 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                                   <button
                                     type="button"
                                     className="btn-table-action btn-pdf"
-                                    onClick={() => descargarAdminInspeccionPdf(row.id_inspeccion)}
-                                    title="Descargar reporte PDF"
+                                    onClick={() => openInspectionPdf(row.id_inspeccion)}
+                                    title="Ver reporte PDF"
                                   >
                                     <IconPdf size={15} />
                                     <span>PDF</span>
@@ -700,11 +702,11 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                       <button
                         type="button"
                         className="btn-header-pdf"
-                        onClick={() => descargarAdminInspeccionPdf(detail.id_inspeccion)}
-                        title="Descargar documento PDF"
+                        onClick={() => openInspectionPdf(detail.id_inspeccion)}
+                        title="Ver documento PDF"
                       >
                         <IconPdf size={16} />
-                        <span>Descargar PDF</span>
+                        <span>Ver PDF</span>
                       </button>
                     )}
                     <button
@@ -891,7 +893,7 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                           onClick={openPreview}
                         >
                           <IconPdf size={16} />
-                          <span>Abrir vista previa del PDF en nueva pestaña</span>
+                          <span>Ver PDF en pantalla completa</span>
                         </button>
                       </div>
 
@@ -942,10 +944,10 @@ export default function InspeccionesPage({ user, onPendingChange, initialTab, pe
                         <button
                           type="button"
                           className="btn-download-pdf-large"
-                          onClick={() => descargarAdminInspeccionPdf(detail.id_inspeccion)}
+                          onClick={() => openInspectionPdf(detail.id_inspeccion)}
                         >
                           <IconPdf size={18} />
-                          <span>Descargar Reporte PDF</span>
+                          <span>Ver Reporte PDF</span>
                         </button>
                       </div>
                     </div>

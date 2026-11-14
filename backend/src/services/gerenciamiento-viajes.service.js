@@ -1,4 +1,4 @@
-import {managementAvailableSql,managementCancelledSql} from './approval-eligibility.js';
+import {managementAvailableSql,managementCancelledSql,managementInspectionJoinSql} from './approval-eligibility.js';
 import {approveJointDocuments} from './joint-approval.service.js';
 import { traceOperation, recordOperation } from "./operation-log.service.js";
 import { databasePool } from "../database/pool.js";
@@ -319,7 +319,7 @@ export async function getGerenciamientoById(idGerenciamiento) {
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
+    ${managementInspectionJoinSql('g')}
     LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_gerenciamiento = $1
   `, [idGerenciamiento]);
@@ -355,7 +355,7 @@ export async function getGerenciamientoByViaje(idViaje) {
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
+    ${managementInspectionJoinSql('g')}
     LEFT JOIN vehiculos vh_rem ON vh_rem.id_vehiculos = i.id_remolque
     WHERE g.id_viaje = $1
     ORDER BY g.id_gerenciamiento DESC
@@ -364,13 +364,14 @@ export async function getGerenciamientoByViaje(idViaje) {
   return result.rows[0] ?? null;
 }
 
-export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, limit = 50, offset = 0 } = {}) {
+export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, includePendingInspection=false, limit = 50, offset = 0 } = {}) {
   let whereClauses = [];
   let values = [];
   let paramIndex = 1;
 
   if (estado) {
-    whereClauses.push(`g.estado = $${paramIndex++}`);
+    const stateParam=`$${paramIndex++}`;
+    whereClauses.push(estado==='PENDIENTE'&&includePendingInspection?`(g.estado=${stateParam} OR (g.estado='APROBADO' AND i.estado='PENDIENTE_APROBACION'))`:`g.estado=${stateParam}`);
     values.push(estado);
     if(estado==='PENDIENTE')whereClauses.push(managementAvailableSql('g'));
   }
@@ -413,7 +414,7 @@ export async function listGerenciamientos({ estado, nivelRiesgo, idConductor, li
     LEFT JOIN conductores c ON c.id_conductores = g.id_conductor
     LEFT JOIN lugares o ON o.id_lugares = g.id_origen
     LEFT JOIN lugares d ON d.id_lugares = g.id_destino
-    LEFT JOIN LATERAL (SELECT source.* FROM inspecciones_vehiculares source WHERE source.id_viajes=g.id_viaje OR EXISTS(SELECT 1 FROM viaje_inspeccion_uso usage WHERE usage.id_viajes=g.id_viaje AND usage.id_inspeccion=source.id_inspeccion) ORDER BY (source.id_viajes=g.id_viaje) DESC,source.id_inspeccion DESC LIMIT 1) i ON TRUE
+    ${managementInspectionJoinSql('g')}
     ${whereSql}
     ORDER BY g.creado_en DESC
     LIMIT ${limitParam} OFFSET ${offsetParam}
