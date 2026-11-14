@@ -1,3 +1,4 @@
+import {notifyDriverRejection} from '../services/notify-driver-rejection.service.js';
 import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, getAdminInspection, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
@@ -66,7 +67,8 @@ export async function decideSupervisorInspectionController(request, response) {
       trip = { idViaje: detail.id_viajes, folio: detail.folio, vehiculo: detail.vehiculo, conductor: detail.conductor };
     } else trip = data.cancelledTrips?.[0] || null;
     const telegramUser = await findTelegramUserByConductorId(data.id_conductores);
-    for(const affected of approved ? [trip] : (data.cancelledTrips?.length ? data.cancelledTrips : [null])) await sendDriverInspectionNotification({ telegramUserId: telegramUser?.telegram_user_id, approved, trip:affected || {folio:`Inspección #${data.id_inspeccion}`}, tripCancelled:Boolean(affected), comment });
+    if(!approved) await notifyDriverRejection(data);
+      for(const affected of approved ? [trip] : []) await sendDriverInspectionNotification({ telegramUserId: telegramUser?.telegram_user_id, approved, trip:affected || {folio:`Inspección #${data.id_inspeccion}`}, tripCancelled:Boolean(affected), comment });
     return response.json({
       success: true,
       data: { ...data, viaje: trip, sharepoint: sharepointResult },

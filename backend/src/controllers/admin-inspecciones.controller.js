@@ -1,3 +1,4 @@
+import {notifyDriverRejection} from '../services/notify-driver-rejection.service.js';
 import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import { approveInspection, countPendingInspections, getAdminInspection, getStoredInspectionPdf, listPendingInspections, storeInspectionPdf, updateInspectionSharePointDetails } from "../services/inspecciones.service.js";
 import { buildInspectionWithAnnexes as buildInspectionPdf } from "../services/trip-inspection-annexes.service.js";
@@ -63,7 +64,8 @@ export async function decideAdminInspectionController(request, response) {
     }
     if (data) {
       const telegramUser = await findTelegramUserByConductorId(data.id_conductores);
-      for(const affected of approved ? [trip] : (data.cancelledTrips?.length ? data.cancelledTrips : [null])) await sendDriverInspectionNotification({
+      if(!approved) await notifyDriverRejection(data);
+      for(const affected of approved ? [trip] : []) await sendDriverInspectionNotification({
         telegramUserId: telegramUser?.telegram_user_id,
         approved,
         trip: affected || {folio: `Inspección #${data.id_inspeccion}`},

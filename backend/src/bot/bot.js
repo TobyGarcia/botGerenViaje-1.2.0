@@ -508,3 +508,8 @@ export async function sendSiniestroGroupAlert({ siniestro, pdfBuffer }) {
   }
 }
 
+
+export async function sendDriverRejectionMessage(id,message){
+ if(!id)return;
+ try{await getTelegramBot().telegram.sendMessage(String(id),message);}catch(error){console.error('No fue posible notificar el rechazo al conductor:',error.message);}
+}

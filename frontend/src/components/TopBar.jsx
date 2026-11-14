@@ -1,3 +1,4 @@
+import InspectionRejectionNotice from './InspectionRejectionNotice.jsx';
 import React from "react";
 import UserGuides from "./UserGuides.jsx";
 import logoGv from "../assets/LOGOGV.png";
@@ -28,6 +29,7 @@ export default function TopBar({
 
   return (
     <>
+      {conductor?.id_conductores && <InspectionRejectionNotice driverId={conductor.id_conductores}/>}
       <header className="app-topbar">
         <div className="topbar-inner">
           <div className="topbar-brand">

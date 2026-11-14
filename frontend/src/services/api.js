@@ -412,3 +412,5 @@ diagnostics.setSender(events => {
     method: "POST", body: JSON.stringify({ events }), timeout: 8000
   });
 });
+
+export const getInspectionRejections = signal => request('/api/conductor/auth/inspection-rejections', {signal,headers:{'Cache-Control':'no-cache'}});

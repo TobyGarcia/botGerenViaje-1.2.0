@@ -174,3 +174,16 @@ test('tras un rechazo no reutiliza inspecciones anteriores y exige una captura n
  const fresh=(await db.query("INSERT INTO inspecciones_vehiculares(id_viajes,id_conductores,id_vehiculos,fecha_operativa,combustible,tipo_asignacion,firma_conductor,estado) SELECT $1,id_conductores,id_vehiculos,fecha_operativa,'F','PERMANENTE',$2,'PENDIENTE_APROBACION' FROM inspecciones_vehiculares WHERE id_inspeccion=$3 RETURNING id_inspeccion",[next.trip,signature,old.inspection])).rows[0].id_inspeccion;
  assert.equal((await getApprovalForStart(next.trip,old.driver)).id_inspeccion,fresh);
 });
+
+test('aviso unificado identifica curso, pendientes cancelados y nueva inspección sin exponer otros conductores',async()=>{
+ const {driverInspectionRejections,rejectionMessage}=await import('../services/driver-inspection-rejection.service.js');
+ const f=await fixture('BAJO'),id=await actor('GERENTE'),running=await linkedTrip(f,{});
+ await db.query("UPDATE viajes SET id_estado_viaje=(SELECT id_estado_viaje FROM estados_viaje WHERE nombre='EN_CURSO') WHERE id_viajes=$1",[running.trip]);
+ await approveInspection({idInspeccion:f.inspection,idUsuarioAdmin:id,approved:false,comentario:'Revisar luces'});
+ const [notice]=await driverInspectionRejections(f.driver,f.inspection);assert.equal(notice.viajes.length,2);
+ const text=rejectionMessage(notice);assert.match(text,/Puedes terminar tu viaje en curso:/);assert.match(text,/Viajes pendientes cancelados:/);assert.match(text,/inspección nueva/);assert.match(text,/Revisar luces/);
+ assert.equal(text.split('❌').length,2);
+ assert.deepEqual(await driverInspectionRejections(f.driver+999999,f.inspection),[]);
+ const {finishTrip}=await import('../services/viajes.service.js');await finishTrip({idViaje:running.trip,kilometrajeFinal:102});
+ const [after]=await driverInspectionRejections(f.driver,f.inspection);assert.doesNotMatch(rejectionMessage(after),/Puedes terminar tu viaje en curso:/);
+});

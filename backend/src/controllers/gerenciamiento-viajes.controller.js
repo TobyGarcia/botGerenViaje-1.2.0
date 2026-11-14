@@ -1,3 +1,4 @@
+import {notifyDriverRejection} from '../services/notify-driver-rejection.service.js';
 import {publishJointApprovalDocuments} from '../services/joint-approval-documents.service.js';
 import {
   notifyNewGerenciamientoRequest,
@@ -176,6 +177,7 @@ export async function aprovarGerenciamientoController(request, response) {
       return response.status(404).json({ success: false, message: "No se encontró el registro para actualizar." });
     }
 
+    if(updated.rejectedInspection) await notifyDriverRejection(updated.rejectedInspection);
     const sharepointResult=(estado||'APROBADO')==='APROBADO'?await publishJointApprovalDocuments(idGerenciamiento):null;
 
     return response.json({
