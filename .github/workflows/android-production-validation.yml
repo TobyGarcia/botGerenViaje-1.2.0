@@ -1,21 +1,35 @@
 name: Validar Android por ambiente
 on:
   workflow_dispatch:
+    inputs:
+      prepare_images:
+        description: 'Construir únicamente imágenes candidatas privadas, sin desplegar'
+        type: boolean
+        default: false
   push:
     branches: ['release/production-*']
 permissions:
   contents: read
 jobs:
+  images:
+    if: inputs.prepare_images
+    uses: ./.github/workflows/production-candidate-images.yml
   validate:
+    if: ${{ !inputs.prepare_images }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        host: [gv.aspromex.mx, gvmobility.aspromex.mx]
+        include:
+          - host: gv.aspromex.mx
+            channel: stable
+          - host: gvmobility.aspromex.mx
+            channel: testing
     defaults:
       run:
         working-directory: frontend
     env:
       ANDROID_BUNDLED: 'true'
+      ANDROID_UPDATE_CHANNEL: ${{ matrix.channel }}
       ANDROID_WEB_URL: https://${{ matrix.host }}/conductor/
       VITE_API_BASE_URL: https://${{ matrix.host }}
       ANDROID_VERSION_NAME: '1.2.19'

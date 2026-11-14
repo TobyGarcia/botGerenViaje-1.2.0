@@ -1,4 +1,5 @@
 import {deliverApproverPush} from './services/approver-push.service.js';
+import {startupPolicy} from './utils/startup-policy.js';
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -43,6 +44,7 @@ const port = Number(
   process.env.BACKEND_PORT ||
   3000
 );
+const startup=startupPolicy();
 
 let httpServer = null;
 let shuttingDown = false;
@@ -60,7 +62,7 @@ function isTelegramPollingEnabled() {
   // En desarrollo se desactiva por defecto: ejecutar Render y el equipo local
   // con el mismo token provoca el 409 de getUpdates. Actívalo explícitamente
   // solo si el otro proceso está detenido o se usan tokens de desarrollo.
-  return process.env.NODE_ENV === "production" || process.env.TELEGRAM_POLLING_ENABLED === "true";
+  return startup.telegramPolling;
 }
 
 async function startBots() {
@@ -104,6 +106,8 @@ async function initializeDependencies() {
     attempt += 1;
 
     try {
+      await databasePool.query('SELECT 1');
+      if(startup.autoMigrations){
       // Auto-migración 1: Vehículos y Mantenimiento
       try {
         await databasePool.query(`
@@ -312,11 +316,12 @@ async function initializeDependencies() {
         console.warn("Aviso en auto-migración de destinos favoritos:", mErr.message);
       }
 
-      console.log("Conexión inicial con PostgreSQL y esquema verificados.");
-      await purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
+      }
+      console.log("Conexión inicial con PostgreSQL verificada; auto-migraciones:",startup.autoMigrations);
+      if(startup.auditRetention)await purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
         console.warn("No se pudo aplicar la retención de bitácora:", error.message);
       });
-      await cancelExpiredPendingTrips().then((cancelled) => {
+      if(startup.background)await cancelExpiredPendingTrips().then((cancelled) => {
         if (cancelled > 0) console.log(`Viajes pendientes vencidos cancelados: ${cancelled}.`);
       }).catch((error) => {
         console.warn("No se pudieron cancelar viajes pendientes vencidos:", error.message);
@@ -382,15 +387,16 @@ process.once("SIGINT", () => {
   shutdown("SIGINT");
 });
 
-startTelegramAudit();
+if(startup.background)startTelegramAudit();
 startServer();
+if(startup.background){
 const tripOperationsTimer = setInterval(() => {
   void deliverTripOperationNotifications().catch(e => console.warn('Avisos operativos pendientes:', e.message));
 }, 15000);
 tripOperationsTimer.unref();
 
 const auditCleanupTimer = setInterval(() => {
-  void purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
+  if(startup.auditRetention)void purgeExpiredAuditLogs(process.env.AUDIT_RETENTION_DAYS || 180).catch((error) => {
     console.warn("No se pudo depurar la bitácora:", error.message);
   });
 }, 24 * 60 * 60 * 1000);
@@ -416,6 +422,7 @@ const odometerAlertTimer = setInterval(() => {
   void processOdometerAlerts().catch(error => console.warn("No se pudieron procesar avisos de odómetro:", error.message));
 }, 15000);
 odometerAlertTimer.unref();
+}
 
 process.on("unhandledRejection", (reason) => {
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), type: "unhandled_rejection", message: reason?.message || String(reason) }));
@@ -425,5 +432,5 @@ process.on("uncaughtException", (error) => {
   process.exit(1);
 });
 
-const approverPushTimer=setInterval(()=>{void deliverApproverPush().catch(()=>console.warn('Avisos de aprobadores pendientes de entrega.'));},5000);
+const approverPushTimer=setInterval(()=>{if(startup.background)void deliverApproverPush().catch(()=>console.warn('Avisos de aprobadores pendientes de entrega.'));},5000);
 approverPushTimer.unref();

@@ -1,0 +1,32 @@
+name: Preparar imágenes privadas (sin desplegar)
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix backend && npm ci --prefix frontend && npm ci --prefix panel-admin
+      - run: npm run test:isolated --prefix backend && npm test --prefix frontend && npm test --prefix panel-admin
+      - name: Construir imágenes nuevas sin publicar ni acceder a AWS
+        run: |
+          set -euo pipefail
+          TAG="candidate-${GITHUB_SHA}"
+          docker build --label org.opencontainers.image.revision="$GITHUB_SHA" -t "gv-production-backend:$TAG" backend
+          docker build --label org.opencontainers.image.revision="$GITHUB_SHA" --build-arg VITE_API_BASE_URL=https://gv.aspromex.mx --build-arg APP_VERSION="$GITHUB_SHA" -t "gv-production-frontend:$TAG" frontend
+          docker build --label org.opencontainers.image.revision="$GITHUB_SHA" --build-arg VITE_API_BASE_URL=https://gv.aspromex.mx --build-arg VITE_APPROVER_CHANNEL=stable -t "gv-production-panel-admin:$TAG" panel-admin
+          mkdir -p candidate
+          docker image inspect "gv-production-backend:$TAG" "gv-production-frontend:$TAG" "gv-production-panel-admin:$TAG" > candidate/images.json
+          docker save "gv-production-backend:$TAG" "gv-production-frontend:$TAG" "gv-production-panel-admin:$TAG" | gzip -1 > candidate/images.tar.gz
+          (cd candidate && sha256sum images.tar.gz images.json > SHA256SUMS)
+          printf '%s\n' "$GITHUB_SHA" > candidate/source.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-images-${{ github.sha }}
+          path: candidate/
+          retention-days: 14
