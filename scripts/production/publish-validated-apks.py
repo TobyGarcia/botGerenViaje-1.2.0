@@ -1,5 +1,5 @@
 """Publish the two immutable, previously validated production APK candidates."""
-import hashlib,json,pathlib,subprocess,urllib.request,urllib.error,urllib.parse
+import hashlib,json,pathlib,subprocess,sys,urllib.request,urllib.error,urllib.parse
 root=pathlib.Path(__file__).resolve().parents[2]
 repository='TobyGarcia/botGerenViaje-1.2.0'
 credential=subprocess.run(['git','credential','fill'],input='protocol=https\nhost=github.com\n\n',text=True,capture_output=True,check=True)
@@ -14,6 +14,8 @@ candidates=[
  ('supervisor','94a3471f68e8352285972913c78040aa84b70932','approvers','gv-supervisor.apk','767bc793999e8a6d393b90cc2a84c3d6201cdd8c2c0ecfbddc673265ccbd68c7','GV Mobility Aprobadores 1.0.0','Primera versión productiva para aprobadores. Incluye inicio con Microsoft, pendientes por rol, detalle e inspección, aprobación conjunta y notificaciones de solicitudes. Utiliza el paquete y Firebase productivos; es una aplicación distinta de la de pruebas.')
 ]
 prepared=[]
+if '--login-fix' in sys.argv:
+ candidates=[('supervisor','52bbf5b6aa41a65e08200e5f9f09b167c12b4331','approvers','gv-supervisor.apk','bfa3f212ff88b80fb368c1f4a36727ed4b608ce98362904dfaa9c6e8ff7cd169','GV Mobility Aprobadores 1.0.1','Corrige la recuperación del acceso al volver de Microsoft. Conserva el intento ante interrupciones de red y permite retomarlo al reabrir la app. Actualiza sobre la aplicación productiva existente, sin desinstalar ni borrar datos.')]
 for app,sha,folder,filename,expected,title,notes in candidates:
  directory=root/'output'/'releases'/sha/folder
  manifest=json.loads((directory/'update.json').read_text());validation=json.loads((directory/'validation.json').read_text());apk=(directory/filename).read_bytes()

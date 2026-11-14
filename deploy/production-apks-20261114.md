@@ -1,5 +1,7 @@
 # Publicación de APK productivas — 14 de noviembre de 2026
 
+> Aprobadores vigente: **1.0.1 (2)**, con [corrección de recuperación de acceso](supervisor-login-recovery-20261114.md). La versión 1.0.0 de este registro es la publicación inicial.
+
 Autorización posterior al despliegue: «ya hazlo todo para quede listo». Se publicaron los binarios previamente validados, sin recompilarlos ni cambiar su firma, origen o almacenamiento.
 
 | Aplicación | Versión | Código | Publicación |
