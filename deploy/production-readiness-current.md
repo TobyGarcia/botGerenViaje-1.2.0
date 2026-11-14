@@ -1,6 +1,6 @@
 # Preparación vigente — 14 de noviembre de 2026
 
-> **Actualización:** el usuario autorizó el despliegue y se actualizaron los servicios productivos. Ver [resultado del despliegue](production-deployment-20261114.md). El estado de preparación de abajo es histórico; las APK permanecen sin publicar y main sin fusionar.
+> **Actualización:** servicios productivos desplegados y APK estables publicadas por autorización posterior del usuario. Ver [despliegue](production-deployment-20261114.md) y [publicación de APK](production-apks-20261114.md). El estado de preparación de abajo es histórico.
 
 **PREPARADO, SIN AUTORIZACIÓN DE LANZAMIENTO.** No fusionar main, desplegar ni publicar APK hasta indicación del usuario. Este documento sustituye los pendientes de las revisiones históricas.
 

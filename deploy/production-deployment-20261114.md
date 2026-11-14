@@ -1,5 +1,7 @@
 # Despliegue productivo — 14 de noviembre de 2026
 
+> Registro del corte. Posteriormente el usuario autorizó completar el lanzamiento y se publicaron ambas [APK estables](production-apks-20261114.md). Los pendientes de publicación citados abajo describen el cierre de la fase de servidor, no el estado posterior.
+
 Autorización del usuario: «okey desplieguemos ya de una vez en prod». Se desplegaron backend, frontend de conductor y panel desde `a43a28413577b3f0605f9e4c776a95a53fd89d5b`. No se fusionó main ni se publicaron APK o manifiestos estables durante este despliegue.
 
 ## Respaldo y datos
