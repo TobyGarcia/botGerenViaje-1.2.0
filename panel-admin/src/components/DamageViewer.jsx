@@ -1,3 +1,4 @@
+import {useState} from 'react';
 import conductorImage from "../assets/inspection-diagrams/conductor.png";
 import frontalImage from "../assets/inspection-diagrams/frontal.png";
 import pasajeroImage from "../assets/inspection-diagrams/pasajero.png";
@@ -11,7 +12,8 @@ const views = [
   ["pasajero", "Pasajero", pasajeroImage]
 ];
 
-export default function DamageViewer({ damages = {}, vehicle }) {
+export default function DamageViewer({ damages = {}, vehicle, singleView=false }) {
+  const [active,setActive]=useState("frontal");
   const count = Object.values(damages).reduce(
     (total, points) => total + (Array.isArray(points) ? points.length : 0),
     0
@@ -38,8 +40,9 @@ export default function DamageViewer({ damages = {}, vehicle }) {
         )}
       </div>
 
+      {singleView&&<div className="management-vehicle-views" aria-label="Vistas del vehículo">{views.map(([key,label,image])=><button type="button" key={key} aria-pressed={active===key} onClick={()=>setActive(key)}><img src={image} alt=""/><span>{label}</span></button>)}</div>}
       <div className="damage-viewer-grid">
-        {views.map(([key, label, image]) => {
+        {views.filter(([key])=>!singleView||key===active).map(([key, label, image]) => {
           const viewDamages = damages[key] || [];
           const hasDamages = viewDamages.length > 0;
           return (

@@ -2,7 +2,7 @@ import {spawn} from 'node:child_process';
 import {writeFile,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-const qaPage=process.env.SUPERVISOR_QA_BUILT==='true'?'http://127.0.0.1:5179/index.html':'http://127.0.0.1:5179/tools/supervisor/index.html';
+const qaPage=process.env.SUPERVISOR_QA_URL||(process.env.SUPERVISOR_QA_BUILT==='true'?'http://127.0.0.1:5179/index.html':'http://127.0.0.1:5179/tools/supervisor/index.html');
 const chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port=9223',`--user-data-dir=${join(tmpdir(),'gv-approver-qa-'+process.pid)}`],{windowsHide:true,stdio:'ignore'});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));await wait(1500);
 for(let attempt=0;attempt<20;attempt++){try{const health=await fetch('http://127.0.0.1:9223/json/version');if(health.ok)break;}catch{}await wait(250);}
@@ -38,6 +38,7 @@ try {
  }
  await openScene('gerenciamiento');
  await js("[...document.querySelectorAll('button')].find(b=>/Ver revisión/.test(b.textContent)).click()");await wait(200);
+ await click('#management-authorization-tab');
  await js("(()=>{const e=document.querySelector('.modal-card textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,'Observación en curso');e.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.modal-card canvas').scrollIntoView({block:'center'});})()");await wait(200);
  const point=await js("(()=>{const r=document.querySelector('.modal-card canvas').getBoundingClientRect();return{x:r.x+20,y:r.y+30};})()");
  await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});

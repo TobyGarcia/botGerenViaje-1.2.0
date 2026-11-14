@@ -4,7 +4,7 @@ import {canApproveRisk} from '../../../backend/src/utils/approval-policy.js';
 import { apiFetch, readApiJson } from "../services/http-transport.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import logoGvBlack from "../assets/LOGOGVBLACK.png";
-import DamageViewer from "../components/DamageViewer.jsx";
+import ManagementReviewContent from "../components/ManagementReviewContent.jsx";
 import { IconDocumento } from "../components/Icons.jsx";
 
 function ApprovalSignature({ onChange }) {
@@ -96,6 +96,12 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
   const [filterRiesgo, setFilterRiesgo] = useState("");
   const [filterEstado, setFilterEstado] = useState(initialStatus);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [reviewTab,setReviewTab]=useState("trip");
+  const [reviewLoading,setReviewLoading]=useState(false);
+  const [reviewError,setReviewError]=useState("");
+  const reviewBody=useRef(null);
+  useEffect(()=>{setReviewTab("trip");},[selectedDoc?.id_gerenciamiento]);
+  function changeReviewTab(tab){setReviewTab(tab);reviewBody.current?.scrollTo({top:0});}
   const selectedRef=useRef(selectedDoc);selectedRef.current=selectedDoc;
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -122,7 +128,7 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
       const gerenData = await readApiJson(gerenRes);
       if(signal?.aborted)return;
       setList(gerenData.data || []);
-      if(review?.data&&String(selectedRef.current?.id_gerenciamiento)===String(id))setSelectedDoc(previous=>String(previous?.id_gerenciamiento)===String(id)?{...previous,...review.data}:previous);
+      if(review?.data&&String(selectedRef.current?.id_gerenciamiento)===String(id)){setReviewError("");setSelectedDoc(previous=>String(previous?.id_gerenciamiento)===String(id)?{...previous,...review.data}:previous);}
     } catch (err) {
       if(!background&&!signal?.aborted)setError(err.message || "Error conectando con el servidor.");
     } finally {
@@ -132,6 +138,17 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
 
   useEffect(()=>{const controller=new AbortController();void loadData({signal:controller.signal});return()=>controller.abort();},[loadData]);
   useApprovalLiveRefresh(loadData,!approving&&!loading);
+  useEffect(()=>{
+    if(!selectedDoc?.id_gerenciamiento)return;
+    const controller=new AbortController(),id=selectedDoc.id_gerenciamiento;
+    setReviewLoading(true);setReviewError('');
+    apiFetch(`${API_BASE_URL}/gerenciamiento-viajes/${id}`,{signal:controller.signal,cache:'no-store',headers:{Authorization:`Bearer ${localStorage.getItem('adminToken')}`}})
+      .then(async response=>{const body=await readApiJson(response);if(!response.ok)throw Error(body.message||'No se pudo cargar el detalle.');if(!controller.signal.aborted)setSelectedDoc(previous=>String(previous?.id_gerenciamiento)===String(id)?{...previous,...body.data}:previous);})
+      .catch(error=>{if(!controller.signal.aborted)setReviewError(error.message);})
+      .finally(()=>{if(!controller.signal.aborted)setReviewLoading(false);});
+    return()=>controller.abort();
+  },[selectedDoc?.id_gerenciamiento,API_BASE_URL]);
+
 
   async function handleDecide(nuevoEstado) {
     if (nuevoEstado === "APROBADO" && !firmaAutorizador) {
@@ -801,426 +818,24 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
 
       {/* Modal con Hoja Completa Oficial SII-MX-23-LOG-003 */}
       {selectedDoc && (
-        <div className="modal-overlay" onMouseDown={() => setSelectedDoc(null)}>
-          <section className="modal-card inspection-detail-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: "860px", width: "100%", maxHeight: "94vh", overflowY: "auto" }}>
+        <div className="modal-overlay" onMouseDown={() => {if(!approving)setSelectedDoc(null);}}>
+          <section className="modal-card inspection-detail-modal management-review-dialog" role="dialog" aria-modal="true" aria-labelledby="management-review-title" onMouseDown={(e) => e.stopPropagation()}>
             <div className="form-panel-header">
               <div>
-                <h2>Gerenciamiento {selectedDoc.folio_documento}</h2>
+                <span className="management-eyebrow">Revisión de viaje</span><h2 id="management-review-title">{selectedDoc.folio_documento}</h2>
                 <p>{selectedDoc.nombre_conductor} · {selectedDoc.tipo_vehiculo} ({selectedDoc.numero_unidad || selectedDoc.placa})</p>
               </div>
-              <button className="close-button" onClick={() => setSelectedDoc(null)}>×</button>
+              <button className="management-pdf-button" type="button" onClick={()=>openGerenciamientoPdfPreview(selectedDoc,true)}>PDF</button><button className="close-button" aria-label="Cerrar revisión" disabled={approving} onClick={() => setSelectedDoc(null)}>×</button>
             </div>
 
-            {import.meta.env.VITE_SUPERVISOR_APP === 'true' && <div className="supervisor-geren-summary">{[
- ['Origen',selectedDoc.origen_nombre || selectedDoc.origen_texto],['Destino',selectedDoc.destino_nombre || selectedDoc.destino_texto],
- ['Conductor',selectedDoc.nombre_conductor || selectedDoc.conductor_nombre],['Unidad',selectedDoc.tipo_vehiculo],
- ['Riesgo',`${selectedDoc.nivel_riesgo || 'Sin evaluar'} · ${selectedDoc.puntaje_total ?? 0} puntos`],['Salida',selectedDoc.hora_salida],
- ['Acompañantes',Array.isArray(selectedDoc.acompanantes) ? selectedDoc.acompanantes.join(', ') : selectedDoc.acompanantes]
- ].filter(([,value])=>value).map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>}
-            <details className="supervisor-document" open={import.meta.env.VITE_SUPERVISOR_APP !== 'true'}>
-            <summary>Documento e inspección completos</summary>
-            <div className="supervisor-document-scroll">
-            {/* HOJA COMPLETA SII-MX-23-LOG-003 v3.0 EN EL MODAL */}
-            <div style={{ border: "1.5px solid #000", padding: "6px", background: "#ffffff", fontSize: "0.78rem", marginBottom: "16px" }}>
-              
-              {/* Encabezado */}
-              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 0 }}>
-                <tbody>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "4px", width: "22%", textAlign: "center" }}>
-                      <img src={logoGvBlack} alt="GV MOBILITY" style={{ maxHeight: "34px", maxWidth: "140px", objectFit: "contain" }} />
-                    </td>
-                    <td style={{ border: "1px solid #000", padding: "4px", width: "53%", textAlign: "center", fontWeight: "bold", fontSize: "0.9rem" }}>
-                      CÓDIGO R2PLOG1 / {selectedDoc.folio_documento}
-                    </td>
-                    <td style={{ border: "1px solid #000", padding: "4px", width: "25%", fontSize: "0.72rem" }}>
-                      <strong>Sistema:</strong> SGI<br />
-                      <strong>Versión:</strong> {selectedDoc.version_documento || "3.0"}<br />
-                      <strong>Página:</strong> 1 de 1
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style={{ background: "#d1d5db", fontWeight: "bold", textAlign: "center", fontSize: "0.85rem", padding: "3px", border: "1px solid #000", borderTop: 0, textTransform: "uppercase" }}>
-                GERENCIAMIENTO DE VIAJE (FECHA DE EMISIÓN: {String(selectedDoc.fecha_emision || "").split("T")[0]})
-              </div>
-
-              {/* Metadata */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem" }}>
-                <tbody>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Origen</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.origen_nombre || selectedDoc.origen_texto}</strong></td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Destino</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.destino_nombre || selectedDoc.destino_texto}</strong></td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Departamento</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.departamento || "Logística"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Kilometraje</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}><strong>{selectedDoc.kilometraje || 0} km</strong></td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* 1. INFORMACIÓN GENERAL */}
-              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", fontSize: "0.78rem", padding: "2px", border: "1px solid #000", borderTop: 0 }}>
-                1. INFORMACIÓN GENERAL
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem" }}>
-                <tbody>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Tipo de vehículo</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.tipo_vehiculo || "PickUp"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Placa</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.placa || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Modelo</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.modelo || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Color</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.color || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Vehículo empresa</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>
-                      <strong>[{selectedDoc.vehiculo_empresa !== false ? "X" : " "}] SÍ</strong> &nbsp;
-                      <strong>[{selectedDoc.vehiculo_empresa === false ? "X" : " "}] NO</strong>
-                    </td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Nombre empresa contratista</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.nombre_contratista || "N/A (AQUARIO)"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>No. Unidad</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}><strong>{selectedDoc.numero_unidad || "N/A"}</strong></td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Conductor</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={3}><strong>{selectedDoc.nombre_conductor || selectedDoc.conductor_nombre}</strong></td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Tel. Celular</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.telefono_conductor || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Número licencia</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.licencia_numero || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Tipo</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.licencia_tipo || "Chofer"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Fecha vencimiento</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={2}>{selectedDoc.licencia_vencimiento ? String(selectedDoc.licencia_vencimiento).split("T")[0] : "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Ruta a seguir</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={4}><strong>{Array.isArray(selectedDoc.ruta_puntos) ? selectedDoc.ruta_puntos.join(" ➔ ") : (selectedDoc.ruta_puntos || "N/A")}</strong></td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }} colSpan={2}>Tiempo Viaje</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.tiempo_viaje_horas || 1} hrs</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Acompañante(s)</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }} colSpan={7}>{Array.isArray(selectedDoc.acompanantes) && selectedDoc.acompanantes.length ? selectedDoc.acompanantes.join(", ") : "Sin acompañantes"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Sitios de reporte */}
-              <div style={{ background: "#f9fafb", fontWeight: "bold", border: "1px solid #000", borderTop: 0, padding: "2px 4px", fontSize: "0.7rem" }}>
-                Sitios de reporte (para viajes superiores a 1 hora)
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.7rem" }}>
-                <tbody>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 1</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[0]?.punto || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[0]?.horaReportada || "--:--"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 3</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[2]?.punto || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[2]?.horaReportada || "--:--"}</td>
-                  </tr>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 2</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[1]?.punto || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[1]?.horaReportada || "--:--"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Punto 4</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[3]?.punto || "N/A"}</td>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px" }}>Hora</th>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>{selectedDoc.sitios_reporte?.[3]?.horaReportada || "--:--"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* 2. LISTA VERIFICACIÓN DE PREVIAJE */}
-              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", padding: "2px", border: "1px solid #000", borderTop: 0, fontSize: "0.78rem" }}>
-                2. LISTA VERIFICACIÓN DE PREVIAJE
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.7rem" }}>
-                <thead>
-                  <tr>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", textAlign: "left" }}>Pregunta de Control</th>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", width: "8%", textAlign: "center" }}>SI</th>
-                    <th style={{ border: "1px solid #000", background: "#f3f4f6", padding: "2px 4px", width: "8%", textAlign: "center" }}>NO</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>1. ¿El conductor tiene conocimiento de los riesgos locales (vía, clima, peatones, animales)?</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.conocimiento_riesgos_locales !== false ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.conocimiento_riesgos_locales === false ? "X" : ""}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>2. ¿El conductor ha consumido medicamentos que producen somnolencia o presenta padecimiento del sueño?</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.medicamentos_somnolencia ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{!selectedDoc.medicamentos_somnolencia ? "X" : ""}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>3. ¿El conductor ha dormido adecuadamente?</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.dormido_adecuadamente !== false ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.dormido_adecuadamente === false ? "X" : ""}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>4. ¿El conductor está informado que es prohibido transportar personal ajeno a la empresa?</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.prohibido_personal_ajeno !== false ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.prohibido_personal_ajeno === false ? "X" : ""}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>5. ¿Se realizó la inspección del vehículo con la lista de chequeo? (Anexar registro)</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.inspeccion_vehiculo_realizada !== false ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.inspeccion_vehiculo_realizada === false ? "X" : ""}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px" }}>6. ¿Se realizó la reunión pre caravana? (Anexar registro) *Sólo para viajes de más de 1 vehículo</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{selectedDoc.reunion_pre_caravana_realizada ? "X" : ""}</td>
-                    <td style={{ border: "1px solid #000", padding: "2px 4px", textAlign: "center", fontWeight: "bold" }}>{!selectedDoc.reunion_pre_caravana_realizada ? "X" : ""}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* 3. EVALUACIÓN DE RIESGO DE LA RUTA */}
-              <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", padding: "2px", border: "1px solid #000", borderTop: 0, fontSize: "0.78rem" }}>
-                3. EVALUACIÓN DE RIESGO DE LA RUTA
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.15fr", border: "1px solid #000", borderTop: 0, fontSize: "0.7rem" }}>
-                {/* Columna A, D, G */}
-                <div style={{ borderRight: "1px solid #000" }}>
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>A. Distancia a Recorrer / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 1 ? "#fef08a" : "transparent" }}><span>Menos de 50 Km</span><span>1</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 2 ? "#fef08a" : "transparent" }}><span>Menos de 100 Km</span><span>2</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 5 ? "#fef08a" : "transparent" }}><span>Menos de 200 Km</span><span>5</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_distancia === 8 ? "#fef08a" : "transparent" }}><span>Más de 200 Km</span><span>8</span></div>
-
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>D. Condiciones de la Vía / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 1 ? "#fef08a" : "transparent" }}><span>Pavimentada</span><span>1</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 2 ? "#fef08a" : "transparent" }}><span>Mixta (&lt;50% No Pav.)</span><span>2</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_condiciones_via === 4 ? "#fef08a" : "transparent" }}><span>No Pavimentada</span><span>4</span></div>
-
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>G. Hora del Traslado / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_hora_traslado === 1 ? "#fef08a" : "transparent" }}><span>Día (06:00 a 18:00 h)</span><span>1</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_hora_traslado === 8 ? "#fef08a" : "transparent" }}><span>Noche (18:00 a 06:00 h)</span><span>8</span></div>
-                </div>
-
-                {/* Columna B, E */}
-                <div style={{ borderRight: "1px solid #000" }}>
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>B. Clima / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 2 ? "#fef08a" : "transparent" }}><span>Seco / Cond. normales</span><span>2</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 4 ? "#fef08a" : "transparent" }}><span>Lluvia suave</span><span>4</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 8 ? "#fef08a" : "transparent" }}><span>Lluvia fuerte/niebla</span><span>8</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_clima === 10 ? "#fef08a" : "transparent" }}><span>Nieve</span><span>10</span></div>
-
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>E. Comunicaciones / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 0 ? "#fef08a" : "transparent" }}><span>Teléfono celular</span><span>0</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 2 ? "#fef08a" : "transparent" }}><span>Sin com. y caravana</span><span>2</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_comunicaciones === 4 ? "#fef08a" : "transparent" }}><span>Sin com. sin caravana</span><span>4</span></div>
-
-                  <div style={{ background: "#fee2e2", padding: "2.5px", fontSize: "0.68rem", borderTop: "1px solid #000", textAlign: "center" }}>
-                    <strong>Horas trabajo + Viaje &gt; 16h = NO CONDUCIR</strong>
-                  </div>
-                  <div style={{ background: "#fff3cd", padding: "2.5px", fontSize: "0.68rem", borderTop: "1px solid #000" }}>
-                    Manejo Nocturno (&gt;18h) requiere Aprobación GCO/QHSE.
-                  </div>
-                </div>
-
-                {/* Columna C, F, EVALUACIÓN TOTAL */}
-                <div>
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderBottom: "1px solid #000" }}>C. Vehículos y personas / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 1 ? "#fef08a" : "transparent" }}><span>2+ Vehi. 2+ pers.</span><span>1</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 2 ? "#fef08a" : "transparent" }}><span>2+ Vehi. 1+ pers.</span><span>2</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 3 ? "#fef08a" : "transparent" }}><span>1Vehi. 2+ pers.</span><span>3</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_vehiculos_personas === 6 ? "#fef08a" : "transparent" }}><span>1Vehi. 1 pers.</span><span>6</span></div>
-
-                  <div style={{ background: "#fbbf24", fontWeight: "bold", textAlign: "center", padding: "1.5px", borderTop: "1px solid #000", borderBottom: "1px solid #000" }}>F. Hrs. trabajadas + Viaje / Ptos</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 1 ? "#fef08a" : "transparent" }}><span>Hrs. trab. + Viaje =&lt;12</span><span>1</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 3 ? "#fef08a" : "transparent" }}><span>Hrs. trab. + Viaje =&lt;14</span><span>3</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "1.5px 3px", background: selectedDoc.pts_horas_trabajadas === 6 ? "#fef08a" : "transparent" }}><span>Hrs. Trab. + Viaje =&lt;16</span><span>6</span></div>
-
-                  <div style={{ background: "#e5e7eb", fontWeight: "bold", textAlign: "center", borderTop: "1px solid #000", borderBottom: "1px solid #000", padding: "1.5px", fontSize: "0.78rem" }}>
-                    EVALUACIÓN DEL VIAJE
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "2px", fontSize: "0.7rem", background: "#ffffff" }}>
-                    <div>
-                      <div>A: {selectedDoc.pts_distancia || 1}</div>
-                      <div>B: {selectedDoc.pts_clima || 2}</div>
-                      <div>C: {selectedDoc.pts_vehiculos_personas || 1}</div>
-                      <div>D: {selectedDoc.pts_condiciones_via || 1}</div>
-                      <div>E: {selectedDoc.pts_comunicaciones || 0}</div>
-                      <div>F: {selectedDoc.pts_horas_trabajadas || 1}</div>
-                      <div>G: {selectedDoc.pts_hora_traslado || 1}</div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "3px", padding: "2px" }}>
-                      <strong style={{ fontSize: "0.9rem" }}>{selectedDoc.puntaje_total} pts</strong>
-                      <span style={{ padding: "1px 4px", borderRadius: "8px", color: "#fff", fontSize: "0.62rem", fontWeight: "bold", marginTop: "1px", background: selectedDoc.nivel_riesgo === 'ALTO' ? '#dc2626' : selectedDoc.nivel_riesgo === 'MEDIO' ? '#ca8a04' : '#16a34a' }}>
-                        RIESGO {selectedDoc.nivel_riesgo}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Banner Clasificación */}
-              <div style={{ background: "#fee2e2", border: "1px solid #000", borderTop: 0, textAlign: "center", fontWeight: "bold", fontSize: "0.68rem", padding: "2px" }}>
-                NOTA: DE ACUERDO AL PUNTAJE OBTENIDO SE DEBE SOLICITAR LA APROBACIÓN CORRESPONDIENTE SEGÚN LA SIGUIENTE CLASIFICACIÓN
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", border: "1px solid #000", borderTop: 0, fontSize: "0.7rem", textAlign: "center" }}>
-                <div style={{ background: "#dcfce7", padding: "4px", borderRight: "1px solid #000", border: selectedDoc.nivel_riesgo === "BAJO" ? "2px solid #000" : "none" }}>
-                  <strong>RIESGO BAJO (0 A 15 PUNTOS)</strong><br />
-                  AUTORIZA SUPERVISOR DIRECTO Y QHSE
-                </div>
-                <div style={{ background: "#fef9c3", padding: "4px", borderRight: "1px solid #000", border: selectedDoc.nivel_riesgo === "MEDIO" ? "2px solid #000" : "none" }}>
-                  <strong>RIESGO MEDIO (16 A 22 PUNTOS)</strong><br />
-                  COORDINACIONES DE AREA
-                </div>
-                <div style={{ background: "#fee2e2", padding: "4px", border: selectedDoc.nivel_riesgo === "ALTO" ? "2px solid #000" : "none" }}>
-                  <strong>RIESGO ALTO (&gt; 23 PUNTOS)</strong><br />
-                  AUTORIZA GERENCIA GENERAL
-                </div>
-              </div>
-
-              {/* FIRMAS Y AUTORIZACIONES (SOLO 1 FIRMA DE AUTORIZANTE SEGÚN NIVEL DE RIESGO) */}
-              <div style={{ border: "1px solid #000", borderTop: 0, padding: "4px" }}>
-                <div style={{ textAlign: "center", marginBottom: "6px" }}>
-                  {selectedDoc.firma_conductor ? (
-                    <img src={selectedDoc.firma_conductor} style={{ maxHeight: "36px", margin: "0 auto", display: "block" }} alt="Firma Conductor" />
-                  ) : (
-                    <div style={{ height: "30px", color: "#64748b" }}>[Sin Firma Conductor]</div>
-                  )}
-                  <div style={{ borderTop: "1px solid #000", width: "50%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.72rem" }}>
-                    {selectedDoc.nombre_conductor_firma || selectedDoc.nombre_conductor}
-                  </div>
-                  <small style={{ fontWeight: "bold", fontSize: "0.68rem" }}>CONDUCTOR</small>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", textAlign: "center" }}>
-                  {/* Columna 1: QHSE / Supervisor (Riesgo Bajo) */}
-                  <div>
-                    {selectedDoc.firma_autorizador && (selectedDoc.nivel_riesgo === "BAJO" || !selectedDoc.nivel_riesgo) ? (
-                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma QHSE" />
-                    ) : (
-                      <div style={{ height: "25px" }}></div>
-                    )}
-                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.firma_autorizador && (selectedDoc.nivel_riesgo === "BAJO" || !selectedDoc.nivel_riesgo) ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
-                    </div>
-                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>SUPERVISOR DIRECTO / QHSE</small>
-                  </div>
-
-                  {/* Columna 2: Coordinación / Autoridad de Sitio (Riesgo Medio) */}
-                  <div>
-                    {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "MEDIO" ? (
-                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Coordinador" />
-                    ) : (
-                      <div style={{ height: "25px" }}></div>
-                    )}
-                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "MEDIO" ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
-                    </div>
-                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>AUTORIDAD DE ÁREA / COORDINACIÓN</small>
-                  </div>
-
-                  {/* Columna 3: Gerente de Área (Riesgo Alto) */}
-                  <div>
-                    {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "ALTO" ? (
-                      <img src={selectedDoc.firma_autorizador} style={{ maxHeight: "32px", margin: "0 auto", display: "block" }} alt="Firma Gerente" />
-                    ) : (
-                      <div style={{ height: "25px" }}></div>
-                    )}
-                    <div style={{ borderTop: "1px solid #000", width: "75%", margin: "2px auto 1px auto", fontWeight: "bold", fontSize: "0.7rem" }}>
-                      {selectedDoc.firma_autorizador && selectedDoc.nivel_riesgo === "ALTO" ? selectedDoc.nombre_autorizador_firma : "NOMBRE Y FIRMA"}
-                    </div>
-                    <small style={{ fontSize: "0.65rem", fontWeight: "bold" }}>GERENTE DE ÁREA</small>
-                  </div>
-                </div>
-              </div>
-
-              {/* Inspección Vehicular Integrada Completa */}
-              <div style={{ marginTop: "12px", border: "1.5px solid #0284c7", borderRadius: "8px", padding: "12px", background: "#f0f9ff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
-                  <h3 style={{ margin: 0, color: "#0369a1", fontSize: "0.95rem", fontWeight: "800" }}>
-                    🚗 Inspección Vehicular Integrada
-                  </h3>
-                  {(selectedDoc.inspeccion_es_dia_siguiente || selectedDoc.es_dia_siguiente) && (
-                    <span style={{ background: "#2563eb", color: "#ffffff", padding: "4px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold" }}>
-                      🌙 Programado con 24h Anticipación (Día Siguiente 4:00 AM - 7:00 AM)
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", fontSize: "0.78rem", marginBottom: "10px", background: "#ffffff", padding: "8px", borderRadius: "6px", border: "1px solid #bae6fd" }}>
-                  <div><strong>Combustible:</strong> {selectedDoc.inspeccion_combustible || selectedDoc.combustible || "3/4"}</div>
-                  <div><strong>Estado Inspección:</strong> <span style={{ fontWeight: "bold", color: "#0284c7" }}>{selectedDoc.inspeccion_estado || selectedDoc.estado || "REGISTRADA"}</span></div>
-                  <div><strong>Fecha Operativa:</strong> {selectedDoc.inspeccion_fecha_operativa || String(selectedDoc.fecha_emision || "").split("T")[0]}</div>
-                </div>
-
-                {/* Componente de Visualizador de Daños */}
-                <div style={{ background: "#ffffff", padding: "10px", borderRadius: "6px", border: "1px solid #bae6fd", marginBottom: "10px" }}>
-                  <DamageViewer
-                    damages={selectedDoc.inspeccion_danos || {}}
-                    vehicle={selectedDoc.tipo_vehiculo || selectedDoc.numero_unidad || "Vehículo"}
-                  />
-                </div>
-
-                {/* Checklist si existe */}
-                {selectedDoc.inspeccion_checklist && typeof selectedDoc.inspeccion_checklist === 'object' && Object.keys(selectedDoc.inspeccion_checklist).length > 0 && (
-                  <div style={{ background: "#ffffff", padding: "10px", borderRadius: "6px", border: "1px solid #bae6fd", marginBottom: "10px" }}>
-                    <strong style={{ fontSize: "0.82rem", color: "#0f172a", display: "block", marginBottom: "6px" }}>📋 Checklist de Componentes Inspeccionados:</strong>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", maxHeight: "180px", overflowY: "auto", fontSize: "0.78rem" }}>
-                      {Object.entries(selectedDoc.inspeccion_checklist).map(([item, state]) => (
-                        <div key={item} style={{ display: "flex", justifyContent: "space-between", background: "#f8fafc", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
-                          <span>{item}</span>
-                          <span style={{ fontWeight: "bold", color: state === "B" ? "#166534" : state === "M" ? "#991b1b" : "#854d0e" }}>
-                            {state === "B" ? "Bueno (B)" : state === "R" ? "Regular (R)" : state === "M" ? "Malo (M)" : state}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Observaciones y Firma */}
-                {(selectedDoc.inspeccion_observaciones || selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor) && (
-                  <div style={{ background: "#ffffff", padding: "8px", borderRadius: "6px", border: "1px solid #bae6fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: "0.78rem" }}>
-                      <strong>Observaciones Inspección:</strong> {selectedDoc.inspeccion_observaciones || "Sin observaciones."}
-                    </div>
-                    {(selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor) && (
-                      <div style={{ textAlign: "center" }}>
-                        <img src={selectedDoc.inspeccion_firma_conductor || selectedDoc.firma_conductor} alt="Firma Inspección" style={{ maxHeight: "32px" }} />
-                        <small style={{ display: "block", fontSize: "0.68rem", fontWeight: "bold" }}>Firma Conductor</small>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            </div></details>
-            {/* Acciones del Modal */}
-            <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => openGerenciamientoPdfPreview(selectedDoc, true)}
-              >
-                📥 Descargar / Imprimir PDF (Hoja Carta)
-              </button>
-            </div>
-
+            <nav className="management-review-tabs" role="tablist" aria-label="Revisar gerenciamiento">
+              {[['trip','Viaje'],['inspection','Inspección'],['authorization',selectedDoc.estado==='PENDIENTE'?'Autorizar':'Resolución']].map(([id,label])=><button type="button" key={id} id={`management-${id}-tab`} role="tab" aria-selected={reviewTab===id} tabIndex={reviewTab===id?0:-1} onKeyDown={event=>{const keys=["trip","inspection","authorization"];let next;if(event.key==="ArrowRight")next=keys[(keys.indexOf(id)+1)%3];if(event.key==="ArrowLeft")next=keys[(keys.indexOf(id)+2)%3];if(next){event.preventDefault();changeReviewTab(next);document.getElementById(`management-${next}-tab`)?.focus();}}} aria-controls={`management-${id}-panel`} onClick={()=>changeReviewTab(id)}>{label}</button>)}
+            </nav>
+            <div className="management-review-body" ref={reviewBody}>
+            {reviewLoading&&<p role="status" className="management-loading">Cargando detalle completo…</p>}
+            {reviewError&&<p role="alert" className="management-note">{reviewError} <button type="button" onClick={()=>void loadData({background:true})}>Reintentar</button></p>}
+            <ManagementReviewContent key={selectedDoc.id_gerenciamiento} doc={selectedDoc} tab={reviewTab}/>
+            <section id="management-authorization-panel" role="tabpanel" aria-labelledby="management-authorization-tab" hidden={reviewTab!=='authorization'}>
             {/* Sección de Aprobación Unificada si está pendiente */}
             {selectedDoc.estado === "PENDIENTE" && selectedDoc.approval_available!==false ? (
               <div className="inspection-decision-panel">
@@ -1257,11 +872,24 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
                   <ApprovalSignature onChange={setFirmaAutorizador} />
                 </div>
 
+
+              </div>
+            ) : (
+              <div className="management-resolution">
+                <strong>{selectedDoc.approval_available===false&&selectedDoc.estado==="PENDIENTE"?"Solicitud retirada. El viaje está cancelado o ya no admite aprobación.":<>Documento {selectedDoc.estado} por {selectedDoc.nombre_autorizador_firma || "Autorizador"}</>}</strong>
+                <p>{selectedDoc.observaciones||'Sin observaciones de resolución registradas.'}</p>
+                {selectedDoc.firma_autorizador&&<img className="management-signature" src={selectedDoc.firma_autorizador} alt="Firma del autorizador"/>}
+              </div>
+            )}
+            </section>
+            </div>
+            <footer className="management-review-footer">
+              {reviewTab==='authorization'&&selectedDoc.estado==='PENDIENTE'&&selectedDoc.approval_available!==false ? (
                 <div className="inspection-decision-section form-actions inspection-decision-actions">
                   <button
                     type="button"
                     className="danger-button"
-                    disabled={approving}
+                    disabled={approving || reviewLoading || Boolean(reviewError)}
                     onClick={() => handleDecide("RECHAZADO")}
                   >
                     {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Rechazar' : 'Rechazar Viaje'}
@@ -1269,18 +897,17 @@ export default function GerenciamientoAdminPage({ user, initialStatus = "", onDe
                   <button
                     type="button"
                     className="primary-button"
-                    disabled={approving || !firmaAutorizador || !canApproveRisk(user?.rol,selectedDoc.nivel_riesgo)}
+                    disabled={approving || reviewLoading || Boolean(reviewError) || !firmaAutorizador || !canApproveRisk(user?.rol,selectedDoc.nivel_riesgo)}
                     onClick={() => handleDecide("APROBADO")}
                   >
                     {import.meta.env.VITE_SUPERVISOR_APP === 'true' ? 'Aprobar ambos' : 'Aprobar Gerenciamiento e Inspección'}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div style={{ background: selectedDoc.estado === "APROBADO" ? "#dcfce7" : "#fee2e2", padding: "12px", borderRadius: "8px", textAlign: "center", color: selectedDoc.estado === "APROBADO" ? "#166534" : "#991b1b", fontWeight: "bold" }}>
-                {selectedDoc.approval_available===false&&selectedDoc.estado==="PENDIENTE"?"Solicitud retirada. El viaje está cancelado o ya no admite aprobación.":<>Documento {selectedDoc.estado} por {selectedDoc.nombre_autorizador_firma || "Autorizador"}</>}
-              </div>
-            )}
+              ) : <>
+                {reviewTab!=='trip'&&<button type="button" className="secondary-button" onClick={()=>changeReviewTab(reviewTab==='authorization'?'inspection':'trip')}>Atrás</button>}
+                {reviewTab!=='authorization'?<button type="button" className="primary-button" onClick={()=>changeReviewTab(reviewTab==='trip'?'inspection':'authorization')}>{reviewTab==='trip'?'Revisar inspección':selectedDoc.estado==='PENDIENTE'?'Continuar a autorización':'Ver resolución'}</button>:<button type="button" className="primary-button" onClick={()=>setSelectedDoc(null)}>Cerrar revisión</button>}
+              </>}
+            </footer>
           </section>
         </div>
       )}
